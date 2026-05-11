@@ -1,0 +1,22 @@
+{
+  "topic_id": "immunology_inflammation",
+  "total_weights": {
+    "immunology_sars_cov2_immune_response": 99.836892,
+    "immunology_tumor_immune_microenvironment": 95.817209,
+    "immunology_neuroinflammation_neuroimmune": 55.300488,
+    "immunology_lymphoma_hematologic_immune": 39.743345,
+    "immunology_innate_lymphoid_mucosal_immunity": 30.860075,
+    "immunology_gut_microbiome_immune_regulation": 30.083158,
+    "immunology_inflammatory_signaling_senescence": 29.964542,
+    "immunology_t_cell_biology_checkpoints": 28.391784,
+    "immunology_hiv_immune_dysfunction": 24.102944,
+    "immunology_macrophage_myeloid_cell_biology": 21.782925,
+    "immunology_vaccine_immunogenicity": 21.730215,
+    "immunology_cytokine_interferon_signaling": 21.666913,
+    "immunology_transplant_alloimmunity": 16.077181,
+    "immunology_b_cell_humoral_immunity": 9.980538,
+    "immunology_autoimmunity_autoreactivity": 9.976333
+  },
+  "faculty_count": 465,
+  "subtopic_count": 15
+}

@@ -1,0 +1,692 @@
+{
+  "version": "subtopic_v1",
+  "generated_at": "2026-05-06T18:03:47Z",
+  "taxonomy_version": "taxonomy_v2",
+  "excluded_topics": [
+    {
+      "id": "implementation_science",
+      "reason": "clustering quality fail",
+      "activity_count": 1314
+    },
+    {
+      "id": "oral_craniofacial_health",
+      "reason": "below cold-start floor",
+      "activity_count": 25
+    }
+  ],
+  "topics": [
+    {
+      "topic_id": "cardiovascular_disease",
+      "subtopics": [
+        {
+          "id": "cardiovascular_coronary_revascularization",
+          "label": "Coronary Artery Disease and Revascularization",
+          "description": "Research on coronary artery disease management including percutaneous coronary intervention (PCI), coronary artery bypass grafting (CABG), fractional flow reserve, graft patency, multivessel disease strategies, and outcomes of coronary revascularization procedures. Includes comparisons of surgical versus percutaneous approaches, conduit selection, and perioperative outcomes.",
+          "display_name": "Coronary Artery Disease & Revascularization",
+          "short_description": "PCI, CABG, and multivessel disease strategies with comparisons of surgical versus percutaneous revascularization outcomes.",
+          "activity_count": 35,
+          "total_weight": 26.396208
+        },
+        {
+          "id": "cardiovascular_cardiac_surgery_outcomes",
+          "label": "Cardiac Surgery Outcomes and Techniques",
+          "description": "Clinical research on outcomes of cardiac surgical procedures including aortic valve replacement, mitral valve repair/replacement, aortic root and arch surgery, thoracoabdominal aortic aneurysm repair, and perioperative management. Encompasses surgical technique comparisons, sex and racial disparities in surgical outcomes, and postoperative complications.",
+          "display_name": "Cardiac Surgery Outcomes & Techniques",
+          "short_description": "Outcomes of valve repair, aortic surgery, and perioperative management, including sex and racial disparities in surgical results.",
+          "activity_count": 45,
+          "total_weight": 53.807091
+        },
+        {
+          "id": "cardiovascular_valvular_tavr",
+          "label": "Valvular Heart Disease and Transcatheter Interventions",
+          "description": "Research on valvular heart disease including transcatheter aortic valve replacement (TAVR), surgical aortic valve replacement, mitral valve interventions, tricuspid valve disease, and structural heart procedures. Covers device outcomes, imaging guidance, antithrombotic management post-TAVR, and comparisons between transcatheter and surgical approaches.",
+          "display_name": "Valvular Disease & Transcatheter Interventions",
+          "short_description": "TAVR, surgical valve replacement, and structural heart procedures with device outcomes and antithrombotic management.",
+          "activity_count": 38,
+          "total_weight": 37.469449
+        },
+        {
+          "id": "cardiovascular_arrhythmia_electrophysiology",
+          "label": "Arrhythmias and Cardiac Electrophysiology",
+          "description": "Research on cardiac arrhythmias including atrial fibrillation, ventricular arrhythmias, supraventricular tachycardia, and conduction disorders. Encompasses catheter ablation, cardiac implantable electronic devices (CIEDs), leadless pacemakers, ICD programming, antiarrhythmic pharmacotherapy, and electrophysiology procedural outcomes.",
+          "display_name": "Arrhythmias & Cardiac Electrophysiology",
+          "short_description": "Catheter ablation, implantable devices, and pharmacotherapy for atrial fibrillation, ventricular arrhythmias, and conduction disorders.",
+          "activity_count": 52,
+          "total_weight": 62.305292
+        },
+        {
+          "id": "cardiovascular_heart_failure_management",
+          "label": "Heart Failure Management and Outcomes",
+          "description": "Clinical and health services research on heart failure including pharmacological management, guideline-directed medical therapy, hospital readmissions, mechanical circulatory support, left ventricular assist devices, cardiogenic shock, and heart failure with preserved versus reduced ejection fraction. Includes studies on polypharmacy, medication adherence, and transitions of care.",
+          "display_name": "Heart Failure Management & Outcomes",
+          "short_description": "Guideline-directed therapy, mechanical circulatory support, and readmission reduction across HFpEF and HFrEF populations.",
+          "activity_count": 62,
+          "total_weight": 72.780615
+        },
+        {
+          "id": "cardiovascular_cardiac_imaging_diagnostics",
+          "label": "Cardiac Imaging and Diagnostic Technologies",
+          "description": "Research on cardiac imaging modalities including echocardiography, cardiac MRI, cardiac CT, transesophageal echocardiography, nuclear imaging, and quantitative susceptibility mapping. Covers applications in structural heart disease assessment, strain analysis, right and left ventricular function quantification, and intraoperative guidance.",
+          "display_name": "Cardiac Imaging & Diagnostic Technologies",
+          "short_description": "Echocardiography, cardiac MRI, CT, and nuclear imaging for structural assessment, ventricular function, and intraoperative guidance.",
+          "activity_count": 41,
+          "total_weight": 38.144134
+        },
+        {
+          "id": "cardiovascular_stroke_cerebrovascular",
+          "label": "Stroke and Cerebrovascular Disease",
+          "description": "Clinical research on ischemic stroke, hemorrhagic stroke, transient ischemic attack, and cerebrovascular conditions including stroke mechanisms, risk factors, antiplatelet and anticoagulation therapy, atrial fibrillation-related stroke, cryptogenic stroke, and stroke outcomes. Encompasses epidemiology, disparities, and secondary prevention strategies.",
+          "display_name": "Stroke & Cerebrovascular Disease",
+          "short_description": "Ischemic and hemorrhagic stroke mechanisms, anticoagulation strategies, AF-related stroke, and secondary prevention disparities.",
+          "activity_count": 59,
+          "total_weight": 37.069048
+        },
+        {
+          "id": "cardiovascular_hypertension_management",
+          "label": "Hypertension Epidemiology and Management",
+          "description": "Research on hypertension including blood pressure control, antihypertensive therapy, hypertensive urgency and emergency, community-based interventions, and hypertension in special populations such as pregnancy, HIV, and low-income countries. Covers global hypertension epidemiology, social determinants, and novel therapeutic approaches including renal denervation.",
+          "display_name": "Hypertension Epidemiology & Management",
+          "short_description": "Blood pressure control, antihypertensive therapy, and community-based interventions across diverse and high-risk populations.",
+          "activity_count": 47,
+          "total_weight": 27.250961
+        },
+        {
+          "id": "cardiovascular_pulmonary_embolism_vascular",
+          "label": "Pulmonary Embolism and Venous Thromboembolism",
+          "description": "Research on pulmonary embolism and venous thromboembolism including catheter-directed thrombolysis, mechanical thrombectomy, anticoagulation strategies, risk stratification, and outcomes. Covers epidemiology of PE, clot-in-transit, chronic thromboembolic pulmonary hypertension, and management of intermediate and high-risk PE.",
+          "display_name": "Pulmonary Embolism & Venous Thromboembolism",
+          "short_description": "Anticoagulation, catheter-directed thrombolysis, and risk stratification for PE and chronic thromboembolic pulmonary hypertension.",
+          "activity_count": 24,
+          "total_weight": 7.604975
+        },
+        {
+          "id": "cardiovascular_aortic_vascular_surgery",
+          "label": "Aortic and Peripheral Vascular Surgery",
+          "description": "Research on aortic aneurysm repair (open and endovascular), aortic dissection management, thoracic endovascular aortic repair (TEVAR), peripheral arterial disease revascularization, and vascular surgery outcomes. Includes sex disparities in vascular outcomes, device surveillance, and limb ischemia management.",
+          "display_name": "Aortic & Peripheral Vascular Surgery",
+          "short_description": "Open and endovascular aortic repair, aortic dissection, peripheral arterial revascularization, and vascular surgery outcomes.",
+          "activity_count": 53,
+          "total_weight": 44.380948
+        },
+        {
+          "id": "cardiovascular_heart_failure_home_care",
+          "label": "Heart Failure Home Care and Patient-Centered Outcomes",
+          "description": "Research on home health care for heart failure patients including home health aide training, transitions of care, patient self-care, shared decision-making, and social determinants of health affecting heart failure outcomes. Covers readmission prevention, medication management, and community-based care models.",
+          "display_name": "Heart Failure Home Care & Self-Management",
+          "short_description": "Transitions of care, patient self-management, shared decision-making, and community-based models to reduce heart failure readmissions.",
+          "activity_count": 12,
+          "total_weight": 5.592741
+        },
+        {
+          "id": "cardiovascular_social_determinants_disparities",
+          "label": "Social Determinants of Health and Cardiovascular Disparities",
+          "description": "Research examining social determinants of health, racial and ethnic disparities, and socioeconomic factors in cardiovascular disease outcomes including heart failure, coronary heart disease, stroke, and hypertension. Covers healthcare fragmentation, access to care, and community-based interventions to reduce cardiovascular health disparities.",
+          "display_name": "Social Determinants & Cardiovascular Disparities",
+          "short_description": "Racial, ethnic, and socioeconomic disparities in cardiovascular outcomes, healthcare access, and community-based equity interventions.",
+          "activity_count": 45,
+          "total_weight": 35.644751
+        },
+        {
+          "id": "cardiovascular_basic_cardiac_biology",
+          "label": "Basic Cardiovascular Biology and Cardiac Regeneration",
+          "description": "Fundamental research on cardiac biology including cardiomyocyte regeneration, cardiac development, zebrafish heart models, iPSC-derived cardiomyocytes, endothelial biology, sphingolipid signaling, and molecular mechanisms of cardiac disease. Encompasses epigenetics, transcription factors, mitochondrial function, and vascular biology.",
+          "display_name": "Basic Cardiovascular Biology & Regeneration",
+          "short_description": "Cardiomyocyte regeneration, iPSC models, endothelial biology, and molecular mechanisms of cardiac development and disease.",
+          "activity_count": 46,
+          "total_weight": 26.143045
+        },
+        {
+          "id": "cardiovascular_cardio_oncology",
+          "label": "Cardio-Oncology and Cancer-Related Cardiovascular Disease",
+          "description": "Research on cardiovascular complications of cancer and cancer therapy including chemotherapy-induced cardiotoxicity, cancer-associated thromboembolism, cardiac tumors, radiation-induced cardiovascular disease, and cardiovascular management in cancer patients. Covers immune checkpoint inhibitor myocarditis, doxorubicin cardiotoxicity, and cancer-related stroke.",
+          "display_name": "Cardio-Oncology & Cancer-Related Cardiac Disease",
+          "short_description": "Chemotherapy cardiotoxicity, checkpoint inhibitor myocarditis, radiation-induced cardiovascular disease, and cancer-associated thromboembolism.",
+          "activity_count": 22,
+          "total_weight": 12.966095
+        },
+        {
+          "id": "cardiovascular_takotsubo_syndrome",
+          "label": "Takotsubo Syndrome: Epidemiology, Outcomes, and Management",
+          "description": "Research on Takotsubo (stress) cardiomyopathy covering clinical characteristics, ECG and imaging features, comparison with STEMI, recurrence, beta-blocker therapy, and short- and long-term outcomes.",
+          "display_name": "Takotsubo Syndrome & Stress Cardiomyopathy",
+          "short_description": "Clinical features, imaging, recurrence risk, and short- and long-term outcomes of stress-induced Takotsubo cardiomyopathy.",
+          "activity_count": 11,
+          "total_weight": 6.708863
+        },
+        {
+          "id": "cardiovascular_cabg_techniques_outcomes",
+          "label": "Coronary Artery Bypass Grafting: Techniques, Grafts, and Outcomes",
+          "description": "Studies examining CABG surgical techniques including arterial and venous grafting strategies, graft patency, operative outcomes by sex and comorbidity, and quality-of-life measures after bypass surgery.",
+          "display_name": "CABG Techniques, Grafts & Outcomes",
+          "short_description": "Arterial and venous grafting strategies, graft patency, operative outcomes by sex and comorbidity, and post-bypass quality of life.",
+          "activity_count": 35,
+          "total_weight": 30.279076
+        },
+        {
+          "id": "cardiovascular_stemi_pci_outcomes",
+          "label": "STEMI Management, Primary PCI, and Myocardial Infarction Outcomes",
+          "description": "Research on ST-elevation myocardial infarction management including primary PCI timing, infarct size, microvascular obstruction, supersaturated oxygen therapy, antiplatelet strategies, and temporal trends in MI outcomes.",
+          "display_name": "STEMI & Primary PCI Outcomes",
+          "short_description": "Primary PCI timing, infarct size, microvascular obstruction, antiplatelet strategies, and temporal trends in myocardial infarction outcomes.",
+          "activity_count": 30,
+          "total_weight": 23.022732
+        },
+        {
+          "id": "cardiovascular_heart_transplant_outcomes",
+          "label": "Heart Transplantation Outcomes and Complications",
+          "description": "Studies on heart transplantation covering graft dysfunction, allograft vasculopathy, rejection, donor factors, recipient characteristics, post-transplant weight gain, and long-term survival outcomes.",
+          "display_name": "Heart Transplantation Outcomes & Complications",
+          "short_description": "Graft dysfunction, allograft vasculopathy, rejection, donor and recipient factors, and long-term survival after heart transplantation.",
+          "activity_count": 10,
+          "total_weight": 3.314216
+        },
+        {
+          "id": "cardiovascular_hiv_cardiovascular",
+          "label": "HIV and Cardiovascular Disease Risk and Outcomes",
+          "description": "Research examining cardiovascular complications in people living with HIV, including hypertension, diastolic dysfunction, arterial stiffness, lipid abnormalities, autonomic dysfunction, and the impact of antiretroviral therapy on cardiovascular risk.",
+          "display_name": "HIV & Cardiovascular Risk",
+          "short_description": "Hypertension, arterial stiffness, diastolic dysfunction, and antiretroviral therapy effects on cardiovascular risk in people living with HIV.",
+          "activity_count": 17,
+          "total_weight": 9.607411
+        },
+        {
+          "id": "cardiovascular_covid19_cardiovascular",
+          "label": "COVID-19 and Cardiovascular Complications",
+          "description": "Studies on cardiovascular manifestations of COVID-19 including myocardial injury, troponin elevation, arrhythmias, thrombotic events, right ventricular dysfunction, myocarditis, and outcomes in hospitalized patients.",
+          "display_name": "COVID-19 Cardiovascular Complications",
+          "short_description": "Myocardial injury, arrhythmias, thrombotic events, myocarditis, and right ventricular dysfunction in hospitalized COVID-19 patients.",
+          "activity_count": 31,
+          "total_weight": 40.685939
+        },
+        {
+          "id": "cardiovascular_long_covid_pasc",
+          "label": "Long COVID and Post-Acute Sequelae of SARS-CoV-2",
+          "description": "Research characterizing post-acute sequelae of SARS-CoV-2 infection (PASC/Long COVID), including risk factor identification, subphenotyping, environmental determinants, and burden of respiratory and cardiovascular conditions using EHR-based cohort studies.",
+          "display_name": "Long COVID & Post-Acute Cardiovascular Sequelae",
+          "short_description": "Risk factors, subphenotypes, and cardiovascular and respiratory burden of PASC using large EHR-based cohort studies.",
+          "activity_count": 6,
+          "total_weight": 6.990148
+        },
+        {
+          "id": "cardiovascular_ckd_cardiorenal",
+          "label": "Chronic Kidney Disease and Cardiorenal Interactions",
+          "description": "Studies on the intersection of chronic kidney disease and cardiovascular disease, including iron status, FGF23, serotonin, klotho, pulmonary hypertension screening, cardiac biomarkers, and outcomes in CKD patients.",
+          "display_name": "Chronic Kidney Disease & Cardiorenal Interactions",
+          "short_description": "FGF23, klotho, iron status, and cardiac biomarkers linking chronic kidney disease to cardiovascular outcomes and pulmonary hypertension.",
+          "activity_count": 15,
+          "total_weight": 4.572179
+        },
+        {
+          "id": "cardiovascular_diabetes_cardiometabolic",
+          "label": "Diabetes, Metabolic Syndrome, and Cardiovascular Risk",
+          "description": "Research on the cardiovascular implications of diabetes and metabolic syndrome, including glycemic control, prediabetes subclassification, autonomic neuropathy, lipid dysregulation, obesity, and risk factor management in diabetic patients.",
+          "display_name": "Diabetes, Metabolic Syndrome & Cardiac Risk",
+          "short_description": "Glycemic control, autonomic neuropathy, lipid dysregulation, and obesity as cardiovascular risk factors in diabetic patients.",
+          "activity_count": 29,
+          "total_weight": 8.640349
+        },
+        {
+          "id": "cardiovascular_stroke_risk_factors_secondary_prevention",
+          "label": "Stroke Risk Factors, Secondary Prevention, and Smoking Cessation",
+          "description": "Studies on modifiable risk factors for stroke including smoking cessation interventions, antiplatelet therapy, anticoagulation, and secondary prevention strategies after ischemic stroke and TIA.",
+          "display_name": "Stroke Risk Factors & Secondary Prevention",
+          "short_description": "Smoking cessation, antiplatelet therapy, anticoagulation, and secondary prevention strategies after ischemic stroke and TIA.",
+          "activity_count": 11,
+          "total_weight": 5.297209
+        },
+        {
+          "id": "cardiovascular_hypothalamic_hypertension_neurobiology",
+          "label": "Hypothalamic Neurobiology and Neurogenic Hypertension",
+          "description": "Basic science research on the role of hypothalamic paraventricular nucleus signaling, including angiotensin II, TNF-alpha, estrogen receptors, and NMDA/AMPA glutamate receptors in the neurogenic regulation of blood pressure.",
+          "display_name": "Hypothalamic Neurobiology & Neurogenic Hypertension",
+          "short_description": "Paraventricular nucleus signaling via angiotensin II, TNF-alpha, and glutamate receptors in the neurogenic regulation of blood pressure.",
+          "activity_count": 9,
+          "total_weight": 6.061039
+        },
+        {
+          "id": "cardiovascular_rheumatoid_arthritis_cvd",
+          "label": "Rheumatoid Arthritis and Cardiovascular Disease",
+          "description": "Research on cardiovascular risk in patients with rheumatoid arthritis and inflammatory arthritis, including hyperlipidemia screening, CVD risk prediction, dementia risk, and behavioral interventions to reduce cardiovascular risk.",
+          "display_name": "Rheumatoid Arthritis & Cardiovascular Risk",
+          "short_description": "CVD risk prediction, hyperlipidemia screening, and behavioral interventions for cardiovascular risk reduction in inflammatory arthritis.",
+          "activity_count": 7,
+          "total_weight": 2.953962
+        },
+        {
+          "id": "cardiovascular_sex_disparities_outcomes",
+          "label": "Sex and Gender Disparities in Cardiovascular Outcomes",
+          "description": "Studies examining sex-based differences in cardiovascular disease presentation, treatment, and outcomes including STEMI revascularization, cardiac surgery, cardiogenic shock, cardiac arrest readmission, and patient-physician concordance.",
+          "display_name": "Sex & Gender Disparities in Cardiovascular Care",
+          "short_description": "Sex-based differences in cardiovascular presentation, treatment access, and outcomes across STEMI, cardiac surgery, and cardiogenic shock.",
+          "activity_count": 9,
+          "total_weight": 16.979713
+        },
+        {
+          "id": "cardiovascular_mitochondrial_ischemia_cardioprotection",
+          "label": "Mitochondrial Biology, Ischemia-Reperfusion, and Cardioprotection",
+          "description": "Basic and translational research on mitochondrial function in cardiac ischemia-reperfusion injury, including reactive oxygen species production, ischemic preconditioning, complex I biology, and metabolic remodeling in cardiomyopathy models.",
+          "display_name": "Mitochondrial Biology & Cardioprotection",
+          "short_description": "Mitochondrial ROS, ischemic preconditioning, complex I biology, and metabolic remodeling in cardiac ischemia-reperfusion injury.",
+          "activity_count": 10,
+          "total_weight": 3.265025
+        }
+      ]
+    },
+    {
+      "topic_id": "neuroscience_neurology",
+      "subtopics": [
+        {
+          "id": "neuroscience_stroke_cerebrovascular",
+          "label": "Stroke and Cerebrovascular Disease",
+          "description": "Research on ischemic and hemorrhagic stroke including mechanisms, risk factors, diagnosis, treatment (thrombolysis, thrombectomy, anticoagulation), outcomes, disparities, and secondary prevention. Covers atrial fibrillation, cervical artery dissection, subarachnoid hemorrhage, cerebral amyloid angiopathy, and cerebrovascular imaging biomarkers.",
+          "display_name": "Stroke & Cerebrovascular Disease",
+          "short_description": "Mechanisms, treatment, outcomes, and prevention of ischemic and hemorrhagic stroke and cerebrovascular conditions.",
+          "activity_count": 88,
+          "total_weight": 86.956266
+        },
+        {
+          "id": "neuroscience_epilepsy_seizure",
+          "label": "Epilepsy and Seizure Disorders",
+          "description": "Research on epilepsy diagnosis, seizure mechanisms, treatment (antiseizure medications, vagal nerve stimulation, surgery), EEG monitoring, infantile spasms, status epilepticus, and epilepsy care systems. Includes pediatric epilepsy, rare epilepsies, glucose transporter deficiency, and seizure detection technologies.",
+          "display_name": "Epilepsy & Seizure Disorders",
+          "short_description": "Diagnosis, seizure mechanisms, pharmacological and surgical treatment, and monitoring of epilepsy across the lifespan.",
+          "activity_count": 44,
+          "total_weight": 19.613808
+        },
+        {
+          "id": "neuroscience_brain_injury_neurorehabilitation",
+          "label": "Brain Injury and Neurorehabilitation",
+          "description": "Research on traumatic brain injury (TBI), acquired brain injury, disorders of consciousness, and neurorehabilitation including cognitive recovery, functional outcomes, assistive technology, and neuromodulation for recovery. Covers pediatric TBI, cognitive-motor dissociation, deep brain stimulation for TBI, and rehabilitation interventions.",
+          "display_name": "Brain Injury & Neurorehabilitation",
+          "short_description": "Traumatic and acquired brain injury, disorders of consciousness, and cognitive-functional recovery through rehabilitation.",
+          "activity_count": 53,
+          "total_weight": 42.836437
+        },
+        {
+          "id": "neuroscience_neuroimaging_mri",
+          "label": "Neuroimaging Methods and Brain MRI",
+          "description": "Research on advanced neuroimaging techniques including quantitative susceptibility mapping (QSM), oxygen extraction fraction mapping, arterial spin labeling, fMRI methods, diffusion imaging, and brain PET. Covers technical development, validation, and clinical application of MRI-based biomarkers for neurological and psychiatric conditions.",
+          "display_name": "Advanced Neuroimaging & MRI Methods",
+          "short_description": "Quantitative MRI, fMRI, diffusion, and PET techniques for biomarker development and clinical neurological applications.",
+          "activity_count": 62,
+          "total_weight": 36.700272
+        },
+        {
+          "id": "neuroscience_corneal_confocal_neuropathy",
+          "label": "Corneal Confocal Microscopy and Peripheral Neuropathy",
+          "description": "Research using corneal confocal microscopy (CCM) as a non-invasive biomarker for peripheral neuropathy, neurodegeneration, and systemic diseases including diabetic neuropathy, multiple sclerosis, Parkinson's disease, and stroke. Covers corneal nerve fiber loss quantification, Langerhans cells, and CCM as a surrogate marker for central and peripheral nervous system pathology.",
+          "display_name": "Corneal Confocal Microscopy & Neuropathy",
+          "short_description": "Non-invasive corneal nerve imaging as a biomarker for peripheral neuropathy and systemic neurological disease.",
+          "activity_count": 56,
+          "total_weight": 24.470255
+        },
+        {
+          "id": "neuroscience_multiple_sclerosis",
+          "label": "Multiple Sclerosis: Imaging, Biomarkers, and Treatment",
+          "description": "Research on multiple sclerosis including MRI-based lesion characterization (paramagnetic rim lesions, QSM), functional and structural connectivity, corneal nerve biomarkers, disease-modifying therapies (natalizumab), and clinical outcomes. Covers demyelination mechanisms, white matter pathology, and treatment effectiveness across diverse populations.",
+          "display_name": "Multiple Sclerosis Imaging & Treatment",
+          "short_description": "MRI lesion characterization, corneal biomarkers, disease-modifying therapies, and clinical outcomes in multiple sclerosis.",
+          "activity_count": 23,
+          "total_weight": 25.330199
+        },
+        {
+          "id": "neuroscience_synaptic_ion_channel",
+          "label": "Synaptic Biology and Ion Channel Physiology",
+          "description": "Research on molecular mechanisms of synaptic transmission, vesicle release, and ion channel function including SNARE proteins, Munc13/Munc18, complexin, alpha-synuclein, metabotropic glutamate receptors, potassium channels (BK, K2P, HCN), sodium channels, and glutamate transporters. Covers structural biology, electrophysiology, and pharmacology of synaptic and membrane proteins.",
+          "display_name": "Synaptic Biology & Ion Channel Physiology",
+          "short_description": "Molecular mechanisms of synaptic transmission, vesicle release, and ion channel structure, function, and pharmacology.",
+          "activity_count": 65,
+          "total_weight": 31.539292
+        },
+        {
+          "id": "neuroscience_neuroinflammation_microglia",
+          "label": "Neuroinflammation, Microglia, and Neuroimmunology",
+          "description": "Research on neuroinflammation mechanisms including microglial function, tau-driven neuroinflammation, blood-brain barrier dysfunction, neuroimmune interactions, and inflammatory pathways in neurological diseases. Covers microglial NF-κB signaling, cGAS-IFN pathways, CD36, border-associated macrophages, and immune cell trafficking in stroke and neurodegeneration.",
+          "display_name": "Neuroinflammation, Microglia & Neuroimmunology",
+          "short_description": "Microglial signaling, blood-brain barrier dysfunction, and neuroimmune interactions in stroke and neurological disease.",
+          "activity_count": 27,
+          "total_weight": 21.774677
+        },
+        {
+          "id": "neuroscience_headache_pain",
+          "label": "Headache Disorders and Pain Neuroscience",
+          "description": "Research on headache disorders including migraine, occipital neuralgia, nerve compression headaches, and surgical treatment (nerve decompression). Covers CGRP-targeted therapies, onabotulinumtoxinA, headache surgery outcomes, trigger-site deactivation, and neuropathic pain mechanisms and treatment.",
+          "display_name": "Headache Disorders & Pain Neuroscience",
+          "short_description": "Migraine, neuropathic pain, CGRP-targeted therapies, and surgical nerve decompression for headache disorders.",
+          "activity_count": 37,
+          "total_weight": 12.667803
+        },
+        {
+          "id": "neuroscience_neural_circuits_cognition",
+          "label": "Neural Circuits, Cognition, and Memory",
+          "description": "Research on neural circuit mechanisms underlying cognition, memory, learning, and behavior including hippocampal function, prefrontal cortex circuits, synaptic plasticity, and neuromodulation. Covers mnemonic prediction errors, fear learning, social behavior circuits, reward pathways, and the neural basis of cognitive processes.",
+          "display_name": "Neural Circuits, Cognition & Memory",
+          "short_description": "Circuit mechanisms underlying memory, learning, fear, reward, and social behavior in hippocampal and prefrontal systems.",
+          "activity_count": 65,
+          "total_weight": 35.770309
+        },
+        {
+          "id": "neuroscience_neurodevelopment_genetics",
+          "label": "Neurodevelopment, Neurogenetics, and Single-Cell Genomics",
+          "description": "Research on brain development, neurogenetics, and single-cell genomic approaches including RNA splicing, isoform analysis, epigenomics, and transcriptomics in brain cell types. Covers neural stem cells, cortical development, interneuron differentiation, and genetic/epigenetic regulation of brain function and disease.",
+          "display_name": "Neurodevelopment, Genetics & Single-Cell Genomics",
+          "short_description": "Brain development, neurogenetics, and single-cell transcriptomic and epigenomic regulation of neural cell types.",
+          "activity_count": 33,
+          "total_weight": 19.432131
+        },
+        {
+          "id": "neuroscience_neurovascular_bbb",
+          "label": "Neurovascular Unit and Blood-Brain Barrier",
+          "description": "Research on blood-brain barrier structure and function, neurovascular coupling, glymphatic system, and cerebrovascular biology. Covers BBB permeability measurement, focused ultrasound BBB opening, pericyte biology, endothelial dysfunction, and neurovascular mechanisms in Alzheimer's disease, stroke, and other neurological conditions.",
+          "display_name": "Neurovascular Unit & Blood-Brain Barrier",
+          "short_description": "BBB permeability, neurovascular coupling, glymphatic function, and pericyte biology in neurological conditions.",
+          "activity_count": 19,
+          "total_weight": 11.435517
+        },
+        {
+          "id": "neuroscience_movement_disorders_dbs",
+          "label": "Movement Disorders and Neuromodulation",
+          "description": "Research on Parkinson's disease, movement disorders, and neuromodulation including deep brain stimulation (DBS), spinal cord stimulation, transcranial magnetic stimulation (TMS), and focused ultrasound. Covers DBS programming, patient attitudes toward DBS, motor circuit mechanisms, and wearable technology for movement disorder monitoring.",
+          "display_name": "Movement Disorders & Neuromodulation",
+          "short_description": "Deep brain stimulation, TMS, focused ultrasound, and wearable monitoring for Parkinson's and movement disorders.",
+          "activity_count": 27,
+          "total_weight": 15.704407
+        },
+        {
+          "id": "neuroscience_alzheimer_biomarkers",
+          "label": "Alzheimer's Disease Biomarkers and Neuroimaging",
+          "description": "Research on Alzheimer's disease biomarkers including amyloid-beta, tau PET, CSF markers, glymphatic clearance, and neuroimaging measures of disease progression. Covers tau-amyloid interactions, blood-brain barrier dysfunction in AD, sleep and tau deposition, choroid plexus, and multimodal imaging approaches for early detection and staging.",
+          "display_name": "Alzheimer's Disease Biomarkers & Neuroimaging",
+          "short_description": "Amyloid, tau PET, CSF markers, and multimodal imaging for early detection and staging of Alzheimer's disease.",
+          "activity_count": 29,
+          "total_weight": 16.545303
+        },
+        {
+          "id": "neuroscience_spinal_cord_spine",
+          "label": "Spinal Cord Injury and Spine Surgery",
+          "description": "Research on traumatic spinal cord injury, degenerative spine disease, and spine surgery outcomes including cervical myelopathy, lumbar disc disease, and spinal cord tumors. Covers surgical techniques, neurological outcomes, global health perspectives on spinal trauma, and complications of spine surgery.",
+          "display_name": "Spinal Cord Injury & Spine Surgery",
+          "short_description": "Traumatic spinal cord injury, degenerative spine disease, surgical outcomes, and global perspectives on spinal trauma.",
+          "activity_count": 35,
+          "total_weight": 8.419754
+        },
+        {
+          "id": "neuroscience_late_life_depression_psychiatry",
+          "label": "Late-Life Depression, Mood Disorders, and Psychiatric Neuroscience",
+          "description": "Research on the neurobiology, neuroimaging correlates, and treatment of late-life depression, bipolar disorder, PTSD, and related mood disorders, including psychotherapy outcomes and brain circuit dysfunction.",
+          "display_name": "Late-Life Depression & Mood Disorders",
+          "short_description": "Neurobiology, neuroimaging, and treatment of late-life depression, bipolar disorder, PTSD, and related mood disorders.",
+          "activity_count": 26,
+          "total_weight": 19.182377
+        },
+        {
+          "id": "neuroscience_covid19_neurological",
+          "label": "COVID-19 Neurological Complications and Long COVID",
+          "description": "Studies examining neurological manifestations of COVID-19 infection, including brain imaging findings, cognitive sequelae, long COVID symptoms, post-acute sequelae (PASC), and rehabilitation of neuropsychiatric complications.",
+          "display_name": "COVID-19 Neurological Complications & Long COVID",
+          "short_description": "Brain imaging findings, cognitive sequelae, and neuropsychiatric rehabilitation in acute and post-acute COVID-19.",
+          "activity_count": 32,
+          "total_weight": 33.984951
+        },
+        {
+          "id": "neuroscience_skull_base_surgery",
+          "label": "Skull Base Surgery and Cranial Approaches",
+          "description": "Research on surgical approaches to the skull base, cavernous sinus, craniovertebral junction, and parasellar regions, including endoscopic, transpetrosal, frontotemporal, and far lateral techniques.",
+          "display_name": "Skull Base Surgery & Cranial Approaches",
+          "short_description": "Endoscopic and open surgical approaches to the skull base, cavernous sinus, and craniovertebral junction.",
+          "activity_count": 15,
+          "total_weight": 6.530291
+        },
+        {
+          "id": "neuroscience_meningioma_pet_mri",
+          "label": "Meningioma: PET/MRI Imaging and Treatment",
+          "description": "Studies using DOTATATE PET/MRI for meningioma diagnosis, grading, radiosurgery planning, and response assessment, as well as novel medical therapies for meningiomas.",
+          "display_name": "Meningioma PET/MRI Imaging & Treatment",
+          "short_description": "DOTATATE PET/MRI for meningioma diagnosis, radiosurgery planning, response assessment, and novel medical therapies.",
+          "activity_count": 8,
+          "total_weight": 4.346766
+        },
+        {
+          "id": "neuroscience_pediatric_brain_tumors",
+          "label": "Pediatric Brain Tumors and CNS Gliomas",
+          "description": "Research on pediatric brain tumors including DIPG, high-grade gliomas, ATRT, and leptomeningeal disease, encompassing convection-enhanced delivery, intraarterial drug delivery, and molecular classification.",
+          "display_name": "Pediatric Brain Tumors & CNS Gliomas",
+          "short_description": "DIPG, high-grade gliomas, and pediatric CNS tumors including convection-enhanced and intraarterial drug delivery.",
+          "activity_count": 11,
+          "total_weight": 2.23563
+        },
+        {
+          "id": "neuroscience_cns_gene_therapy",
+          "label": "CNS Gene Therapy and AAV Vector Delivery",
+          "description": "Studies on adeno-associated virus (AAV)-mediated gene therapy for neurological diseases including CLN2 Batten disease, metachromatic leukodystrophy, and SMA, including biodistribution, safety, and efficacy outcomes.",
+          "display_name": "CNS Gene Therapy & AAV Vector Delivery",
+          "short_description": "AAV-mediated gene therapy for Batten disease, leukodystrophy, and SMA, including safety and biodistribution outcomes.",
+          "activity_count": 6,
+          "total_weight": 4.469294
+        },
+        {
+          "id": "neuroscience_delirium_pediatric_icu",
+          "label": "Delirium in Pediatric and Critical Care Settings",
+          "description": "Research on the prevalence, risk factors, biomarkers, and outcomes of delirium in pediatric ICU, NICU, and hematopoietic cell transplant settings, including pharmacological prevention strategies.",
+          "display_name": "Delirium in Pediatric & Critical Care",
+          "short_description": "Prevalence, biomarkers, risk factors, and pharmacological prevention of delirium in pediatric ICU and NICU settings.",
+          "activity_count": 9,
+          "total_weight": 2.031123
+        },
+        {
+          "id": "neuroscience_stroke_diagnosis_quality",
+          "label": "Stroke Diagnosis, Misdiagnosis, and Quality of Care",
+          "description": "Studies examining diagnostic accuracy, misdiagnosis rates, quality metrics, and healthcare disparities in acute ischemic stroke and TIA management in emergency and inpatient settings.",
+          "display_name": "Stroke Diagnosis, Misdiagnosis & Care Quality",
+          "short_description": "Diagnostic accuracy, misdiagnosis rates, quality metrics, and healthcare disparities in acute stroke and TIA management.",
+          "activity_count": 26,
+          "total_weight": 21.16982
+        },
+        {
+          "id": "neuroscience_ischemic_stroke_mechanisms",
+          "label": "Ischemic Stroke Mechanisms, Imaging, and Outcomes",
+          "description": "Research on the pathophysiology, neuroimaging biomarkers (OEF, QSM, retinal vessels), cardioembolic sources, and clinical outcomes of ischemic stroke and cerebrovascular events.",
+          "display_name": "Ischemic Stroke Mechanisms & Outcomes",
+          "short_description": "Pathophysiology, neuroimaging biomarkers, cardioembolic sources, and clinical outcomes of ischemic cerebrovascular events.",
+          "activity_count": 21,
+          "total_weight": 21.389569
+        },
+        {
+          "id": "neuroscience_dysphagia_voice_disorders",
+          "label": "Dysphagia, Voice Disorders, and Swallowing Neuroscience",
+          "description": "Studies on swallowing dysfunction, aspiration, post-swallow residue, respiratory-swallow coordination, and laryngeal motor neuropathy in neurological conditions including Parkinson's disease.",
+          "display_name": "Dysphagia, Voice & Swallowing Neuroscience",
+          "short_description": "Swallowing dysfunction, aspiration, respiratory-swallow coordination, and laryngeal neuropathy in neurological disease.",
+          "activity_count": 6,
+          "total_weight": 0.624402
+        },
+        {
+          "id": "neuroscience_breast_reconstruction_reinnervation",
+          "label": "Breast Reconstruction Sensory Reinnervation",
+          "description": "Research on targeted nipple-areola complex reinnervation and sensory recovery following mastectomy and breast reconstruction, including gender-affirming surgery and comparison of reconstructive techniques.",
+          "display_name": "Breast Reconstruction Sensory Reinnervation",
+          "short_description": "Targeted nipple-areola reinnervation and sensory recovery following mastectomy and gender-affirming reconstruction.",
+          "activity_count": 12,
+          "total_weight": 1.4934
+        },
+        {
+          "id": "neuroscience_hiv_neurocognitive",
+          "label": "HIV-Associated Neurocognitive Disorders",
+          "description": "Studies on cognitive impairment, brain abnormalities, biomarkers, and neuropathology in people living with HIV, including CSF compartmentalization, galectin-9, and cellular rejuvenation strategies.",
+          "display_name": "HIV-Associated Neurocognitive Disorders",
+          "short_description": "Cognitive impairment, brain biomarkers, CSF compartmentalization, and neuropathology in people living with HIV.",
+          "activity_count": 8,
+          "total_weight": 2.621461
+        },
+        {
+          "id": "neuroscience_neuroimmunology_ilc",
+          "label": "Neuroimmunology and Innate Lymphoid Cell Biology",
+          "description": "Research on innate lymphoid cells (ILCs), neuropeptide regulation of mucosal immunity, gut-brain immune interactions, and the role of ILC3s in neuroinflammation and tissue protection.",
+          "display_name": "Neuroimmunology & Innate Lymphoid Cell Biology",
+          "short_description": "Innate lymphoid cells, neuropeptide-mediated mucosal immunity, and gut-brain immune interactions in neuroinflammation.",
+          "activity_count": 10,
+          "total_weight": 5.215617
+        },
+        {
+          "id": "neuroscience_neurosteroids_reproductive",
+          "label": "Neurosteroids, Reproductive Hormones, and Mood",
+          "description": "Studies on allopregnanolone, progesterone metabolites, and neuroactive steroids in perinatal anxiety, postpartum depression, and reproductive mood disorders, including estrogen receptor biology.",
+          "display_name": "Neurosteroids, Hormones & Reproductive Mood",
+          "short_description": "Allopregnanolone and neuroactive steroids in perinatal anxiety, postpartum depression, and reproductive mood disorders.",
+          "activity_count": 9,
+          "total_weight": 4.341026
+        },
+        {
+          "id": "neuroscience_neurosurgery_education_technology",
+          "label": "Neurosurgical Education, Simulation, and Assistive Technology",
+          "description": "Research on surgical training methods including augmented reality, virtual reality, 3D neuroanatomy courses, and assistive technology access for patients with brain injury and cognitive impairment.",
+          "display_name": "Neurosurgical Education & Simulation Technology",
+          "short_description": "Augmented reality, virtual reality, and 3D simulation tools for surgical training and patient assistive technology access.",
+          "activity_count": 6,
+          "total_weight": 1.401359
+        }
+      ]
+    },
+    {
+      "topic_id": "infectious_disease_immunology",
+      "subtopics": [
+        {
+          "id": "infectious_covid19_clinical_outcomes",
+          "label": "COVID-19 Clinical Outcomes, Severity, and Hospitalization",
+          "description": "Research on clinical characteristics, risk factors, severity predictors, and outcomes of hospitalized COVID-19 patients, including comorbidity effects (diabetes, obesity, cancer, heart failure), viral load correlates, and mortality risk stratification.",
+          "display_name": "COVID-19 Severity & Clinical Outcomes",
+          "short_description": "Risk factors, comorbidity effects, and mortality stratification in hospitalized COVID-19 patients.",
+          "activity_count": 160,
+          "total_weight": 134.597521
+        },
+        {
+          "id": "infectious_sars_cov2_immunology_vaccines",
+          "label": "SARS-CoV-2 Immunology, Antibody Responses, and Vaccine Effectiveness",
+          "description": "Studies on immune responses to SARS-CoV-2 infection and vaccination, including antibody kinetics, neutralizing antibody development, vaccine effectiveness against variants, waning immunity, hybrid immunity, and breakthrough infections.",
+          "display_name": "SARS-CoV-2 Immunity & Vaccine Effectiveness",
+          "short_description": "Antibody kinetics, neutralizing responses, vaccine effectiveness against variants, and waning or hybrid immunity.",
+          "activity_count": 80,
+          "total_weight": 75.930106
+        },
+        {
+          "id": "infectious_sars_cov2_variants_epidemiology",
+          "label": "SARS-CoV-2 Variants, Transmission Dynamics, and Epidemiology",
+          "description": "Epidemiological studies on SARS-CoV-2 variant emergence and spread, transmission dynamics, seroprevalence surveys, reinfection rates, and mathematical modeling of COVID-19 epidemic trajectories.",
+          "display_name": "SARS-CoV-2 Variants & Transmission Dynamics",
+          "short_description": "Variant emergence, seroprevalence, reinfection rates, and mathematical modeling of COVID-19 epidemic trajectories.",
+          "activity_count": 48,
+          "total_weight": 28.028532
+        },
+        {
+          "id": "infectious_hiv_biology_treatment",
+          "label": "HIV Biology, Reservoir, Antiretroviral Therapy, and Immune Responses",
+          "description": "Research on HIV-1 molecular biology, viral reservoirs, latency reversal, antiretroviral therapy effects on immune reconstitution, HIV-specific T cell and antibody responses, and strategies toward HIV cure.",
+          "display_name": "HIV Biology, Reservoirs & Antiretroviral Therapy",
+          "short_description": "HIV-1 molecular biology, viral latency, antiretroviral immune reconstitution, and cure-directed strategies.",
+          "activity_count": 49,
+          "total_weight": 32.65942
+        },
+        {
+          "id": "infectious_hiv_clinical_comorbidities",
+          "label": "HIV Clinical Management, Comorbidities, and Aging",
+          "description": "Clinical studies on people living with HIV focusing on comorbidities (cardiovascular disease, renal dysfunction, neurocognitive impairment, metabolic disorders), aging-related complications, and longitudinal health outcomes in HIV-positive populations.",
+          "display_name": "HIV Comorbidities & Aging",
+          "short_description": "Cardiovascular, renal, neurocognitive, and metabolic complications in people aging with HIV.",
+          "activity_count": 53,
+          "total_weight": 26.794867
+        },
+        {
+          "id": "infectious_hiv_prevention_testing",
+          "label": "HIV Prevention, Testing, PrEP, and Community Engagement",
+          "description": "Research on HIV prevention strategies including PrEP uptake and adherence, HIV testing programs (including traditional healer-delivered testing), stigma reduction, and community-based interventions to improve HIV care cascade outcomes.",
+          "display_name": "HIV Prevention, PrEP & Community Testing",
+          "short_description": "PrEP uptake, HIV testing programs, stigma reduction, and community-based care cascade interventions.",
+          "activity_count": 24,
+          "total_weight": 11.134616
+        },
+        {
+          "id": "infectious_hepatitis_treatment_epidemiology",
+          "label": "Hepatitis B, C, and D: Epidemiology, Treatment, and Elimination",
+          "description": "Studies on hepatitis B, C, and D virus epidemiology, treatment access and outcomes, elimination strategies, Medicaid policy impacts on HCV treatment, and HCV/HBV in special populations including pregnant women and people who inject drugs.",
+          "display_name": "Hepatitis B, C & D Elimination Strategies",
+          "short_description": "Epidemiology, treatment access, and elimination policy for hepatitis B, C, and D across diverse populations.",
+          "activity_count": 50,
+          "total_weight": 19.680074
+        },
+        {
+          "id": "infectious_tuberculosis_mycobacterium",
+          "label": "Tuberculosis Biology, Drug Development, and Clinical Management",
+          "description": "Research on Mycobacterium tuberculosis biology, drug targets and novel antimycobacterial compounds, mechanisms of drug resistance, latent TB, and clinical management of tuberculosis including drug-resistant strains.",
+          "display_name": "Tuberculosis Biology & Drug Development",
+          "short_description": "Mycobacterium tuberculosis drug targets, resistance mechanisms, and clinical management of drug-resistant TB.",
+          "activity_count": 49,
+          "total_weight": 39.099682
+        },
+        {
+          "id": "infectious_malaria_parasitology",
+          "label": "Malaria Parasite Biology, Drug Resistance, and Antimalarial Development",
+          "description": "Studies on Plasmodium falciparum and vivax biology including antigenic variation, epigenetic regulation, drug resistance mechanisms, and development of novel antimalarial compounds targeting the proteasome and other pathways.",
+          "display_name": "Malaria Parasite Biology & Antimalarial Development",
+          "short_description": "Plasmodium biology, drug resistance mechanisms, and novel antimalarial compound discovery.",
+          "activity_count": 18,
+          "total_weight": 12.472308
+        },
+        {
+          "id": "infectious_sexually_transmitted_infections",
+          "label": "Sexually Transmitted Infections: Epidemiology, Prevention, and Vaccines",
+          "description": "Epidemiological studies and mathematical modeling of sexually transmitted infections including HSV-1/2, gonorrhea, chlamydia, syphilis, and HPV, with focus on global burden, transmission dynamics, and vaccine or prevention strategies.",
+          "display_name": "STI Epidemiology, Prevention & Vaccines",
+          "short_description": "Global burden, transmission dynamics, and vaccine or prevention strategies for HSV, gonorrhea, syphilis, and HPV.",
+          "activity_count": 34,
+          "total_weight": 14.293915
+        },
+        {
+          "id": "infectious_antimicrobial_resistance_diagnostics",
+          "label": "Antimicrobial Resistance, Stewardship, and Rapid Diagnostics",
+          "description": "Research on antimicrobial resistance mechanisms and epidemiology, rapid molecular diagnostic tests for resistant pathogens, antimicrobial stewardship programs, and clinical outcomes of infections caused by drug-resistant organisms.",
+          "display_name": "Antimicrobial Resistance & Rapid Diagnostics",
+          "short_description": "Resistance mechanisms, rapid molecular diagnostics, stewardship programs, and outcomes of drug-resistant infections.",
+          "activity_count": 60,
+          "total_weight": 37.367821
+        },
+        {
+          "id": "infectious_covid19_pathophysiology_organoids",
+          "label": "SARS-CoV-2 Pathophysiology, Molecular Biology, and Experimental Models",
+          "description": "Mechanistic studies on SARS-CoV-2 infection biology including viral entry, host cell tropism, organoid and stem cell models, pathological findings (autopsy, histology), and molecular mechanisms of COVID-19 organ damage.",
+          "display_name": "SARS-CoV-2 Pathophysiology & Experimental Models",
+          "short_description": "Viral entry, host cell tropism, organoid models, and molecular mechanisms of COVID-19 organ damage.",
+          "activity_count": 49,
+          "total_weight": 86.79471
+        },
+        {
+          "id": "infectious_long_covid_post_acute",
+          "label": "Long COVID and Post-Acute Sequelae of SARS-CoV-2 Infection",
+          "description": "Research on post-acute sequelae of SARS-CoV-2 infection (PASC/Long COVID) including prevalence, risk factors, subphenotypes, neurological and cognitive manifestations, and potential treatments.",
+          "display_name": "Long COVID & Post-Acute Sequelae",
+          "short_description": "Prevalence, risk factors, neurological manifestations, and emerging treatments for post-acute SARS-CoV-2 sequelae.",
+          "activity_count": 27,
+          "total_weight": 26.598268
+        },
+        {
+          "id": "infectious_fungal_gut_microbiome",
+          "label": "Fungal Infections, Gut Mycobiome, and Host-Fungal Interactions",
+          "description": "Studies on fungal pathogens and the gut mycobiome, including Candida and other fungi in health and disease, fungal regulation of mucosal immunity, mycobiota-IgA interactions, and fungal involvement in inflammatory bowel disease and cancer.",
+          "display_name": "Fungal Infections & Gut Mycobiome",
+          "short_description": "Fungal pathogens, mycobiota-immune interactions, and fungal roles in inflammatory bowel disease and cancer.",
+          "activity_count": 21,
+          "total_weight": 9.919172
+        },
+        {
+          "id": "infectious_cytomegalovirus_vaccines",
+          "label": "Cytomegalovirus Infection, Immunity, and Vaccine Development",
+          "description": "Research on human and rhesus cytomegalovirus biology, immune correlates of protection, congenital CMV transmission, and development and evaluation of CMV vaccine candidates including mRNA and subunit approaches.",
+          "display_name": "Cytomegalovirus Immunity & Vaccine Development",
+          "short_description": "CMV biology, immune correlates of protection, congenital transmission, and mRNA or subunit vaccine candidates.",
+          "activity_count": 24,
+          "total_weight": 12.061758
+        }
+      ]
+    }
+  ],
+  "see_also": []
+}

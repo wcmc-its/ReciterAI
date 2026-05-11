@@ -1,0 +1,33 @@
+{
+  "topic_id": "developmental_biology",
+  "total_weights": {
+    "developmental_endothelial_vascular_specification": 12.332158,
+    "developmental_gametogenesis_reproductive": 11.865054,
+    "developmental_neural_differentiation_cortex": 11.636692,
+    "developmental_epigenetic_chromatin_regulation": 10.622541,
+    "developmental_cardiac_development_regeneration": 9.399403,
+    "developmental_pluripotent_stem_cell_reprogramming": 9.245765,
+    "developmental_osteoblast_skeletal_differentiation": 6.379494,
+    "developmental_lineage_plasticity_cancer": 5.650663,
+    "developmental_organoid_disease_modeling": 4.18042,
+    "developmental_hematopoiesis_stem_cell_fate": 4.050363,
+    "developmental_neural_tube_spina_bifida": 3.911077,
+    "developmental_pancreatic_beta_cell_differentiation": 3.04393,
+    "developmental_ivf_embryo_assessment": 2.759237,
+    "developmental_endoderm_organogenesis_patterning": 2.53206,
+    "developmental_glioma_stem_cell_microenvironment": 2.353019,
+    "developmental_maternal_offspring_programming": 1.718075,
+    "developmental_adipogenesis_differentiation": 1.646002,
+    "developmental_b_cell_lymphoma_differentiation": 1.55796,
+    "developmental_airway_epithelial_differentiation": 1.48608,
+    "developmental_intestinal_epithelial_lineage": 0.842718,
+    "developmental_ipsc_genome_editing_tools": 0.75249,
+    "developmental_microglia_brain_immunity": 0.68397,
+    "developmental_wnt_hedgehog_signaling": 0.602252,
+    "developmental_cell_cycle_quiescence": 0.418654,
+    "developmental_m6a_rna_modification": 0.407226,
+    "developmental_tissue_regeneration_sirtuin": 0.322474
+  },
+  "faculty_count": 175,
+  "subtopic_count": 26
+}

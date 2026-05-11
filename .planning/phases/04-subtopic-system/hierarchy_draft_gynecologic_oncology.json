@@ -1,0 +1,186 @@
+{
+  "topic_id": "gynecologic_oncology",
+  "topic_label": "Gynecologic Oncology",
+  "subtopics": [
+    {
+      "id": "gynecologic_ovarian_cancer_immunology_tumor_microenvironment",
+      "label": "Ovarian Cancer Immunology and Tumor Microenvironment",
+      "description": "Research investigating immune evasion mechanisms, immunosuppressive cell populations, and innate/adaptive immune responses in ovarian cancer, including roles of neutrophils, macrophages, T cells, and lipid mediators in tumor progression and therapy resistance.",
+      "seed_pmids": [
+        35552618,
+        39364290,
+        33293516,
+        39073085,
+        40913147,
+        39443795
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "gynecologic_ovarian_cancer_molecular_therapeutics",
+      "label": "Ovarian Cancer Molecular Targets and Novel Therapeutics",
+      "description": "Studies identifying and validating molecular targets and novel therapeutic strategies in ovarian cancer, including functional genomics screens, kinase inhibitors, PARP imaging, and combination therapies targeting PI3K/mTOR and CRL4 pathways.",
+      "seed_pmids": [
+        39856363,
+        40628262,
+        39638432,
+        33816459
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "gynecologic_ovarian_cancer_pathology_histology",
+      "label": "Ovarian Cancer Pathology and Histologic Classification",
+      "description": "Clinicopathologic and molecular characterization of ovarian tumor subtypes including granulosa cell tumors, mucinous tumors, malignant struma ovarii, and germ cell tumors, emphasizing diagnostic criteria, HER2 expression, and prognostic features.",
+      "seed_pmids": [
+        35353158,
+        37406458,
+        35765923,
+        32513565,
+        36306239
+      ],
+      "coverage_estimate": 0.09
+    },
+    {
+      "id": "gynecologic_endometrial_cancer_molecular_pathology",
+      "label": "Endometrial Cancer Molecular Pathology and Biomarkers",
+      "description": "Molecular profiling, biomarker expression, and histopathologic characterization of endometrial cancers, including RHAMM expression, HER2/ERBB2 testing practices, recurrence-associated mutations in low-grade disease, and uterine tumors resembling ovarian sex cord tumors.",
+      "seed_pmids": [
+        30920393,
+        34483300,
+        36538387,
+        36306239
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "gynecologic_cervical_cancer_hpv_screening_cytology",
+      "label": "Cervical Cancer Screening, HPV Testing, and Cytology",
+      "description": "Research on cervical cancer screening practices including Papanicolaou test interpretation, HPV co-testing, management of unsatisfactory specimens, and cytologic patterns of HSIL and squamous metaplasia in cervicovaginal samples.",
+      "seed_pmids": [
+        37074866,
+        33929528,
+        33630033,
+        32556080,
+        31498174,
+        32800528
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "gynecologic_hpv_infection_vaccination",
+      "label": "HPV Infection Biology, Vaccination, and Prevention",
+      "description": "Studies on HPV epidemiology, vaccine knowledge and uptake, antibody responses to HPV capsid peptides, HPV persistence in the context of co-infections and microbiota alterations, and HPV cell-free DNA testing for cancer detection.",
+      "seed_pmids": [
+        39187821,
+        32727491,
+        40842278,
+        37276242,
+        34110312
+      ],
+      "coverage_estimate": 0.09
+    },
+    {
+      "id": "gynecologic_hereditary_cancer_genetic_testing_cascade",
+      "label": "Hereditary Cancer Syndromes, Genetic Testing, and Cascade Testing",
+      "description": "Research on cascade genetic testing strategies for hereditary breast/ovarian cancer and Lynch syndrome, including barriers to uptake, facilitated referral pathways, family communication of risk, and digital tools for genetic risk assessment.",
+      "seed_pmids": [
+        37214514,
+        31922918,
+        33443030,
+        36207653,
+        36305018,
+        32057464,
+        39237276,
+        40157522,
+        40845441,
+        37062188,
+        35242980,
+        38838280
+      ],
+      "coverage_estimate": 0.21
+    },
+    {
+      "id": "gynecologic_lynch_syndrome_endometrial_screening",
+      "label": "Lynch Syndrome Surveillance and Endometrial Cancer Screening",
+      "description": "Studies focused on cancer surveillance strategies for Lynch syndrome patients, including combined colon and endometrial screening protocols, population-level identification via EHR, and long-term outcomes of prevention strategies in at-risk individuals.",
+      "seed_pmids": [
+        40821478,
+        38838280,
+        36305018
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "gynecologic_disparities_access_care",
+      "label": "Disparities in Gynecologic Cancer Care and Access",
+      "description": "Research examining racial, ethnic, socioeconomic, and geographic disparities in gynecologic cancer screening, treatment timeliness, use of minimally invasive and robotic surgery, and access to care including impacts of policy and pandemic conditions.",
+      "seed_pmids": [
+        37870412,
+        37734095,
+        32019432,
+        39213780,
+        33899220,
+        32981694
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "gynecologic_minimally_invasive_surgical_techniques",
+      "label": "Minimally Invasive and Robotic Surgical Techniques in Gynecologic Oncology",
+      "description": "Studies evaluating minimally invasive surgical approaches in gynecologic oncology including robotic-assisted surgery, HIPEC via vaginal access, and tissue extraction techniques for myomas and pelvic cancers.",
+      "seed_pmids": [
+        38831999,
+        37870412,
+        32977002
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "gynecologic_ovarian_cancer_survivorship_psychosocial",
+      "label": "Gynecologic Cancer Survivorship and Psychosocial Outcomes",
+      "description": "Research on quality of life, coping strategies, financial toxicity, mental health, and survivorship care planning for women with gynecologic cancers, including breast cancer risk assessment in gynecologic oncology clinic settings.",
+      "seed_pmids": [
+        33308865,
+        33899220,
+        38503141,
+        39836322
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "gynecologic_brca_somatic_germline_genomics",
+      "label": "BRCA and Somatic/Germline Genomic Profiling in Gynecologic Cancers",
+      "description": "Studies on plasma-based and tumor genomic profiling to detect germline, somatic, and reversion BRCA mutations, complex structural variants, and molecular alterations relevant to targeted therapy selection in gynecologic and related cancers.",
+      "seed_pmids": [
+        32034076,
+        33007263,
+        32057464,
+        39638432
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "gynecologic_vulvar_rare_tumor_pathology",
+      "label": "Vulvar and Rare Gynecologic Tumor Pathology",
+      "description": "Molecular and clinicopathologic characterization of rare gynecologic tumors including vulvar angiomyofibroblastoma defined by MTG1-CYP2E1 fusions and other uncommon gynecologic neoplasms with distinct molecular features.",
+      "seed_pmids": [
+        36177509,
+        35765923,
+        36306239
+      ],
+      "coverage_estimate": 0.05
+    }
+  ],
+  "uncovered_pmids": [
+    "33741442",
+    "34875001",
+    "32981694"
+  ],
+  "total_activities": 58,
+  "coverage_pct": 0.9655,
+  "generated_at": "2026-04-14T22:14:37.860089Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 1,
+  "review_status": "auto_approved"
+}

@@ -1,0 +1,1633 @@
+{
+  "tools": [
+    {
+      "canonical_name": "MRI Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Magnetic resonance imaging (MRI) scanner",
+        "3 Tesla magnetic resonance imaging (MRI) scanner",
+        "Functional magnetic resonance imaging (fMRI) scanner",
+        "Cardiac magnetic resonance imaging (MRI) scanner",
+        "Cardiac magnetic resonance imaging (CMR) scanner"
+      ],
+      "pub_count": 214,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "CT Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Computed tomography (CT) scanner"
+      ],
+      "pub_count": 68,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Flow Cytometer",
+      "functional_category": "flow_cytometry",
+      "original_names": [
+        "Flow cytometer"
+      ],
+      "pub_count": 40,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "PET Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Positron emission tomography (PET) scanner"
+      ],
+      "pub_count": 36,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "LC\u2013MS/MS",
+      "functional_category": "mass_spectrometry",
+      "original_names": [
+        "Liquid chromatography\u2013tandem mass spectrometry (LC\u2013MS/MS)",
+        "Liquid chromatography\u2013tandem mass spectrometer (LC\u2013MS/MS)",
+        "Liquid chromatography\u2013tandem mass spectrometry (LC\u2013MS/MS) system"
+      ],
+      "pub_count": 45,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Cryo-EM",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "Cryogenic electron microscope (cryo-EM)",
+        "Cryogenic electron microscopy (cryo-EM) instrument",
+        "Cryogenic electron microscopy (cryo-EM)"
+      ],
+      "pub_count": 29,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Next-Generation Sequencing (NGS) Platform",
+      "functional_category": "sequencing",
+      "original_names": [
+        "Next-generation sequencing (NGS) platform"
+      ],
+      "pub_count": 13,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "PET/CT Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Positron emission tomography/computed tomography (PET/CT) scanner"
+      ],
+      "pub_count": 11,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Corneal Confocal Microscope (CCM)",
+      "functional_category": "imaging",
+      "original_names": [
+        "Corneal confocal microscope (CCM)",
+        "Corneal confocal microscope"
+      ],
+      "pub_count": 19,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Microscale Thermophoresis (MST) Instrument",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "Microscale thermophoresis (MST) instrument"
+      ],
+      "pub_count": 10,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "NMR Spectrometer",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "Nuclear magnetic resonance (NMR) spectrometer"
+      ],
+      "pub_count": 9,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "da Vinci Surgical System",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "da Vinci Surgical System"
+      ],
+      "pub_count": 9,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "LC\u2013MS System",
+      "functional_category": "mass_spectrometry",
+      "original_names": [
+        "Liquid chromatography\u2013mass spectrometry (LC\u2013MS) system",
+        "Liquid chromatography\u2013mass spectrometry (LC\u2013MS)"
+      ],
+      "pub_count": 11,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Cardiopulmonary Bypass (CPB) Machine",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Cardiopulmonary bypass (CPB) machine",
+        "Cardiopulmonary bypass machine"
+      ],
+      "pub_count": 13,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Surface Plasmon Resonance (SPR) Instrument",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "Surface plasmon resonance (SPR) instrument",
+        "Surface plasmon resonance (SPR) biosensor"
+      ],
+      "pub_count": 10,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Pressure-Specified Sensory Device (PSSD)",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Pressure-specified sensory device (PSSD)"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "High-Speed Atomic Force Microscope (HS-AFM)",
+      "functional_category": "imaging",
+      "original_names": [
+        "High-speed atomic force microscopy (HS-AFM)",
+        "High-speed atomic force microscope (HS-AFM)"
+      ],
+      "pub_count": 9,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Endoscopic Ultrasound (EUS) System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Endoscopic ultrasound (EUS) system"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Echocardiography Ultrasound System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Echocardiography ultrasound system",
+        "Transthoracic echocardiography (TTE) system",
+        "Transthoracic echocardiography system",
+        "Transesophageal echocardiography (TEE) system"
+      ],
+      "pub_count": 21,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "scRNA-seq Platform",
+      "functional_category": "sequencing",
+      "original_names": [
+        "Single-cell RNA sequencing (scRNA-seq) platform",
+        "Single-cell RNA sequencing (scRNA-seq)",
+        "Single-cell RNA sequencing"
+      ],
+      "pub_count": 20,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Fluoroscopy Imaging System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Fluoroscopy imaging system"
+      ],
+      "pub_count": 5,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "EndoFLIP System",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Endolumenal Functional Lumen Imaging Probe (EndoFLIP)"
+      ],
+      "pub_count": 5,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Spirometer",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Spirometer"
+      ],
+      "pub_count": 5,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "EEG System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Electroencephalography (EEG) system",
+        "Electroencephalography (EEG) recording system"
+      ],
+      "pub_count": 8,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Ultrasound Imaging System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Ultrasound imaging system",
+        "Point-of-care ultrasound (POCUS) device"
+      ],
+      "pub_count": 9,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Mechanical Ventilator",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Mechanical ventilator"
+      ],
+      "pub_count": 5,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Digital Audio Recorder",
+      "functional_category": "other",
+      "original_names": [
+        "Digital audio recorder"
+      ],
+      "pub_count": 5,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Ultracentrifuge",
+      "functional_category": "other",
+      "original_names": [
+        "Ultracentrifuge"
+      ],
+      "pub_count": 4,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Dynamic Light Scattering (DLS) Instrument",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "Dynamic light scattering (DLS) instrument"
+      ],
+      "pub_count": 4,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Pulse Oximeter",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Pulse oximeter"
+      ],
+      "pub_count": 4,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Patient Health Questionnaire-9 (PHQ-9)",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Patient Health Questionnaire-9 (PHQ-9)"
+      ],
+      "pub_count": 4,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "X-ray Crystallography Diffractometer",
+      "functional_category": "structural_biology",
+      "original_names": [
+        "X-ray crystallography diffractometer"
+      ],
+      "pub_count": 4,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Confocal Laser Scanning Microscope",
+      "functional_category": "imaging",
+      "original_names": [
+        "Confocal laser scanning microscope"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "SPECT Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Single-photon emission computed tomography (SPECT) scanner"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Fluorescence In Situ Hybridization (FISH)",
+      "functional_category": "assays",
+      "original_names": [
+        "Fluorescence in situ hybridization (FISH)"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Automated Blood Pressure Monitor",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Automated sphygmomanometer",
+        "Automated blood pressure monitor"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "PET/MRI Scanner",
+      "functional_category": "imaging",
+      "original_names": [
+        "Positron emission tomography/magnetic resonance imaging (PET/MRI) scanner",
+        "Positron emission tomography / magnetic resonance imaging (PET/MRI) scanner"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Fluorescence Microscope",
+      "functional_category": "imaging",
+      "original_names": [
+        "Fluorescence microscope"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Electrocardiogram (ECG) Device",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Electrocardiogram (ECG) device",
+        "Electrocardiogram (ECG) machine"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Colonoscope",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Colonoscope"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Digital Mammography System",
+      "functional_category": "imaging",
+      "original_names": [
+        "Digital mammography system"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "ECMO System",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Extracorporeal membrane oxygenation (ECMO) circuit",
+        "Extracorporeal membrane oxygenation (ECMO) system"
+      ],
+      "pub_count": 6,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Seahorse XF Extracellular Flux Analyzer",
+      "functional_category": "assays",
+      "original_names": [
+        "Seahorse XF extracellular flux analyzer"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Deep Brain Stimulation (DBS) System",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Deep brain stimulation (DBS) system"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Total Internal Reflection Fluorescence (TIRF) Microscope",
+      "functional_category": "imaging",
+      "original_names": [
+        "Total internal reflection fluorescence (TIRF) microscope"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Transmission Electron Microscope (TEM)",
+      "functional_category": "imaging",
+      "original_names": [
+        "Transmission electron microscope (TEM)"
+      ],
+      "pub_count": 8,
+      "original_category": "instrument"
+    },
+    {
+      "canonical_name": "Nivolumab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Nivolumab"
+      ],
+      "pub_count": 6,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Anti-PD-1 Monoclonal Antibody",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Anti-PD-1 monoclonal antibody"
+      ],
+      "pub_count": 6,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Metformin",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Metformin"
+      ],
+      "pub_count": 6,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Gallium-68 DOTATATE Radiotracer",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Gallium-68 DOTATATE radiotracer"
+      ],
+      "pub_count": 6,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Doxycycline",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Doxycycline"
+      ],
+      "pub_count": 5,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Gadolinium-Based MRI Contrast Agent",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Gadolinium-based contrast agent",
+        "Gadolinium-based MRI contrast agent"
+      ],
+      "pub_count": 8,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Cisplatin",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Cisplatin"
+      ],
+      "pub_count": 5,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Doxorubicin",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Doxorubicin"
+      ],
+      "pub_count": 5,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Lipopolysaccharide (LPS)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Lipopolysaccharide (LPS)"
+      ],
+      "pub_count": 5,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Prednisone",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Prednisone"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Aspirin",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Aspirin (acetylsalicylic acid)"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Ipilimumab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Ipilimumab"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Ketamine",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Ketamine"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Cyclophosphamide",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Cyclophosphamide"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Apixaban",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Apixaban"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Pembrolizumab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Pembrolizumab"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Tamoxifen",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Tamoxifen"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Cytarabine",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Cytarabine"
+      ],
+      "pub_count": 4,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Sevoflurane",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Sevoflurane"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "CRISPR-Cas9 Genome Editing System",
+      "functional_category": "genomic_tools",
+      "original_names": [
+        "CRISPR-Cas9 genome editing system"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Tenofovir Disoproxil Fumarate (TDF)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Tenofovir disoproxil fumarate (TDF)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Imatinib",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Imatinib"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Infliximab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Infliximab"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Guselkumab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Guselkumab"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Actinium-225 Radionuclide",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Actinium-225 radionuclide"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Anti-C5b-9 Antibody",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Anti-C5b-9 antibody"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Human Chorionic Gonadotropin (hCG)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Human chorionic gonadotropin (hCG)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Natalizumab",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Natalizumab"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Insulin",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Insulin"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Hematoxylin and Eosin (H&E) Stain",
+      "functional_category": "assays",
+      "original_names": [
+        "Hematoxylin and eosin (H&E) stain"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Dexamethasone",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Dexamethasone"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Tumor Necrosis Factor (TNF)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Tumor necrosis factor (TNF)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Prostaglandin E2 (PGE2)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Prostaglandin E2 (PGE2)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Anti-CD44 Antibody",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Anti-CD44 antibody"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "mRNA-1273 (Moderna COVID-19 Vaccine)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "mRNA-1273 (Moderna COVID-19 vaccine)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "SARS-CoV-2",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Paclitaxel",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Paclitaxel"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Topiramate",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Topiramate"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Anti-ALDH1A1 Antibody",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Anti-ALDH1A1 antibody"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "EDTA",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Ethylenediaminetetraacetic acid (EDTA)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Anti-CD24 Antibody",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Anti-CD24 antibody"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "BNT162b2 (Pfizer-BioNTech COVID-19 Vaccine)",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "BNT162b2 (Pfizer-BioNTech COVID-19 vaccine)"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Methylprednisolone",
+      "functional_category": "reagents_drugs",
+      "original_names": [
+        "Methylprednisolone"
+      ],
+      "pub_count": 3,
+      "original_category": "reagent"
+    },
+    {
+      "canonical_name": "Nasopharyngeal Swab",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Nasopharyngeal swab"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument_consumable"
+    },
+    {
+      "canonical_name": "Balloon Angioplasty Catheter",
+      "functional_category": "clinical_tools",
+      "original_names": [
+        "Balloon angioplasty catheter"
+      ],
+      "pub_count": 3,
+      "original_category": "instrument_consumable"
+    },
+    {
+      "canonical_name": "IL-6 ELISA Kit",
+      "functional_category": "assays",
+      "original_names": [
+        "Interleukin-6 (IL-6) ELISA kit"
+      ],
+      "pub_count": 3,
+      "original_category": "assay_kit"
+    },
+    {
+      "canonical_name": "CRP ELISA Kit",
+      "functional_category": "assays",
+      "original_names": [
+        "C-reactive protein (CRP) ELISA kit"
+      ],
+      "pub_count": 3,
+      "original_category": "assay_kit"
+    },
+    {
+      "canonical_name": "Laboratory Mouse (Mus musculus)",
+      "functional_category": "animal_models",
+      "original_names": [
+        "Laboratory mouse (Mus musculus)",
+        "Mouse (Mus musculus)",
+        "Mouse (Mus musculus) model"
+      ],
+      "pub_count": 16,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "Sprague-Dawley Rat",
+      "functional_category": "animal_models",
+      "original_names": [
+        "Sprague-Dawley rat"
+      ],
+      "pub_count": 7,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "C57BL/6 Mouse",
+      "functional_category": "animal_models",
+      "original_names": [
+        "C57BL/6J mouse",
+        "C57BL/6 mouse"
+      ],
+      "pub_count": 11,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "Rhesus Macaque (Macaca mulatta)",
+      "functional_category": "animal_models",
+      "original_names": [
+        "Rhesus macaque (Macaca mulatta)",
+        "Infant rhesus macaque (Macaca mulatta)"
+      ],
+      "pub_count": 8,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "Patient-Derived Xenograft (PDX) Mouse Model",
+      "functional_category": "animal_models",
+      "original_names": [
+        "Patient-derived xenograft (PDX) mouse model"
+      ],
+      "pub_count": 4,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "Zebrafish (Danio rerio)",
+      "functional_category": "animal_models",
+      "original_names": [
+        "Zebrafish (Danio rerio)"
+      ],
+      "pub_count": 3,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "BALB/c Mouse",
+      "functional_category": "animal_models",
+      "original_names": [
+        "BALB/c mouse"
+      ],
+      "pub_count": 3,
+      "original_category": "animal_model"
+    },
+    {
+      "canonical_name": "Human Pluripotent Stem Cells (hPSCs)",
+      "functional_category": "cell_models",
+      "original_names": [
+        "Human pluripotent stem cells (hPSCs)",
+        "Human embryonic stem cells (hESCs)"
+      ],
+      "pub_count": 7,
+      "original_category": "invitro_biological_model"
+    },
+    {
+      "canonical_name": "Primary Human Hepatocytes",
+      "functional_category": "cell_models",
+      "original_names": [
+        "Primary human hepatocytes"
+      ],
+      "pub_count": 3,
+      "original_category": "invitro_biological_model"
+    },
+    {
+      "canonical_name": "SH-SY5Y Neuroblastoma Cell Line",
+      "functional_category": "cell_models",
+      "original_names": [
+        "SH-SY5Y neuroblastoma cell line"
+      ],
+      "pub_count": 3,
+      "original_category": "invitro_biological_model"
+    },
+    {
+      "canonical_name": "MDA-MB-231 Breast Cancer Cell Line",
+      "functional_category": "cell_models",
+      "original_names": [
+        "MDA-MB-231 breast cancer cell line"
+      ],
+      "pub_count": 3,
+      "original_category": "invitro_biological_model"
+    },
+    {
+      "canonical_name": "Human Pancreatic Islets",
+      "functional_category": "cell_models",
+      "original_names": [
+        "Human pancreatic islets"
+      ],
+      "pub_count": 3,
+      "original_category": "invitro_biological_model"
+    },
+    {
+      "canonical_name": "Adeno-Associated Virus (AAV) Vector",
+      "functional_category": "genomic_tools",
+      "original_names": [
+        "Adeno-associated virus (AAV) vector"
+      ],
+      "pub_count": 4,
+      "original_category": "cell_product"
+    },
+    {
+      "canonical_name": "The Cancer Genome Atlas (TCGA)",
+      "functional_category": "databases",
+      "original_names": [
+        "The Cancer Genome Atlas (TCGA)"
+      ],
+      "pub_count": 15,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "PubMed",
+      "functional_category": "databases",
+      "original_names": [
+        "PubMed bibliographic database",
+        "PubMed database",
+        "PubMed"
+      ],
+      "pub_count": 34,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "ClinicalTrials.gov",
+      "functional_category": "databases",
+      "original_names": [
+        "ClinicalTrials.gov registry"
+      ],
+      "pub_count": 13,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "SEER Database",
+      "functional_category": "databases",
+      "original_names": [
+        "Surveillance, Epidemiology, and End Results (SEER) database",
+        "Surveillance, Epidemiology, and End Results (SEER) registry"
+      ],
+      "pub_count": 13,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "REGARDS Cohort Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Reasons for Geographic and Racial Differences in Stroke (REGARDS) cohort dataset",
+        "Reasons for Geographic and Racial Differences in Stroke (REGARDS) study dataset",
+        "Reasons for Geographic and Racial Differences in Stroke (REGARDS) cohort",
+        "REasons for Geographic And Racial Differences in Stroke (REGARDS) study dataset"
+      ],
+      "pub_count": 25,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Google Scholar",
+      "functional_category": "databases",
+      "original_names": [
+        "Google Scholar"
+      ],
+      "pub_count": 6,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "National Inpatient Sample (NIS)",
+      "functional_category": "databases",
+      "original_names": [
+        "National Inpatient Sample (NIS)",
+        "National Inpatient Sample (NIS) database"
+      ],
+      "pub_count": 9,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "MEDLINE",
+      "functional_category": "databases",
+      "original_names": [
+        "MEDLINE bibliographic database",
+        "MEDLINE database"
+      ],
+      "pub_count": 9,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "National Longitudinal Study of Adolescent to Adult Health (Add Health)",
+      "functional_category": "databases",
+      "original_names": [
+        "National Longitudinal Study of Adolescent to Adult Health (Add Health)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Social Vulnerability Index (SVI)",
+      "functional_category": "databases",
+      "original_names": [
+        "Social Vulnerability Index (SVI)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "NHANES",
+      "functional_category": "databases",
+      "original_names": [
+        "National Health and Nutrition Examination Survey (NHANES)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Area Deprivation Index (ADI)",
+      "functional_category": "databases",
+      "original_names": [
+        "Area Deprivation Index (ADI)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "National Cancer Database (NCDB)",
+      "functional_category": "databases",
+      "original_names": [
+        "National Cancer Database (NCDB)",
+        "National Cancer Database (NCDB)"
+      ],
+      "pub_count": 19,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "UK Biobank",
+      "functional_category": "databases",
+      "original_names": [
+        "UK Biobank"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "All of Us Research Program Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "All of Us Research Program dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Cochrane Central Register of Controlled Trials (CENTRAL)",
+      "functional_category": "databases",
+      "original_names": [
+        "Cochrane Central Register of Controlled Trials (CENTRAL)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "ADNI Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Alzheimer's Disease Neuroimaging Initiative (ADNI) dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Social Deprivation Index (SDI)",
+      "functional_category": "databases",
+      "original_names": [
+        "Social Deprivation Index (SDI)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "ABCD Study Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Adolescent Brain Cognitive Development (ABCD) Study dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Cochrane Database of Systematic Reviews",
+      "functional_category": "databases",
+      "original_names": [
+        "Cochrane Database of Systematic Reviews"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "NCANDA Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "National Consortium on Alcohol and NeuroDevelopment in Adolescence (NCANDA) dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "BRFSS",
+      "functional_category": "databases",
+      "original_names": [
+        "Behavioral Risk Factor Surveillance System (BRFSS)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Age-Related Eye Disease Study (AREDS) Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Age-Related Eye Disease Study (AREDS) dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_public"
+    },
+    {
+      "canonical_name": "Embase",
+      "functional_category": "databases",
+      "original_names": [
+        "Embase bibliographic database",
+        "Embase database"
+      ],
+      "pub_count": 18,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "HCUP State Inpatient Databases (SID)",
+      "functional_category": "databases",
+      "original_names": [
+        "Healthcare Cost and Utilization Project State Inpatient Databases (HCUP SID)"
+      ],
+      "pub_count": 7,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Medicare Claims Data",
+      "functional_category": "databases",
+      "original_names": [
+        "Medicare fee-for-service claims data",
+        "Centers for Medicare & Medicaid Services (CMS) Medicare claims data",
+        "Medicare claims data"
+      ],
+      "pub_count": 15,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Nationwide Readmissions Database (NRD)",
+      "functional_category": "databases",
+      "original_names": [
+        "Nationwide Readmissions Database (NRD)"
+      ],
+      "pub_count": 6,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Scopus",
+      "functional_category": "databases",
+      "original_names": [
+        "Scopus bibliographic database",
+        "Scopus"
+      ],
+      "pub_count": 7,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Nurses' Health Study (NHS) Cohort Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Nurses' Health Study (NHS) cohort dataset"
+      ],
+      "pub_count": 4,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Vascular Quality Initiative (VQI) Registry",
+      "functional_category": "databases",
+      "original_names": [
+        "Vascular Quality Initiative (VQI) registry"
+      ],
+      "pub_count": 4,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Cochrane Library",
+      "functional_category": "databases",
+      "original_names": [
+        "Cochrane Library",
+        "Cochrane Library database"
+      ],
+      "pub_count": 8,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Vaccine Safety Datalink (VSD)",
+      "functional_category": "databases",
+      "original_names": [
+        "Vaccine Safety Datalink (VSD)"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Web of Science",
+      "functional_category": "databases",
+      "original_names": [
+        "Web of Science citation database"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Premier Healthcare Database",
+      "functional_category": "databases",
+      "original_names": [
+        "Premier Healthcare Database"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "Electronic Health Records (EHR) Dataset",
+      "functional_category": "databases",
+      "original_names": [
+        "Electronic health records (EHR) dataset"
+      ],
+      "pub_count": 3,
+      "original_category": "dataset_proprietary"
+    },
+    {
+      "canonical_name": "REDCap",
+      "functional_category": "software",
+      "original_names": [
+        "Research Electronic Data Capture (REDCap)"
+      ],
+      "pub_count": 5,
+      "original_category": "software_open_source"
+    },
+    {
+      "canonical_name": "R Statistical Computing Environment",
+      "functional_category": "software",
+      "original_names": [
+        "R statistical computing environment"
+      ],
+      "pub_count": 4,
+      "original_category": "software_open_source"
+    },
+    {
+      "canonical_name": "Quantitative Susceptibility Mapping (QSM)",
+      "functional_category": "computational",
+      "original_names": [
+        "Quantitative susceptibility mapping (QSM)",
+        "Quantitative susceptibility mapping (QSM) algorithm"
+      ],
+      "pub_count": 19,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Random Forest Algorithm",
+      "functional_category": "computational",
+      "original_names": [
+        "Random forest algorithm"
+      ],
+      "pub_count": 12,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Convolutional Neural Network (CNN)",
+      "functional_category": "computational",
+      "original_names": [
+        "Convolutional neural network (CNN)"
+      ],
+      "pub_count": 12,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Molecular Dynamics (MD) Simulation",
+      "functional_category": "computational",
+      "original_names": [
+        "Molecular dynamics (MD) simulation",
+        "Molecular dynamics (MD) simulations",
+        "Molecular dynamics simulations"
+      ],
+      "pub_count": 19,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Thematic Analysis",
+      "functional_category": "computational",
+      "original_names": [
+        "Thematic analysis"
+      ],
+      "pub_count": 8,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Support Vector Machine (SVM)",
+      "functional_category": "computational",
+      "original_names": [
+        "Support vector machine (SVM)"
+      ],
+      "pub_count": 8,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Principal Component Analysis (PCA)",
+      "functional_category": "computational",
+      "original_names": [
+        "Principal component analysis (PCA)"
+      ],
+      "pub_count": 7,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Propensity Score Matching",
+      "functional_category": "computational",
+      "original_names": [
+        "Propensity score matching",
+        "Propensity score matching algorithm",
+        "Propensity score matching (PSM)",
+        "Propensity-score matching algorithm"
+      ],
+      "pub_count": 17,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "XGBoost",
+      "functional_category": "computational",
+      "original_names": [
+        "Extreme Gradient Boosting (XGBoost)"
+      ],
+      "pub_count": 7,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Difference-in-Differences Analysis",
+      "functional_category": "computational",
+      "original_names": [
+        "Difference-in-differences analysis"
+      ],
+      "pub_count": 5,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Reversed Bice-Boxerman Index",
+      "functional_category": "computational",
+      "original_names": [
+        "Reversed Bice-Boxerman Index"
+      ],
+      "pub_count": 5,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Structural Equation Modeling (SEM)",
+      "functional_category": "computational",
+      "original_names": [
+        "Structural equation modeling (SEM)"
+      ],
+      "pub_count": 5,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Latent Class Analysis",
+      "functional_category": "computational",
+      "original_names": [
+        "Latent class analysis"
+      ],
+      "pub_count": 5,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Generalized Estimating Equations (GEE)",
+      "functional_category": "computational",
+      "original_names": [
+        "Generalized estimating equations (GEE)"
+      ],
+      "pub_count": 5,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "BERT",
+      "functional_category": "computational",
+      "original_names": [
+        "Bidirectional Encoder Representations from Transformers (BERT)"
+      ],
+      "pub_count": 4,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Large Language Models (LLMs)",
+      "functional_category": "computational",
+      "original_names": [
+        "Large language models (LLMs)",
+        "Large language model (LLM)"
+      ],
+      "pub_count": 7,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Molecular Docking",
+      "functional_category": "computational",
+      "original_names": [
+        "Molecular docking",
+        "Molecular docking algorithm"
+      ],
+      "pub_count": 7,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Genome-Wide Association Study (GWAS)",
+      "functional_category": "computational",
+      "original_names": [
+        "Genome-wide association study (GWAS)"
+      ],
+      "pub_count": 4,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Machine Learning Algorithms",
+      "functional_category": "computational",
+      "original_names": [
+        "Machine learning algorithms"
+      ],
+      "pub_count": 4,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Tyrer-Cuzick Breast Cancer Risk Model",
+      "functional_category": "computational",
+      "original_names": [
+        "Tyrer-Cuzick breast cancer risk model"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Grounded Theory Approach",
+      "functional_category": "computational",
+      "original_names": [
+        "Grounded theory approach"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Gene Set Enrichment Analysis (GSEA)",
+      "functional_category": "computational",
+      "original_names": [
+        "Gene Set Enrichment Analysis (GSEA)"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "k-Means Clustering",
+      "functional_category": "computational",
+      "original_names": [
+        "k-means clustering algorithm"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Natural Language Processing (NLP)",
+      "functional_category": "computational",
+      "original_names": [
+        "Natural language processing (NLP)"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Age-Structured Mathematical Transmission Model",
+      "functional_category": "computational",
+      "original_names": [
+        "Age-structured mathematical transmission model"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Consolidated Framework for Implementation Research (CFIR)",
+      "functional_category": "computational",
+      "original_names": [
+        "Consolidated Framework for Implementation Research (CFIR)"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Latent Dirichlet Allocation (LDA)",
+      "functional_category": "computational",
+      "original_names": [
+        "Latent Dirichlet allocation (LDA)"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Inverse Probability of Treatment Weighting (IPTW)",
+      "functional_category": "computational",
+      "original_names": [
+        "Inverse probability of treatment weighting (IPTW)",
+        "Inverse probability treatment weighting (IPTW)"
+      ],
+      "pub_count": 6,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Monte Carlo Simulation",
+      "functional_category": "computational",
+      "original_names": [
+        "Monte Carlo simulation"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "Quantile Regression",
+      "functional_category": "computational",
+      "original_names": [
+        "Quantile regression"
+      ],
+      "pub_count": 3,
+      "original_category": "computational_method"
+    },
+    {
+      "canonical_name": "RNA Sequencing (RNA-seq)",
+      "functional_category": "sequencing",
+      "original_names": [
+        "RNA sequencing (RNA-seq)",
+        "RNA sequencing (RNA-seq) service"
+      ],
+      "pub_count": 11,
+      "original_category": "service/facility"
+    },
+    {
+      "canonical_name": "ChIP-seq",
+      "functional_category": "sequencing",
+      "original_names": [
+        "Chromatin immunoprecipitation sequencing (ChIP-seq)"
+      ],
+      "pub_count": 5,
+      "original_category": "service/facility"
+    }
+  ]
+}

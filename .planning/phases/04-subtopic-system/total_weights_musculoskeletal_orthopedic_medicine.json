@@ -1,0 +1,33 @@
+{
+  "topic_id": "musculoskeletal_orthopedic_medicine",
+  "total_weights": {
+    "musculoskeletal_minimally_invasive_spine_surgery": 11.498449,
+    "musculoskeletal_cervical_spine_surgery": 11.301716,
+    "musculoskeletal_bone_biology_osteoblast_osteoclast": 7.422046,
+    "musculoskeletal_lumbar_spine_degenerative_disease": 7.088513,
+    "musculoskeletal_osteoarthritis_joint_replacement": 5.680706,
+    "musculoskeletal_pain_management_interventional": 3.604562,
+    "musculoskeletal_ckd_mineral_bone_disorder": 3.085958,
+    "musculoskeletal_orthopedic_infection_periprosthetic": 2.960706,
+    "musculoskeletal_spinal_deformity_pediatric": 2.926517,
+    "musculoskeletal_bone_health_metabolic": 2.694682,
+    "musculoskeletal_spinal_trauma_lmic": 2.607827,
+    "musculoskeletal_ai_digital_health_orthopedics": 2.294477,
+    "musculoskeletal_spine_surgery_training_technology": 2.250994,
+    "musculoskeletal_spinal_tumor_metastasis": 2.215837,
+    "musculoskeletal_ankle_foot_ligament_fracture": 1.687955,
+    "musculoskeletal_sports_medicine_upper_extremity": 1.542005,
+    "musculoskeletal_facial_fracture_management": 1.534454,
+    "musculoskeletal_atlantoaxial_upper_cervical": 1.451018,
+    "musculoskeletal_psoriatic_arthritis_inflammatory": 0.98898,
+    "musculoskeletal_cartilage_tissue_engineering": 0.964777,
+    "musculoskeletal_spine_implant_economics": 0.750438,
+    "musculoskeletal_osseointegration_amputation": 0.653688,
+    "musculoskeletal_geriatric_frailty_body_composition": 0.387611,
+    "musculoskeletal_occipital_neuralgia_headache_nerve": 0.296327,
+    "musculoskeletal_rib_sternal_chest_wall_trauma": 0.293465,
+    "musculoskeletal_nipple_reconstruction_tissue_engineering": 0.151235
+  },
+  "faculty_count": 103,
+  "subtopic_count": 26
+}

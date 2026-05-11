@@ -1,0 +1,22 @@
+{
+  "topic_id": "epidemiology_population_health",
+  "total_weights": {
+    "epidemiology_covid19_outcomes_surveillance": 150.382696,
+    "epidemiology_chronic_disease_risk_factors": 132.454321,
+    "epidemiology_racial_ethnic_health_disparities_outcomes": 74.614222,
+    "epidemiology_cancer_screening_survivorship": 67.957974,
+    "epidemiology_stroke_cerebrovascular_disease": 67.890379,
+    "epidemiology_healthcare_utilization_fragmentation": 61.996091,
+    "epidemiology_infectious_disease_surveillance": 57.622645,
+    "epidemiology_social_determinants_disparities": 48.62689,
+    "epidemiology_maternal_perinatal_health": 35.04581,
+    "epidemiology_machine_learning_ehr_methods": 25.764101,
+    "epidemiology_elder_mistreatment_aging": 24.967872,
+    "epidemiology_opioid_substance_use_policy": 23.752008,
+    "epidemiology_mental_health_suicide": 23.680557,
+    "epidemiology_global_lmic_population_health": 21.221243,
+    "epidemiology_vaccine_immunization_epidemiology": 15.837404
+  },
+  "faculty_count": 711,
+  "subtopic_count": 15
+}

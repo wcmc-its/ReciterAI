@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment / secrets — credentials live in ~/.zshrc, never in repo
+.env
+.env.local
+.env.*.local
+
+# Working artifacts — regeneratable by the pipeline; canonical outputs go to S3
+# (wcmc-reciterai-hierarchy, wcmc-reciterai-artifacts)
+author_mapping.json
+faculty_metadata.json
+cwid_rollup.csv
+cwid_subtopic_counts.csv
+cwid_topic_counts.csv
+cwid_topics_subtopics.json
+scoring_results.json
+synopses_cache.json
+
+# Pipeline output staging
+out/
+.clone/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local-only Claude config (per repo)
+.claude/
+
+# Bulk data archives
+*.xlsx
+*.parquet
+
+# Large generated CSVs (keep small fixtures explicitly tracked)
+/cwid_*.csv
+/cwid_*.json

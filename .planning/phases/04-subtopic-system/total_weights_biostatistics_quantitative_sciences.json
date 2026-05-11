@@ -1,0 +1,21 @@
+{
+  "topic_id": "biostatistics_quantitative_sciences",
+  "total_weights": {
+    "biostatistics_prediction_risk_models": 81.256371,
+    "biostatistics_real_world_evidence_healthcare_utilization": 75.865601,
+    "biostatistics_health_disparities_social_determinants": 65.744587,
+    "biostatistics_clinical_trial_design": 64.046756,
+    "biostatistics_diagnostic_accuracy_measurement": 51.937923,
+    "biostatistics_epidemiology_infectious_disease": 46.760323,
+    "biostatistics_machine_learning_ai_health": 33.446588,
+    "biostatistics_causal_inference_comparative_effectiveness": 33.086189,
+    "biostatistics_omics_multiomics_biomarkers": 27.463903,
+    "biostatistics_patient_subphenotyping_clustering": 18.377177,
+    "biostatistics_survival_analysis_longitudinal": 17.602469,
+    "biostatistics_opioid_substance_use_policy": 10.490474,
+    "biostatistics_statistical_methods_methodology": 9.155544,
+    "biostatistics_cost_effectiveness_economic_evaluation": 7.363483
+  },
+  "faculty_count": 767,
+  "subtopic_count": 14
+}

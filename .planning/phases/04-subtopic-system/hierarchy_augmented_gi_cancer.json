@@ -1,0 +1,410 @@
+{
+  "topic_id": "gi_cancer",
+  "topic_label": "Gastrointestinal Cancer",
+  "subtopics": [
+    {
+      "id": "gi_pancreatic_cancer_biology_treatment",
+      "label": "Pancreatic Cancer Biology and Treatment",
+      "description": "Research on molecular mechanisms, oncogenic drivers (KRAS, p53, NADK, RHAMM), tumor microenvironment, and therapeutic strategies in pancreatic ductal adenocarcinoma and pancreatic neuroendocrine tumors, including surgical outcomes and systemic therapy trials.",
+      "seed_pmids": [
+        32086369,
+        34133937,
+        34044069,
+        32792368,
+        34417914,
+        31236851,
+        35404890,
+        34990289,
+        34158422,
+        36508685,
+        39214094,
+        40544923,
+        40042924,
+        38942992,
+        39731868,
+        31953039,
+        36301668,
+        34761107,
+        37327088,
+        39432379,
+        39314068,
+        39949931
+      ],
+      "coverage_estimate": 0.138,
+      "total_weight": 23.869984,
+      "activity_count": 26
+    },
+    {
+      "id": "gi_gastric_gastroesophageal_therapy",
+      "label": "Gastric and Gastroesophageal Cancer Systemic Therapy and Biomarkers",
+      "description": "Clinical trials and biomarker studies in gastric, gastroesophageal junction, and esophageal adenocarcinoma, including targeted agents (zolbetuximab, ramucirumab, andecaliximab), immunotherapy, CLDN18.2, FGFR2, HER2, and TP53 mutation stratification.",
+      "seed_pmids": [
+        33577358,
+        34893523,
+        35833783,
+        37490286,
+        37524953,
+        35267477,
+        32641434,
+        38954176,
+        38902956,
+        36826106,
+        35380714,
+        39708521,
+        39872775,
+        38006526
+      ],
+      "coverage_estimate": 0.088,
+      "total_weight": 9.121004,
+      "activity_count": 14
+    },
+    {
+      "id": "gi_esophageal_cancer_surgery_outcomes",
+      "label": "Esophageal Cancer Surgery and Multimodal Treatment",
+      "description": "Studies on surgical approaches, lymphadenectomy, neoadjuvant chemoradiation, and survival outcomes in esophageal squamous cell carcinoma and adenocarcinoma, including robotic esophagectomy and immunotherapy biomarkers.",
+      "seed_pmids": [
+        33205192,
+        34475320,
+        35866662,
+        35852104,
+        33211265
+      ],
+      "coverage_estimate": 0.031,
+      "total_weight": 5.02963,
+      "activity_count": 3
+    },
+    {
+      "id": "gi_colorectal_cancer_molecular_biology",
+      "label": "Colorectal Cancer Molecular Biology and Tumor Microenvironment",
+      "description": "Research on molecular mechanisms driving colorectal cancer initiation and progression, including Wnt/APC signaling, PKC\u03bb/\u03b9, aPKC, SOX17, ILC3 dysregulation, immune evasion, lineage plasticity, and tumor microenvironment characterization.",
+      "seed_pmids": [
+        36457029,
+        32546576,
+        34407392,
+        38815584,
+        36525970,
+        38092754,
+        38418875,
+        40743578,
+        38678016,
+        35790295,
+        36527596,
+        37083323,
+        33554135
+      ],
+      "coverage_estimate": 0.082,
+      "total_weight": 12.671782,
+      "activity_count": 11
+    },
+    {
+      "id": "gi_colorectal_endoscopic_surgical_management",
+      "label": "Colorectal Cancer Endoscopic and Surgical Management",
+      "description": "Studies on endoscopic resection techniques (ESD, EMR, cold snare polypectomy, FTRD), minimally invasive and robotic colorectal surgery, colonic stenting, and perioperative outcomes for colorectal cancer and polyps.",
+      "seed_pmids": [
+        34548571,
+        33104913,
+        37178740,
+        33592228,
+        32648183,
+        32939622,
+        39565525,
+        38833755,
+        35943856,
+        32931163
+      ],
+      "coverage_estimate": 0.063,
+      "total_weight": 2.405954,
+      "activity_count": 9
+    },
+    {
+      "id": "gi_hepatocellular_cholangiocarcinoma_biology_treatment",
+      "label": "Hepatocellular Carcinoma and Cholangiocarcinoma Biology and Treatment",
+      "description": "Research on molecular pathogenesis, imaging, locoregional therapies (Y-90 radioembolization, TACE), surgical approaches, and biomarkers in hepatocellular carcinoma and intrahepatic cholangiocarcinoma, including PKC\u03bb/\u03b9, STING pathway, and IDH1/2 mutations.",
+      "seed_pmids": [
+        32589943,
+        39423823,
+        33377079,
+        34951132,
+        34303189,
+        35512243,
+        33765338,
+        38047392,
+        40203438,
+        39314068,
+        36412683,
+        34414494,
+        40813475,
+        38958005,
+        39729978
+      ],
+      "coverage_estimate": 0.094,
+      "total_weight": 11.56011,
+      "activity_count": 11
+    },
+    {
+      "id": "gi_radioimmunotherapy_targeted_delivery",
+      "label": "Pretargeted Radioimmunotherapy and Targeted Drug Delivery in GI Cancers",
+      "description": "Development and evaluation of pretargeted radioimmunotherapy (GPA33, HER2 targeting), antibody-drug conjugates, nanoparticle drug delivery systems, and novel radiohaptens for colorectal, gastric, and other GI cancers.",
+      "seed_pmids": [
+        31891487,
+        39168519,
+        34667111,
+        40756357,
+        33741442,
+        37007587
+      ],
+      "coverage_estimate": 0.038,
+      "total_weight": 3.067851,
+      "activity_count": 6
+    },
+    {
+      "id": "gi_colorectal_cancer_screening_disparities",
+      "label": "Colorectal Cancer Screening, Disparities, and Lynch Syndrome",
+      "description": "Studies on colorectal cancer screening uptake, racial and socioeconomic disparities, Lynch syndrome identification and surveillance, hereditary cancer risk assessment, and factors influencing screening receipt.",
+      "seed_pmids": [
+        38357223,
+        39029926,
+        33092858,
+        38838280,
+        32641470,
+        40821478,
+        36305018,
+        33889609
+      ],
+      "coverage_estimate": 0.05,
+      "total_weight": 2.989698,
+      "activity_count": 11
+    },
+    {
+      "id": "gi_pancreatic_cystic_biliary_pathology",
+      "label": "Pancreatic Cystic Lesions, Biliary Tract, and Ampullary Neoplasms",
+      "description": "Diagnostic and pathological studies of pancreatic cystic neoplasms, biliary tract adenocarcinomas, ampullary adenocarcinoma, intracholecystic papillary neoplasms, and EUS-guided tissue acquisition and biliary drainage.",
+      "seed_pmids": [
+        35195765,
+        36650420,
+        31903736,
+        39042493,
+        32624291,
+        38660666,
+        40203438
+      ],
+      "coverage_estimate": 0.044,
+      "total_weight": 2.792201,
+      "activity_count": 7
+    },
+    {
+      "id": "gi_tumor_microenvironment_immunotherapy",
+      "label": "Tumor Microenvironment, Immunotherapy Resistance, and Immune Modulation in GI Cancers",
+      "description": "Research on immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers, including TGF\u03b2 inhibition, MEK inhibition with GITR costimulation, PKC\u03bb/\u03b9-mediated interferon response, and neutrophil-driven resistance.",
+      "seed_pmids": [
+        34789823,
+        38885362,
+        34560002,
+        34433022,
+        37731056,
+        35325225,
+        36179671,
+        37034187,
+        36166399
+      ],
+      "coverage_estimate": 0.057,
+      "total_weight": 8.078339,
+      "activity_count": 9
+    },
+    {
+      "id": "gi_liquid_biopsy_molecular_diagnostics",
+      "label": "Liquid Biopsy, ctDNA, and Molecular Diagnostics in GI Cancers",
+      "description": "Studies on circulating tumor DNA detection, next-generation sequencing of plasma and tissue, methylation markers, and molecular biomarker testing for diagnosis, monitoring, and treatment selection in GI and other solid tumors.",
+      "seed_pmids": [
+        31950578,
+        34286887,
+        32407802,
+        38877116,
+        35126865,
+        36044468,
+        32034076,
+        39948314,
+        36826106
+      ],
+      "coverage_estimate": 0.057,
+      "total_weight": 2.975337,
+      "activity_count": 7
+    },
+    {
+      "id": "gi_gastric_colorectal_neuroendocrine_tumors",
+      "label": "Gastrointestinal Neuroendocrine and Stromal Tumors",
+      "description": "Clinical and molecular studies of gastrointestinal neuroendocrine tumors (colorectal, pancreatic) and gastrointestinal stromal tumors, including surgical timing, recurrence predictors, novel gene fusions, and endoscopic resection.",
+      "seed_pmids": [
+        39888466,
+        39366850,
+        35839409,
+        39708519,
+        35968961,
+        40704110,
+        31953039
+      ],
+      "coverage_estimate": 0.044,
+      "total_weight": 3.928177,
+      "activity_count": 4
+    },
+    {
+      "id": "gi_rectal_cancer_treatment_outcomes",
+      "label": "Rectal Cancer Treatment, Staging, and Outcomes",
+      "description": "Research on rectal cancer management including neoadjuvant chemoradiation, surgical outcomes, MRI-based response assessment, care fragmentation, Medicaid expansion impact, and staging reproducibility.",
+      "seed_pmids": [
+        35213460,
+        40493999,
+        39923594,
+        35325225,
+        33211265,
+        32931163,
+        35943856
+      ],
+      "coverage_estimate": 0.044,
+      "total_weight": 6.531413,
+      "activity_count": 7
+    },
+    {
+      "id": "gi_cancer_preclinical_models_epigenetics",
+      "label": "Preclinical Cancer Models, Epigenetics, and Tumor Initiation",
+      "description": "Development and use of preclinical models (mouse, organoid, xenograft) and epigenetic studies to investigate GI cancer initiation, lineage plasticity, chromatin remodeling, and oncogenic mutation modeling.",
+      "seed_pmids": [
+        37563300,
+        38056453,
+        33207226,
+        37673071,
+        33535955,
+        37612508,
+        39317739,
+        33554135,
+        33377079
+      ],
+      "coverage_estimate": 0.057,
+      "total_weight": 3.318294,
+      "activity_count": 8
+    },
+    {
+      "id": "gi_extracellular_vesicles_metastasis",
+      "label": "Extracellular Vesicles in Cancer Metastasis and Systemic Effects",
+      "description": "Research on tumor-derived extracellular vesicles and particles that drive metastatic progression, cancer-associated thrombosis, liver metabolic dysfunction, and antitumor immune priming via Kupffer cells.",
+      "seed_pmids": [
+        37225988,
+        39938515,
+        39627554,
+        35868533
+      ],
+      "coverage_estimate": 0.026,
+      "total_weight": 8.734295,
+      "activity_count": 4
+    },
+    {
+      "id": "gi_cancer_disparities_access_outcomes",
+      "label": "Cancer Care Disparities, Access, and Health Equity",
+      "description": "Studies examining racial, ethnic, and socioeconomic disparities in cancer screening adherence, surgical access (robot-assisted and minimally invasive surgery), health literacy, and care utilization across cancer populations.",
+      "seed_pmids": [
+        37870412,
+        40045673,
+        35032754,
+        33661509
+      ],
+      "coverage_estimate": 0.026,
+      "total_weight": 1.878034,
+      "activity_count": 4
+    },
+    {
+      "id": "gi_comorbidity_management_cancer_survivors",
+      "label": "Comorbidity Management and Survivorship in Cancer Patients",
+      "description": "Investigations into the management of chronic comorbidities such as diabetes and cardiovascular disease before and after cancer diagnosis, including racial disparities in comorbidity care among cancer survivors.",
+      "seed_pmids": [
+        31999848,
+        33661509,
+        37019746
+      ],
+      "coverage_estimate": 0.019,
+      "total_weight": 0.749067,
+      "activity_count": 3
+    },
+    {
+      "id": "gi_liver_transplant_viral_hepatitis",
+      "label": "Liver Transplantation, Viral Hepatitis, and Obesity",
+      "description": "Clinical studies on liver transplantation outcomes in the context of viral hepatitis (HCV, HDV, HBV) and obesity, including epidemiology of HCV in high-prevalence regions and management challenges in obese transplant candidates.",
+      "seed_pmids": [
+        32258952,
+        34957333,
+        36865816
+      ],
+      "coverage_estimate": 0.019,
+      "total_weight": 0.282538,
+      "activity_count": 3
+    },
+    {
+      "id": "gi_cancer_genomics_structural_variation",
+      "label": "Cancer Genomics, Structural Variation, and Clonal Hematopoiesis",
+      "description": "Pan-cancer genomic analyses uncovering complex structural rearrangements across cancer genomes and the association of clonal hematopoiesis of indeterminate potential (CHIP) and mosaic chromosomal alterations with solid tumor incidence and mortality.",
+      "seed_pmids": [
+        33007263,
+        39012906,
+        35150601
+      ],
+      "coverage_estimate": 0.019,
+      "total_weight": 1.479442,
+      "activity_count": 3
+    },
+    {
+      "id": "gi_cancer_treatment_delay_regionalization",
+      "label": "Cancer Treatment Timing, Regionalization, and Surgical Quality",
+      "description": "Research on the impact of treatment delays on tumor control and metastatic risk, and systematic evidence on regionalization of surgical oncology care to improve patient outcomes.",
+      "seed_pmids": [
+        33502482,
+        34028698,
+        32705734
+      ],
+      "coverage_estimate": 0.019,
+      "total_weight": 1.627324,
+      "activity_count": 3
+    },
+    {
+      "id": "gi_metabolic_immune_reprogramming_cancer",
+      "label": "Metabolic Reprogramming and Immune Enhancement in Cancer",
+      "description": "Studies on pharmacologic and metabolic interventions\u2014including LDH inhibition and tumor extracellular vesicle signaling\u2014that redirect glucose metabolism and enhance antitumor T cell immunity in solid tumors.",
+      "seed_pmids": [
+        39225102,
+        37225988,
+        39627554
+      ],
+      "coverage_estimate": 0.019,
+      "total_weight": 0.868675,
+      "activity_count": 1
+    },
+    {
+      "id": "gi_colorectal_gastric_systemic_therapy_resistance",
+      "label": "Systemic Therapy Resistance and Novel Agents in Colorectal and Gastric Cancer",
+      "description": "Clinical and translational studies on resistance mechanisms and novel therapeutic strategies in colorectal and gastric cancers, including taxane resistance in gastric cancer, napabucasin plus FOLFIRI in metastatic colorectal cancer, and HER2 testing practices.",
+      "seed_pmids": [
+        32321717,
+        36503738,
+        36538387,
+        38447475
+      ],
+      "coverage_estimate": 0.026,
+      "total_weight": 2.425454,
+      "activity_count": 4
+    }
+  ],
+  "uncovered_pmids": [
+    "33752441",
+    "40912599",
+    "34875001"
+  ],
+  "total_activities": 159,
+  "coverage_pct": 0.9748,
+  "generated_at": "2026-04-14T21:59:05.617041Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved",
+  "augmented_at": "2026-04-14T22:00:07Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_gi_cancer.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}

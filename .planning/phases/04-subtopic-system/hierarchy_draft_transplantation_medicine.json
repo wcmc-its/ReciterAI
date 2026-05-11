@@ -1,0 +1,346 @@
+{
+  "topic_id": "transplantation_medicine",
+  "topic_label": "Transplantation Medicine",
+  "subtopics": [
+    {
+      "id": "transplantation_kidney_allograft_monitoring",
+      "label": "Kidney Allograft Monitoring and Rejection Diagnostics",
+      "description": "Research on noninvasive biomarkers and molecular diagnostics for kidney allograft rejection, including urinary cell mRNA profiling, RNA-sequencing, donor-derived cell-free DNA, and transcriptomic signatures for T-cell mediated and antibody-mediated rejection.",
+      "seed_pmids": [
+        32102984,
+        32766436,
+        33031221,
+        33349997,
+        33857204,
+        34184326,
+        34436474,
+        34464607,
+        35657798,
+        36027931,
+        36493873,
+        37026702,
+        38040290,
+        38291584,
+        38936464,
+        40048628
+      ],
+      "coverage_estimate": 0.112
+    },
+    {
+      "id": "transplantation_liver_outcomes_access",
+      "label": "Liver Transplantation Outcomes, Access, and Disparities",
+      "description": "Studies examining liver transplant waitlist access, outcomes, and disparities including racial and socioeconomic inequities, Medicaid expansion effects, alcohol-associated liver disease, obesity, and perioperative management.",
+      "seed_pmids": [
+        33779992,
+        34060678,
+        35848134,
+        37486623,
+        36865816,
+        32563759,
+        34957333,
+        35532183,
+        37439670,
+        38650519,
+        39964024,
+        34862704,
+        36377099,
+        37126326,
+        32944958
+      ],
+      "coverage_estimate": 0.105
+    },
+    {
+      "id": "transplantation_heart_outcomes_complications",
+      "label": "Heart Transplantation Outcomes and Complications",
+      "description": "Clinical research on heart transplant perioperative management, primary graft dysfunction, allograft vasculopathy, rejection, and long-term survival including effects of donor factors, recipient comorbidities, and allocation policy changes.",
+      "seed_pmids": [
+        32156588,
+        32238278,
+        32367594,
+        33236553,
+        33314309,
+        33691941,
+        34889487,
+        37240595,
+        38952190,
+        39929310,
+        38456308
+      ],
+      "coverage_estimate": 0.077
+    },
+    {
+      "id": "transplantation_lung_perioperative",
+      "label": "Lung Transplantation Perioperative Management and Outcomes",
+      "description": "Research on perioperative and clinical outcomes in double-lung transplantation including primary graft dysfunction prediction, ECMO use, intraoperative factors, cystic fibrosis-specific outcomes, and lymphatic anastomosis.",
+      "seed_pmids": [
+        31688808,
+        32380057,
+        32741611,
+        33632637,
+        34879926,
+        36964081,
+        37635039,
+        40143922,
+        40414788
+      ],
+      "coverage_estimate": 0.063
+    },
+    {
+      "id": "transplantation_hct_gvhd_complications",
+      "label": "Hematopoietic Cell Transplantation: GVHD, Engraftment, and Complications",
+      "description": "Studies on hematopoietic cell transplantation outcomes including graft-versus-host disease prophylaxis, engraftment kinetics, cord blood transplantation, delirium, and perioperative complications in pediatric and adult populations.",
+      "seed_pmids": [
+        32555371,
+        33290545,
+        33968727,
+        33866587,
+        39332042,
+        40423982,
+        39243817,
+        31911259,
+        32712326,
+        36622338,
+        35241387
+      ],
+      "coverage_estimate": 0.077
+    },
+    {
+      "id": "transplantation_hct_donor_matching_access",
+      "label": "HCT Donor Matching, Access, and Racial Disparities",
+      "description": "Research on unrelated donor identification, HLA matching, racial and ethnic disparities in access to allogeneic transplantation, and tools to predict donor availability and transplant timing.",
+      "seed_pmids": [
+        36822475,
+        38052043,
+        38429097,
+        36240477,
+        39433911,
+        39641218,
+        33694175
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "transplantation_infectious_complications",
+      "label": "Infectious Complications in Transplant Recipients",
+      "description": "Studies on post-transplant infections including CMV, BK virus nephropathy, adenovirus, aspergillosis, gastrointestinal pathogens, and antibiotic effects on gut microbiota in solid organ and hematopoietic cell transplant recipients.",
+      "seed_pmids": [
+        31687767,
+        33811020,
+        34805426,
+        35802462,
+        38329327,
+        39371270,
+        32654412,
+        36027931,
+        40143922,
+        37154766,
+        37377328
+      ],
+      "coverage_estimate": 0.077
+    },
+    {
+      "id": "transplantation_gut_microbiota",
+      "label": "Gut Microbiota and Transplant Outcomes",
+      "description": "Research examining the role of gut microbiota composition in transplant recipients, including associations with urinary tract infections, post-transplant diarrhea, antibiotic perturbation, and colonization with resistant organisms.",
+      "seed_pmids": [
+        32865119,
+        33605497,
+        39371270,
+        35695506
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "transplantation_kidney_donor_recipient",
+      "label": "Kidney Transplant Donor Strategies and Recipient Outcomes",
+      "description": "Clinical studies on kidney transplant donor strategies including HCV-positive donors, living donors, robotic surgical techniques, frailty assessment, dialysis nonadherence, and outcomes in HIV-infected recipients.",
+      "seed_pmids": [
+        32072689,
+        32374143,
+        33238756,
+        34160572,
+        36564226,
+        35997960,
+        31343576,
+        34673160,
+        37675034,
+        33484065,
+        34085731
+      ],
+      "coverage_estimate": 0.077
+    },
+    {
+      "id": "transplantation_cmv_immunity",
+      "label": "CMV Immunity, Vaccination, and Immune Correlates in Transplantation",
+      "description": "Research on cytomegalovirus immune responses, vaccine development, antibody correlates of protection, and humoral immunity in transplant and non-transplant settings.",
+      "seed_pmids": [
+        33148624,
+        37816743,
+        32134477,
+        35970817
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "transplantation_liver_transplant_equity",
+      "label": "Equity, Social Determinants, and Policy in Liver Transplantation",
+      "description": "Studies on social determinants of health, racial and gender disparities, insurance coverage, and policy interventions affecting liver transplant listing, access, and outcomes.",
+      "seed_pmids": [
+        34060678,
+        33779992,
+        35848134,
+        37486623,
+        34118120,
+        36128925,
+        39729978,
+        37439670
+      ],
+      "coverage_estimate": 0.056
+    },
+    {
+      "id": "transplantation_post_transplant_malignancy",
+      "label": "Post-Transplant Malignancy and Immunosuppression-Related Cancer",
+      "description": "Research on malignancies arising in immunosuppressed transplant recipients, including cutaneous squamous cell carcinoma, EBV-positive CNS lymphoma, and donor-derived acute myeloid leukemia.",
+      "seed_pmids": [
+        36980651,
+        33247523,
+        36960939,
+        35979657
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "transplantation_pregnancy_reproductive",
+      "label": "Pregnancy and Reproductive Outcomes in Transplant Recipients",
+      "description": "Studies on reproductive counseling, pregnancy outcomes, and renal function in solid organ transplant recipients including uterus transplant recipients and women with chronic kidney disease.",
+      "seed_pmids": [
+        35822437,
+        36472763,
+        34617168,
+        36194429
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "transplantation_hct_lymphoma_myeloma",
+      "label": "HCT for Lymphoma, Myeloma, and Myeloproliferative Neoplasms",
+      "description": "Clinical outcomes research on hematopoietic cell transplantation for hematologic malignancies including Hodgkin lymphoma, multiple myeloma, myeloproliferative neoplasms, and peripheral T-cell lymphoma.",
+      "seed_pmids": [
+        36897253,
+        32712326,
+        35241387,
+        40811484,
+        39243817,
+        36622338
+      ],
+      "coverage_estimate": 0.042
+    },
+    {
+      "id": "transplantation_covid19_impact",
+      "label": "COVID-19 Impact on Transplant Recipients and Programs",
+      "description": "Research on COVID-19 outcomes in kidney transplant recipients and waitlisted patients, and the broader impact of the pandemic on transplant program operations and non-COVID patient care.",
+      "seed_pmids": [
+        32678882,
+        33043597,
+        32233055,
+        33993134
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "transplantation_aml_hematologic_malignancy_therapy",
+      "label": "Acute Myeloid Leukemia and Hematologic Malignancy Treatment",
+      "description": "Research on novel therapeutic agents and salvage regimens for acute myeloid leukemia, acute lymphoblastic leukemia, and related hematologic malignancies, including targeted therapies and chemotherapy combinations.",
+      "seed_pmids": [
+        32812818,
+        33159365,
+        37254665,
+        37952982
+      ],
+      "coverage_estimate": 0.13
+    },
+    {
+      "id": "transplantation_myeloid_neoplasm_biology",
+      "label": "Myeloid Neoplasm Biology and Hematopoietic Stem Cell Regulation",
+      "description": "Studies examining the molecular and cellular biology of myelodysplastic syndromes, myeloproliferative neoplasms, and hematopoietic stem cell self-renewal, including epigenetic regulation and microenvironmental signaling.",
+      "seed_pmids": [
+        37163704,
+        33012187,
+        38065069,
+        40000903
+      ],
+      "coverage_estimate": 0.13
+    },
+    {
+      "id": "transplantation_islet_beta_cell_transplant",
+      "label": "Islet and Beta Cell Transplantation and Engraftment",
+      "description": "Research on transplantation of pancreatic islets and beta cells, including vascularization strategies, subcutaneous engraftment, and small molecule approaches to enhance beta cell survival and function.",
+      "seed_pmids": [
+        39879286,
+        40562034,
+        38268979
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "transplantation_alcohol_liver_disease_cirrhosis",
+      "label": "Alcohol-Associated Liver Disease, Cirrhosis, and Prognosis",
+      "description": "Studies on alcohol use disorder and alcohol-associated liver disease including prognostic scoring, relapse prediction, patient-provider prognosis discordance, and clinical management of decompensated cirrhosis.",
+      "seed_pmids": [
+        31785079,
+        34278166,
+        35643416,
+        39886332
+      ],
+      "coverage_estimate": 0.13
+    },
+    {
+      "id": "transplantation_liver_allograft_diagnostics",
+      "label": "Liver Allograft Rejection Diagnostics and HCC Treatment Response",
+      "description": "Research on noninvasive biomarkers such as serum microRNAs for diagnosing acute rejection in liver allografts, and imaging-based assessment of hepatocellular carcinoma treatment response using LI-RADS criteria.",
+      "seed_pmids": [
+        33979314,
+        34303189,
+        39069380
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "transplantation_pediatric_hct_complications",
+      "label": "Pediatric HCT and Cancer Complications Including Bleeding and Vaccination",
+      "description": "Research on complications in pediatric hematopoietic cell transplant and cancer patients, including massive bleeding events, HPV vaccine uptake among HSCT survivors, and thrombotic microangiopathy.",
+      "seed_pmids": [
+        40277427,
+        39556189,
+        32681658
+      ],
+      "coverage_estimate": 0.1
+    },
+    {
+      "id": "transplantation_cellular_therapy_processing",
+      "label": "Cellular Therapy Product Processing and Cryopreservation",
+      "description": "Studies evaluating the effects of cryopreservation conditions and temporary storage on the viability and recovery of cellular therapy products used in transplantation.",
+      "seed_pmids": [
+        39332286,
+        31915293,
+        33988715
+      ],
+      "coverage_estimate": 0.1
+    }
+  ],
+  "uncovered_pmids": [
+    "39332042",
+    "34981713",
+    "38066851",
+    "36928765",
+    "36400435",
+    "33095579",
+    "33559315"
+  ],
+  "total_activities": 143,
+  "coverage_pct": 0.958,
+  "generated_at": "2026-04-14T22:02:44.428834Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

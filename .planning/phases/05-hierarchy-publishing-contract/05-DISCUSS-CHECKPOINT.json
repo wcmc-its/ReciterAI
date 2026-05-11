@@ -1,0 +1,30 @@
+{
+  "phase_number": "05",
+  "phase_slug": "hierarchy-publishing-contract",
+  "checkpoint_version": 1,
+  "areas_total": 4,
+  "areas_completed": 3,
+  "remaining_areas": ["Operational integration"],
+  "decisions": {
+    "S3 substrate & access": {
+      "access_model": "IAM-gated private bucket with per-consumer scoped GetObject roles",
+      "region": "us-east-1",
+      "bucket_name": "wcmc-reciterai-hierarchy",
+      "provisioning": "User (Paul) provisions via AWS console; pipeline IAM role gains PutObject on this bucket"
+    },
+    "Versioning scheme": {
+      "version_prefix": "v{ISO-date}/ — e.g. v2026-05-06/",
+      "latest_update_mechanism": "PutObject overwrite of latest/ on every publish",
+      "retention": "Keep all versions indefinitely (~13 MB/year)",
+      "schema_versioning": "schema_version semver in hierarchy.schema.json + manifest.json — independent of taxonomy_version and publish date"
+    },
+    "Contract scope & promises": {
+      "cadence_promise": "Annual recompute + ad-hoc re-publishes for label/contract fixes; consumers poll weekly or subscribe to publish notifications",
+      "deprecation_window": "30 days (matches SPS existing 30-day schema-change protocol from SPS CLAUDE.md)",
+      "schema_change_communication": "CHANGELOG section in docs/hierarchy-contract.md + schema_version semver bump (additive=minor, breaking=major); manifest.json carries schema_version so consumers can detect changes",
+      "backwards_compat_policy": "Additive fields are always non-breaking (codifies display_name precedent); consumers MUST tolerate unknown fields silently"
+    }
+  },
+  "deferred_ideas": [],
+  "canonical_refs_accumulated": []
+}

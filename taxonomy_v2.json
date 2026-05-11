@@ -1,0 +1,340 @@
+{
+  "taxonomy_version": "taxonomy_v2",
+  "topics": [
+    {
+      "id": "cardiovascular_disease",
+      "label": "Cardiovascular Disease",
+      "description": "Clinical and translational research on heart and vascular conditions including heart failure, coronary artery disease, arrhythmias, valvular disease, cardiomyopathy, and vascular surgery. Encompasses cardiac imaging, interventional cardiology, cardiac surgery outcomes, and basic cardiovascular biology. Includes both structural heart disease and cardiovascular risk factor management."
+    },
+    {
+      "id": "neuroscience_neurology",
+      "label": "Neuroscience & Neurology",
+      "description": "Basic and clinical neuroscience spanning fundamental neural mechanisms, neurophysiology, neuroanatomy, and clinical neurology including stroke, epilepsy, brain injury, and movement disorders. Covers molecular and cellular neurobiology, neuroimaging, neuromodulation, and neural circuit function. Distinct from neurodegenerative disease (progressive conditions like Alzheimer's/Parkinson's) and psychiatry (mental health disorders)."
+    },
+    {
+      "id": "infectious_disease_immunology",
+      "label": "Infectious Disease & Host Defense",
+      "description": "Pathogen-focused research on bacterial, viral, fungal, and parasitic infections alongside host defense mechanisms, vaccine development, and antimicrobial resistance. Encompasses HIV, COVID-19, tuberculosis, hepatitis, and emerging infections. Distinct from Immunology & Inflammation (fundamental immune regulation) in its focus on pathogen biology and infection-specific immune responses."
+    },
+    {
+      "id": "mental_health_psychiatry",
+      "label": "Mental Health & Psychiatry",
+      "description": "Clinical and translational research on psychiatric conditions including depression, anxiety, schizophrenia, bipolar disorder, PTSD, and behavioral health across the lifespan. Covers neurobiological mechanisms, pharmacological and psychotherapeutic interventions, and mental health services delivery. Substance use disorders are primarily covered under Substance Use & Addiction Medicine."
+    },
+    {
+      "id": "cell_molecular_biology",
+      "label": "Cell & Molecular Biology",
+      "description": "Foundational research into cellular mechanisms, molecular signaling pathways, gene regulation, and biochemical processes underlying physiology and disease. Encompasses cell cycle regulation, protein function, organelle biology, RNA biology, epigenetic regulation, and intracellular signaling across disease contexts."
+    },
+    {
+      "id": "gastroenterology_hepatology",
+      "label": "Gastroenterology, Hepatology & Pancreatic Disease",
+      "description": "Research on gastrointestinal, hepatobiliary, and pancreatic diseases including inflammatory bowel disease, cirrhosis, hepatitis, colorectal conditions, pancreatic cancer, and pancreatitis. Covers endoscopic interventions, gut microbiome biology, liver fibrosis mechanisms, and both medical and surgical management of GI, hepatobiliary, and pancreatic conditions."
+    },
+    {
+      "id": "health_equity_social_determinants",
+      "label": "Health Equity & Social Determinants of Health",
+      "description": "Research examining racial, ethnic, socioeconomic, geographic, and structural disparities in health outcomes, healthcare access, and treatment. Addresses systemic factors driving health inequities including insurance status, neighborhood disadvantage, discrimination, and policy-level determinants. Includes structural equity within healthcare institutions, representation in the biomedical workforce, and diversity pipeline research."
+    },
+    {
+      "id": "metabolic_endocrine_disease",
+      "label": "Metabolic & Endocrine Disease",
+      "description": "Research on diabetes, obesity, thyroid disease, adrenal disorders, and related metabolic conditions including insulin resistance, lipid metabolism, and hormonal regulation. Spans molecular mechanisms of metabolic dysfunction through clinical management of endocrine disorders and their systemic complications."
+    },
+    {
+      "id": "neurodegenerative_disease",
+      "label": "Neurodegenerative Disease",
+      "description": "Research focused on progressive neurological conditions including Alzheimer's disease, Parkinson's disease, ALS, Huntington's disease, and related tauopathies and proteinopathies. Covers molecular mechanisms of neurodegeneration, biomarker discovery, neuroprotective strategies, and clinical disease management."
+    },
+    {
+      "id": "womens_health_reproductive_medicine",
+      "label": "Women's Health & Reproductive Medicine",
+      "description": "Research on gynecology, reproductive endocrinology, fertility, menopause, and sex-specific health conditions across the female lifespan. Encompasses gynecologic oncology, assisted reproductive technologies, contraception, and biological sex differences in disease. Distinct from Maternal & Child Health (population-level perinatal epidemiology and public health)."
+    },
+    {
+      "id": "aging_geroscience",
+      "label": "Aging & Geroscience",
+      "description": "Research on biological mechanisms of aging and their clinical consequences including frailty, cognitive decline, age-related disease, and geriatric syndromes. Bridges molecular biology of cellular senescence and aging pathways with clinical geriatric care, elder mistreatment, and long-term care delivery."
+    },
+    {
+      "id": "pulmonary_critical_care",
+      "label": "Pulmonary & Critical Care Medicine",
+      "description": "Research on chronic and acute lung diseases including COPD, interstitial lung disease, asthma, pulmonary fibrosis, and respiratory infections. Covers airway biology, mechanical ventilation, and ICU management of respiratory failure. Distinct from Emergency & Critical Care Medicine (ED workflows, trauma, triage, resuscitation) in its focus on pulmonary biology and respiratory-focused critical care."
+    },
+    {
+      "id": "pediatrics_neonatology",
+      "label": "Pediatrics & Neonatology",
+      "description": "Clinical and translational research focused on health conditions, development, and care delivery in neonatal, infant, and pediatric populations. Encompasses preterm infant management, pediatric disease across organ systems, neurodevelopmental conditions, and age-specific clinical challenges from birth through adolescence."
+    },
+    {
+      "id": "surgery_perioperative_medicine",
+      "label": "Surgery & Perioperative Medicine",
+      "description": "Research on surgical techniques, outcomes, and perioperative management across specialties including general, thoracic, vascular, and minimally invasive surgery. Covers operative technique evaluation, perioperative risk stratification, postoperative complications, and quality improvement in surgical care."
+    },
+    {
+      "id": "nephrology_renal_disease",
+      "label": "Nephrology & Renal Disease",
+      "description": "Research on acute kidney injury, chronic kidney disease progression, renal physiology, and kidney transplantation. Encompasses biomarker discovery, renal replacement therapy, electrolyte homeostasis, and both molecular mechanisms and clinical management of kidney disease."
+    },
+    {
+      "id": "immunology_inflammation",
+      "label": "Immunology & Inflammation",
+      "description": "Fundamental research on immune cell biology, inflammatory signaling, and immune regulation including innate and adaptive immunity, cytokine pathways, immune checkpoint biology, and inflammatory mechanisms. Focuses on host immune regulation and non-organ-specific inflammatory conditions. Distinct from infectious disease (pathogen-focused) and autoimmune/rheumatologic disease (clinical autoimmune syndromes)."
+    },
+    {
+      "id": "transplantation_medicine",
+      "label": "Transplantation Medicine",
+      "description": "Clinical and translational research on solid organ and hematopoietic stem cell transplantation including donor-recipient matching, rejection mechanisms, immunosuppression, post-transplant complications, and long-term outcomes. Covers kidney, liver, heart, lung, and bone marrow transplantation."
+    },
+    {
+      "id": "hematology",
+      "label": "Hematology",
+      "description": "Research on blood cell disorders, coagulation, hematopoiesis, transfusion medicine, and hematologic malignancies. Covers both benign hematology (hemostasis, thrombosis, anemias, sickle cell disease) and blood cancers (leukemia, lymphoma, myeloma). Blood cancers are shared with Oncology; hematology emphasizes the hematologic biology and bone marrow context."
+    },
+    {
+      "id": "musculoskeletal_orthopedic_medicine",
+      "label": "Musculoskeletal & Orthopedic Medicine",
+      "description": "Research on bone, joint, cartilage, spine, and connective tissue conditions including osteoarthritis, fractures, spinal disorders, and orthopedic surgical outcomes. Spans basic bone and cartilage biology, biomechanics, sports medicine, and clinical surgical management. Inflammatory arthritides primarily sit under Autoimmune & Rheumatologic Disease."
+    },
+    {
+      "id": "autoimmune_rheumatologic_disease",
+      "label": "Autoimmune & Rheumatologic Disease",
+      "description": "Clinical and translational research on systemic autoimmune syndromes and rheumatologic conditions including lupus, rheumatoid arthritis, vasculitis, scleroderma, and inflammatory arthritis. Covers disease biomarkers, immunosuppressive therapies, and clinical management. Distinct from Immunology & Inflammation (fundamental immune mechanisms) in its focus on clinical autoimmune disease and rheumatology practice."
+    },
+    {
+      "id": "health_services_policy",
+      "label": "Health Services Research & Health Policy",
+      "description": "Population-level and systems-focused research on healthcare delivery, utilization, cost, quality, and policy interventions. Encompasses healthcare financing, insurance models, care coordination, value-based care, and the organization of health systems at institutional and national levels."
+    },
+    {
+      "id": "global_public_health",
+      "label": "Global & Public Health",
+      "description": "Population-level research addressing disease burden, epidemiology, health disparities, and health systems across diverse geographic and demographic contexts including low- and middle-income countries. Covers public health surveillance, community-based interventions, and international health policy."
+    },
+    {
+      "id": "medical_education_workforce",
+      "label": "Medical Education & Healthcare Workforce",
+      "description": "Research on training, curriculum development, competency assessment, and professional development across medical specialties and healthcare professions. Addresses residency/fellowship education, simulation-based training, faculty development, workforce well-being, burnout, and diversity/equity initiatives within academic medicine and the healthcare workforce."
+    },
+    {
+      "id": "palliative_end_of_life_care",
+      "label": "Palliative & End-of-Life Care",
+      "description": "Research on symptom management, goals-of-care communication, hospice utilization, and quality of life for seriously ill patients and their caregivers. Encompasses advance care planning, end-of-life decision-making, spiritual care, and the psychosocial dimensions of serious illness."
+    },
+    {
+      "id": "substance_use_addiction_medicine",
+      "label": "Substance Use & Addiction Medicine",
+      "description": "Research on opioid, alcohol, and other substance use disorders including epidemiology, treatment strategies, harm reduction, and policy. Covers medication-assisted treatment, naloxone distribution, opioid prescribing practices, and the neurobiological and social determinants of addiction."
+    },
+    {
+      "id": "dermatology_skin_disease",
+      "label": "Dermatology & Skin Disease",
+      "description": "Clinical and translational research on inflammatory, neoplastic, and infectious skin conditions including psoriasis, atopic dermatitis, melanoma, and rare dermatologic disorders. Encompasses skin biology, immunological mechanisms of skin disease, and therapeutic interventions across diverse skin types."
+    },
+    {
+      "id": "ophthalmology_vision_science",
+      "label": "Ophthalmology & Vision Science",
+      "description": "Clinical and translational research on eye diseases including age-related macular degeneration, glaucoma, diabetic retinopathy, and retinal disorders. Covers ocular biology, gene therapy for retinal disease, diagnostic imaging, and surgical interventions for ophthalmic conditions."
+    },
+    {
+      "id": "urology_mens_health",
+      "label": "Urology & Men's Health",
+      "description": "Clinical and translational research on urological conditions including prostate cancer, bladder cancer, benign prostatic hyperplasia, kidney stones, and male reproductive health. Encompasses urological surgery, imaging-guided diagnosis, and both oncologic and functional urological outcomes."
+    },
+    {
+      "id": "otolaryngology_head_neck",
+      "label": "Otolaryngology & Head and Neck Medicine",
+      "description": "Research on disorders of the ear, nose, throat, larynx, and head and neck structures including head and neck cancers, voice disorders, swallowing dysfunction, hearing loss, and sinonasal conditions. Covers both functional and oncologic conditions of the upper aerodigestive tract."
+    },
+    {
+      "id": "epidemiology_population_health",
+      "label": "Epidemiology & Population Health",
+      "description": "Population-level research examining disease prevalence, incidence, risk factors, and health behaviors using observational and surveillance methods. Encompasses chronic disease epidemiology, social determinants modeling, community health interventions, and public health surveillance across diverse populations."
+    },
+    {
+      "id": "genetics_genomics_precision_medicine",
+      "label": "Genetics, Genomics & Precision Medicine",
+      "description": "Research leveraging genetic and genomic data to understand disease mechanisms, population variation, and individualized clinical management. Includes GWAS, hereditary cancer genetics, pharmacogenomics, epigenomics, and the application of genomic information to precision diagnostics and therapeutics."
+    },
+    {
+      "id": "stem_cell_regenerative_medicine",
+      "label": "Stem Cell & Regenerative Medicine",
+      "description": "Research on cellular reprogramming, tissue regeneration, and stem cell biology including iPSC generation, organoid models, hematopoietic stem cell biology, and tissue engineering. Covers both methodological advances in cell-based approaches and fundamental biology of tissue repair and regeneration."
+    },
+    {
+      "id": "biochemistry_biophysics",
+      "label": "Biochemistry & Biophysics",
+      "description": "Structural and functional studies of proteins, macromolecular complexes, membranes, and metabolic pathways using biophysical and biochemical approaches. Includes cryo-EM, spectroscopy, enzyme kinetics, lipid biology, and molecular dynamics relevant to understanding biological function at atomic and molecular resolution."
+    },
+    {
+      "id": "developmental_biology",
+      "label": "Developmental Biology",
+      "description": "Research on organogenesis, cell differentiation, lineage specification, and developmental genetics using model organisms and stem cell systems. Encompasses embryonic development, congenital conditions, developmental signaling pathways, and the molecular regulation of tissue patterning and morphogenesis."
+    },
+    {
+      "id": "microbiome_research",
+      "label": "Microbiome Research",
+      "description": "Research on microbial communities and their interactions with host biology in health and disease contexts including gut, oral, skin, and respiratory microbiomes. Covers microbiome composition, host-microbe interactions, metabolomics, and therapeutic manipulation of microbial communities."
+    },
+    {
+      "id": "gene_cell_therapy",
+      "label": "Gene & Cell Therapy",
+      "description": "Translational research on therapeutic delivery of genetic material and cellular constructs for disease treatment including AAV-mediated gene delivery, CAR-T cell therapy, and pharmacological chaperone approaches. Covers vector design, safety characterization, and preclinical and clinical development of gene and cell-based therapeutics."
+    },
+    {
+      "id": "drug_discovery_pharmacology",
+      "label": "Drug Discovery & Pharmacology",
+      "description": "Research on identifying, developing, and characterizing novel therapeutic agents including small molecules, biologics, and drug delivery platforms. Encompasses target identification, high-throughput screening, structure-activity relationships, pharmacokinetics, and translational pharmacology bridging basic science to clinical application."
+    },
+    {
+      "id": "pain_management_anesthesiology",
+      "label": "Pain Management & Anesthesiology",
+      "description": "Research on perioperative care, pain mechanisms, analgesic strategies, and anesthetic pharmacology. Covers chronic pain conditions, opioid stewardship, regional anesthesia, neuropathic pain biology, and the intersection of pain management with surgical and critical care contexts."
+    },
+    {
+      "id": "biomedical_informatics",
+      "label": "Biomedical Informatics",
+      "description": "Research applying computational methods, natural language processing, machine learning, and data infrastructure to clinical and biomedical problems as a distinct departmental and institutional identity. Includes electronic health records, clinical decision support, computable phenotyping, and knowledge representation for biomedical discovery."
+    },
+    {
+      "id": "biomedical_engineering",
+      "label": "Biomedical Engineering",
+      "description": "Engineering-driven research applied to medical problems representing a distinct departmental identity at academic medical centers. Includes medical device development, biomaterials, tissue engineering scaffolds, wearable sensors, robotic surgical systems, and the application of engineering principles to clinical and biological challenges."
+    },
+    {
+      "id": "radiology_medical_imaging",
+      "label": "Radiology, Medical Imaging & Medical Physics",
+      "description": "Research on diagnostic and interventional imaging technologies, radiation physics, and their clinical applications including MRI, CT, PET, ultrasound, nuclear medicine, interventional radiology, and radiation dosimetry. Encompasses imaging physics, AI-assisted image analysis, imaging biomarkers, treatment planning, and medical physics as a clinical and academic discipline."
+    },
+    {
+      "id": "translational_clinical_science",
+      "label": "Translational & Clinical Science",
+      "description": "Research infrastructure and methodology supporting the translation of basic discoveries to clinical application including clinical trial science, biomarker validation, patient-oriented research, and CTSA-supported translational research programs. Addresses the organizational and methodological foundations of bench-to-bedside research."
+    },
+    {
+      "id": "health_economics",
+      "label": "Health Economics",
+      "description": "Research evaluating the economic dimensions of healthcare including cost-effectiveness analysis, healthcare financing, payment model innovation, pharmaceutical pricing, and the economic burden of disease. Addresses how economic incentives, market structures, and resource allocation shape healthcare delivery and patient outcomes."
+    },
+    {
+      "id": "implementation_science",
+      "label": "Implementation Science",
+      "description": "Research on methods and strategies for systematically integrating evidence-based interventions into clinical practice and health systems. Covers dissemination and implementation frameworks, quality improvement science, guideline adherence, and the study of barriers and facilitators to adopting effective health interventions."
+    },
+    {
+      "id": "digital_health_telemedicine",
+      "label": "Digital Health & Telemedicine",
+      "description": "Research evaluating technology-enabled care delivery models including telemedicine, mobile health applications, remote patient monitoring, and digital therapeutics. Examines clinical outcomes, patient satisfaction, access equity, and implementation of virtual and remote healthcare platforms."
+    },
+    {
+      "id": "single_cell_spatial_biology",
+      "label": "Single-Cell & Spatial Biology",
+      "description": "Research leveraging single-cell genomics, transcriptomics, proteomics, and spatial multi-omics to characterize cellular heterogeneity, tissue architecture, and cell-state dynamics in health and disease. Represents an emerging methodological and scientific domain with broad applications across organ systems and disease areas."
+    },
+    {
+      "id": "systems_biology",
+      "label": "Systems Biology",
+      "description": "Research integrating multi-omics data, computational modeling, and network analysis to understand complex biological systems and emergent properties of cellular and organismal function. Encompasses pathway analysis, gene regulatory networks, protein interaction networks, and quantitative modeling of biological processes."
+    },
+    {
+      "id": "rehabilitation_disability_medicine",
+      "label": "Rehabilitation & Disability Medicine",
+      "description": "Research on functional recovery, disability management, and rehabilitation outcomes following illness, injury, or congenital conditions. Covers physical and cognitive rehabilitation, assistive technology, disability policy, and quality of life in populations with functional impairments."
+    },
+    {
+      "id": "primary_care_general_medicine",
+      "label": "Primary Care & General Internal Medicine",
+      "description": "Research on care delivery, patient-provider communication, preventive medicine, and chronic disease management in primary and ambulatory care settings. Encompasses care coordination, patient education, caregiver support, and the organization of generalist medical practice."
+    },
+    {
+      "id": "emergency_critical_care_medicine",
+      "label": "Emergency & Critical Care Medicine",
+      "description": "Research on acute illness management in emergency departments and intensive care including trauma, sepsis, resuscitation science, triage systems, and ED operations. Covers acute organ failure management, emergency protocols, and outcomes in high-acuity settings. Distinct from Pulmonary & Critical Care (respiratory-focused) in its emphasis on emergency medicine workflows and multi-system critical illness."
+    },
+    {
+      "id": "nutrition_metabolism",
+      "label": "Nutrition & Metabolism",
+      "description": "Research on dietary patterns, nutrient metabolism, nutritional biochemistry, and their effects on disease risk and cellular function. Encompasses metabolomics, dietary interventions, nutritional epidemiology, and the molecular mechanisms linking nutrition to metabolic health and disease."
+    },
+    {
+      "id": "maternal_child_health",
+      "label": "Maternal & Child Health",
+      "description": "Population-level research on perinatal epidemiology, birth outcomes, child development, and community-based maternal-child interventions. Covers prenatal care access, infant mortality, childhood nutrition, and social determinants of maternal and child well-being. Distinct from Women's Health (clinical gynecology/reproductive medicine) and Pediatrics (clinical pediatric specialty research)."
+    },
+    {
+      "id": "research_infrastructure_workforce",
+      "label": "Research Infrastructure & Scientific Workforce",
+      "description": "Studies addressing the organizational, methodological, and human dimensions of academic research including biobanking, research data systems, peer review, scientific publishing, postdoctoral training, and the sustainability of the biomedical research enterprise. Supports institutional research capacity and workforce development."
+    },
+    {
+      "id": "pathology_laboratory_medicine",
+      "label": "Pathology & Laboratory Medicine",
+      "description": "Research in anatomic and clinical pathology, histopathology, cytopathology, clinical chemistry, and laboratory diagnostics. Covers tissue-based disease characterization, molecular pathology, digital pathology, and the development and validation of laboratory assays for clinical diagnosis and disease monitoring."
+    },
+    {
+      "id": "biostatistics_quantitative_sciences",
+      "label": "Biostatistics & Quantitative Health Sciences",
+      "description": "Research on statistical methodology, study design, causal inference, and quantitative methods applied to biomedical and clinical research. Covers clinical trial design, Bayesian methods, survival analysis, comparative effectiveness research, real-world evidence generation, and the methodological foundations of evidence-based medicine."
+    },
+    {
+      "id": "sleep_medicine_circadian_biology",
+      "label": "Sleep Medicine & Circadian Biology",
+      "description": "Research on sleep disorders, circadian rhythm regulation, and the physiological and molecular mechanisms of sleep-wake cycles. Covers obstructive sleep apnea, insomnia, narcolepsy, circadian clock biology, and the impact of sleep disruption on metabolic, cardiovascular, cognitive, and psychiatric health."
+    },
+    {
+      "id": "oral_craniofacial_health",
+      "label": "Oral & Craniofacial Health",
+      "description": "Research on oral diseases, dental medicine, craniofacial development, and conditions of the oral cavity, jaw, and facial structures. Covers periodontal disease, oral cancer, temporomandibular disorders, craniofacial genetics, and the intersection of oral health with systemic disease."
+    },
+    {
+      "id": "breast_cancer",
+      "label": "Breast Cancer",
+      "description": "Research on breast cancer biology, screening, diagnosis, and treatment including hormone receptor biology, HER2-targeted therapy, triple-negative breast cancer, surgical and radiation approaches, survivorship, and disparities in breast cancer outcomes."
+    },
+    {
+      "id": "lung_cancer",
+      "label": "Lung Cancer",
+      "description": "Research on non-small cell and small cell lung cancer including molecular drivers (EGFR, ALK, KRAS), screening and early detection, surgical and systemic treatment strategies, and outcomes in lung malignancies."
+    },
+    {
+      "id": "prostate_urologic_cancer",
+      "label": "Prostate & Urologic Cancer",
+      "description": "Research on prostate cancer, bladder cancer, kidney cancer, and testicular cancer including active surveillance, surgical management, radiation therapy, and biomarker-driven treatment decisions in genitourinary oncology."
+    },
+    {
+      "id": "gi_cancer",
+      "label": "Gastrointestinal Cancer",
+      "description": "Research on cancers of the gastrointestinal tract including colorectal, pancreatic, esophageal, gastric, and hepatocellular carcinoma. Covers molecular subtypes, surgical and endoscopic management, and systemic therapy approaches."
+    },
+    {
+      "id": "neuro_oncology",
+      "label": "Neuro-Oncology",
+      "description": "Research on primary brain tumors including glioma, glioblastoma, meningioma, and CNS lymphoma. Covers tumor biology, surgical and radiation treatment, blood-brain barrier challenges, and outcomes in central nervous system malignancies."
+    },
+    {
+      "id": "gynecologic_oncology",
+      "label": "Gynecologic Oncology",
+      "description": "Research on ovarian, cervical, uterine, and vulvar cancers including molecular mechanisms, surgical management, systemic therapy, and screening strategies for gynecologic malignancies."
+    },
+    {
+      "id": "melanoma_skin_cancer",
+      "label": "Melanoma & Skin Cancer",
+      "description": "Research on melanoma, non-melanoma skin cancers, and cutaneous lymphoma including molecular biology, immunotherapy response, surgical management, and early detection strategies."
+    },
+    {
+      "id": "cancer_biology_general",
+      "label": "Cancer Biology (General)",
+      "description": "Cross-cutting cancer research spanning tumor biology, metastasis, tumor microenvironment, angiogenesis, cancer metabolism, and molecular mechanisms of malignancy not specific to a single cancer type. Includes cancer modeling, drug resistance mechanisms, and foundational oncologic science."
+    },
+    {
+      "id": "bioethics_medical_humanities",
+      "label": "Bioethics, Medical Humanities & Clinician Wellbeing",
+      "description": "Research examining ethical frameworks in medicine, patient autonomy, clinical decision-making, AI ethics in healthcare, and the philosophical foundations of biomedical ethics. Includes clinician burnout, moral distress, resilience, narrative medicine, and the role of humanities in medical education and professional identity."
+    },
+    {
+      "id": "environmental_planetary_health",
+      "label": "Environmental & Planetary Health",
+      "description": "Research on how environmental exposures, climate change, occupational hazards, and ecological disruption affect human health. Covers air pollution, chemical exposures, the exposome, heat-related illness, and the intersection of environmental determinants with population health outcomes."
+    }
+  ]
+}

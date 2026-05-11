@@ -1,0 +1,29 @@
+{
+  "topic_id": "prostate_urologic_cancer",
+  "total_weights": {
+    "prostate_molecular_biology_genomics": 34.641791,
+    "prostate_renal_cell_carcinoma_biology_treatment": 15.52436,
+    "prostate_bladder_cancer_liquid_biopsy_genomics": 14.693467,
+    "prostate_mri_biopsy_detection": 14.632289,
+    "prostate_pca_biomarkers_genomic_risk": 11.495831,
+    "prostate_active_surveillance_focal_therapy": 9.481406,
+    "prostate_psma_imaging_theranostics": 8.60652,
+    "prostate_advanced_pca_systemic_therapy": 8.555789,
+    "prostate_bladder_cancer_urothelial_systemic": 8.349662,
+    "prostate_bladder_cancer_surgery_pathology": 7.035199,
+    "prostate_racial_disparities_screening": 6.92625,
+    "prostate_upper_tract_urothelial_carcinoma": 5.87675,
+    "prostate_patient_experience_qol_survivorship": 4.084644,
+    "prostate_surgical_management_outcomes": 3.729063,
+    "prostate_lipid_metabolism_preclinical": 2.183867,
+    "prostate_racial_disparities_surgical_access": 1.97812,
+    "prostate_ai_precision_oncology_tools": 1.079436,
+    "prostate_patient_decision_support_literacy": 0.861281,
+    "prostate_cancer_comorbidity_survivorship": 0.780594,
+    "prostate_lncrna_epigenomics_regulation": 0.689849,
+    "prostate_immunotherapy_toxicity_biomarkers": 0.667963,
+    "prostate_bladder_cancer_preclinical_biology": 0.330974
+  },
+  "faculty_count": 100,
+  "subtopic_count": 22
+}

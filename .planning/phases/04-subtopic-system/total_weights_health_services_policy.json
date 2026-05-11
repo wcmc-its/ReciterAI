@@ -1,0 +1,22 @@
+{
+  "topic_id": "health_services_policy",
+  "total_weights": {
+    "health_hospital_utilization_quality_improvement": 118.966116,
+    "health_racial_ethnic_disparities_access": 82.348908,
+    "health_covid19_pandemic_health_systems": 54.493231,
+    "health_opioid_substance_use_policy": 46.485204,
+    "health_healthcare_financing_payment_policy": 45.968813,
+    "health_care_coordination_fragmentation": 45.723227,
+    "health_cancer_screening_disparities_survivorship": 36.461331,
+    "health_telehealth_digital_health": 27.85872,
+    "health_social_determinants_health_outcomes": 27.210782,
+    "health_global_health_lmic_systems": 24.967498,
+    "health_mental_health_behavioral_policy": 23.91321,
+    "health_nursing_home_long_term_care": 22.09608,
+    "health_elder_mistreatment_aging_services": 19.764131,
+    "health_home_health_community_care_workforce": 17.483021,
+    "health_medicaid_insurance_coverage_expansion": 11.469713
+  },
+  "faculty_count": 623,
+  "subtopic_count": 15
+}

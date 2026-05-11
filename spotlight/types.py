@@ -1,0 +1,72 @@
+"""Dataclasses shared across the spotlight/ package.
+
+All frozen for hashability and to prevent accidental mutation between
+pipeline stages (pool_ranker -> rotation_selector -> lede_generator ->
+critic -> assembler -> publish).
+
+Naming: ``person_identifier`` is the canonical Python attribute name for the
+WCM faculty UID (snake_case per CLAUDE.md convention). JSON-side camelCase
+serialization is the assembler's responsibility (Plan 06-06) and is not a
+Python attribute here. See CLAUDE.md "Conventions / Naming" for the legacy
+prefix that is forbidden in Phase 6 code.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Author:
+    """First or last author of a publication.
+
+    Frozen so PoolEntry remains hashable. ``position`` is restricted to
+    {"first", "last"} because the spotlight pipeline only models corner
+    authors (middle authors are out of scope for v1).
+    """
+
+    person_identifier: str
+    display_name: str
+    position: str
+
+    def __post_init__(self) -> None:
+        if self.position not in ("first", "last"):
+            raise ValueError(
+                f"Author.position must be 'first' or 'last', got {self.position!r}"
+            )
+
+
+@dataclass(frozen=True)
+class Paper:
+    """A single publication carried through the spotlight pipeline.
+
+    No ``__post_init__`` validation: pool_ranker may emit Paper instances
+    with empty author payloads when the source TOPIC# row predates the
+    Phase 6 author-fanout enrichment. Plan 06-05 lede generator filters
+    out papers with no author identity.
+    """
+
+    pmid: str
+    title: str
+    journal: str
+    year: int
+    impact_score: float
+    impact_justification: str
+    synopsis: str
+    first_author: Author
+    last_author: Author
+
+
+@dataclass(frozen=True)
+class PoolEntry:
+    """One row of the top-50 pool ranker output.
+
+    ``papers`` is a tuple (not a list) so the frozen dataclass remains
+    hashable — required so downstream stages can use PoolEntry as a dict
+    key or set member.
+    """
+
+    subtopic_id: str
+    pool_score: float
+    parent_topic: str
+    papers: tuple[Paper, ...]

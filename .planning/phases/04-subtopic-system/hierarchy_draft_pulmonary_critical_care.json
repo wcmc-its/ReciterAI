@@ -1,0 +1,624 @@
+{
+  "topic_id": "pulmonary_critical_care",
+  "topic_label": "Pulmonary & Critical Care Medicine",
+  "subtopics": [
+    {
+      "id": "pulmonary_copd_airway_biology",
+      "label": "COPD and Airway Biology",
+      "description": "Research on the cellular and molecular biology of chronic obstructive pulmonary disease, including airway epithelial cell dysfunction, club cell biology, lymphatic involvement, sphingolipid metabolism, smoking-induced dysregulation, and COPD comorbidities and outcomes.",
+      "seed_pmids": [
+        33587941,
+        36796082,
+        32727470,
+        34497273,
+        37531632,
+        33731767,
+        33597552,
+        35194053,
+        35322079,
+        38440076,
+        39437762,
+        35403414,
+        39133115,
+        40037280,
+        35657680,
+        37410623,
+        38079490,
+        35998338,
+        35666540,
+        40920896
+      ],
+      "coverage_estimate": 0.055
+    },
+    {
+      "id": "pulmonary_interstitial_lung_disease",
+      "label": "Interstitial Lung Disease and Pulmonary Fibrosis",
+      "description": "Research on interstitial lung diseases including idiopathic pulmonary fibrosis, hypersensitivity pneumonitis, nonspecific interstitial pneumonia, and interstitial lung abnormalities, covering pathogenesis, biomarkers, quality of life, and clinical management.",
+      "seed_pmids": [
+        36702498,
+        34283696,
+        32941426,
+        34108012,
+        36910476,
+        38378719,
+        32315288,
+        34521729,
+        33861685,
+        34929108,
+        36690926,
+        33844978,
+        32154292,
+        36514019,
+        37099412,
+        34376172,
+        39104956,
+        39742153,
+        39777214,
+        37419519,
+        37862912,
+        39438082,
+        33443657
+      ],
+      "coverage_estimate": 0.064
+    },
+    {
+      "id": "pulmonary_asthma_allergic_airway",
+      "label": "Asthma and Allergic Airway Disease",
+      "description": "Research on asthma pathogenesis and treatment, including sphingolipid metabolism, type 2 airway inflammation, innate lymphoid cells, allergen exposure, cytokine signaling, and genetic risk factors for airway hyperreactivity.",
+      "seed_pmids": [
+        32706610,
+        31929190,
+        32066836,
+        34818549,
+        34851798,
+        36396956,
+        37541489,
+        32197971,
+        38597953,
+        36323778,
+        36376851,
+        35567744
+      ],
+      "coverage_estimate": 0.033
+    },
+    {
+      "id": "pulmonary_covid19_respiratory_pathophysiology",
+      "label": "COVID-19 Respiratory Pathophysiology and Critical Illness",
+      "description": "Research on the pulmonary and systemic pathophysiology of severe COVID-19, including ARDS, vascular injury, complement activation, cytokine profiles, barotrauma, mechanical ventilation management, and organ dysfunction trajectories in critically ill patients.",
+      "seed_pmids": [
+        32299776,
+        33248385,
+        34131192,
+        35469796,
+        36121875,
+        36703108,
+        34984341,
+        35278869,
+        35926316,
+        36172565,
+        33780969,
+        32942274,
+        34354174,
+        34599884,
+        33775324,
+        35254675,
+        32603425,
+        37421632,
+        34920724,
+        40712141,
+        40286790
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "pulmonary_covid19_clinical_outcomes",
+      "label": "COVID-19 Clinical Outcomes, Risk Factors, and Treatment",
+      "description": "Research on clinical characteristics, risk factors, comorbidities, and treatment strategies for hospitalized COVID-19 patients, including antiviral and immunomodulatory therapies, variant severity comparisons, and predictive models for deterioration and mortality.",
+      "seed_pmids": [
+        32856034,
+        33121304,
+        33694267,
+        34099384,
+        34995147,
+        35103549,
+        36271630,
+        36413380,
+        36847621,
+        37147857,
+        35535815,
+        32701969,
+        34406670,
+        35999352,
+        33875975,
+        34399058,
+        34935861,
+        35788085,
+        35404391,
+        33539308,
+        33933654,
+        34262117,
+        32997958
+      ],
+      "coverage_estimate": 0.064
+    },
+    {
+      "id": "pulmonary_covid19_long_covid_pasc",
+      "label": "Long COVID and Post-Acute Sequelae of SARS-CoV-2",
+      "description": "Research on post-acute sequelae of SARS-CoV-2 infection (PASC/Long COVID), including symptom characterization, subphenotyping, risk factor identification, cognitive and cardiopulmonary manifestations, and disparities across demographic groups.",
+      "seed_pmids": [
+        36456834,
+        37029117,
+        38341566,
+        38992068,
+        36795327,
+        37251229,
+        34936536,
+        39870998,
+        40007886,
+        38843159,
+        37650236,
+        33589778
+      ],
+      "coverage_estimate": 0.033
+    },
+    {
+      "id": "pulmonary_respiratory_infections_pneumonia",
+      "label": "Respiratory Infections and Pneumonia Pathogenesis",
+      "description": "Research on bacterial, viral, and fungal respiratory infections including pneumococcal pneumonia, influenza, Streptococcus, Acinetobacter, Chlamydia, and human metapneumovirus, covering host immune responses, pathogen mechanisms, and treatment strategies.",
+      "seed_pmids": [
+        33625952,
+        32545261,
+        33243840,
+        34829979,
+        35767671,
+        32191638,
+        36831236,
+        39197317,
+        38934617,
+        37434451,
+        39717487,
+        39489292,
+        38211629,
+        33307723,
+        34805426,
+        36700925
+      ],
+      "coverage_estimate": 0.044
+    },
+    {
+      "id": "pulmonary_pulmonary_hypertension_vascular",
+      "label": "Pulmonary Hypertension and Pulmonary Vascular Disease",
+      "description": "Research on pulmonary hypertension and pulmonary vascular disease, including diagnosis, risk stratification, echocardiographic assessment, right ventricular function, chronic thromboembolic pulmonary hypertension, and outcomes across pulmonary vascular disease subtypes.",
+      "seed_pmids": [
+        35953136,
+        39691460,
+        33305121,
+        34497006,
+        38736894,
+        40185178,
+        39693509,
+        37519945,
+        33092732,
+        33716162,
+        40311504,
+        38994599,
+        40692422
+      ],
+      "coverage_estimate": 0.036
+    },
+    {
+      "id": "pulmonary_pulmonary_embolism",
+      "label": "Pulmonary Embolism Diagnosis and Treatment",
+      "description": "Research on acute pulmonary embolism management including catheter-directed thrombolysis, mechanical thrombectomy, surgical embolectomy, risk stratification tools, anticoagulation strategies, and outcomes in diverse patient populations.",
+      "seed_pmids": [
+        32819463,
+        34157383,
+        34254850,
+        39726241,
+        38577945,
+        40454282,
+        39836740,
+        40234154,
+        39353759,
+        37406578,
+        38994599,
+        40692422,
+        40311504
+      ],
+      "coverage_estimate": 0.036
+    },
+    {
+      "id": "pulmonary_lung_transplantation",
+      "label": "Lung Transplantation and Perioperative Management",
+      "description": "Research on lung transplantation outcomes, perioperative management, primary graft dysfunction, ECMO use, cystic fibrosis retransplantation, cytomegalovirus immunity, and lymphatic anastomosis in transplant recipients.",
+      "seed_pmids": [
+        32380057,
+        33632637,
+        32741611,
+        34879926,
+        36964081,
+        40414788,
+        40143922,
+        31688808,
+        33691941,
+        37635039
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "pulmonary_mechanical_ventilation_icu",
+      "label": "Mechanical Ventilation and ICU Management",
+      "description": "Research on mechanical ventilation practices, sedation, vasopressor use, tracheostomy, ICU staffing, sepsis management, and outcomes in critically ill adult and pediatric patients.",
+      "seed_pmids": [
+        32348694,
+        37358834,
+        35176218,
+        39173173,
+        35709214,
+        33760709,
+        36508241,
+        34037983,
+        33315112,
+        38788896,
+        39100383,
+        32205608,
+        35786445,
+        40360520,
+        38259190,
+        36610663,
+        40343887,
+        34854939
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "pulmonary_airway_epithelium_sars_biology",
+      "label": "Airway Epithelium Biology and SARS-CoV-2 Infection Mechanisms",
+      "description": "Research on airway epithelial cell biology, ACE2 receptor expression, organoid models of SARS-CoV-2 infection, viral entry mechanisms, and host transcriptomic responses in the respiratory tract.",
+      "seed_pmids": [
+        32432483,
+        33116299,
+        34731648,
+        36918693,
+        33794877,
+        35018834,
+        36606685,
+        32759494,
+        33712587,
+        35233546,
+        40712141,
+        34917944
+      ],
+      "coverage_estimate": 0.033
+    },
+    {
+      "id": "pulmonary_lung_cancer_biology_treatment",
+      "label": "Lung Cancer Biology and Surgical Treatment",
+      "description": "Research on lung cancer biology including tumor microenvironment, oncogenic drivers, immune evasion, and surgical treatment approaches including lobectomy versus sublobar resection for early-stage non-small cell lung cancer.",
+      "seed_pmids": [
+        32042191,
+        35385730,
+        36624093,
+        37931288,
+        38330136,
+        34015311,
+        38114518,
+        36780674,
+        35181271,
+        37473998,
+        38617767,
+        34917944,
+        37984766,
+        36621452
+      ],
+      "coverage_estimate": 0.039
+    },
+    {
+      "id": "pulmonary_sleep_apnea_respiratory_physiology",
+      "label": "Sleep Apnea and Respiratory Physiology",
+      "description": "Research on obstructive sleep apnea including cardiovascular risk, platelet activation, maternal outcomes, CPAP therapy, and related respiratory physiological measurements including respiratory muscle strength and cough assessment.",
+      "seed_pmids": [
+        32036486,
+        33199257,
+        34868456,
+        40778003,
+        37672667,
+        37837395,
+        40781907,
+        32078392,
+        32095899,
+        34752144,
+        39388722
+      ],
+      "coverage_estimate": 0.03
+    },
+    {
+      "id": "pulmonary_chest_imaging_diagnostics",
+      "label": "Chest Imaging and Pulmonary Diagnostics",
+      "description": "Research on chest imaging modalities including CT, MRI, X-ray, and ultrasound for diagnosis and monitoring of pulmonary conditions including ILD, pneumothorax, COVID-19 pneumonia, and lung cancer screening.",
+      "seed_pmids": [
+        31768897,
+        34340489,
+        36737516,
+        35871645,
+        32442030,
+        32853842,
+        33997112,
+        36171520,
+        40795541,
+        37421336,
+        36615184,
+        32271279,
+        35467819
+      ],
+      "coverage_estimate": 0.036
+    },
+    {
+      "id": "pulmonary_covid19_cardiac_complications",
+      "label": "COVID-19 Cardiac and Thrombotic Complications",
+      "description": "Research on cardiovascular manifestations of COVID-19 including myocarditis, atrial arrhythmias, thrombotic events, troponin elevation, and anticoagulation management in hospitalized patients.",
+      "seed_pmids": [
+        33058800,
+        33017083,
+        34739868,
+        32882350,
+        35640675,
+        35689139,
+        36272351,
+        38620488
+      ],
+      "coverage_estimate": 0.035
+    },
+    {
+      "id": "pulmonary_covid19_epigenetics_omics",
+      "label": "COVID-19 Epigenomics, Multi-omics, and Molecular Signatures",
+      "description": "Studies applying DNA methylation profiling, machine learning on epigenetic data, and integrative multi-omics approaches to identify molecular signatures of COVID-19 severity and outcomes.",
+      "seed_pmids": [
+        33464637,
+        36261477,
+        36371196,
+        35756895
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_covid19_hospital_operations",
+      "label": "COVID-19 Hospital Operations, Surge Capacity, and Preparedness",
+      "description": "Research on hospital and ICU operational responses to COVID-19 including surge capacity planning, rapid ICU expansion, staff redeployment, and preparedness protocols.",
+      "seed_pmids": [
+        32298146,
+        32907668,
+        33031350,
+        33045150,
+        35794523,
+        33002930,
+        34567395,
+        38553353
+      ],
+      "coverage_estimate": 0.035
+    },
+    {
+      "id": "pulmonary_covid19_pediatric",
+      "label": "Pediatric COVID-19 and SARS-CoV-2 in Children",
+      "description": "Studies examining COVID-19 clinical presentation, hospitalization indications, and outcomes specifically in pediatric populations including the Omicron wave and croup presentations.",
+      "seed_pmids": [
+        35884027,
+        36803448,
+        33031350,
+        35651739
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_tuberculosis_mycobacterial",
+      "label": "Tuberculosis and Mycobacterial Infections",
+      "description": "Research on tuberculosis treatment, drug regimens, host-directed therapy, diagnostic methods, and co-infections with mycobacterial species including novel second-line regimens.",
+      "seed_pmids": [
+        32574211,
+        36253384,
+        38060827,
+        34670649,
+        35292587
+      ],
+      "coverage_estimate": 0.022
+    },
+    {
+      "id": "pulmonary_icu_quality_safety",
+      "label": "ICU Quality Improvement, Patient Safety, and Clinical Operations",
+      "description": "Studies addressing ICU quality improvement initiatives, patient safety practices, staffing ratios, clinical databases, and operational tools to enhance critical care delivery.",
+      "seed_pmids": [
+        35862614,
+        38553353,
+        35948317,
+        33862230,
+        39980476,
+        35531070,
+        36400435
+      ],
+      "coverage_estimate": 0.031
+    },
+    {
+      "id": "pulmonary_ecmo_extracorporeal",
+      "label": "Extracorporeal Membrane Oxygenation (ECMO) and Extracorporeal Support",
+      "description": "Research on ECMO use in adults and children including hemostatic management, renal replacement therapy during ECMO, temperature management, and outcomes in respiratory failure.",
+      "seed_pmids": [
+        34041211,
+        33300402,
+        37559410,
+        37976562
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_lung_cancer_surgical_periop",
+      "label": "Lung Cancer Surgical and Perioperative Management",
+      "description": "Studies on perioperative assessment, pulmonary function testing before resection, postoperative complications, and surgical outcomes in lung cancer patients including during COVID-19.",
+      "seed_pmids": [
+        35459540,
+        35086669,
+        38016820,
+        34255071
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_lung_cancer_immunotherapy",
+      "label": "Lung Cancer Immunotherapy and Targeted Therapy",
+      "description": "Research on immune checkpoint inhibitors, anti-PD-L1 therapy combined with radiation, molecular biomarkers of treatment response, and novel drug delivery approaches for lung cancer.",
+      "seed_pmids": [
+        38114518,
+        38401548,
+        40792552,
+        36179671
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_pediatric_critical_care",
+      "label": "Pediatric Critical Care and Neonatal Respiratory Management",
+      "description": "Research on critical care management in pediatric and neonatal populations including delirium, sedation practices, unplanned extubations, CPAP in preterm infants, and tracheostomy care.",
+      "seed_pmids": [
+        35894610,
+        34711646,
+        38770574,
+        39406941,
+        33980665,
+        38981299,
+        39760135
+      ],
+      "coverage_estimate": 0.031
+    },
+    {
+      "id": "pulmonary_covid19_sars2_biology_models",
+      "label": "SARS-CoV-2 Biology, Animal Models, and Experimental Therapeutics",
+      "description": "Studies using stem cell models, organoids, animal models, and in situ detection methods to investigate SARS-CoV-2 infection mechanisms, immune responses, and experimental therapeutic interventions.",
+      "seed_pmids": [
+        32579880,
+        34503440,
+        36325323,
+        35175238,
+        37872315
+      ],
+      "coverage_estimate": 0.022
+    },
+    {
+      "id": "pulmonary_antimicrobial_resistance",
+      "label": "Antimicrobial Resistance and Antibiotic Stewardship",
+      "description": "Research on carbapenem-resistant pathogens, polymyxin breakpoints, hospital-acquired and ventilator-associated pneumonia treatment algorithms, and clinical outcomes of resistant infections.",
+      "seed_pmids": [
+        36774938,
+        32052041,
+        35042262
+      ],
+      "coverage_estimate": 0.013
+    },
+    {
+      "id": "pulmonary_respiratory_trauma_surgery",
+      "label": "Thoracic Trauma, Surgery, and Perioperative Respiratory Complications",
+      "description": "Studies on rib fixation in trauma, chest tube management, diaphragm preservation in aortic surgery, respiratory complications after cervical spine surgery, and perioperative respiratory outcomes.",
+      "seed_pmids": [
+        32176172,
+        33359719,
+        33406919,
+        38788529
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_smoking_vaping_occupational",
+      "label": "Smoking, Vaping, and Occupational Respiratory Exposures",
+      "description": "Research on electronic cigarette use in adolescents and adults, oral and respiratory effects of vaping, occupational dust exposures, and tobacco-related respiratory disease.",
+      "seed_pmids": [
+        36300726,
+        37427959,
+        38037137,
+        39179686
+      ],
+      "coverage_estimate": 0.018
+    },
+    {
+      "id": "pulmonary_covid19_neurological_manifestations",
+      "label": "COVID-19 Neurological Manifestations and Brain Effects",
+      "description": "Studies on neurological presentations of COVID-19 including posterior reversible encephalopathy syndrome, neurological symptoms as primary presentation, and brain fog in long COVID.",
+      "seed_pmids": [
+        32679347,
+        33559885,
+        37251229,
+        36343241
+      ],
+      "coverage_estimate": 0.018
+    }
+  ],
+  "uncovered_pmids": [
+    "34841244",
+    "33082311",
+    "32694182",
+    "33411607",
+    "35288819",
+    "32549942",
+    "34010313",
+    "35633995",
+    "37775366",
+    "34788190",
+    "37781655",
+    "34989706",
+    "32678882",
+    "32353870",
+    "32596885",
+    "34234908",
+    "33856099",
+    "38877116",
+    "35778320",
+    "37563300",
+    "37872315",
+    "38677397",
+    "37349600",
+    "33741442",
+    "40676263",
+    "40716770",
+    "36798534",
+    "35018735",
+    "34521903",
+    "39495032",
+    "35549623",
+    "32615094",
+    "33726579",
+    "34211647",
+    "32272020",
+    "35167610",
+    "30586039",
+    "38669620",
+    "33946658",
+    "33259979",
+    "36218031",
+    "35502860",
+    "34797838",
+    "33778647",
+    "32934969",
+    "36752460",
+    "33624164",
+    "36456834",
+    "33004656",
+    "37108795",
+    "36720999",
+    "33285285",
+    "35187480",
+    "36253384",
+    "37417231",
+    "35942055",
+    "32602262",
+    "33852540",
+    "40093761",
+    "38976638",
+    "36166728",
+    "32315288",
+    "39641910",
+    "38070472"
+  ],
+  "total_activities": 361,
+  "coverage_pct": 0.8227,
+  "generated_at": "2026-04-14T20:50:46.882950Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

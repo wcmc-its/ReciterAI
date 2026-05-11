@@ -1,0 +1,621 @@
+{
+  "topic_id": "digital_health_telemedicine",
+  "topic_label": "Digital Health & Telemedicine",
+  "subtopics": [
+    {
+      "id": "digital_telehealth_clinical_delivery",
+      "label": "Telehealth Clinical Service Delivery and Patient Outcomes",
+      "description": "Research examining the implementation, utilization, and clinical outcomes of telehealth and telemedicine services across medical specialties, including emergency medicine, primary care, surgery, and specialty care. Covers patient satisfaction, safety, care quality, and comparisons between virtual and in-person visits.",
+      "seed_pmids": [
+        31929395,
+        31930952,
+        32384296,
+        32821027,
+        33042950,
+        33147166,
+        33215999,
+        33848095,
+        33910262,
+        34237452,
+        34388721,
+        35238948,
+        35360066,
+        36913142,
+        37219992,
+        37538312,
+        38243739,
+        38849779,
+        40493351,
+        33657873,
+        34591712,
+        34609934,
+        37321106,
+        38488168,
+        32377617,
+        37128386,
+        40773669,
+        40775677,
+        40906009
+      ],
+      "coverage_estimate": 0.105,
+      "total_weight": 12.598802,
+      "activity_count": 18
+    },
+    {
+      "id": "digital_telehealth_covid_expansion",
+      "label": "Telehealth Expansion and Innovation During COVID-19",
+      "description": "Studies documenting the rapid scale-up of telehealth platforms, virtual care models, and remote consultation services in response to the COVID-19 pandemic, including implementation challenges, workflow adaptations, and lessons learned across healthcare settings.",
+      "seed_pmids": [
+        33768500,
+        33670270,
+        33941721,
+        34406962,
+        34819885,
+        36600105,
+        34191591,
+        32861812,
+        33043310,
+        36976628,
+        37071458,
+        39570880,
+        39226507,
+        40242394,
+        39239886
+      ],
+      "coverage_estimate": 0.054,
+      "total_weight": 12.305041,
+      "activity_count": 16
+    },
+    {
+      "id": "digital_telehealth_equity_access",
+      "label": "Telehealth Access, Equity, and Disparities",
+      "description": "Research investigating disparities in telehealth access and utilization across demographic, socioeconomic, and geographic groups, including barriers to video visits, digital divide issues, and interventions to promote equitable virtual care delivery.",
+      "seed_pmids": [
+        35641050,
+        38269583,
+        37461819,
+        36622637,
+        34515560,
+        32845446,
+        38109490,
+        33046267,
+        40865429,
+        40185614,
+        39847410,
+        32078375
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 4.717591,
+      "activity_count": 8
+    },
+    {
+      "id": "digital_mhealth_apps_interventions",
+      "label": "Mobile Health Applications and Digital Therapeutic Interventions",
+      "description": "Research on smartphone and tablet-based applications designed to deliver therapeutic interventions, symptom monitoring, self-management support, and behavioral health programs, including feasibility, acceptability, and efficacy studies across diverse patient populations.",
+      "seed_pmids": [
+        39163044,
+        40866542,
+        39799291,
+        37733984,
+        34706249,
+        35200144,
+        30418319,
+        39679218,
+        33267633,
+        33306564,
+        37449954,
+        39874578,
+        36364507,
+        39226544,
+        40776062,
+        39517950,
+        40384289
+      ],
+      "coverage_estimate": 0.062,
+      "total_weight": 14.113212,
+      "activity_count": 23
+    },
+    {
+      "id": "digital_wearables_remote_monitoring",
+      "label": "Wearable Devices and Remote Patient Monitoring",
+      "description": "Studies evaluating wearable sensors, implantable devices, and remote monitoring technologies for continuous physiological data collection, disease management, and clinical decision support, including cardiac implantable electronic devices, glucose monitors, and activity trackers.",
+      "seed_pmids": [
+        37299733,
+        36724117,
+        35943772,
+        36917147,
+        37147384,
+        36743720,
+        36656625,
+        37387063,
+        34656774,
+        35942055,
+        39396601,
+        39803615,
+        37594791,
+        40327852,
+        40716358,
+        37658233,
+        40085434
+      ],
+      "coverage_estimate": 0.062,
+      "total_weight": 8.454605,
+      "activity_count": 17
+    },
+    {
+      "id": "digital_ai_ml_clinical_applications",
+      "label": "Artificial Intelligence and Machine Learning in Clinical Care",
+      "description": "Research applying AI, machine learning, deep learning, and large language models to clinical diagnosis, disease prediction, treatment decision support, and patient management, including chatbots, natural language processing, and multimodal AI systems in healthcare.",
+      "seed_pmids": [
+        39321458,
+        38245845,
+        38832398,
+        37990659,
+        36105318,
+        34534794,
+        37658233,
+        36445731,
+        37104747,
+        39128933,
+        32532967,
+        35507346,
+        40776062,
+        37387018,
+        36542818,
+        39134239
+      ],
+      "coverage_estimate": 0.058,
+      "total_weight": 3.82333,
+      "activity_count": 11
+    },
+    {
+      "id": "digital_chatbots_conversational_agents",
+      "label": "Chatbots and Conversational Agents for Mental Health and Patient Engagement",
+      "description": "Research on AI-powered chatbots and conversational agents designed to support mental health screening, patient education, and engagement, including scoping reviews of chatbot features, technical evaluation metrics, and patient perceptions of chatbot-delivered care.",
+      "seed_pmids": [
+        33439133,
+        36693014,
+        35275069,
+        32442157,
+        33026353,
+        33439126
+      ],
+      "coverage_estimate": 0.022,
+      "total_weight": 2.665775,
+      "activity_count": 4
+    },
+    {
+      "id": "digital_vr_ar_simulation",
+      "label": "Virtual Reality, Augmented Reality, and Simulation in Healthcare",
+      "description": "Studies examining the use of virtual reality, augmented reality, and simulation technologies for clinical training, procedural education, pain management, and therapeutic interventions, including VR-based exposure therapy, procedural skill training, and patient-facing VR applications.",
+      "seed_pmids": [
+        35896533,
+        37497865,
+        39239595,
+        35592668,
+        37213325,
+        39867296,
+        39238813,
+        36976628,
+        37071458,
+        35135625,
+        33230494
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 4.325074,
+      "activity_count": 9
+    },
+    {
+      "id": "digital_medical_education_virtual",
+      "label": "Virtual Medical Education and Telemedicine Training",
+      "description": "Research on virtual and remote educational platforms for medical students, residents, and healthcare professionals, including online curricula, virtual clinical experiences, telemedicine skills training, and simulation-based learning during and after the COVID-19 pandemic.",
+      "seed_pmids": [
+        33268209,
+        33495717,
+        33497880,
+        34600795,
+        34692228,
+        34593591,
+        35368792,
+        35470034,
+        35720750,
+        37724195,
+        37484524,
+        33365390,
+        33886434,
+        36084799,
+        37371269,
+        37122490,
+        39359706,
+        35868506
+      ],
+      "coverage_estimate": 0.065,
+      "total_weight": 7.657529,
+      "activity_count": 23
+    },
+    {
+      "id": "digital_cognitive_training_older_adults",
+      "label": "Digital Cognitive Training and Technology Use in Older Adults",
+      "description": "Research on computerized cognitive training programs, technology-based functional skills interventions, and digital tools designed to support cognitive health and everyday functioning in older adults, including studies on adherence, efficacy, and predictors of training outcomes.",
+      "seed_pmids": [
+        32116309,
+        33324761,
+        34924275,
+        38412711,
+        39081781,
+        37471032,
+        36467206,
+        35909793,
+        38223550,
+        38380470,
+        39283346,
+        40500103,
+        40850371,
+        33947831,
+        37174232,
+        39358543
+      ],
+      "coverage_estimate": 0.058,
+      "total_weight": 3.804253,
+      "activity_count": 18
+    },
+    {
+      "id": "digital_older_adults_technology_adoption",
+      "label": "Technology Adoption, Digital Literacy, and Aging in Place",
+      "description": "Studies examining factors influencing older adults' adoption of digital technologies, mobile devices, and wearables for health management and aging in place, including digital literacy assessment, barriers to adoption, and interventions to reduce the age-related digital divide.",
+      "seed_pmids": [
+        32623926,
+        34286107,
+        35754678,
+        36416885,
+        37197443,
+        37097773,
+        36571059,
+        37350920,
+        39423003,
+        40009026,
+        39616590,
+        38854853,
+        35749628,
+        39324299,
+        40515617,
+        40432385
+      ],
+      "coverage_estimate": 0.058,
+      "total_weight": 3.872232,
+      "activity_count": 12
+    },
+    {
+      "id": "digital_patient_portals_health_records",
+      "label": "Patient Portals, Electronic Health Records, and Digital Patient Engagement",
+      "description": "Research on electronic personal health records, patient portal adoption and use, secure messaging, and digital tools for patient-provider communication, including studies on portal access for caregivers, adolescents, and oncology patients.",
+      "seed_pmids": [
+        33026353,
+        33439126,
+        36542818,
+        38901834,
+        37130566,
+        32477626,
+        39566558,
+        38573070,
+        39193007,
+        40717468
+      ],
+      "coverage_estimate": 0.036,
+      "total_weight": 3.056394,
+      "activity_count": 8
+    },
+    {
+      "id": "digital_remote_weight_chronic_disease",
+      "label": "Remote and Digital Interventions for Chronic Disease and Weight Management",
+      "description": "Studies evaluating remotely delivered or digitally supported programs for chronic disease management including weight loss, diabetes, heart failure, and cancer survivorship, examining clinical outcomes, feasibility, and comparative effectiveness versus in-person care.",
+      "seed_pmids": [
+        32071117,
+        38652494,
+        35273051,
+        38740297,
+        39641218,
+        37907014,
+        35273051,
+        39469294,
+        34293636,
+        37062188,
+        40157522,
+        39237276,
+        40845441
+      ],
+      "coverage_estimate": 0.047,
+      "total_weight": 8.39167,
+      "activity_count": 10
+    },
+    {
+      "id": "digital_telehealth_behavioral_mental_health",
+      "label": "Telehealth and Digital Interventions for Behavioral and Mental Health",
+      "description": "Research on telepsychiatry, telemental health platforms, and digital interventions for mental health conditions including depression, anxiety, PTSD, and substance use disorders, covering clinical outcomes, implementation, and policy dimensions of virtual behavioral health care.",
+      "seed_pmids": [
+        33046267,
+        34819885,
+        37461819,
+        38109490,
+        36600105,
+        33543374,
+        34536798,
+        33969866,
+        31937528,
+        38094931,
+        37672667,
+        37672311,
+        38662432,
+        39163044,
+        40855707,
+        39570880
+      ],
+      "coverage_estimate": 0.058,
+      "total_weight": 6.982476,
+      "activity_count": 10
+    },
+    {
+      "id": "digital_social_media_online_health",
+      "label": "Social Media, Online Communities, and Digital Health Information",
+      "description": "Studies analyzing health-related content on social media platforms, online patient communities, and digital health information sources, including machine learning analysis of user-generated content, misinformation, and the role of online communities in patient support and education.",
+      "seed_pmids": [
+        35323123,
+        39134239,
+        36105318,
+        37907014,
+        33871563,
+        39930996,
+        38261150,
+        40531519,
+        39471703,
+        32640418
+      ],
+      "coverage_estimate": 0.036,
+      "total_weight": 2.224602,
+      "activity_count": 7
+    },
+    {
+      "id": "digital_pediatric_telehealth",
+      "label": "Pediatric Telehealth and Virtual Care for Children",
+      "description": "Research on telemedicine and virtual care delivery specifically for pediatric populations, including neuropsychology, urgent care, autism social skills programs, and assessment tools for pediatric residents.",
+      "seed_pmids": [
+        33159508,
+        33428513,
+        35596024,
+        40902795,
+        32576057
+      ],
+      "coverage_estimate": 0.054,
+      "total_weight": 8.400884,
+      "activity_count": 9
+    },
+    {
+      "id": "digital_genetic_cancer_risk_tools",
+      "label": "Digital Tools for Genetic Cancer Risk Assessment and Cascade Testing",
+      "description": "Studies evaluating web-based, digital, and technology-assisted tools for collecting cancer family history, assessing hereditary cancer risk, and facilitating cascade genetic testing among at-risk individuals.",
+      "seed_pmids": [
+        37062188,
+        40845441,
+        39237276,
+        31922918,
+        36305018,
+        35242980
+      ],
+      "coverage_estimate": 0.065,
+      "total_weight": 7.512643,
+      "activity_count": 7
+    },
+    {
+      "id": "digital_telehealth_global_lmic",
+      "label": "Telehealth and Digital Health Technologies in Low- and Middle-Income Countries",
+      "description": "Research on the application of telemedicine, smartphones, and smart glasses to support surgical procedures, emergency transport, and healthcare delivery in low- and middle-income country settings.",
+      "seed_pmids": [
+        37126940,
+        35921190,
+        40185614,
+        35868506
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 1.186784,
+      "activity_count": 2
+    },
+    {
+      "id": "digital_video_patient_education",
+      "label": "Video-Based Patient Education and Procedural Instruction",
+      "description": "Studies examining the use of educational videos and multimedia instructions to improve patient comprehension, procedural preparation, and health knowledge across clinical settings.",
+      "seed_pmids": [
+        31313807,
+        37708502,
+        35838382,
+        33547917
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 0.735227,
+      "activity_count": 3
+    },
+    {
+      "id": "digital_acoustic_biosignal_detection",
+      "label": "Acoustic and Biosignal-Based Digital Diagnostics",
+      "description": "Research on using audio recordings, cough sounds, and other biosignals for automated detection and screening of clinical conditions such as seizures and respiratory diseases.",
+      "seed_pmids": [
+        32276233,
+        37672667,
+        34419933
+      ],
+      "coverage_estimate": 0.033,
+      "total_weight": 1.584436,
+      "activity_count": 4
+    },
+    {
+      "id": "digital_harm_reduction_substance_use",
+      "label": "Digital and Technology-Enabled Harm Reduction and Substance Use Services",
+      "description": "Studies on the use of digital tools, telehealth, online surveys, and technology-assisted strategies to support harm reduction, syringe service programs, and addiction treatment, including pandemic-era adaptations.",
+      "seed_pmids": [
+        36732773,
+        40682080,
+        35124386,
+        34914779,
+        38344412
+      ],
+      "coverage_estimate": 0.054,
+      "total_weight": 2.224293,
+      "activity_count": 6
+    },
+    {
+      "id": "digital_elder_abuse_protection",
+      "label": "Digital and Technology-Supported Elder Abuse Detection and Intervention",
+      "description": "Research on screening tools, protective interventions, and service delivery adaptations for identifying and responding to elder abuse and neglect, including PTSD treatment outcomes in survivors.",
+      "seed_pmids": [
+        37083117,
+        40619282,
+        40695548
+      ],
+      "coverage_estimate": 0.033,
+      "total_weight": 1.793904,
+      "activity_count": 4
+    },
+    {
+      "id": "digital_clinical_informatics_hospital_operations",
+      "label": "Clinical Informatics, E-Consults, and Hospital Digital Operations",
+      "description": "Studies on the use of clinical informatics systems, automatic e-consults, smartphone alerts, and digital workflows to improve hospital operations, clinical decision-making, and patient safety.",
+      "seed_pmids": [
+        33247720,
+        39438379,
+        34210527,
+        40502275
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 1.456881,
+      "activity_count": 5
+    },
+    {
+      "id": "digital_covid_pandemic_health_system_response",
+      "label": "Digital and Operational Health System Responses to COVID-19",
+      "description": "Research on hospital preparedness, resource reallocation, clinical protocols, and informatics-driven adaptations implemented by health systems during the COVID-19 pandemic.",
+      "seed_pmids": [
+        32298146,
+        32732779,
+        34310547,
+        33851930,
+        34636287
+      ],
+      "coverage_estimate": 0.054,
+      "total_weight": 1.139263,
+      "activity_count": 3
+    },
+    {
+      "id": "digital_mhealth_vulnerable_populations",
+      "label": "Mobile Health and Digital Interventions for Vulnerable and Underserved Populations",
+      "description": "Studies on mobile health surveys, apps, and digital tools targeting underserved or vulnerable groups including dialysis patients, transgender individuals, HIV-positive populations, and urban psychiatric patients.",
+      "seed_pmids": [
+        39040544,
+        39679168,
+        39847410,
+        39753220,
+        36176033
+      ],
+      "coverage_estimate": 0.054,
+      "total_weight": 0.910953,
+      "activity_count": 3
+    },
+    {
+      "id": "digital_college_student_mental_health",
+      "label": "Digital and Virtual Interventions for College Student Mental Health",
+      "description": "Research on digital, virtual, and technology-mediated approaches to addressing mental health needs of college and university students, including COVID-19 impacts and culturally tailored virtual partnerships.",
+      "seed_pmids": [
+        33048654,
+        33557594,
+        40200441,
+        39920205
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 0.501058,
+      "activity_count": 3
+    },
+    {
+      "id": "digital_telehealth_surgical_specialty",
+      "label": "Telemedicine in Surgical and Specialty Clinical Practice",
+      "description": "Studies on the implementation and principles of telemedicine in surgical specialties including plastic surgery, telepathology for oncology, and direct-to-consumer telemedicine kiosks.",
+      "seed_pmids": [
+        35587921,
+        33929788,
+        32589518,
+        32845446
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 2.710721,
+      "activity_count": 5
+    },
+    {
+      "id": "digital_caregiver_homecare_support",
+      "label": "Digital and Technology-Based Support for Caregivers and Home-Based Care",
+      "description": "Research on technology-assisted interventions supporting informal caregivers, home health aides, and hospice care delivery, including mobile apps, training protocols, and tele-paramedicine for home-based patient management.",
+      "seed_pmids": [
+        37972753,
+        38740297,
+        38979847,
+        36176033
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 4.805537,
+      "activity_count": 8
+    },
+    {
+      "id": "digital_passive_sensing_mental_health",
+      "label": "Passive Sensing, LLMs, and Wearables for Mental Health and Well-Being Monitoring",
+      "description": "Studies using passive sensing technologies, large language models, and wearable devices to monitor mental health, detect depression and anxiety, and deliver personalized well-being recommendations.",
+      "seed_pmids": [
+        34777042,
+        36105318,
+        40200441,
+        39920205
+      ],
+      "coverage_estimate": 0.043,
+      "total_weight": 5.193892,
+      "activity_count": 10
+    }
+  ],
+  "uncovered_pmids": [
+    "37476984",
+    "34600795",
+    "38652494",
+    "38685877",
+    "33185686",
+    "39081781",
+    "34611054",
+    "35896533",
+    "35062933",
+    "38677410",
+    "33781299",
+    "39178891",
+    "36641298",
+    "37538310",
+    "37083117",
+    "32828033",
+    "38540605",
+    "33899220",
+    "34337586",
+    "33024882",
+    "39641218",
+    "40276722",
+    "39359706",
+    "34060678",
+    "40093660",
+    "36752627",
+    "35990564",
+    "39680805",
+    "32980252",
+    "34675843"
+  ],
+  "total_activities": 276,
+  "coverage_pct": 0.9094,
+  "generated_at": "2026-04-14T21:13:35.023785Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved",
+  "augmented_at": "2026-04-14T21:15:09Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_digital_health_telemedicine.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}

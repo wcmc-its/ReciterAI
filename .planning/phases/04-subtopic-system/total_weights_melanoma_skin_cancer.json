@@ -1,0 +1,19 @@
+{
+  "topic_id": "melanoma_skin_cancer",
+  "total_weights": {
+    "melanoma_checkpoint_inhibitor_outcomes": 5.756362,
+    "melanoma_combination_immunotherapy_preclinical": 5.44431,
+    "melanoma_car_t_immunotherapy": 5.155906,
+    "melanoma_tumor_immunology_til": 3.886307,
+    "melanoma_molecular_biology_metastasis": 3.683936,
+    "melanoma_liquid_biopsy_ctdna": 3.402352,
+    "melanoma_braf_targeted_therapy": 2.141587,
+    "melanoma_epidemiology_disparities": 1.314116,
+    "melanoma_cutaneous_lymphoma": 0.921567,
+    "melanoma_cutaneous_scc_immunosuppression": 0.724398,
+    "melanoma_surgical_reconstruction": 0.542255,
+    "melanoma_ai_early_detection": 0.134025
+  },
+  "faculty_count": 40,
+  "subtopic_count": 12
+}

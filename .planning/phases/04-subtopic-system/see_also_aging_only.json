@@ -1,0 +1,10 @@
+{
+  "see_also": [],
+  "generated_at": "2026-04-14T16:02:33Z",
+  "temperature": 0.0,
+  "pre_filter_count": 0,
+  "post_filter_count": 0,
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "short_circuit_reason": "fewer than 2 parent topics in input",
+  "parent_topic_count": 1
+}

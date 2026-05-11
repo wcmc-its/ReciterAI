@@ -1,0 +1,465 @@
+{
+  "topic_id": "musculoskeletal_orthopedic_medicine",
+  "topic_label": "Musculoskeletal & Orthopedic Medicine",
+  "subtopics": [
+    {
+      "id": "musculoskeletal_minimally_invasive_spine_surgery",
+      "label": "Minimally Invasive Spine Surgery: Techniques, Navigation, and Outcomes",
+      "description": "Research on minimally invasive spinal surgical techniques including MIS-TLIF, endoscopic approaches, tubular laminotomy, and lateral interbody fusion, with emphasis on navigation, robotics, augmented reality, and clinical outcomes. Covers technical development, complication profiles, and comparative effectiveness versus open surgery.",
+      "seed_pmids": [
+        32528800,
+        32528803,
+        35953038,
+        36203284,
+        38567017,
+        35364670,
+        35364671,
+        35364672,
+        33711811,
+        30888023,
+        33047126,
+        34409992,
+        35726929,
+        36227239,
+        37919696,
+        32036064,
+        32528795,
+        32528801,
+        32528812,
+        33430625,
+        33900987,
+        34675032,
+        39185869,
+        39363458,
+        38525927,
+        40148253,
+        39335369
+      ],
+      "coverage_estimate": 0.119
+    },
+    {
+      "id": "musculoskeletal_cervical_spine_surgery",
+      "label": "Cervical Spine Surgery: ACDF, Arthroplasty, and Deformity Management",
+      "description": "Research on surgical management of cervical spine conditions including anterior cervical discectomy and fusion (ACDF), cervical disc arthroplasty, laminoplasty, corpectomy, and craniocervical junction procedures. Covers complications, radiographic outcomes, pseudarthrosis, adjacent segment disease, and comparative surgical approaches for degenerative cervical myelopathy and trauma.",
+      "seed_pmids": [
+        32562771,
+        33375849,
+        33601898,
+        33819934,
+        33819936,
+        34818267,
+        32705903,
+        32796457,
+        33049410,
+        33504198,
+        33504201,
+        34270755,
+        34907932,
+        35315806,
+        36637311,
+        36976341,
+        38146052,
+        38091104,
+        32673728,
+        32865650,
+        32833928,
+        31245806,
+        33406919,
+        34330246,
+        32991361,
+        33211947,
+        34218613,
+        38268687,
+        38717313,
+        32204299,
+        32089618,
+        35580934,
+        36189022
+      ],
+      "coverage_estimate": 0.146
+    },
+    {
+      "id": "musculoskeletal_spinal_trauma_lmic",
+      "label": "Traumatic Spinal Injuries: Management and Outcomes in Low- and Middle-Income Countries",
+      "description": "Research on the epidemiology, surgical management, neurological outcomes, and post-discharge morbidity of traumatic spinal injuries, with a focus on East African and other low- and middle-income country settings. Includes cost-effectiveness analyses, barriers to care, and follow-up challenges.",
+      "seed_pmids": [
+        32875835,
+        32350408,
+        32799677,
+        34551932,
+        35921190,
+        37856389,
+        37126940,
+        40022757,
+        40562560,
+        32541848,
+        38499345,
+        36966909,
+        35945864
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "musculoskeletal_spine_surgery_training_technology",
+      "label": "Spine Surgery Training, Simulation, and Global Capacity Building",
+      "description": "Research on surgical education and training for spine procedures, including high-fidelity simulators, blended learning, telemedicine support, and capacity-building programs in resource-limited settings. Covers curriculum development for minimally invasive spine surgery and the use of smart glasses and telemedical tools.",
+      "seed_pmids": [
+        35225716,
+        36745534,
+        37778623,
+        37856389,
+        35921190,
+        37126940,
+        32528795,
+        34237452,
+        32377617
+      ],
+      "coverage_estimate": 0.04
+    },
+    {
+      "id": "musculoskeletal_bone_biology_osteoblast_osteoclast",
+      "label": "Bone Cell Biology: Osteoblast and Osteoclast Signaling and Differentiation",
+      "description": "Research on the molecular and cellular mechanisms governing osteoblast differentiation, osteoclastogenesis, and skeletal mineralization, including key signaling pathways such as ERK/MAPK, hedgehog, GSK3-\u03b2, and mTORC1. Includes studies on bone-specific kinases, transcription factors, and sex differences in bone cell biology.",
+      "seed_pmids": [
+        32807497,
+        34326333,
+        35325978,
+        36060812,
+        33567098,
+        33895139,
+        32133214,
+        33177525,
+        37730988,
+        38194481,
+        32979200
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "musculoskeletal_osteoarthritis_joint_replacement",
+      "label": "Osteoarthritis Management and Joint Replacement Outcomes",
+      "description": "Research on the diagnosis, conservative management, and surgical treatment of osteoarthritis, including total knee and hip arthroplasty outcomes, revision rates, injection therapies, and patient-reported outcomes. Covers disparities in access to joint replacement, perioperative complications, and novel interventional approaches.",
+      "seed_pmids": [
+        34076699,
+        33348291,
+        38110904,
+        39836032,
+        33961990,
+        35645647,
+        36480365,
+        39238872,
+        39254264,
+        37147587,
+        34288590,
+        36147655,
+        35537895
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "musculoskeletal_lumbar_spine_degenerative_disease",
+      "label": "Lumbar Spine Degenerative Disease: Disc, Stenosis, and Fusion",
+      "description": "Research on the pathomechanics, diagnosis, and surgical treatment of lumbar degenerative conditions including disc herniation, spinal stenosis, spondylolisthesis, and intervertebral disc degeneration. Covers lumbar fusion techniques, indirect decompression, facet joint pathology, and radiographic outcomes.",
+      "seed_pmids": [
+        34929784,
+        34376493,
+        34376496,
+        35499552,
+        36381790,
+        37213577,
+        32528813,
+        38874639,
+        30726963,
+        31939767,
+        31919536,
+        37093302,
+        33834128
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "musculoskeletal_bone_health_metabolic",
+      "label": "Bone Health, Metabolic Bone Disease, and Osteoporosis",
+      "description": "Research on bone mineral density, osteoporosis, fracture risk, and metabolic bone disorders including the effects of medications (aromatase inhibitors, denosumab, iron therapy), systemic diseases (diabetes, CKD), and hormonal factors on bone health. Includes imaging-based bone assessment and pharmacological interventions.",
+      "seed_pmids": [
+        34511326,
+        36725971,
+        34421429,
+        38029518,
+        32896095,
+        32574618,
+        34850000,
+        34211496,
+        38640040,
+        33841882,
+        31919536,
+        38477743
+      ],
+      "coverage_estimate": 0.053
+    },
+    {
+      "id": "musculoskeletal_spinal_deformity_pediatric",
+      "label": "Spinal Deformity: Pediatric and Adult Surgical Management",
+      "description": "Research on the surgical correction of spinal deformity in pediatric and adult populations, including scoliosis, craniocervical instability, and sagittal alignment. Covers surgical techniques, complication prevention, and outcomes in conditions such as Ehlers-Danlos syndrome and Chiari malformation.",
+      "seed_pmids": [
+        33211947,
+        35513320,
+        32187067,
+        32826729,
+        39316841,
+        38268687,
+        37798971,
+        36717092,
+        37833504,
+        36745534,
+        37778623
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "musculoskeletal_pain_management_interventional",
+      "label": "Musculoskeletal Pain Management: Interventional and Non-Pharmacologic Approaches",
+      "description": "Research on interventional and non-pharmacologic treatments for musculoskeletal pain conditions including myofascial pain, low back pain, sacroiliac joint pain, and osteoarthritis. Covers injection therapies, radiofrequency neurotomy, acupuncture, virtual reality, mind-body interventions, and digital pain management tools.",
+      "seed_pmids": [
+        34850180,
+        35645647,
+        39239231,
+        39469294,
+        39239595,
+        38292755,
+        37104747,
+        33443859,
+        37916613,
+        40871935
+      ],
+      "coverage_estimate": 0.044
+    },
+    {
+      "id": "musculoskeletal_cartilage_tissue_engineering",
+      "label": "Cartilage Tissue Engineering and Regenerative Orthopedics",
+      "description": "Research on the engineering and regeneration of cartilage tissues using scaffolds, decellularized xenografts, stem cell co-culture, and 3D-printed constructs. Covers elastic and articular cartilage engineering for auricular, nasal, and joint applications, as well as intervertebral disc regeneration.",
+      "seed_pmids": [
+        34636646,
+        35689509,
+        35513335,
+        38494083,
+        36480365,
+        34376496,
+        38874519
+      ],
+      "coverage_estimate": 0.031
+    },
+    {
+      "id": "musculoskeletal_orthopedic_infection_periprosthetic",
+      "label": "Orthopedic Infections: Osteomyelitis, Periprosthetic Joint Infection, and Surgical Site Infection",
+      "description": "Research on the diagnosis, microbiology, and management of orthopedic infections including acute hematogenous osteomyelitis in children, periprosthetic joint infections, and surgical site infections following spine and trauma surgery. Covers novel diagnostic tools such as microbial cell-free DNA sequencing and prevention protocols.",
+      "seed_pmids": [
+        34293751,
+        32881826,
+        38239108,
+        31934527,
+        38556655,
+        32045310
+      ],
+      "coverage_estimate": 0.027
+    },
+    {
+      "id": "musculoskeletal_sports_medicine_upper_extremity",
+      "label": "Sports Medicine and Upper Extremity Musculoskeletal Conditions",
+      "description": "Research on sports-related musculoskeletal injuries and conditions including shoulder impingement, distal clavicular osteolysis, running injuries, and lacrosse-related trauma. Covers diagnostic imaging, injection therapies, and return-to-sport management in recreational and elite athletes.",
+      "seed_pmids": [
+        37294199,
+        38540605,
+        36189022,
+        39223986,
+        35876863,
+        33878178,
+        34028204,
+        38305349
+      ],
+      "coverage_estimate": 0.035
+    },
+    {
+      "id": "musculoskeletal_osseointegration_amputation",
+      "label": "Osseointegrated Prostheses and Limb Amputation Rehabilitation",
+      "description": "Research on osseointegrated prosthetic implants for lower limb amputees, including cost-benefit analyses, infection management, surgical adjuncts such as concurrent thigh lifts, and patient-reported outcomes. Covers implant salvage rates and quality-of-life improvements compared to socket prostheses.",
+      "seed_pmids": [
+        35513324,
+        38556655,
+        40167082
+      ],
+      "coverage_estimate": 0.013
+    },
+    {
+      "id": "musculoskeletal_ai_digital_health_orthopedics",
+      "label": "Artificial Intelligence and Digital Health in Musculoskeletal Medicine",
+      "description": "Research on the application of artificial intelligence, large language models, convolutional neural networks, and digital tools to musculoskeletal diagnosis, surgical planning, and patient management. Covers AI-based fracture detection, chatbot performance for orthopedic queries, and digital chronic pain self-management platforms.",
+      "seed_pmids": [
+        38245845,
+        38477743,
+        39363462,
+        37104747,
+        32528803,
+        39185869
+      ],
+      "coverage_estimate": 0.027
+    },
+    {
+      "id": "musculoskeletal_facial_fracture_management",
+      "label": "Facial and Craniofacial Fracture Management and Outcomes",
+      "description": "Research on epidemiology, management strategies, cost burden, and outcomes of facial fractures including mandible, zygoma, frontal sinus, and pediatric craniofacial injuries in trauma settings.",
+      "seed_pmids": [
+        33433012,
+        33645957,
+        38294281,
+        39194230,
+        39703134,
+        33621987,
+        33634454
+      ],
+      "coverage_estimate": 0.11
+    },
+    {
+      "id": "musculoskeletal_atlantoaxial_upper_cervical",
+      "label": "Upper Cervical Spine: Atlantoaxial and Odontoid Pathology",
+      "description": "Studies focused on C1-C2 instrumented fusion, odontoid fractures in elderly patients, and atlantoaxial osteoarthritis, examining surgical techniques, fusion rates, and functional outcomes.",
+      "seed_pmids": [
+        35772974,
+        32311554,
+        33719639,
+        33065691
+      ],
+      "coverage_estimate": 0.06
+    },
+    {
+      "id": "musculoskeletal_spinal_tumor_metastasis",
+      "label": "Spinal Tumors and Vertebral Metastasis: Biology and Surgical Management",
+      "description": "Research on metastatic spinal disease including surgical outcomes in elderly patients, vertebral skeletal stem cell biology driving metastasis, and rehabilitation for spine tumor patients.",
+      "seed_pmids": [
+        34670413,
+        37704733,
+        38364027,
+        35309866
+      ],
+      "coverage_estimate": 0.06
+    },
+    {
+      "id": "musculoskeletal_rib_sternal_chest_wall_trauma",
+      "label": "Chest Wall Trauma: Rib and Sternal Fixation",
+      "description": "Studies examining surgical fixation of rib and sternal injuries in trauma patients, including mortality benefits in geriatric populations and wound complication prevention strategies.",
+      "seed_pmids": [
+        32176172,
+        32850255,
+        38416958
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_ckd_mineral_bone_disorder",
+      "label": "Chronic Kidney Disease and Mineral Bone Disorder",
+      "description": "Research on CKD-related mineral and bone disorders including FGF23 dysregulation, TNF-alpha effects on growth and bone metabolism, vitamin D regulation, and iron therapy-induced hypophosphatemia.",
+      "seed_pmids": [
+        37701608,
+        33387018,
+        39688907,
+        32016310
+      ],
+      "coverage_estimate": 0.06
+    },
+    {
+      "id": "musculoskeletal_nipple_reconstruction_tissue_engineering",
+      "label": "Nipple Reconstruction and Costal Cartilage Tissue Engineering",
+      "description": "Studies on surgical and tissue-engineering approaches to nipple reconstruction, including scaffolded autologous costal cartilage and decellularized xenograft implants for maintaining nipple geometry.",
+      "seed_pmids": [
+        33863678,
+        35513336,
+        35104251
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_occipital_neuralgia_headache_nerve",
+      "label": "Occipital Neuralgia, Headache, and Peripheral Nerve Decompression",
+      "description": "Research on the relationship between musculoskeletal structures and headache disorders, including fascial changes in occipital neuralgia, migraine associations with upper extremity compressive neuropathy, and outcomes of nerve decompression surgery.",
+      "seed_pmids": [
+        33370063,
+        36161789,
+        38589998
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_geriatric_frailty_body_composition",
+      "label": "Geriatric Frailty, Body Composition, and Fall Risk",
+      "description": "Studies examining body composition metrics, frailty screening tools, and fall risk factors in older adults, including CT-based body composition profiling and polypharmacy effects in nursing home populations.",
+      "seed_pmids": [
+        34862921,
+        32025539,
+        37841940
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_ankle_foot_ligament_fracture",
+      "label": "Ankle and Foot Fractures and Ligament Injuries",
+      "description": "Research on diagnosis and fixation of ankle and foot injuries including intramedullary screw versus plate fixation for distal fibula fractures, MRI-based assessment of Lisfranc ligament injuries, and pediatric MCL avulsion fractures of the knee.",
+      "seed_pmids": [
+        36280403,
+        32927417,
+        33783578
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_psoriatic_arthritis_inflammatory",
+      "label": "Inflammatory Arthritis and Rheumatic Musculoskeletal Disease",
+      "description": "Studies on inflammatory joint diseases including IL-23-driven psoriasis and psoriatic arthritis pathogenesis, lay health worker interventions for rheumatic musculoskeletal diseases, and arthritis prevalence among caregivers.",
+      "seed_pmids": [
+        32427877,
+        38570932,
+        37656675
+      ],
+      "coverage_estimate": 0.05
+    },
+    {
+      "id": "musculoskeletal_spine_implant_economics",
+      "label": "Spine Implant Utilization, Pricing, and Healthcare Economics",
+      "description": "Research on trends in spinal implant utilization and pricing, opioid prescribing patterns by orthopedic surgeons, and economic factors influencing spine surgery practice.",
+      "seed_pmids": [
+        40061199,
+        32796374,
+        35044872
+      ],
+      "coverage_estimate": 0.05
+    }
+  ],
+  "uncovered_pmids": [
+    "33242408",
+    "36273860",
+    "32339786",
+    "32840647",
+    "34144748",
+    "40243816",
+    "36536525",
+    "39792470",
+    "36166728",
+    "31841590",
+    "36203278",
+    "37222423",
+    "31937528",
+    "37857821",
+    "36137195",
+    "36456834",
+    "39997319",
+    "38991774",
+    "32596653",
+    "33464126",
+    "40681523"
+  ],
+  "total_activities": 226,
+  "coverage_pct": 0.9027,
+  "generated_at": "2026-04-14T21:43:00.124806Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

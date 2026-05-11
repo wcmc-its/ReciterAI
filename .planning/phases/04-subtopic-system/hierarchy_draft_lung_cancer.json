@@ -1,0 +1,256 @@
+{
+  "topic_id": "lung_cancer",
+  "topic_label": "Lung Cancer",
+  "subtopics": [
+    {
+      "id": "lung_surgical_resection_extent",
+      "label": "Extent of Surgical Resection in Early-Stage NSCLC",
+      "description": "Research comparing lobectomy, segmentectomy, and wedge resection for early-stage non-small cell lung cancer, focusing on oncologic outcomes, locoregional recurrence, survival, and lymph node dissection strategies.",
+      "seed_pmids": [
+        39996091,
+        37473998,
+        36780674,
+        38617767,
+        40073234,
+        35181271,
+        39547495,
+        40532782,
+        37926198,
+        38215351
+      ],
+      "coverage_estimate": 0.116
+    },
+    {
+      "id": "lung_neoadjuvant_immunotherapy",
+      "label": "Neoadjuvant Immunotherapy and Radiation in NSCLC",
+      "description": "Clinical trials and analyses evaluating neoadjuvant durvalumab, stereotactic body radiotherapy, and chemoimmunotherapy combinations in resectable non-small cell lung cancer, including pathologic response rates, surgical feasibility, and survival outcomes.",
+      "seed_pmids": [
+        34015311,
+        36028357,
+        38114518,
+        40684849,
+        36841745,
+        38401548
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "lung_screening_disparities",
+      "label": "Lung Cancer Screening, Access, and Racial Disparities",
+      "description": "Studies examining lung cancer screening utilization, guideline eligibility, racial and ethnic disparities, risk-model-based screening approaches, and implementation strategies to improve screening uptake in diverse populations.",
+      "seed_pmids": [
+        36053535,
+        37883107,
+        40044306,
+        37984766,
+        32728771,
+        32284173,
+        34580031,
+        37422161,
+        34974882
+      ],
+      "coverage_estimate": 0.105
+    },
+    {
+      "id": "lung_molecular_drivers_targeted_therapy",
+      "label": "Molecular Drivers and Targeted Therapy in Lung Cancer",
+      "description": "Research on oncogenic driver mutations (EGFR, KRAS, ALK, LKB1) and targeted therapeutic strategies in lung adenocarcinoma and NSCLC, including resistance mechanisms, allelic variation, and drug sensitivity profiles.",
+      "seed_pmids": [
+        32792368,
+        37931288,
+        39232917,
+        34454901,
+        39674767,
+        36715544,
+        38743625,
+        34119472,
+        33535033
+      ],
+      "coverage_estimate": 0.105
+    },
+    {
+      "id": "lung_tumor_microenvironment_immunity",
+      "label": "Tumor Microenvironment and Immune Evasion in Lung Cancer",
+      "description": "Investigations into the lung cancer tumor microenvironment, including immune cell dynamics, immune evasion mechanisms (EMSY, IRE1\u03b1, PD-L1/EGFR interactions), and the evolution of immunity from preinvasive to invasive adenocarcinoma.",
+      "seed_pmids": [
+        34963055,
+        36624093,
+        35385730,
+        36915197,
+        32042191,
+        34917944,
+        35604411
+      ],
+      "coverage_estimate": 0.081
+    },
+    {
+      "id": "lung_second_primary_cancer_surveillance",
+      "label": "Second Primary Lung Cancer Risk and Surveillance",
+      "description": "Studies characterizing the incidence, risk prediction, racial differences, and clinical impact of second primary lung cancers among lung cancer survivors, including validated risk models and surveillance recommendations.",
+      "seed_pmids": [
+        34255071,
+        34893871,
+        37877788,
+        37966839,
+        39186009,
+        38215351
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "lung_genomic_profiling_liquid_biopsy",
+      "label": "Genomic Profiling, Liquid Biopsy, and Molecular Diagnostics",
+      "description": "Research on next-generation sequencing, cell-free DNA, circulating tumor DNA, and fusion detection methods applied to lung cancer diagnosis, molecular profiling, and treatment monitoring.",
+      "seed_pmids": [
+        34195208,
+        40122160,
+        38877116,
+        36621452,
+        36044468,
+        38167769
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "lung_sclc_histological_transformation",
+      "label": "Small Cell Lung Cancer Biology and Histological Transformation",
+      "description": "Studies on the molecular biology of small cell lung cancer, including TP53/RB1 deficiency, MYC overexpression, lineage plasticity, and histological transformation from lung adenocarcinoma to SCLC.",
+      "seed_pmids": [
+        38330136,
+        40694497,
+        35545680
+      ],
+      "coverage_estimate": 0.035
+    },
+    {
+      "id": "lung_metabolic_vulnerabilities",
+      "label": "Metabolic Reprogramming and Vulnerabilities in Lung Cancer",
+      "description": "Research identifying metabolic alterations in lung cancer cells, including serine/one-carbon metabolism, propionate metabolism, and LKB1-dependent metabolic regulation, as potential therapeutic targets.",
+      "seed_pmids": [
+        35594343,
+        36715544,
+        35361954,
+        38743625
+      ],
+      "coverage_estimate": 0.047
+    },
+    {
+      "id": "lung_surgical_outcomes_perioperative",
+      "label": "Surgical Outcomes and Perioperative Management in Lung Cancer",
+      "description": "Studies on perioperative factors affecting lung cancer surgery outcomes, including pulmonary function testing before resection, intraoperative opioid exposure, COVID-19 impact on surgical safety, and nodal staging quality metrics.",
+      "seed_pmids": [
+        35086669,
+        34147159,
+        35459540,
+        32279970,
+        37926198
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "lung_immunotherapy_biomarkers",
+      "label": "Immunotherapy Response Biomarkers and Checkpoint Inhibition",
+      "description": "Research identifying molecular and genomic biomarkers predictive of response to immune checkpoint inhibitors in lung cancer, including PD-L1 expression, proliferation gene signatures, and tumor-immune interactions.",
+      "seed_pmids": [
+        38401548,
+        36915197,
+        34536733,
+        34917944,
+        36624093
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "lung_pulmonary_nodule_management",
+      "label": "Pulmonary Nodule Detection and Management",
+      "description": "Studies on the identification, imaging, follow-up, and clinical management of pulmonary nodules, including incidental findings, emergency department programs, and CT-guided biopsy techniques.",
+      "seed_pmids": [
+        37422161,
+        34974882,
+        39890572,
+        32271279
+      ],
+      "coverage_estimate": 0.047
+    },
+    {
+      "id": "lung_treatment_disparities_outcomes",
+      "label": "Treatment Disparities and Survival Outcomes in Lung Cancer",
+      "description": "Analyses of racial, ethnic, and socioeconomic disparities in access to guideline-concordant care, immunotherapy, and survival outcomes among lung cancer patients in the United States.",
+      "seed_pmids": [
+        40669311,
+        39186009,
+        40355420,
+        39871161,
+        34580031
+      ],
+      "coverage_estimate": 0.058
+    },
+    {
+      "id": "lung_preclinical_models_drug_delivery",
+      "label": "Preclinical Models and Novel Drug Delivery in Lung Cancer",
+      "description": "Research using patient-derived xenografts, in vitro/in vivo cancer models, and engineered nanoparticle-drug conjugates to identify actionable pathways and improve therapeutic delivery in lung cancer.",
+      "seed_pmids": [
+        33316635,
+        32723835,
+        35230691
+      ],
+      "coverage_estimate": 0.04
+    },
+    {
+      "id": "lung_combination_immunotherapy_strategies",
+      "label": "Combination Immunotherapy and CAR T-Cell Strategies in Solid Tumors",
+      "description": "Studies investigating combinatorial approaches to enhance anti-tumor immunity, including MEK inhibitor scheduling with checkpoint blockade and radiation-enhanced CAR T-cell therapy in solid tumor models.",
+      "seed_pmids": [
+        38885362,
+        37540803,
+        33741442
+      ],
+      "coverage_estimate": 0.04
+    },
+    {
+      "id": "lung_cancer_screening_adherence_access",
+      "label": "Cancer Screening Adherence, Health Literacy, and Access Barriers",
+      "description": "Population-level analyses examining adherence to guideline-recommended cancer screening, health literacy as a mortality predictor, and utilization of imaging modalities across cancer types and patient subgroups.",
+      "seed_pmids": [
+        35032754,
+        40045673,
+        32705734
+      ],
+      "coverage_estimate": 0.04
+    },
+    {
+      "id": "lung_pan_cancer_biomarkers_diagnostics",
+      "label": "Pan-Cancer Biomarkers, Mutation Detection, and Molecular Diagnostics",
+      "description": "Cross-cancer studies evaluating novel mutation detection assays, ERBB2/HER2 copy number gain by NGS, and circulating tumor macrophage-like cells as pan-cancer diagnostic and prognostic biomarkers.",
+      "seed_pmids": [
+        31950578,
+        35126865,
+        40912599
+      ],
+      "coverage_estimate": 0.04
+    },
+    {
+      "id": "lung_treatment_delay_tumor_microbiome",
+      "label": "Treatment Delay Modeling and Tumor Microbiome in Cancer Progression",
+      "description": "Research quantifying the impact of treatment delays on tumor control and metastasis risk, alongside pan-cancer mycobiome analyses linking fungal communities to gastrointestinal and lung tumor progression.",
+      "seed_pmids": [
+        33502482,
+        36179671,
+        39012906
+      ],
+      "coverage_estimate": 0.04
+    }
+  ],
+  "uncovered_pmids": [
+    "36589040",
+    "32727470",
+    "32184064",
+    "37350928"
+  ],
+  "total_activities": 86,
+  "coverage_pct": 0.9535,
+  "generated_at": "2026-04-14T22:12:30.861097Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

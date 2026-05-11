@@ -1,0 +1,21 @@
+{
+  "topic_id": "dermatology_skin_disease",
+  "total_weights": {
+    "dermatology_inflammatory_skin_immunology": 6.748637,
+    "dermatology_melanoma_immunotherapy": 4.558395,
+    "dermatology_melanoma_targeted_therapy_biology": 3.897553,
+    "dermatology_psoriasis_treatment_skin_of_color": 3.58127,
+    "dermatology_covid19_skin_manifestations": 3.524639,
+    "dermatology_hidradenitis_suppurativa": 2.899937,
+    "dermatology_atopic_dermatitis_therapeutics": 2.752644,
+    "dermatology_acne_skin_of_color": 2.084384,
+    "dermatology_wound_healing_reconstruction": 1.877899,
+    "dermatology_melasma_pigmentation_disorders": 1.677464,
+    "dermatology_cutaneous_scc_and_rare_tumors": 1.131488,
+    "dermatology_cutaneous_lymphoma": 0.95929,
+    "dermatology_infectious_skin_disease": 0.863457,
+    "dermatology_skin_cancer_ai_diagnostics": 0.629441
+  },
+  "faculty_count": 64,
+  "subtopic_count": 14
+}

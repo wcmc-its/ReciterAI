@@ -1,0 +1,22 @@
+{
+  "topic_id": "urology_mens_health",
+  "total_weights": {
+    "urology_bladder_urothelial_cancer": 26.245578,
+    "urology_prostate_cancer_molecular_biology": 24.789656,
+    "urology_prostate_cancer_imaging_diagnosis": 16.46922,
+    "urology_prostate_cancer_screening_disparities": 16.420975,
+    "urology_prostate_cancer_treatment_outcomes": 14.178966,
+    "urology_male_infertility_reproductive": 10.262106,
+    "urology_male_contraception_sperm_biology": 8.506997,
+    "urology_prostate_cancer_biomarkers_liquid_biopsy": 7.038845,
+    "urology_renal_cell_carcinoma": 5.962989,
+    "urology_bph_functional_urology": 5.543825,
+    "urology_penile_erectile_prosthetic": 3.844527,
+    "urology_kidney_stones_endourology": 2.700333,
+    "urology_urothelial_cytopathology": 2.297182,
+    "urology_urinary_tract_infection_microbiome": 2.249366,
+    "urology_psma_theranostics": 1.669878
+  },
+  "faculty_count": 131,
+  "subtopic_count": 15
+}

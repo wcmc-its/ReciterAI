@@ -1,0 +1,505 @@
+{
+  "topic_id": "breast_cancer",
+  "topic_label": "Breast Cancer",
+  "subtopics": [
+    {
+      "id": "breast_screening_risk_prediction",
+      "label": "Breast Cancer Screening and Risk Prediction",
+      "description": "Research on mammographic screening modalities (digital mammography, tomosynthesis, abbreviated MRI), risk prediction models including polygenic risk scores, and screening program effectiveness across diverse populations. Includes studies on mammographic density as a risk factor and screening disparities.",
+      "seed_pmids": [
+        32096852,
+        35876790,
+        34183679,
+        35381162,
+        34059687,
+        32639533,
+        32255687,
+        35103252,
+        38424858,
+        34218078,
+        31553449,
+        37188791,
+        40877879,
+        38055093,
+        34543867,
+        39138769,
+        40706251,
+        36083412,
+        38095811,
+        34862209,
+        38497795,
+        32476101,
+        36494710,
+        38849477,
+        38187066
+      ],
+      "coverage_estimate": 0.095
+    },
+    {
+      "id": "breast_hr_positive_treatment",
+      "label": "Hormone Receptor-Positive Breast Cancer Treatment and Endocrine Therapy",
+      "description": "Studies on treatment of hormone receptor-positive breast cancer including CDK4/6 inhibitors (palbociclib), aromatase inhibitors, tamoxifen, endocrine therapy adherence and side effects, and outcomes in luminal subtypes. Includes pharmacogenomics of endocrine therapy and management of metastatic HR+ disease.",
+      "seed_pmids": [
+        35552673,
+        33955129,
+        37141549,
+        36621430,
+        34211496,
+        38640040,
+        39432161,
+        35449210,
+        37733984,
+        36436128,
+        33989019,
+        39432162,
+        33841882,
+        34471951,
+        37784176,
+        40819062,
+        34363748,
+        38588311
+      ],
+      "coverage_estimate": 0.068
+    },
+    {
+      "id": "breast_tnbc_her2_biology_treatment",
+      "label": "Triple-Negative and HER2-Positive Breast Cancer Biology and Treatment",
+      "description": "Research on the molecular biology, targeted therapies, and clinical outcomes of triple-negative breast cancer (TNBC) and HER2-positive breast cancer, including immunotherapy combinations, neoadjuvant chemotherapy response prediction, and novel therapeutic targets.",
+      "seed_pmids": [
+        33150045,
+        37727740,
+        35830893,
+        36672285,
+        34911956,
+        37964363,
+        37224753,
+        36121736,
+        32414099,
+        33927264,
+        35022867,
+        40792552,
+        37781176,
+        40473462,
+        33999652,
+        32157524,
+        36681737,
+        34921655,
+        37855385,
+        39259576
+      ],
+      "coverage_estimate": 0.076
+    },
+    {
+      "id": "breast_liquid_biopsy_ctc_ctdna",
+      "label": "Liquid Biopsy: Circulating Tumor Cells and Circulating Tumor DNA",
+      "description": "Studies on the detection, characterization, and clinical utility of circulating tumor cells (CTCs) and circulating tumor DNA (ctDNA) in breast cancer, including their use for treatment monitoring, resistance profiling, and prognostication in metastatic disease.",
+      "seed_pmids": [
+        34136741,
+        32707446,
+        33307492,
+        33323406,
+        34068368,
+        34076801,
+        35278078,
+        37935631,
+        39577685,
+        36332363,
+        35008244,
+        32034076,
+        40810627
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "breast_reconstruction_surgical",
+      "label": "Breast Reconstruction: Surgical Techniques and Outcomes",
+      "description": "Research on postmastectomy breast reconstruction including implant-based and autologous (DIEP flap) techniques, complications such as capsular contracture and skin necrosis, nipple reconstruction, and comparative outcomes across reconstruction methods.",
+      "seed_pmids": [
+        37040876,
+        38504940,
+        37662866,
+        32243319,
+        33710042,
+        36103287,
+        36688860,
+        35768010,
+        34291379,
+        37115940,
+        36827476,
+        31599789,
+        35180751,
+        37115816,
+        36921324,
+        40167087,
+        40167085,
+        38556671,
+        38556654,
+        40882602,
+        40167072,
+        40167086,
+        40167073,
+        39383674,
+        40745118,
+        38626719,
+        35583690,
+        33863678,
+        35513336,
+        37210472,
+        36975129,
+        39993168,
+        40888286
+      ],
+      "coverage_estimate": 0.125
+    },
+    {
+      "id": "breast_radiation_immunotherapy",
+      "label": "Radiotherapy and Immunotherapy in Breast Cancer",
+      "description": "Research on radiation therapy approaches for breast cancer including hypofractionation, prone positioning, MRI-guided radiotherapy, and the combination of radiation with immunotherapy (checkpoint inhibitors, TLR agonists, CD40 agonism). Includes studies on radiation-induced neoantigens and immune modulation.",
+      "seed_pmids": [
+        32047024,
+        33476307,
+        37890930,
+        37620372,
+        33093219,
+        36010920,
+        36505797,
+        40361488,
+        32919154,
+        40187749,
+        38957315
+      ],
+      "coverage_estimate": 0.042
+    },
+    {
+      "id": "breast_imaging_diagnosis",
+      "label": "Breast Imaging, Diagnosis, and Biopsy",
+      "description": "Studies on breast imaging modalities including MRI (DCE-MRI, abbreviated MRI), ultrasound, contrast-enhanced mammography, and tomosynthesis for lesion detection, characterization, and biopsy guidance. Includes quantitative imaging methods, AI-assisted image analysis, and management of imaging findings.",
+      "seed_pmids": [
+        34748928,
+        38781615,
+        33828972,
+        35001423,
+        38775077,
+        37666747,
+        38416973,
+        38416914,
+        36972047,
+        38424821,
+        38019473,
+        39641987,
+        33533056,
+        38074625,
+        37744182,
+        38424856,
+        33634508,
+        38416958,
+        36589040,
+        38422429,
+        34343836
+      ],
+      "coverage_estimate": 0.08
+    },
+    {
+      "id": "breast_disparities_outcomes",
+      "label": "Racial, Ethnic, and Socioeconomic Disparities in Breast Cancer",
+      "description": "Research examining disparities in breast cancer incidence, treatment access, reconstruction rates, psychosocial care, and outcomes across racial, ethnic, and socioeconomic groups. Includes studies on African American, Hispanic, and Asian American populations and interventions to reduce disparities.",
+      "seed_pmids": [
+        34161138,
+        33738890,
+        38466926,
+        38739311,
+        35641320,
+        37691521,
+        35731462,
+        34355298,
+        36959392,
+        32071117,
+        37594766,
+        38556657,
+        40745118,
+        39383674,
+        38626719,
+        35583690,
+        40167073
+      ],
+      "coverage_estimate": 0.065
+    },
+    {
+      "id": "breast_genetics_hereditary",
+      "label": "Hereditary Breast Cancer Genetics and Cascade Testing",
+      "description": "Research on hereditary breast cancer risk genes (BRCA1/2 and others), cascade genetic testing strategies, polygenic risk scores, variant classification, and the molecular consequences of BRCA deficiency including DNA repair mechanisms.",
+      "seed_pmids": [
+        31922918,
+        33443030,
+        36207653,
+        36305018,
+        37587346,
+        36099913,
+        38000681,
+        34703009,
+        40775829,
+        40845441,
+        35150601,
+        31553449,
+        38369186,
+        39012906
+      ],
+      "coverage_estimate": 0.053
+    },
+    {
+      "id": "breast_tumor_biology_molecular",
+      "label": "Breast Tumor Molecular Biology and Biomarkers",
+      "description": "Studies on the molecular biology of breast cancer including gene expression, non-coding RNAs, transcription factors, signaling pathways (PI3K, STIM1/NFAT1), tumor heterogeneity, and tissue biomarkers such as stem cell markers (CD44, CD24, ALDH1A1) and IHC-based assays.",
+      "seed_pmids": [
+        33816459,
+        35152976,
+        37399784,
+        36038558,
+        39272208,
+        32355271,
+        37771083,
+        39888091,
+        34352659,
+        36590957,
+        38652503,
+        38577336,
+        40197284,
+        34921655,
+        32824026,
+        35126865,
+        36538387
+      ],
+      "coverage_estimate": 0.065
+    },
+    {
+      "id": "breast_metastasis_metabolism",
+      "label": "Breast Cancer Metastasis and Tumor Metabolism",
+      "description": "Research on mechanisms of breast cancer metastasis including organ tropism, metabolic reprogramming (copper, propionate, glucose metabolism), and novel therapeutic strategies targeting metastatic progression in TNBC and other subtypes.",
+      "seed_pmids": [
+        37704733,
+        34911956,
+        34921655,
+        35361954,
+        37612508,
+        35868533,
+        32605263,
+        37224753,
+        40080571,
+        33136246,
+        32678032,
+        32667883
+      ],
+      "coverage_estimate": 0.046
+    },
+    {
+      "id": "breast_dcis_early_stage",
+      "label": "Ductal Carcinoma In Situ and Early-Stage Breast Cancer Management",
+      "description": "Studies on the diagnosis, treatment decision-making, quality of life, and patient-reported outcomes in ductal carcinoma in situ (DCIS) and early-stage breast cancer, including cryoablation, active surveillance criteria, and local therapy choices.",
+      "seed_pmids": [
+        32747864,
+        35191017,
+        34392462,
+        39295556,
+        40715630,
+        34468718,
+        38019473,
+        35022867,
+        40699594,
+        33989019
+      ],
+      "coverage_estimate": 0.038
+    },
+    {
+      "id": "breast_risk_factors_epidemiology",
+      "label": "Breast Cancer Risk Factors, Epidemiology, and Tissue Composition",
+      "description": "Epidemiological studies on breast cancer risk factors including reproductive factors, diet (carotenoids, vitamin D), anthropometric measures, alcohol, environmental exposures (radon, PM2.5), and their associations with breast tissue composition and cancer incidence.",
+      "seed_pmids": [
+        34225771,
+        33288551,
+        34697058,
+        33236056,
+        32238406,
+        32277005,
+        36998083,
+        32668536,
+        32723380,
+        38503141,
+        36710613,
+        39420200,
+        35914729
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "breast_survivorship_qol",
+      "label": "Breast Cancer Survivorship, Quality of Life, and Comorbidity Management",
+      "description": "Research on survivorship issues in breast cancer including quality of life after treatment, management of comorbidities (diabetes, cardiovascular disease), weight management, psychosocial well-being, and patient-reported outcomes during and after treatment.",
+      "seed_pmids": [
+        35543819,
+        36729259,
+        37212636,
+        32071117,
+        34421429,
+        35226083,
+        38951008,
+        39799291,
+        39869261,
+        34468718,
+        37594766,
+        39432162,
+        33661509,
+        35133858
+      ],
+      "coverage_estimate": 0.053
+    },
+    {
+      "id": "breast_covid_imaging_impact",
+      "label": "COVID-19 Vaccine Effects and Pandemic Impact on Breast Imaging",
+      "description": "Research examining COVID-19 vaccine-induced axillary adenopathy and its imaging implications, as well as the pandemic's disruption of breast imaging volumes and operational recovery across North America.",
+      "seed_pmids": [
+        33486146,
+        34298342,
+        38424821
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_cancer_genomics_sv",
+      "label": "Cancer Genome Structural Variation and Multi-Omics Characterization",
+      "description": "Studies applying genome-scale sequencing and multi-omics approaches to characterize complex structural variants, chromatin conformation, and tumor heterogeneity across cancer types including breast cancer.",
+      "seed_pmids": [
+        33007263,
+        34115745,
+        35637420,
+        37673071
+      ],
+      "coverage_estimate": 0.09
+    },
+    {
+      "id": "breast_ml_precision_oncology",
+      "label": "Machine Learning and Computational Methods in Precision Oncology",
+      "description": "Development and application of machine learning models\u2014including biologically constrained and deep learning frameworks\u2014to improve cancer risk prediction, treatment response, and molecular profiling.",
+      "seed_pmids": [
+        36852282,
+        35239414,
+        37350928
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_cdk_cell_cycle_therapy",
+      "label": "CDK Inhibitors and Cell Cycle Regulation in Breast Cancer",
+      "description": "Mechanistic and translational studies of CDK4/6 inhibitors and their effects on cell cycle regulators such as p21 and CDK2, informing therapeutic strategies in breast cancer.",
+      "seed_pmids": [
+        34099663,
+        35671839,
+        32005108
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_exercise_immune_microenvironment",
+      "label": "Exercise, Immune Microenvironment, and Reproductive Factors in Breast Cancer",
+      "description": "Research investigating how physical activity and reproductive factors modulate the breast tumor immune microenvironment and influence cancer progression in preclinical and clinical settings.",
+      "seed_pmids": [
+        32064049,
+        40443130,
+        38556675
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_cardiotoxicity_cardiooncology",
+      "label": "Cardiotoxicity and Cardio-Oncology in Breast Cancer Treatment",
+      "description": "Studies assessing cardiac toxicity from breast cancer therapies\u2014including radiotherapy and chemotherapy\u2014using imaging modalities such as PET and MRI to monitor subacute and chronic cardiovascular effects.",
+      "seed_pmids": [
+        32919154,
+        37019746,
+        33237905
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_cancer_screening_access_policy",
+      "label": "Cancer Screening Access, Policy, and Health System Interventions",
+      "description": "Population-level studies examining adherence to cancer screening guidelines across diverse patient groups\u2014including stroke survivors, mental illness patients, and Medicaid enrollees\u2014and the policy interventions that affect screening uptake.",
+      "seed_pmids": [
+        32019432,
+        35032754,
+        32705734
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_patient_models_biomarkers",
+      "label": "Patient-Derived Models and Novel Biomarkers for Cancer Detection",
+      "description": "Development of patient-derived in vitro and in vivo cancer models and novel blood-based or imaging biomarkers\u2014including methylation assays and circulating macrophage-like cells\u2014for cancer detection and monitoring.",
+      "seed_pmids": [
+        35230691,
+        40912599,
+        32917665
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_global_health_disparities_support",
+      "label": "Global Health, Capacity Building, and Decision Support in Oncology",
+      "description": "Research addressing global breast oncology capacity-building in low-resource settings, decision-making support for racial and ethnic minorities, and health literacy as a determinant of cancer outcomes.",
+      "seed_pmids": [
+        32008719,
+        34538465,
+        40045673
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_her2_pet_imaging_advanced",
+      "label": "Advanced PET Imaging and HER2/ER Biomarker Assessment in Breast Cancer",
+      "description": "Studies utilizing advanced PET imaging modalities such as FES-PET for estrogen receptor-positive brain metastases and evaluating HER2 protein expression levels including very low HER2 subsets.",
+      "seed_pmids": [
+        39423781,
+        35671839,
+        40913147
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_aya_fertility_psychosocial",
+      "label": "Adolescent and Young Adult Cancer: Fertility Preservation and Trial Participation",
+      "description": "Research focused on adolescent and young adult cancer patients, including fertility preservation service utilization, clinical trial accrual patterns, and SOGI data collection to address underrepresentation.",
+      "seed_pmids": [
+        36568923,
+        37916800,
+        40671538
+      ],
+      "coverage_estimate": 0.07
+    },
+    {
+      "id": "breast_hereditary_family_communication",
+      "label": "Hereditary Cancer Risk Communication and Family Notification",
+      "description": "Studies examining the communication of hereditary cancer risk information to at-risk relatives, including barriers to family notification and the role of diverse ancestry consortia in understanding hereditary cancer.",
+      "seed_pmids": [
+        37214514,
+        34895873,
+        38265174
+      ],
+      "coverage_estimate": 0.07
+    }
+  ],
+  "uncovered_pmids": [
+    "40884510",
+    "31999848",
+    "39989892",
+    "32919154",
+    "33951571",
+    "33533056",
+    "36454553",
+    "34875001"
+  ],
+  "total_activities": 263,
+  "coverage_pct": 0.9696,
+  "generated_at": "2026-04-14T21:22:57.492513Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

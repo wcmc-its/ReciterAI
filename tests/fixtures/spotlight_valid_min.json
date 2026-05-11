@@ -1,0 +1,57 @@
+{
+  "version": "spotlight_v1",
+  "generated_at": "2026-05-07T12:00:00Z",
+  "taxonomy_version": "taxonomy_v2",
+  "spotlights": [
+    {
+      "subtopic_id": "test_aging_001",
+      "label": "Synthetic test subtopic for fixture",
+      "display_name": "Synthetic Test Subtopic",
+      "short_description": "Synthetic short description used by Plan 06-08 smoke tests; not real data.",
+      "parent_topic": "Aging / Geroscience",
+      "lede": "WCM scholars are exploring synthetic test signals across two fixture papers to exercise minimal valid spotlight schema acceptance during Plan 06-08 smoke checks.",
+      "papers": [
+        {
+          "pmid": "9000001",
+          "title": "Synthetic test paper one for spotlight schema fixture",
+          "journal": "Test Journal of Synthetic Data",
+          "year": 2025,
+          "first_author": {
+            "personIdentifier": "test_pid_01",
+            "displayName": "Test First Author One",
+            "position": "first"
+          },
+          "last_author": {
+            "personIdentifier": "test_pid_02",
+            "displayName": "Test Last Author One",
+            "position": "last"
+          }
+        },
+        {
+          "pmid": "9000002",
+          "title": "Synthetic test paper two for spotlight schema fixture",
+          "journal": "Test Journal of Synthetic Data",
+          "year": 2024,
+          "first_author": {
+            "personIdentifier": "test_pid_03",
+            "displayName": "Test First Author Two",
+            "position": "first"
+          },
+          "last_author": {
+            "personIdentifier": "test_pid_04",
+            "displayName": "Test Last Author Two",
+            "position": "last"
+          }
+        }
+      ]
+    }
+  ],
+  "pool_snapshot": [
+    {
+      "subtopic_id": "test_aging_001",
+      "pool_score": 142.7,
+      "parent_topic": "Aging / Geroscience",
+      "was_selected": true
+    }
+  ]
+}

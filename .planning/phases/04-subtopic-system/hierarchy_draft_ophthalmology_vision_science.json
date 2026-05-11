@@ -1,0 +1,315 @@
+{
+  "topic_id": "ophthalmology_vision_science",
+  "topic_label": "Ophthalmology & Vision Science",
+  "subtopics": [
+    {
+      "id": "ophthalmology_corneal_confocal_microscopy_neuropathy",
+      "label": "Corneal Confocal Microscopy as a Biomarker for Peripheral Neuropathy",
+      "description": "Research using corneal confocal microscopy (CCM) to detect, quantify, and monitor small nerve fiber loss in diabetic peripheral neuropathy, including studies on corneal nerve fiber length, density, and fractal dimension as diagnostic and prognostic biomarkers across type 1 and type 2 diabetes.",
+      "seed_pmids": [
+        32099076,
+        33144353,
+        33355206,
+        33479291,
+        34210657,
+        34570924,
+        35456342,
+        32232351,
+        32934893,
+        33944892,
+        39015377,
+        36131228,
+        32491258,
+        33931390,
+        34002953,
+        35329958,
+        40220793
+      ],
+      "coverage_estimate": 0.118
+    },
+    {
+      "id": "ophthalmology_ccm_neurological_systemic_disease",
+      "label": "Corneal Confocal Microscopy in Neurological and Systemic Diseases",
+      "description": "Studies applying corneal confocal microscopy to detect nerve fiber loss and immune cell changes as biomarkers in non-diabetic systemic and neurological conditions including multiple sclerosis, Parkinson's disease, dementia, stroke, rheumatoid arthritis, lupus, and long COVID.",
+      "seed_pmids": [
+        33384891,
+        34737384,
+        34003997,
+        36776530,
+        39671224,
+        37915502,
+        36852724,
+        35415208,
+        32925064,
+        34234643,
+        32320450,
+        31902645,
+        35228650,
+        34611233,
+        36808180,
+        34905000,
+        34312122,
+        40325027
+      ],
+      "coverage_estimate": 0.125
+    },
+    {
+      "id": "ophthalmology_amd_treatment_outcomes",
+      "label": "Age-Related Macular Degeneration Treatment and Outcomes",
+      "description": "Clinical and translational research on neovascular and dry AMD, including anti-VEGF therapy outcomes, real-world injection patterns, intraocular antibody responses, and molecular mechanisms such as lipofuscin-induced necroptosis and CLIC4-related RPE pathology.",
+      "seed_pmids": [
+        32020843,
+        32345477,
+        36627583,
+        38761206,
+        34782457,
+        35042858,
+        38152412,
+        40092639
+      ],
+      "coverage_estimate": 0.056
+    },
+    {
+      "id": "ophthalmology_ocular_gene_therapy",
+      "label": "Ocular Gene Therapy for Retinal Diseases",
+      "description": "Preclinical and clinical studies on gene therapy approaches for retinal diseases including nAMD, retinitis pigmentosa, and inherited retinal dystrophies, covering AAV vector delivery, intravitreal and subretinal administration, optogenetic strategies, and safety/efficacy evaluations.",
+      "seed_pmids": [
+        32671137,
+        33532145,
+        36062410,
+        37251979,
+        37250684,
+        38586605,
+        40923693
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "ophthalmology_deep_learning_retinal_imaging",
+      "label": "Deep Learning and AI for Retinal Disease Diagnosis and Prognosis",
+      "description": "Development and validation of deep learning models and AI algorithms applied to fundus photographs, OCT images, and longitudinal imaging data for diagnosing and predicting progression of glaucoma, AMD, and other retinal diseases.",
+      "seed_pmids": [
+        32904246,
+        35308963,
+        36656604,
+        35982106,
+        36531584,
+        36656619,
+        37350910,
+        37494177,
+        39152209,
+        37069534
+      ],
+      "coverage_estimate": 0.069
+    },
+    {
+      "id": "ophthalmology_glaucoma_diagnosis_management",
+      "label": "Glaucoma Diagnosis, Monitoring, and Surgical Management",
+      "description": "Research on glaucoma detection, structural monitoring using OCT-based metrics, intraocular pressure regulation, pharmacological treatments, and adverse events associated with glaucoma surgical devices and implants.",
+      "seed_pmids": [
+        34608029,
+        34731868,
+        37097314,
+        37150336,
+        39979631,
+        33930396
+      ],
+      "coverage_estimate": 0.042
+    },
+    {
+      "id": "ophthalmology_retinal_imaging_diagnostics",
+      "label": "Advanced Retinal Imaging and Diagnostic Technologies",
+      "description": "Studies evaluating novel and advanced imaging modalities for retinal and choroidal assessment, including ultra-widefield imaging, swept-source OCT, confocal scanning laser ophthalmoscopy, choroidal indocyanine green angiography, and quantitative ultrasound for vitreous and scleral evaluation.",
+      "seed_pmids": [
+        37651732,
+        37008708,
+        34044717,
+        32861857,
+        37750745,
+        39287547,
+        39433277,
+        34313725,
+        34656984,
+        38113278
+      ],
+      "coverage_estimate": 0.069
+    },
+    {
+      "id": "ophthalmology_cataract_vitreoretinal_surgery",
+      "label": "Cataract and Vitreoretinal Surgical Techniques and Outcomes",
+      "description": "Clinical research on surgical interventions including femtosecond laser-assisted cataract surgery, 3D digital visualization systems, vitrectomy platforms, scleral fixation of intraocular lenses, and dropless surgical protocols, including adverse event analyses from the FDA MAUDE database.",
+      "seed_pmids": [
+        33009280,
+        34321409,
+        38983021,
+        39318983,
+        39591623,
+        33892135,
+        38461944,
+        39384746
+      ],
+      "coverage_estimate": 0.056
+    },
+    {
+      "id": "ophthalmology_myopia_scleral_biomechanics",
+      "label": "Myopia and Scleral Biomechanics",
+      "description": "Investigations into the structural and biomechanical changes in the sclera and choroid associated with myopia progression, using high-frequency quantitative ultrasound and mechanical testing to characterize microstructural remodeling.",
+      "seed_pmids": [
+        35810771,
+        36943177,
+        38964827,
+        39384899
+      ],
+      "coverage_estimate": 0.028
+    },
+    {
+      "id": "ophthalmology_diabetic_retinopathy_microvascular",
+      "label": "Diabetic Retinopathy and Ocular Microvascular Complications",
+      "description": "Epidemiological and clinical studies on diabetic retinopathy and related microvascular complications, including prevalence in sub-Saharan Africa, retinal vessel analysis as a stroke biomarker, and the impact of glycemic and blood pressure control on retinopathy outcomes.",
+      "seed_pmids": [
+        33400338,
+        32346524,
+        34390975,
+        35511879,
+        40843061,
+        32020843
+      ],
+      "coverage_estimate": 0.042
+    },
+    {
+      "id": "ophthalmology_intracranial_hypertension_neuroophthalmology",
+      "label": "Idiopathic Intracranial Hypertension and Neuro-Ophthalmology",
+      "description": "Research on idiopathic intracranial hypertension (IIH) including venous sinus stenting for treatment, optic nerve diameter measurement for intracranial pressure monitoring, papilledema detection, and neuro-ophthalmic complications of COVID-19 and other neurological conditions.",
+      "seed_pmids": [
+        33236688,
+        37410913,
+        37212270,
+        37311536,
+        39764848,
+        34004008,
+        35380318
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "ophthalmology_oculoplastics_adnexal",
+      "label": "Oculoplastics, Adnexal Disease, and Periorbital Conditions",
+      "description": "Clinical studies on oculoplastic and adnexal conditions including thyroid eye disease, ptosis and its association with mental health, periorbital measurement tools, telemedicine use by oculoplastic surgeons, and ocular/oculofacial trauma in sports and pediatric settings.",
+      "seed_pmids": [
+        32852372,
+        40621582,
+        40917265,
+        34591712,
+        36710411,
+        40336360,
+        34609934
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "ophthalmology_healthcare_delivery_equity",
+      "label": "Ophthalmology Healthcare Delivery, Equity, and Practice Patterns",
+      "description": "Research examining healthcare access, workforce diversity, private equity investment, telemedicine adoption, and disparities in ophthalmic care delivery including cataract surgery rates by race and gender, residency program diversity, and community-based screening initiatives.",
+      "seed_pmids": [
+        32479234,
+        32584400,
+        35550655,
+        36441150,
+        37777118,
+        35620370,
+        35990564
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "ophthalmology_retinal_degeneration_genetics",
+      "label": "Inherited Retinal Degeneration and Retinal Biology",
+      "description": "Studies on genetic and molecular mechanisms of inherited retinal degenerations including CLN2-associated Batten disease, retinitis pigmentosa (RPGR variants, rhodopsin mutations), VPS35-related retinal alpha-synuclein pathology, and foveal hypoplasia genetics.",
+      "seed_pmids": [
+        32146219,
+        34006992,
+        38586605,
+        39043666,
+        34313725,
+        38983098,
+        40923693
+      ],
+      "coverage_estimate": 0.049
+    },
+    {
+      "id": "ophthalmology_diabetic_neuropathy_treatment_glycemic",
+      "label": "Glycemic Control and Pharmacological Treatment of Diabetic Neuropathy",
+      "description": "Research examining how intensive glycemic control, glucose-lowering medications, insulin delivery systems, and metabolic interventions affect peripheral and corneal nerve fiber structure and diabetic neuropathy progression in type 1 and type 2 diabetes.",
+      "seed_pmids": [
+        33714226,
+        36240043,
+        39439079,
+        40169752,
+        32576561,
+        40366068
+      ],
+      "coverage_estimate": 0.18
+    },
+    {
+      "id": "ophthalmology_ccm_pediatric_metabolic_conditions",
+      "label": "Corneal Confocal Microscopy in Pediatric and Metabolic Conditions",
+      "description": "Studies using corneal confocal microscopy to detect nerve fiber loss or immune cell changes in pediatric populations and metabolic conditions including obesity, celiac disease, autism spectrum disorder, and adolescent metabolic syndrome.",
+      "seed_pmids": [
+        39432507,
+        36316419,
+        37437060,
+        40199607
+      ],
+      "coverage_estimate": 0.12
+    },
+    {
+      "id": "ophthalmology_vitamin_d_diabetes_complications",
+      "label": "Vitamin D Status and Diabetes Complications",
+      "description": "Investigations into the role of vitamin D metabolites (D2 and D3) and their ratios as biomarkers or risk factors for diabetes-related complications including neuropathy, hypertension, and microvascular disease.",
+      "seed_pmids": [
+        33109163,
+        32414363,
+        34085731
+      ],
+      "coverage_estimate": 0.09
+    },
+    {
+      "id": "ophthalmology_ccm_neurodegeneration_rare_disease",
+      "label": "Corneal Confocal Microscopy in Neurodegeneration and Rare Diseases",
+      "description": "Application of corneal confocal microscopy and related ocular measures to detect neurodegeneration or autonomic dysfunction in rare and neurological conditions including Guillain-Barr\u00e9 syndrome, Fabry disease, and dementia.",
+      "seed_pmids": [
+        40166899,
+        33854145,
+        39759948
+      ],
+      "coverage_estimate": 0.09
+    },
+    {
+      "id": "ophthalmology_uveal_melanoma_ocular_oncology",
+      "label": "Uveal Melanoma and Ocular Oncology",
+      "description": "Research on the molecular and genetic mechanisms driving uveal melanoma progression, including the role of polycomb repressive complexes and chromosomal instability in tumor biology and clinical outcomes.",
+      "seed_pmids": [
+        34518527,
+        36306727,
+        33615842
+      ],
+      "coverage_estimate": 0.09
+    }
+  ],
+  "uncovered_pmids": [
+    "34741806",
+    "32677343",
+    "39378274",
+    "33621987",
+    "38862026",
+    "35584697",
+    "32904246",
+    "36821194"
+  ],
+  "total_activities": 144,
+  "coverage_pct": 0.9514,
+  "generated_at": "2026-04-14T22:01:07.306361Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved"
+}

@@ -1,0 +1,229 @@
+{
+  "topic_id": "environmental_planetary_health",
+  "topic_label": "Environmental & Planetary Health",
+  "subtopics": [
+    {
+      "id": "environmental_heat_illness_climate",
+      "label": "Heat-Related Illness and Climate Health Interventions",
+      "description": "Research on the health impacts of extreme heat events, including heat stroke, heat exhaustion, cardiovascular and sleep effects, and community-based or educational interventions to prevent and manage heat-related illness.",
+      "seed_pmids": [
+        36721088,
+        33946755,
+        35101860,
+        34444112,
+        40524268,
+        39849604,
+        40566323
+      ],
+      "coverage_estimate": 0.1,
+      "total_weight": 3.12608,
+      "activity_count": 7
+    },
+    {
+      "id": "environmental_hurricane_disaster_health",
+      "label": "Hurricane and Natural Disaster Impacts on Health",
+      "description": "Studies examining the short- and long-term health consequences of hurricanes and extreme weather events, including cardiovascular disease, mortality, and health outcomes in vulnerable populations such as nursing home residents and Medicare beneficiaries.",
+      "seed_pmids": [
+        36448792,
+        40843422,
+        40900590,
+        39208871,
+        36430084,
+        33853696
+      ],
+      "coverage_estimate": 0.09,
+      "total_weight": 4.452674,
+      "activity_count": 6
+    },
+    {
+      "id": "environmental_air_pollution_respiratory",
+      "label": "Air Pollution and Respiratory Health",
+      "description": "Research on the effects of ambient and indoor air pollutants\u2014including NO2, PM2.5, soybean dust, mold, and cooking fuels\u2014on respiratory outcomes such as asthma, hypersensitivity pneumonitis, and lung function.",
+      "seed_pmids": [
+        32197971,
+        37541489,
+        38037137,
+        34376172,
+        39438082,
+        34788190,
+        40026345
+      ],
+      "coverage_estimate": 0.1,
+      "total_weight": 2.547493,
+      "activity_count": 7
+    },
+    {
+      "id": "environmental_chemical_exposures_toxicology",
+      "label": "Chemical and Toxic Substance Exposures",
+      "description": "Studies investigating health effects of exposure to toxic chemical elements, flame retardants, radon, fine particulate matter, and other environmental chemicals, including DNA damage, gene expression changes, and systemic toxicity.",
+      "seed_pmids": [
+        35724546,
+        32723380,
+        32668536,
+        39032621
+      ],
+      "coverage_estimate": 0.06,
+      "total_weight": 1.943075,
+      "activity_count": 6
+    },
+    {
+      "id": "environmental_urban_microbiome_amr",
+      "label": "Urban Microbiomes and Antimicrobial Resistance",
+      "description": "Research characterizing microbial communities and antimicrobial resistance genes in urban environments, including indoor dust, wastewater, and global metagenomic surveys of city microbiomes.",
+      "seed_pmids": [
+        34043940,
+        31971995,
+        39333485,
+        36847511
+      ],
+      "coverage_estimate": 0.06,
+      "total_weight": 1.630644,
+      "activity_count": 3
+    },
+    {
+      "id": "environmental_built_environment_health",
+      "label": "Built Environment and Urban Health Outcomes",
+      "description": "Studies linking features of the urban built environment\u2014including neighborhood design, food access, noise, and green space\u2014to health outcomes such as cardiovascular disease, maternal mental health, and diet quality.",
+      "seed_pmids": [
+        34481472,
+        33215073,
+        36384640,
+        34049045,
+        35162103
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 2.172461,
+      "activity_count": 6
+    },
+    {
+      "id": "environmental_spaceflight_health",
+      "label": "Spaceflight Environmental Health and Physiology",
+      "description": "Research on the physiological and molecular health effects of spaceflight on astronauts, including cardiovascular changes, clonal hematopoiesis, genomic stability, telomere dynamics, and nutritional challenges in the space environment.",
+      "seed_pmids": [
+        33391848,
+        33242405,
+        38634106,
+        38862028,
+        40681523
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 4.449444,
+      "activity_count": 5
+    },
+    {
+      "id": "environmental_epigenetic_aging_exposures",
+      "label": "Epigenetic Aging and Early-Life Environmental Exposures",
+      "description": "Research using epigenetic clocks and molecular biomarkers to characterize how childhood and gestational environmental exposures accelerate or alter biological aging trajectories.",
+      "seed_pmids": [
+        37477807,
+        40914942,
+        33300458
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.437092,
+      "activity_count": 3
+    },
+    {
+      "id": "environmental_tobacco_smoke_lung",
+      "label": "Tobacco and E-Cigarette Exposure and Lung Pathology",
+      "description": "Studies examining the biological and clinical effects of cigarette smoke and electronic cigarette use on lung tissue, including lymphatic dysfunction, emphysema, oral epithelium changes, and smoking cessation behavior.",
+      "seed_pmids": [
+        35322079,
+        38440076,
+        36300726,
+        32115621,
+        33843961
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 1.801491,
+      "activity_count": 5
+    },
+    {
+      "id": "environmental_temperature_cardiovascular",
+      "label": "Ambient Temperature and Cardiovascular Health",
+      "description": "Research on how ambient temperature extremes and climate-related exposures affect cardiovascular outcomes, including myocardial infarction severity, left ventricular function, and COVID-19 transmission dynamics.",
+      "seed_pmids": [
+        34569991,
+        33597143,
+        36448792
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.809898,
+      "activity_count": 3
+    },
+    {
+      "id": "environmental_occupational_worker_health",
+      "label": "Occupational Exposures and Worker Health",
+      "description": "Studies on health risks and outcomes among workers in occupationally hazardous settings, including home health aides, healthcare workers, and surgical professionals, with attention to physical, mental, and ergonomic health impacts.",
+      "seed_pmids": [
+        34878879,
+        34846212,
+        36815290,
+        40861043,
+        32543380
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 1.114547,
+      "activity_count": 6
+    },
+    {
+      "id": "environmental_lead_toxic_metals_lmic",
+      "label": "Lead and Heavy Metal Exposure in Low- and Middle-Income Countries",
+      "description": "Research on environmental heavy metal exposures\u2014particularly lead\u2014in low- and middle-income country settings and their associations with cardiovascular and systemic health outcomes.",
+      "seed_pmids": [
+        34878898,
+        39032621,
+        33131500
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 3.308171,
+      "activity_count": 2
+    },
+    {
+      "id": "environmental_vector_borne_water_sanitation",
+      "label": "Vector Control, Water, and Sanitation-Related Health",
+      "description": "Studies on environmental determinants of infectious disease burden including mosquito vector resistance, waterborne diarrheal disease in children, and solar lighting interventions affecting health in low-resource settings.",
+      "seed_pmids": [
+        32520941,
+        40737352,
+        35295194
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.576427,
+      "activity_count": 3
+    },
+    {
+      "id": "environmental_9_11_pasc_environmental_risk",
+      "label": "Disaster Exposure, PASC, and Environmental Risk Factors for Respiratory and Post-Acute Disease",
+      "description": "Research on long-term respiratory and post-acute health sequelae following major environmental disaster exposures, including 9/11 World Trade Center dust exposure and environmental risk factors for post-acute sequelae of SARS-CoV-2.",
+      "seed_pmids": [
+        38070472,
+        36785842,
+        32689925
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 2.044999,
+      "activity_count": 2
+    }
+  ],
+  "uncovered_pmids": [
+    "32571725",
+    "36754559",
+    "36966909",
+    "39003521",
+    "36620608",
+    "34784734",
+    "33851436"
+  ],
+  "total_activities": 68,
+  "coverage_pct": 0.8971,
+  "generated_at": "2026-04-14T22:13:34.884762Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 1,
+  "review_status": "auto_approved",
+  "augmented_at": "2026-04-14T22:14:04Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_environmental_planetary_health.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}

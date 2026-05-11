@@ -1,0 +1,32 @@
+{
+  "topic_id": "otolaryngology_head_neck",
+  "total_weights": {
+    "otolaryngology_dysphagia_swallowing": 10.492633,
+    "otolaryngology_voice_disorders_laryngology": 9.052337,
+    "otolaryngology_head_neck_cancer_oral_cavity": 8.41133,
+    "otolaryngology_hearing_loss_audiology": 6.110674,
+    "otolaryngology_ai_laryngoscopy_imaging": 6.082144,
+    "otolaryngology_thyroid_parathyroid_surgery": 5.474129,
+    "otolaryngology_healthcare_disparities_access": 5.124894,
+    "otolaryngology_cough_airway_assessment": 4.911977,
+    "otolaryngology_pediatric_airway_aerodigestive": 3.818147,
+    "otolaryngology_covid_pediatric_otolaryngology": 3.686569,
+    "otolaryngology_facial_fractures_trauma": 3.62225,
+    "otolaryngology_salivary_gland_parotid": 3.140005,
+    "otolaryngology_skull_base_endoscopic_surgery": 2.604856,
+    "otolaryngology_rhinology_sinusitis": 2.20631,
+    "otolaryngology_laryngoscopy_simulation_training": 1.855819,
+    "otolaryngology_anti_reflux_surgery_dysphagia": 1.56268,
+    "otolaryngology_head_neck_reconstruction_microsurgery": 1.249552,
+    "otolaryngology_rhinoplasty_nasal_reconstruction": 1.140434,
+    "otolaryngology_cartilage_tissue_engineering": 0.777203,
+    "otolaryngology_nerve_decompression_headache": 0.742766,
+    "otolaryngology_head_neck_nerve_imaging": 0.732758,
+    "otolaryngology_surgical_ergonomics_workforce": 0.707124,
+    "otolaryngology_chiari_craniocervical": 0.305344,
+    "otolaryngology_sinonasal_papilloma_pathology": 0.273134,
+    "otolaryngology_sleep_apnea_oral_appliance": 0.074297
+  },
+  "faculty_count": 98,
+  "subtopic_count": 25
+}

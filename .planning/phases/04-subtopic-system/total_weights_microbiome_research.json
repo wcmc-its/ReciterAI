@@ -1,0 +1,26 @@
+{
+  "topic_id": "microbiome_research",
+  "total_weights": {
+    "microbiome_mycobiome_fungal": 14.897054,
+    "microbiome_bile_acids_metabolism": 11.80612,
+    "microbiome_diet_nutrition": 9.352352,
+    "microbiome_ibd_gut_inflammation": 7.131507,
+    "microbiome_gut_immune_interactions": 7.083362,
+    "microbiome_spaceflight_omics": 6.878221,
+    "microbiome_fmt_therapeutic": 6.625647,
+    "microbiome_transplant_clinical": 4.994077,
+    "microbiome_ilc3_mucosal_immunity": 4.961646,
+    "microbiome_cancer_immunotherapy": 4.608903,
+    "microbiome_statistical_computational": 3.891831,
+    "microbiome_tools_methods_collection": 3.578789,
+    "microbiome_antibiotic_resistance": 2.932359,
+    "microbiome_schistosoma_parasitic": 2.51693,
+    "microbiome_intestinal_barrier_neonatal": 1.195467,
+    "microbiome_gut_brain_stroke": 1.052517,
+    "microbiome_respiratory_upper_airway": 0.783458,
+    "microbiome_reproductive_urogenital": 0.401416,
+    "microbiome_engineered_bacteria_therapeutics": 0.172533
+  },
+  "faculty_count": 105,
+  "subtopic_count": 19
+}

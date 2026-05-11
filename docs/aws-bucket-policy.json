@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SPSLambdaRead",
+      "Effect": "Allow",
+      "Principal": { "AWS": "<SPS_LAMBDA_ROLE_ARN>" },
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-hierarchy",
+        "arn:aws:s3:::wcmc-reciterai-hierarchy/*"
+      ]
+    }
+  ]
+}

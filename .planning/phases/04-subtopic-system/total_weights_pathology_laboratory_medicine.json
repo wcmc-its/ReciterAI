@@ -1,0 +1,22 @@
+{
+  "topic_id": "pathology_laboratory_medicine",
+  "total_weights": {
+    "pathology_covid19_sars_pathology": 65.765247,
+    "pathology_molecular_genomic_cancer": 54.998717,
+    "pathology_clinical_laboratory_assays": 33.441365,
+    "pathology_cytopathology_histopathology": 33.401959,
+    "pathology_infectious_disease_microbiology_lab": 23.39968,
+    "pathology_liquid_biopsy_ctdna": 22.145481,
+    "pathology_hematopathology_myeloid": 19.694103,
+    "pathology_digital_computational_pathology": 19.359969,
+    "pathology_prostate_cancer_pathology": 17.7396,
+    "pathology_transplant_allograft": 16.829689,
+    "pathology_thyroid_endocrine_pathology": 15.068029,
+    "pathology_extracellular_vesicles_biomarkers": 13.265086,
+    "pathology_corneal_confocal_neuropathy": 10.604429,
+    "pathology_breast_pathology_biomarkers": 9.295361,
+    "pathology_epigenomics_methylation": 3.153966
+  },
+  "faculty_count": 508,
+  "subtopic_count": 15
+}

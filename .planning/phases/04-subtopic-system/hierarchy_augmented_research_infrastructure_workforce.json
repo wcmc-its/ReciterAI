@@ -1,0 +1,452 @@
+{
+  "topic_id": "research_infrastructure_workforce",
+  "topic_label": "Research Infrastructure & Scientific Workforce",
+  "subtopics": [
+    {
+      "id": "research_nih_funding_workforce_development",
+      "label": "NIH Funding, Grants, and Physician-Scientist Career Development",
+      "description": "Research examining NIH funding mechanisms, grant success rates, funding gaps, and career development programs (K-awards, K99/R00, R38) for physician-scientists, surgeon-scientists, and trainees in academic biomedical research.",
+      "seed_pmids": [
+        33341679,
+        37757590,
+        37725378,
+        35234717,
+        34544686,
+        40197362,
+        37782020,
+        37301792,
+        39836322,
+        33482136
+      ],
+      "coverage_estimate": 0.056,
+      "total_weight": 3.172602,
+      "activity_count": 13
+    },
+    {
+      "id": "research_scholarly_training_residency_fellowship",
+      "label": "Scholarly Activity and Research Training in Residency and Fellowship Programs",
+      "description": "Studies assessing the quantity, quality, and barriers to scholarly activity and research training during medical residency and fellowship programs across pediatrics, surgery, and other specialties.",
+      "seed_pmids": [
+        32087378,
+        33262266,
+        35018735,
+        38848888,
+        34474670,
+        37620206,
+        33802934
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 1.199816,
+      "activity_count": 7
+    },
+    {
+      "id": "research_diversity_equity_academic_medicine",
+      "label": "Diversity, Equity, and Inclusion in Academic Medicine and Research Workforce",
+      "description": "Investigations into representation, promotion, retention, and systemic barriers for underrepresented minorities, women, and other marginalized groups in academic medicine, surgery, and biomedical research.",
+      "seed_pmids": [
+        32447189,
+        38353990,
+        35652209,
+        37866254,
+        40456549,
+        32051310,
+        38805417,
+        34469349,
+        40359911,
+        39573848,
+        34916140,
+        38768071,
+        37851422
+      ],
+      "coverage_estimate": 0.072,
+      "total_weight": 4.894653,
+      "activity_count": 15
+    },
+    {
+      "id": "research_clinical_trial_design_conduct",
+      "label": "Clinical Trial Design, Conduct, Quality, and Premature Termination",
+      "description": "Analyses of the characteristics, methodological quality, reporting standards, and factors leading to premature termination of randomized controlled trials across surgical and medical specialties.",
+      "seed_pmids": [
+        32258836,
+        34190996,
+        39790963,
+        37156372,
+        39133169,
+        35050229,
+        33539992,
+        36248212,
+        33631358,
+        34797183
+      ],
+      "coverage_estimate": 0.056,
+      "total_weight": 2.838503,
+      "activity_count": 8
+    },
+    {
+      "id": "research_peer_review_publishing_integrity",
+      "label": "Peer Review, Scientific Publishing, and Research Integrity",
+      "description": "Studies examining the peer review process, publication practices, article retractions, research misconduct, conflicts of interest, and integrity frameworks in biomedical literature.",
+      "seed_pmids": [
+        34278828,
+        33970185,
+        34600831,
+        37389076,
+        40442867,
+        32232431,
+        38237124,
+        36306543,
+        33043662,
+        40277459
+      ],
+      "coverage_estimate": 0.056,
+      "total_weight": 4.967239,
+      "activity_count": 13
+    },
+    {
+      "id": "research_electronic_health_records_data_infrastructure",
+      "label": "Electronic Health Records, Data Warehouses, and Clinical Research Informatics Infrastructure",
+      "description": "Research on enterprise data warehouses, EHR-based data extraction, common data models, and informatics infrastructure supporting clinical and translational research at academic medical centers.",
+      "seed_pmids": [
+        32679585,
+        35289370,
+        37008621,
+        38777803,
+        33862230,
+        34850911,
+        38765555,
+        32477626,
+        34741892,
+        33368200,
+        35049262,
+        40502275
+      ],
+      "coverage_estimate": 0.067,
+      "total_weight": 9.338038,
+      "activity_count": 19
+    },
+    {
+      "id": "research_biobanking_biospecimen_management",
+      "label": "Biobanking, Biospecimen Collection, and Repository Management",
+      "description": "Studies addressing the establishment, standardization, ethical governance, and operational management of biobanks and biospecimen repositories, including space biobanking and pandemic-era adaptations.",
+      "seed_pmids": [
+        32477663,
+        35490048,
+        34192049,
+        38862509,
+        38862028,
+        38237124,
+        33131500
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 10.074172,
+      "activity_count": 7
+    },
+    {
+      "id": "research_race_ethnicity_data_representation",
+      "label": "Race, Ethnicity Data Quality, and Representation in Research Databases",
+      "description": "Investigations into the accuracy, completeness, and standardization of race and ethnicity data in EHRs, clinical registries, and research publications, and their implications for health equity research.",
+      "seed_pmids": [
+        33241548,
+        37230870,
+        39024714,
+        40253937,
+        32642711,
+        39433911,
+        34895873
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 2.314359,
+      "activity_count": 4
+    },
+    {
+      "id": "research_systematic_review_evidence_synthesis",
+      "label": "Systematic Reviews, Evidence Synthesis Methods, and Literature Search Quality",
+      "description": "Research on the methodology, quality assessment, search strategies, and infrastructure supporting systematic reviews, meta-analyses, and evidence synthesis in biomedical research.",
+      "seed_pmids": [
+        32380945,
+        32449308,
+        33388080,
+        37483367,
+        34752190,
+        37928121,
+        39844509
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 5.216433,
+      "activity_count": 8
+    },
+    {
+      "id": "research_registry_networks_real_world_data",
+      "label": "Clinical Registries, Coordinated Registry Networks, and Real-World Evidence",
+      "description": "Studies developing and evaluating coordinated registry networks, data linkage algorithms, and real-world evidence frameworks for medical devices and clinical outcomes research.",
+      "seed_pmids": [
+        36393894,
+        38862209,
+        35181518,
+        36010920,
+        38222379,
+        32477681,
+        32552620
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 3.279846,
+      "activity_count": 7
+    },
+    {
+      "id": "research_omics_sequencing_benchmarking",
+      "label": "Omics Technologies, Sequencing Platforms, and Benchmarking Standards",
+      "description": "Studies benchmarking and standardizing next-generation sequencing, epigenomics, metabolomics, and other omics platforms to ensure reproducibility and data quality in biomedical research.",
+      "seed_pmids": [
+        34504351,
+        34872606,
+        35301264,
+        32313079,
+        34694386,
+        35323692,
+        38007532,
+        37026702
+      ],
+      "coverage_estimate": 0.044,
+      "total_weight": 4.200798,
+      "activity_count": 10
+    },
+    {
+      "id": "research_ai_nlp_biomedical_data",
+      "label": "Artificial Intelligence, NLP, and Machine Learning in Biomedical Research Infrastructure",
+      "description": "Research developing and evaluating AI, natural language processing, and machine learning tools for biomedical data extraction, image analysis, literature mining, and clinical research support.",
+      "seed_pmids": [
+        34694896,
+        39397053,
+        38441952,
+        33204939,
+        34880124,
+        40593099,
+        39872195,
+        40502277,
+        36227057,
+        37094464,
+        33997112
+      ],
+      "coverage_estimate": 0.061,
+      "total_weight": 3.144753,
+      "activity_count": 9
+    },
+    {
+      "id": "research_institutional_repositories_knowledge_management",
+      "label": "Institutional Repositories, Research Data Management, and Knowledge Dissemination",
+      "description": "Studies on institutional repositories, research data systems, authorship tracking tools, library services, and computable biomedical knowledge frameworks that support research dissemination and discovery.",
+      "seed_pmids": [
+        32256229,
+        33793563,
+        33769342,
+        35734785,
+        35036558,
+        39119159,
+        34292338
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 2.786551,
+      "activity_count": 5
+    },
+    {
+      "id": "research_clinical_trial_recruitment_participation",
+      "label": "Clinical Trial Recruitment, Participant Engagement, and Research Participation",
+      "description": "Research on strategies, barriers, and facilitators for recruiting diverse participants into clinical trials and research studies, including older adults, minority populations, and caregivers.",
+      "seed_pmids": [
+        34582613,
+        37051457,
+        35267020,
+        39661358,
+        40611493,
+        40682080,
+        36974453,
+        32477626
+      ],
+      "coverage_estimate": 0.044,
+      "total_weight": 1.970781,
+      "activity_count": 8
+    },
+    {
+      "id": "research_global_health_capacity_building",
+      "label": "Global Health Research Capacity Building and International Collaboration",
+      "description": "Studies examining infrastructure development, training programs, and collaborative frameworks to build research capacity in low-resource settings and among underrepresented global health researchers.",
+      "seed_pmids": [
+        32008719,
+        34593591,
+        35192346,
+        35895423,
+        37341974,
+        34410327,
+        39499169
+      ],
+      "coverage_estimate": 0.039,
+      "total_weight": 2.176797,
+      "activity_count": 8
+    },
+    {
+      "id": "research_laboratory_methods_biospecimen_prep",
+      "label": "Laboratory Methods, Cell Line Generation, and Biological Sample Preparation",
+      "description": "Research focused on protocols and techniques for preparing biological samples, generating cell lines, and isolating biological materials including DNA, extracellular vesicles, and skeletal cells for downstream analysis.",
+      "seed_pmids": [
+        32979200,
+        32763978,
+        33004551,
+        33786456,
+        39432379,
+        32611777,
+        39032144,
+        35711426
+      ],
+      "coverage_estimate": 0.11,
+      "total_weight": 2.01002,
+      "activity_count": 8
+    },
+    {
+      "id": "research_genomic_databases_bioinformatics_resources",
+      "label": "Genomic Databases, Bioinformatics Atlases, and Computational Biology Resources",
+      "description": "Development and characterization of genomic and transcriptomic databases, atlases, and bioinformatics tools including cancer driver databases, transcriptome atlases, transposon sequencing databases, and protein interaction resources.",
+      "seed_pmids": [
+        32079618,
+        33095860,
+        40527579,
+        40676061,
+        36777185
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 1.118925,
+      "activity_count": 4
+    },
+    {
+      "id": "research_medical_imaging_data_standards",
+      "label": "Medical Imaging Data Standards, Formats, and Reproducibility Frameworks",
+      "description": "Research establishing standardized data formats, acquisition protocols, and reproducibility frameworks for medical and biological imaging modalities including MRI, MRS, AFM, and neuroimaging classification models.",
+      "seed_pmids": [
+        38247051,
+        40781246,
+        39955301,
+        40769991
+      ],
+      "coverage_estimate": 0.05,
+      "total_weight": 1.754315,
+      "activity_count": 6
+    },
+    {
+      "id": "research_fellowship_program_director_demographics",
+      "label": "Fellowship and Residency Program Director Demographics and Leadership Characteristics",
+      "description": "Descriptive analyses of the demographic composition, qualifications, and leadership characteristics of program directors across medical specialties including radiology, ophthalmology, and interventional radiology.",
+      "seed_pmids": [
+        36441150,
+        32896802,
+        37059613,
+        34826370
+      ],
+      "coverage_estimate": 0.05,
+      "total_weight": 0.422626,
+      "activity_count": 4
+    },
+    {
+      "id": "research_academic_medicine_compensation_workforce",
+      "label": "Academic Medicine Compensation, Staffing Shortages, and Workforce Equity",
+      "description": "Studies examining compensation models, salary transparency, staffing shortages, and workforce equity issues across academic medical specialties including radiology, emergency medicine, and otolaryngology.",
+      "seed_pmids": [
+        40905949,
+        40260397,
+        40884510,
+        32072116
+      ],
+      "coverage_estimate": 0.05,
+      "total_weight": 0.643863,
+      "activity_count": 5
+    },
+    {
+      "id": "research_preclinical_tumor_models_drug_discovery",
+      "label": "Preclinical Tumor Models and Experimental Platforms for Drug Discovery",
+      "description": "Development and application of in vivo and ex vivo tumor models, patient-derived xenografts, and automated experimental platforms for cancer drug discovery and neuroscience research.",
+      "seed_pmids": [
+        33861502,
+        39432379,
+        36970451
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.199443,
+      "activity_count": 2
+    },
+    {
+      "id": "research_covid19_clinical_policy_response",
+      "label": "COVID-19 Clinical Practice Adaptation, Treatment Guidelines, and Epidemiological Data",
+      "description": "Research documenting institutional and national responses to COVID-19 including clinical practice adaptations, treatment guideline development, and epidemiological data resources.",
+      "seed_pmids": [
+        32354706,
+        39348691,
+        33991092
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.351313,
+      "activity_count": 3
+    },
+    {
+      "id": "research_specialty_society_awards_recognition",
+      "label": "Specialty Society Awards, Recognition, and Gender Equity in Academic Medicine",
+      "description": "Analyses of recognition awards and honors within medical specialty societies, with a focus on identifying gender and demographic disparities in award recipients.",
+      "seed_pmids": [
+        35932465,
+        36456760,
+        40810248
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.115451,
+      "activity_count": 1
+    },
+    {
+      "id": "research_clinical_outcomes_nlp_datasets",
+      "label": "Clinical Trial Outcomes Extraction, NLP Datasets, and Evidence Annotation",
+      "description": "Development of annotated datasets and NLP benchmarks for extracting clinically meaningful outcomes from trial publications, supporting automated evidence synthesis.",
+      "seed_pmids": [
+        40775953,
+        31768897,
+        34582043
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.152626,
+      "activity_count": 1
+    },
+    {
+      "id": "research_genetic_variant_classification_counseling",
+      "label": "Genetic Variant Classification, Reclassification, and Genetic Counselor Training",
+      "description": "Studies addressing the evidence quality behind genetic variant classification and reclassification, and the training needs of genetic counselors in emerging subspecialties.",
+      "seed_pmids": [
+        40775829,
+        37975258,
+        38477743
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 0.144917,
+      "activity_count": 2
+    }
+  ],
+  "uncovered_pmids": [
+    "33057576",
+    "32586143",
+    "32796457",
+    "32958003",
+    "38862026",
+    "32008369",
+    "38951008",
+    "36978161",
+    "36977963",
+    "32258836",
+    "33795001",
+    "37013134"
+  ],
+  "total_activities": 180,
+  "coverage_pct": 0.9333,
+  "generated_at": "2026-04-14T21:54:57.750650Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved",
+  "augmented_at": "2026-04-14T21:56:00Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_research_infrastructure_workforce.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}

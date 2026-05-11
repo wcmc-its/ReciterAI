@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wcmc-reciterai-hierarchy.s3.amazonaws.com/latest/hierarchy.schema.json",
+  "title": "ReCiter AI Hierarchy Artifact",
+  "description": "JSON Schema Draft 2020-12 for the hierarchy.json artifact. Canonical authoring source: .planning/phases/04-subtopic-system/hierarchy-schema.md. Validates hierarchy_full.json produced by the Phase 4 subtopic pipeline.",
+  "$defs": {
+    "_meta": {
+      "schema_version": "1.0.0"
+    },
+    "TopicEntry": {
+      "type": "object",
+      "required": ["subtopics"],
+      "properties": {
+        "subtopics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SubtopicDef"
+          }
+        }
+      }
+    },
+    "SubtopicDef": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "description",
+        "display_name",
+        "short_description",
+        "activity_count",
+        "total_weight"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "activity_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_weight": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "ExcludedTopicEntry": {
+      "type": "object",
+      "required": ["id", "reason", "activity_count"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "activity_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "SeeAlsoEntry": {
+      "type": "object",
+      "required": ["from", "to", "reason"],
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "required": [
+    "version",
+    "generated_at",
+    "taxonomy_version",
+    "excluded_topics",
+    "topics",
+    "see_also"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "subtopic_v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "taxonomy_version": {
+      "type": "string"
+    },
+    "excluded_topics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ExcludedTopicEntry"
+      }
+    },
+    "topics": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/TopicEntry"
+      }
+    },
+    "see_also": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SeeAlsoEntry"
+      }
+    }
+  }
+}

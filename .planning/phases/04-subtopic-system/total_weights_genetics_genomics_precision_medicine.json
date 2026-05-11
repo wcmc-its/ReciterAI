@@ -1,0 +1,22 @@
+{
+  "topic_id": "genetics_genomics_precision_medicine",
+  "total_weights": {
+    "genetics_cancer_genomics_somatic_mutations": 64.934094,
+    "genetics_lymphoma_leukemia_genomics": 44.33766,
+    "genetics_transcriptomics_rna_sequencing": 44.005198,
+    "genetics_epigenomics_chromatin": 43.834509,
+    "genetics_gwas_polygenic_risk": 35.186931,
+    "genetics_precision_oncology_biomarkers": 35.093052,
+    "genetics_single_cell_multiomics": 32.62826,
+    "genetics_prostate_cancer_genomics": 28.906612,
+    "genetics_liquid_biopsy_ctdna": 27.548681,
+    "genetics_neurological_disease_genomics": 27.397217,
+    "genetics_breast_cancer_genomics": 21.814651,
+    "genetics_hereditary_cancer_genetic_counseling": 19.743117,
+    "genetics_spaceflight_omics": 15.684185,
+    "genetics_gene_therapy_aav": 14.197991,
+    "genetics_epigenetic_aging_clonal_hematopoiesis": 8.488532
+  },
+  "faculty_count": 463,
+  "subtopic_count": 15
+}

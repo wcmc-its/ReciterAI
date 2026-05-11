@@ -1,0 +1,22 @@
+{
+  "topic_id": "infectious_disease_immunology",
+  "total_weights": {
+    "infectious_covid19_clinical_outcomes": 134.597521,
+    "infectious_covid19_pathophysiology_organoids": 86.79471,
+    "infectious_sars_cov2_immunology_vaccines": 75.930106,
+    "infectious_tuberculosis_mycobacterium": 39.099682,
+    "infectious_antimicrobial_resistance_diagnostics": 37.367821,
+    "infectious_hiv_biology_treatment": 32.65942,
+    "infectious_sars_cov2_variants_epidemiology": 28.028532,
+    "infectious_hiv_clinical_comorbidities": 26.794867,
+    "infectious_long_covid_post_acute": 26.598268,
+    "infectious_hepatitis_treatment_epidemiology": 19.680074,
+    "infectious_sexually_transmitted_infections": 14.293915,
+    "infectious_malaria_parasitology": 12.472308,
+    "infectious_cytomegalovirus_vaccines": 12.061758,
+    "infectious_hiv_prevention_testing": 11.134616,
+    "infectious_fungal_gut_microbiome": 9.919172
+  },
+  "faculty_count": 492,
+  "subtopic_count": 15
+}

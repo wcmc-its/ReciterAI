@@ -1,0 +1,11 @@
+{
+  "version": "spotlight_v1",
+  "generated_at": "2026-05-07T12:00:00Z",
+  "taxonomy_version": "taxonomy_v2",
+  "pool_snapshot": {
+    "subtopic_id": "test_aging_001",
+    "pool_score": 142.7,
+    "parent_topic": "Aging / Geroscience",
+    "was_selected": true
+  }
+}

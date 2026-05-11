@@ -1,0 +1,28 @@
+{
+  "topic_id": "autoimmune_rheumatologic_disease",
+  "total_weights": {
+    "autoimmune_ms_imaging_biomarkers": 9.51154,
+    "autoimmune_lupus_pathogenesis_outcomes": 7.913657,
+    "autoimmune_ra_patient_outcomes_disparities": 5.007756,
+    "autoimmune_ra_cardiovascular_comorbidities": 3.610391,
+    "autoimmune_autoreactivity_mechanisms": 3.341298,
+    "autoimmune_psoriasis_spondyloarthritis": 3.201467,
+    "autoimmune_ms_corneal_neurodegeneration": 2.852076,
+    "autoimmune_innate_lymphoid_cells": 2.650831,
+    "autoimmune_covid_inflammatory_syndromes": 1.951688,
+    "autoimmune_scleroderma_ild_pulmonary": 1.891602,
+    "autoimmune_immune_thrombocytopenia_vasculitis": 1.320562,
+    "autoimmune_rorgt_tryptophan_immunotherapy": 1.302156,
+    "autoimmune_ms_treatment_outcomes": 1.282804,
+    "autoimmune_calcium_signaling_immunomodulation": 1.021314,
+    "autoimmune_autoimmune_gastritis_celiac": 0.844968,
+    "autoimmune_ici_immune_related_adverse_events": 0.774318,
+    "autoimmune_iga_immunoglobulin_biology": 0.662735,
+    "autoimmune_graves_thyroid_autoimmune": 0.637255,
+    "autoimmune_ibd_clinical_management": 0.558521,
+    "autoimmune_covid_neurological_vascular": 0.240456,
+    "autoimmune_autoimmune_encephalitis_neuropsychiatric": 0.223251
+  },
+  "faculty_count": 126,
+  "subtopic_count": 21
+}
