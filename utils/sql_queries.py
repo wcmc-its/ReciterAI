@@ -4,27 +4,15 @@ SQL query constants and DB connection helpers for ReCiter AI Chatbot pipeline.
 All SQL queries extract data from ReciterDB (MariaDB) to feed the offline
 scoring pipeline.
 
-Security (T-01-01):
-- DB credentials read from env vars only (D-03), never logged or hardcoded.
-- get_db_connection() uses ReciterAI's get_engine() which reads from os.environ.
-- No default values for credentials; missing vars raise AssertionError with instructions.
-
-D-01 compliance note:
-- DB connection reuses ReciterAI's core/db.py get_engine() directly.
-- New SQL is required (not a violation of D-01) because the integration pipeline
-  needs a CUSTOM join combining publications + synopses + impact + faculty metadata
-  that ReciterAI's UnifiedDataRetriever doesn't support.
-- For processing state: D-09 specifies DynamoDB PROCESSING# records, not
-  ReciterAI's MariaDB-based processing_registry.py (per RESEARCH.md Anti-Patterns).
+Security:
+- DB credentials read from env vars only, never logged or hardcoded.
+- get_engine() reads DB_HOST/DB_USERNAME/DB_PASSWORD/DB_NAME from os.environ.
+- Missing required vars raise ValueError with instructions.
 """
 
 import os
-import sys
 
-# Import POC's core/db.py for ReciterDB SQLAlchemy connection management.
-# See utils/env_check.py for the full note on this dependency.
-sys.path.insert(0, '/Users/paulalbert/Dropbox/GitHub/ReciterAI-POC')
-from core.db import get_engine
+from utils.db import get_engine
 
 
 # ---------------------------------------------------------------------------
@@ -158,20 +146,10 @@ ORDER BY external_id
 
 def get_db_connection():
     """
-    Get a SQLAlchemy database connection using ReciterAI's core/db.py engine.
+    Get a SQLAlchemy connection to ReciterDB. Caller closes it.
 
-    Per D-01: reuses ReciterAI's get_engine() for database connection management.
-    Credentials are read from environment variables (D-03):
-    - DB_HOST, DB_USERNAME, DB_PASSWORD, DB_NAME
-
-    Returns:
-        SQLAlchemy connection object. Caller is responsible for closing it.
-
-    Raises:
-        AssertionError: If DB_USERNAME environment variable is not set.
-
-    Security (T-01-01):
-        Never logs or prints credential values.
+    Credentials are read from environment variables (DB_HOST, DB_USERNAME,
+    DB_PASSWORD, DB_NAME). Never logged or printed.
     """
     assert os.environ.get('DB_USERNAME'), (
         "DB_USERNAME environment variable not set -- check ~/.zshrc and run: source ~/.zshrc"

@@ -5,7 +5,6 @@
 - Python 3.11+
 - AWS credentials configured (IAM user with Bedrock + S3 + DynamoDB access in us-east-1)
 - Access to ReciterDB (MySQL, internal WCM network)
-- The [`ReciterAI-POC`](https://github.com/wcmc-its/ReCiterAI-POC) repo cloned alongside this one at `~/Dropbox/GitHub/ReciterAI-POC` (provides `core/db.py` for ReciterDB connection management — see ARCHITECTURE.md, "Known dependencies")
 
 ## Environment variables
 

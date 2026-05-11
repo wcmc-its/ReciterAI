@@ -15,14 +15,6 @@ import os
 import sys
 import logging
 
-# Import POC's core/db.py for ReciterDB SQLAlchemy connection management.
-# The POC repo (formerly /Users/paulalbert/Dropbox/GitHub/ReciterAI) was renamed
-# to ReciterAI-POC during the restructure; core/db.py + dependencies (config,
-# logging_setup, models) were not lifted into this repo to avoid pulling in the
-# full POC package. Re-home into a local lib/ module when this dependency gets
-# revisited.
-sys.path.insert(0, '/Users/paulalbert/Dropbox/GitHub/ReciterAI-POC')
-
 logger = logging.getLogger(__name__)
 
 
@@ -49,16 +41,9 @@ def run_env_checks():
     results['DB_USERNAME'] = 'OK'
     print(f"[OK] DB_USERNAME is set: {db_user}")
 
-    # Import get_engine after validating DB_USER
-    try:
-        from core.db import get_engine
-    except ImportError as e:
-        errors.append(f"Cannot import ReciterAI core.db: {e}. Check sys.path points to ReciterAI repo.")
-        _print_results(results, errors)
-        sys.exit(1)
-
     # Get database connection
     try:
+        from utils.db import get_engine
         engine = get_engine()
         conn = engine.connect()
     except Exception as e:
