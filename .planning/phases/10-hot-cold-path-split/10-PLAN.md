@@ -25,7 +25,7 @@ Split the conflated single pipeline into four independent jobs (hot, cold, spotl
 
 | Q | CONTEXT § | Decision | Override-by-when |
 |---|---|---|---|
-| Hot-path cron expression | §Open 1 | `cron(0 7 ? * MON *)` (Mondays 07:00 UTC). Default if no ReciterDB refresh-cadence signal arrives. | Before T13 (IaC) |
+| Hot-path cron expression | §Open 1 | **Locked 2026-05-12**: `cron(0 12 ? * MON *)` (Mondays 12:00 UTC = 08:00 EDT). ReciterDB confirmed daily-refresh; chose Monday 12:00 UTC to land after a typical overnight refresh window and inside US business hours for pager response. | n/a (locked) |
 | Slack channel | §Open 2 | `#reciterai-pipeline` (dedicated) | Before T12 |
 | Slack env var | §Open 2 | `RECITERAI_SLACK_WEBHOOK_URL` (disambiguated) | Before T12 |
 | Bedrock Batch wait | §Open 3 | Wait + Choice poll loop (simpler; revisit on cost) | Before T14 |

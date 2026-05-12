@@ -132,7 +132,7 @@ The gates framework (Phase 9) runs as a Python module; the state machine can she
 
 These are deferrable — they affect implementation details, not architecture.
 
-1. **ReciterDB refresh cadence and timing.** Hot-path cron should fire ~2h after the upstream refresh completes. Confirm whether ReciterDB updates nightly, weekly, or otherwise; pick the cron expression off that constraint, not off "Mondays" in the abstract.
+1. ~~**ReciterDB refresh cadence and timing.**~~ **Resolved 2026-05-12**: ReciterDB refreshes daily. Hot-path cron locked to `cron(0 12 ? * MON *)` (Mondays 12:00 UTC = 08:00 EDT) — after typical overnight refresh, inside US business hours for pager response. Spec §2 says "weekly v1; daily once stable" — staying weekly for v1.
 2. **Slack channel + env var name.** Dedicated `#reciterai-pipeline` vs piggyback on an existing WCM ITS infra channel. Env var: `SLACK_WEBHOOK_URL` (conventional but ambiguous if a second webhook ever arrives) vs `RECITERAI_SLACK_WEBHOOK_URL` (uglier but explicit).
 3. **Bedrock Batch wait mechanism.** Wait + Choice poll loop vs EventBridge Pipes pattern. Research in plan-phase; the choice affects state-machine complexity and cost (transition billing).
 4. **Severity table for D-11.** Map each condition (Bedrock throttle, parse-fail, uncovered-PMID rate threshold, low-confidence threshold, schema-validation fail, infra-outage halt) to WARN vs ERROR. Document in `pipeline_drift/severity.md` during plan-phase.
