@@ -24,6 +24,7 @@ from pipeline_hierarchy.bundler import (
     DEFAULT_AUGMENTED_DIR,
     MissingUIFieldsError,
     bundle,
+    write_bundle,
 )
 from pipeline_hierarchy.generator import SCHEMA_PATH, SOURCE_HIERARCHY, build_hierarchy, validate
 
@@ -198,6 +199,55 @@ def test_bundle_then_validate_passes_schema(tmp_path):
     )
     built = build_hierarchy(hierarchy=h, generated_at="2026-05-11T00:00:00Z")
     validate(built, schema_path=SCHEMA_PATH)
+
+
+# ---------- D-14 / G-29 fix tests ----------
+
+
+def test_bundle_does_not_include_generated_at(tmp_path):
+    """D-14: bundle() output MUST NOT contain 'generated_at'.
+    hierarchy.json is timestamp-free; manifest.json carries the timestamp."""
+    aug_dir = tmp_path / "aug"
+    aug_dir.mkdir()
+    _write_augmented(aug_dir, "topic_a", [_minimal_sub("topic_a_one")])
+    result = bundle(
+        augmented_dir=aug_dir,
+        taxonomy_path=_make_taxonomy(tmp_path),
+        excluded_topics_path=_make_excluded(tmp_path),
+    )
+    assert "generated_at" not in result, (
+        "D-14: bundle() must not embed generated_at into the hierarchy dict"
+    )
+
+
+def test_bundle_raises_typeerror_if_generated_at_kwarg_passed(tmp_path):
+    """D-14 / W2: bundle() signature no longer accepts generated_at kwarg."""
+    aug_dir = tmp_path / "aug"
+    aug_dir.mkdir()
+    _write_augmented(aug_dir, "topic_a", [_minimal_sub("topic_a_one")])
+    with pytest.raises(TypeError, match="generated_at"):
+        bundle(
+            augmented_dir=aug_dir,
+            taxonomy_path=_make_taxonomy(tmp_path),
+            excluded_topics_path=_make_excluded(tmp_path),
+            generated_at="2026-05-11T00:00:00Z",  # must raise
+        )
+
+
+def test_write_bundle_raises_typeerror_if_generated_at_kwarg_passed(tmp_path):
+    """D-14 / W2: write_bundle() signature also no longer accepts generated_at."""
+    aug_dir = tmp_path / "aug"
+    aug_dir.mkdir()
+    _write_augmented(aug_dir, "topic_a", [_minimal_sub("topic_a_one")])
+    out = tmp_path / "out.json"
+    with pytest.raises(TypeError, match="generated_at"):
+        write_bundle(
+            out_path=out,
+            augmented_dir=aug_dir,
+            taxonomy_path=_make_taxonomy(tmp_path),
+            excluded_topics_path=_make_excluded(tmp_path),
+            generated_at="2026-05-11T00:00:00Z",  # must raise
+        )
 
 
 # ---------- live structural test (DoD #5) ----------
