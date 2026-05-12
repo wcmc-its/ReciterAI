@@ -97,28 +97,51 @@ def test_t1_reports_correct_counts(capsys):
 # ---------------------------------------------------------------------------
 
 
+def _extract_condition_attrs(condition) -> list[str]:
+    """Recursively extract all attribute names from a boto3 ConditionExpression tree."""
+    names = []
+    if hasattr(condition, "get_expression"):
+        expr = condition.get_expression()
+        operator = expr.get("operator", "")
+        for v in expr.get("values", ()):
+            if hasattr(v, "name"):
+                # It's an Attr object
+                names.append(v.name)
+            elif hasattr(v, "get_expression"):
+                names.extend(_extract_condition_attrs(v))
+    return names
+
+
 def test_t2_scan_uses_attribute_not_exists_filter():
-    """Scan FilterExpression must filter out already-stamped rows."""
+    """Scan FilterExpression must filter out already-stamped rows.
+
+    The filter uses boto3 ConditionExpression objects. We verify the expression
+    contains an attribute_not_exists condition referencing hierarchy_version.
+    """
     from scripts.migrate_activity_hierarchy_version import main
 
-    mock_table = _build_mock_table([])  # empty — we just check the scan call
+    captured_scan_kwargs: list = []
+
+    def capture_scan(**kwargs):
+        captured_scan_kwargs.append(kwargs)
+        return {"Items": []}
+
+    mock_table = MagicMock()
+    mock_table.scan.side_effect = capture_scan
+    mock_table.update_item.return_value = {}
 
     with patch("scripts.migrate_activity_hierarchy_version.get_table", return_value=mock_table):
         main([])
 
-    assert mock_table.scan.call_count >= 1
-    scan_kwargs = mock_table.scan.call_args.kwargs or {}
-    if not scan_kwargs:
-        scan_kwargs = mock_table.scan.call_args.args[0] if mock_table.scan.call_args.args else {}
+    assert len(captured_scan_kwargs) >= 1
+    filter_expr = captured_scan_kwargs[0].get("FilterExpression")
+    assert filter_expr is not None, "No FilterExpression passed to scan"
 
-    filter_expr = str(scan_kwargs.get("FilterExpression", ""))
-    # The filter must involve attribute_not_exists(hierarchy_version) or equivalent.
-    # Accept both string representation and boto3 ConditionExpression objects.
-    scan_kwargs_str = str(mock_table.scan.call_args)
-    assert (
-        "attribute_not_exists" in scan_kwargs_str
-        or "hierarchy_version" in scan_kwargs_str
-    ), f"Expected attribute_not_exists(hierarchy_version) in scan: {scan_kwargs_str}"
+    # Walk the condition tree to find all referenced attribute names
+    attr_names = _extract_condition_attrs(filter_expr)
+    assert "hierarchy_version" in attr_names, (
+        f"Expected hierarchy_version in FilterExpression attributes: {attr_names}"
+    )
 
 
 # ---------------------------------------------------------------------------
