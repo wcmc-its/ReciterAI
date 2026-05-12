@@ -1,0 +1,205 @@
+{
+  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: delta-only score, assign, and rollup. NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5).",
+  "StartAt": "Orchestrate",
+  "States": {
+    "Orchestrate": {
+      "Type": "Task",
+      "Resource": "${OrchestratorLambdaArn}",
+      "ResultPath": "$.orchestrate",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "CheckLockOrProceed"
+    },
+
+    "CheckLockOrProceed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.orchestrate.status",
+          "StringEquals": "skipped",
+          "Next": "End"
+        }
+      ],
+      "Default": "Score"
+    },
+
+    "Score": {
+      "Type": "Task",
+      "Resource": "${ScoreLambdaArn}",
+      "InputPath": "$.orchestrate.input",
+      "ResultPath": "$.score_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "WriteScoreStageRow"
+    },
+
+    "WriteScoreStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai-chatbot",
+        "Item.$": "$.score_envelope"
+      },
+      "ResultPath": null,
+      "Next": "Assign"
+    },
+
+    "Assign": {
+      "Type": "Task",
+      "Resource": "${AssignLambdaArn}",
+      "Parameters": {
+        "topic_id.$": "$.orchestrate.input.delta.assign_topic_id",
+        "delta_pmids.$": "$.orchestrate.input.delta.pmids"
+      },
+      "ResultPath": "$.assign_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "WriteAssignStageRow"
+    },
+
+    "WriteAssignStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai-chatbot",
+        "Item.$": "$.assign_envelope"
+      },
+      "ResultPath": null,
+      "Next": "Rollup"
+    },
+
+    "Rollup": {
+      "Type": "Task",
+      "Resource": "${RollupLambdaArn}",
+      "Parameters": {
+        "dirty_cwids.$": "$.orchestrate.input.delta.dirty_cwids"
+      },
+      "ResultPath": "$.rollup_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "WriteRollupStageRow"
+    },
+
+    "WriteRollupStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai-chatbot",
+        "Item.$": "$.rollup_envelope"
+      },
+      "ResultPath": null,
+      "Next": "WriteHotRunComplete"
+    },
+
+    "WriteHotRunComplete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai-chatbot",
+        "Item": {
+          "PK": {"S": "STAGE#hot_run#GLOBAL"},
+          "SK.$": "States.Format('RUN#{}', $.orchestrate.input.started_at)",
+          "stage": {"S": "hot_run"},
+          "scope": {"S": "GLOBAL"},
+          "status": {"S": "complete"},
+          "started_at.$": "$.orchestrate.input.started_at",
+          "run_id.$": "$.orchestrate.input.run_id",
+          "delta_size.$": "$.orchestrate.input.delta.size",
+          "score_input_hash.$": "$.score_envelope.input_hash",
+          "assign_input_hash.$": "$.assign_envelope.input_hash",
+          "rollup_input_hash.$": "$.rollup_envelope.input_hash"
+        }
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "WriteHotRunFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai-chatbot",
+        "Item": {
+          "PK": {"S": "STAGE#hot_run#GLOBAL"},
+          "SK.$": "States.Format('RUN#FAILED#{}', $$.Execution.StartTime)",
+          "stage": {"S": "hot_run"},
+          "scope": {"S": "GLOBAL"},
+          "status": {"S": "failed"},
+          "run_id.$": "$$.Execution.Name",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": null,
+      "Next": "NotifyError"
+    },
+
+    "NotifyError": {
+      "Type": "Task",
+      "Resource": "${AlertDispatcherLambdaArn}",
+      "Parameters": {
+        "severity": "ERROR",
+        "source": "hot_path",
+        "message.$": "$.error.Cause",
+        "execution_arn.$": "$$.Execution.Id"
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "End": {
+      "Type": "Succeed"
+    }
+  }
+}
