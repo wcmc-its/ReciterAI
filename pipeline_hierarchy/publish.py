@@ -3,17 +3,20 @@ Hierarchy artifact publisher.
 
 Generates the canonical artifact via pipeline_hierarchy.generator, writes
 it to out/hierarchy/<version>/ locally, and uploads to S3 at
-s3://wcmc-reciterai-hierarchy/<version>/{hierarchy.json,hierarchy.schema.json}
-plus s3://wcmc-reciterai-hierarchy/latest/manifest.json.
+s3://wcmc-reciterai-hierarchy/<version>/{hierarchy.json,hierarchy.schema.json,
+diff.json,manifest.json} plus s3://wcmc-reciterai-hierarchy/latest/manifest.json.
 
-Upload order matters: version-pinned objects FIRST, then latest/manifest.json
-LAST, so a concurrent SPS ETL run never reads a manifest pointing at objects
-that haven't landed yet (D-02 invariant in docs/hierarchy-contract.md).
+Phase 11 D-11 upload order (5 PutObjects):
+    1. {version}/hierarchy.json
+    2. {version}/hierarchy.schema.json
+    3. {version}/diff.json         ← new; before manifest so consumers can GET diff
+    4. {version}/manifest.json     ← new; version-pinned copy was previously missing
+    5. latest/manifest.json        ← with Cache-Control: max-age=60, must-revalidate
 
 Phase 9 substrate integration:
 - Computes a content-addressed `input_hash` from a generated_at-free
-  representation of the bundled hierarchy (spec G-29). A prior `complete`
-  STAGE# row with the same hash short-circuits the run — emitting a
+  representation of the bundled hierarchy (spec G-29 — now fixed by D-14). A prior
+  `complete` STAGE# row with the same hash short-circuits the run — emitting a
   `skipped` row that still carries duration_ms and the pinned skip cost.
 - Runs registered `publish`-stage gates pre-upload (schema_validation,
   parent_prefix, pii_scan — all `block` severity). Any failure writes
@@ -26,6 +29,8 @@ Phase 9 substrate integration:
 Usage:
     python -m pipeline_hierarchy.publish [--dry-run] [--version LABEL]
                                           [--force --force-reason "..."]
+                                          [--g29-cutover]
+                                          [--run-id <cold-run-id>]
 """
 
 from __future__ import annotations
@@ -33,10 +38,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from decimal import Decimal
 from pathlib import Path
+from typing import Optional
 
 # Import gate modules so their @register_gate decorators run at import time.
 import gates.parent_prefix       # noqa: F401  (registers parent_prefix gate)
@@ -49,6 +56,12 @@ from pipeline_hierarchy.bundler import (
     DEFAULT_EXCLUDED_PATH,
     MissingUIFieldsError,
     bundle,
+)
+from pipeline_hierarchy.diff_stats import (
+    DIFF_SCHEMA_VERSION,
+    compute_reassigned_pmid_count,
+    compute_structural_diff,
+    derive_editorial_only,
 )
 from pipeline_hierarchy.generator import REPO_ROOT, SCHEMA_PATH, generate
 from utils.bedrock_client import MODEL_IDS_BY_STAGE
@@ -122,7 +135,96 @@ def compute_publish_input_hash(
     )
 
 
-# ---------- I/O helpers (unchanged in shape) ----------
+# ---------- diff.json producer (Phase 11 D-09, D-10, D-12, D-13, D-18) ----------
+
+
+def _scan_assign_rows_by_run_id(table: object, run_id: str) -> list[dict]:
+    """Fetch assign STAGE# rows and filter by run_id in Python.
+
+    Phase 9 convention: Python-side filtering is acceptable at Phase 11 scale.
+    A GSI on run_id is deferred per Phase 9 plan (D-13 note).
+
+    Uses table.query on each known assign-subtopics PK prefix pattern, then
+    filters in Python by run_id. Alternatively, scans all STAGE# rows and
+    filters. Either way, run_id matching happens in Python.
+
+    For testability, this method calls table.query (consistent with the rest
+    of the stage_records pattern). The mock in tests sets query.return_value.
+    """
+    # Query the table for all assign-subtopics rows.
+    # Since DynamoDB requires exact PK match in query, we scan and filter.
+    # In production, rows per cold run are bounded (one per topic ~65 rows).
+    resp = table.query(
+        KeyConditionExpression="#pk = :pk",
+        ExpressionAttributeNames={"#pk": "PK"},
+        ExpressionAttributeValues={":pk": "STAGE#assign_subtopics#GLOBAL"},
+    )
+    all_rows = resp.get("Items", [])
+    # Python-side filter by run_id (D-13)
+    return [row for row in all_rows if row.get("run_id") == run_id]
+
+
+def compute_diff(
+    *,
+    prev_version: Optional[str],
+    new_hierarchy: dict,
+    to_version: str,
+    run_id: Optional[str],
+    table: object,
+    s3_client: object,
+) -> dict:
+    """Phase 11 D-09, D-10, D-12, D-13, D-18.
+
+    Produces the diff.json dict. Hybrid:
+      - Structural: byte-compare prev vs new hierarchy.json (S3 GET via W1).
+      - PMID-count: query STAGE# assign rows filtered by run_id.
+
+    First-ever-publish (O-01): prev_version is None → from_version: null
+    in output; structural diffs are empty (no prev to compare).
+
+    W1: Reuses the existing S3HierarchyClient.get_object_bytes(key) method
+    (utils/s3_client.py:132). No new S3 GET accessor introduced.
+    """
+    # 1. Fetch prev hierarchy via existing get_object_bytes (W1).
+    prev_hierarchy: Optional[dict] = None
+    if prev_version is not None:
+        try:
+            body = s3_client.get_object_bytes(f"{prev_version}/hierarchy.json")
+            prev_hierarchy = json.loads(body)
+        except Exception as exc:
+            # Treat as first-ever-publish per O-01 (explicit null signal)
+            import logging
+            logging.getLogger(__name__).warning(
+                f"prev hierarchy GET failed for {prev_version}: {exc}; "
+                "treating as first-publish (from_version: null)"
+            )
+            prev_hierarchy = None
+
+    # 2. Structural diff (taxonomy, added/removed/renamed subtopics)
+    structural = compute_structural_diff(prev_hierarchy, new_hierarchy)
+
+    # 3. STAGE# query for reassignment count (D-13: filtered by run_id)
+    if run_id is not None:
+        stage_rows = _scan_assign_rows_by_run_id(table, run_id)
+    else:
+        stage_rows = []
+    reassigned = compute_reassigned_pmid_count(stage_rows)
+
+    # 4. Assemble diff.json
+    return {
+        "diff_schema_version": DIFF_SCHEMA_VERSION,
+        "from_version": prev_version,   # None → JSON null per O-01
+        "to_version": to_version,
+        "taxonomy_version_changed": structural["taxonomy_version_changed"],
+        "added_subtopics": structural["added_subtopics"],
+        "removed_subtopics": structural["removed_subtopics"],
+        "renamed_subtopics": structural["renamed_subtopics"],
+        "reassigned_pmid_count": reassigned,
+        "editorial_only": derive_editorial_only(structural, reassigned),
+    }
+
+
+# ---------- I/O helpers ----------
 
 
 def write_local(out_dir: Path, hierarchy: bytes, schema: bytes, manifest: dict) -> None:
@@ -134,14 +236,42 @@ def write_local(out_dir: Path, hierarchy: bytes, schema: bytes, manifest: dict) 
     )
 
 
-def upload_to_s3(version: str, hierarchy: bytes, schema: bytes, manifest: dict) -> None:
-    s3 = S3HierarchyClient()
-    # Version-pinned objects FIRST (D-02).
-    s3.put_object(f"{version}/hierarchy.json", hierarchy)
-    s3.put_object(f"{version}/hierarchy.schema.json", schema)
-    # latest/manifest.json LAST.
+def upload_to_s3(
+    version: str,
+    hierarchy: bytes,
+    schema: bytes,
+    manifest: dict,
+    diff_bytes: bytes,
+    s3_client: Optional[object] = None,
+) -> None:
+    """Phase 11 D-11: 5-step PutObject sequence.
+
+    Order matters for consumer safety:
+    1. {version}/hierarchy.json     — the artifact itself
+    2. {version}/hierarchy.schema.json — validator for the artifact
+    3. {version}/diff.json          — BEFORE manifest so consumers polling
+                                      manifest.sha256 can immediately GET diff
+                                      without eventually-consistent race
+    4. {version}/manifest.json      — version-pinned copy (was missing pre-Phase-11)
+    5. latest/manifest.json         — last, with Cache-Control header
+    """
+    s3 = s3_client if s3_client is not None else S3HierarchyClient()
     manifest_bytes = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
-    s3.put_object("latest/manifest.json", manifest_bytes)
+
+    # 1. {version}/hierarchy.json
+    s3.put_object(f"{version}/hierarchy.json", hierarchy)
+    # 2. {version}/hierarchy.schema.json
+    s3.put_object(f"{version}/hierarchy.schema.json", schema)
+    # 3. {version}/diff.json — before manifest (D-11 race guard)
+    s3.put_object(f"{version}/diff.json", diff_bytes)
+    # 4. {version}/manifest.json — version-pinned copy (Phase 11: was missing)
+    s3.put_object(f"{version}/manifest.json", manifest_bytes)
+    # 5. latest/manifest.json — LAST, with Cache-Control
+    s3.put_object(
+        "latest/manifest.json",
+        manifest_bytes,
+        cache_control="max-age=60, must-revalidate",
+    )
 
 
 # ---------- exit codes ----------
@@ -183,6 +313,25 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Required when --force is set; a one-line audit note.",
     )
+    parser.add_argument(
+        "--g29-cutover",
+        action="store_true",
+        help=(
+            "One-time: write STAGE#g29_cutover#GLOBAL audit row recording the "
+            "previous_publish_sha, new_publish_sha, hierarchy_version_at_cutover, "
+            "run_id, started_at, completed_at. Idempotent — writes one row per run. "
+            "D-16 / D-15 operator coordination: schedule this with SPS team."
+        ),
+    )
+    parser.add_argument(
+        "--run-id",
+        default=os.environ.get("RECITERAI_COLD_RUN_ID"),
+        help=(
+            "Cold-run identifier threaded into STAGE# rows and diff.json "
+            "for run-scoped correlation. Defaults to RECITERAI_COLD_RUN_ID env var. "
+            "D-13: used by diff producer to filter assign-stage STAGE# rows."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.force and not args.force_reason:
@@ -191,6 +340,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return EXIT_FORCE_WITHOUT_REASON
+
+    run_id: Optional[str] = args.run_id
 
     started_at = _now_iso()
     t_start = time.monotonic()
@@ -311,8 +462,31 @@ def main(argv: list[str] | None = None) -> int:
         print("[dry-run] skipping S3 upload AND STAGE# write")
         return EXIT_OK
 
-    # 5. S3 upload.
-    upload_to_s3(version, hierarchy_bytes, schema_bytes, manifest)
+    # 5. Compute diff.json (Phase 11 D-09, D-10).
+    s3 = S3HierarchyClient()
+
+    # Resolve prev_version from latest/manifest.json (W1: reuse get_object_bytes).
+    prev_version: Optional[str] = None
+    try:
+        from botocore.exceptions import ClientError
+        prev_manifest_bytes = s3.get_object_bytes("latest/manifest.json")
+        prev_manifest = json.loads(prev_manifest_bytes)
+        prev_version = prev_manifest.get("version")
+    except Exception:
+        prev_version = None  # first-ever-publish (O-01)
+
+    diff = compute_diff(
+        prev_version=prev_version,
+        new_hierarchy=hierarchy_dict,
+        to_version=version,
+        run_id=run_id,
+        table=table,
+        s3_client=s3,
+    )
+    diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
+
+    # 6. S3 upload (5-step D-11 order).
+    upload_to_s3(version, hierarchy_bytes, schema_bytes, manifest, diff_bytes, s3_client=s3)
     print(json.dumps(
         {
             "event": "upload_complete",
@@ -321,17 +495,19 @@ def main(argv: list[str] | None = None) -> int:
             "keys": [
                 f"{version}/hierarchy.json",
                 f"{version}/hierarchy.schema.json",
+                f"{version}/diff.json",
+                f"{version}/manifest.json",
                 "latest/manifest.json",
             ],
         },
         indent=2,
     ))
 
-    # 6. Run post-upload (warn) gates against the just-published artifact.
+    # 7. Run post-upload (warn) gates against the just-published artifact.
     post_results = run_gates(
         stage="publish_post",
         version=version,
-        s3_client=S3HierarchyClient(),
+        s3_client=s3,
     )
     post_warnings = [r for r in post_results if not r.passed]
     if post_warnings:
@@ -346,7 +522,30 @@ def main(argv: list[str] | None = None) -> int:
             indent=2,
         ), file=sys.stderr)
 
-    # 7. Write STAGE# complete row.
+    # 8. Write STAGE#g29_cutover audit row if requested (D-16).
+    if args.g29_cutover:
+        previous_publish_sha: Optional[str] = None
+        try:
+            previous_publish_sha = prev_manifest.get("sha256") if prev_version else None
+        except Exception:
+            previous_publish_sha = None
+
+        cutover_item = {
+            "PK": "STAGE#g29_cutover#GLOBAL",
+            "SK": f"RUN#{started_at}",
+            "stage": "g29_cutover",
+            "scope": "GLOBAL",
+            "status": "complete",
+            "previous_publish_sha": previous_publish_sha,
+            "new_publish_sha": manifest["sha256"],
+            "hierarchy_version_at_cutover": version,
+            "run_id": run_id,
+            "started_at": started_at,
+            "completed_at": _now_iso(),
+        }
+        table.put_item(Item=cutover_item)
+
+    # 9. Write STAGE# complete row (D-13: include run_id).
     completed_at = _now_iso()
     duration_ms = int((time.monotonic() - t_start) * 1000)
     write_complete(
@@ -362,6 +561,7 @@ def main(argv: list[str] | None = None) -> int:
         records_written=manifest["artifact_bytes"],
         model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),
         force_reason=args.force_reason if (blocked and args.force) else None,
+        run_id=run_id,
     )
 
     return EXIT_OK

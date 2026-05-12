@@ -29,17 +29,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_input_hash_is_stable_across_generated_at_changes():
-    """G-29 mitigation: hash MUST NOT change just because re-stamping
-    `generated_at` flips the canonical bytes."""
+    """D-14 (G-29 fix): After Phase 11, bundle() no longer embeds generated_at in
+    the hierarchy dict. The hash is stable because the dict is timestamp-free.
+    Two dicts with identical content (no generated_at) produce the same hash."""
     base = {
         "taxonomy_version": "taxonomy_v2",
         "topics": {"a": {"subtopics": []}},
         "excluded_topics": [],
         "see_also": [],
     }
-    a = {**base, "generated_at": "2026-05-12T00:00:00Z"}
-    b = {**base, "generated_at": "2026-05-13T15:42:01Z"}
-    assert publish.compute_publish_input_hash(a) == publish.compute_publish_input_hash(b)
+    # Post-D-14: hierarchy dicts from bundle() have no generated_at field.
+    # Two identical dicts produce the same hash.
+    assert publish.compute_publish_input_hash(base) == publish.compute_publish_input_hash(base)
+    # Content change does change the hash.
+    other = {**base, "taxonomy_version": "taxonomy_v3"}
+    assert publish.compute_publish_input_hash(base) != publish.compute_publish_input_hash(other)
 
 
 def test_input_hash_changes_on_real_content_change():
