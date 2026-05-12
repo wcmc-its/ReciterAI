@@ -28,16 +28,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
 
 - [x] **Phase 9: Substrate — Stages & Gates** — Done 2026-05-12. Content-addressed `STAGE#` records (`utils/stage_records.py`) + registered quality gates (`gates/registry.py` with `parent_prefix`, `pii_scan`, `schema_validation`, `schema_roundtrip`) + `python -m gates` CLI. `pipeline_hierarchy.publish` wired to both substrates. Spec [§5 Decision 4](../docs/RECITERAI-SPEC.md#5-decision-4--content-addressed-stage-completion) + [§7 Decision 6](../docs/RECITERAI-SPEC.md#7-decision-6--quality-gates-as-a-registered-framework). 115 tests passing. See `phases/09-substrate-stages-and-gates/09-SUMMARY.md`.
 
-- [ ] **Phase 10: Hot/Cold Path Split** — Implements spec [§2 Decision 1](../docs/RECITERAI-SPEC.md#2-decision-1--two-paths-not-one). Reframes [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (end-to-end orchestration) as two orchestrators with different semantics.
-  - Wire Phase 9's `STAGE#` substrate into the five upstream stages (`score_publications`, `discover_subtopics`, `assign_subtopics`, `rollup_by_cwid`, `backfill_spotlight`)
-  - Incremental mode for `rollup_by_cwid.py` (required, not optional — see spec §2)
-  - Hot-path orchestrator: scheduled, delta-only, reads `latest/` as immutable, never mints versions
-  - Cold-path orchestrator: manual, full recompute, sets `initiated_by` on `STAGE#cold_path`
-  - Typed input-boundary event records: `UNCOVERED_PMID#`, `LOW_CONFIDENCE_ASSIGNMENT#` (write only this phase)
-  - `drift_evaluator` stage on its own cron writes `DRIFT#evaluation` sentinel, opens GitHub issue + Slack ping when thresholds exceeded
-  - EventBridge cron + IAM
-  - Estimate: 8–12 days
-  - Canonical refs: `docs/RECITERAI-SPEC.md` §2, §5, §9 (event records), §11 G-18 (thresholds cluster)
+- [x] **Phase 10: Hot/Cold Path Split** — Done 2026-05-12. Four operational lanes (hot weekly Step Functions, cold operator CLI, monthly spotlight with dirty-gate, daily drift evaluator) wrapped in single-file EventBridge + IaC (D-10) with documented CDK migration trigger. Four new DynamoDB record types (`STAGE#hot_run#GLOBAL`, `UNCOVERED_PMID#`, `LOW_CONFIDENCE_ASSIGNMENT#`, `DRIFT#evaluation`); severity-tagged alerting via `pipeline_common.alert` (Slack + gh issue dedup); incremental rollup with byte-identical parity gate (D-08). Verifier 6/6 PASS; security 5/5 closed. 283 tests passing. See `phases/10-hot-cold-path-split/10-SUMMARY.md`.
 
 - [ ] **Phase 11: Versioning, Review State, Diff Signaling** — Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarchy_version-is-first-class-on-every-read-and-write), [§4 Decision 3](../docs/RECITERAI-SPEC.md#4-decision-3--review-state-is-machine-readable-pipeline-state), and [§5/§6 Decision 5](../docs/RECITERAI-SPEC.md#6-decision-5--structured-change-signaling).
   - `hierarchy_version` stamped on every activity record; rotation state keyed by `(cwid, hierarchy_version)`
