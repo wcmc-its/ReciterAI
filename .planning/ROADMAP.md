@@ -30,7 +30,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
 
 - [x] **Phase 10: Hot/Cold Path Split** — Done 2026-05-12. Four operational lanes (hot weekly Step Functions, cold operator CLI, monthly spotlight with dirty-gate, daily drift evaluator) wrapped in single-file EventBridge + IaC (D-10) with documented CDK migration trigger. Four new DynamoDB record types (`STAGE#hot_run#GLOBAL`, `UNCOVERED_PMID#`, `LOW_CONFIDENCE_ASSIGNMENT#`, `DRIFT#evaluation`); severity-tagged alerting via `pipeline_common.alert` (Slack + gh issue dedup); incremental rollup with byte-identical parity gate (D-08). Verifier 6/6 PASS; security 5/5 closed. 283 tests passing. See `phases/10-hot-cold-path-split/10-SUMMARY.md`.
 
-- [ ] **Phase 11: Versioning, Review State, Diff Signaling** — Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarchy_version-is-first-class-on-every-read-and-write), [§4 Decision 3](../docs/RECITERAI-SPEC.md#4-decision-3--review-state-is-machine-readable-pipeline-state), and [§5/§6 Decision 5](../docs/RECITERAI-SPEC.md#6-decision-5--structured-change-signaling).
+- [x] **Phase 11: Versioning, Review State, Diff Signaling** — Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarchy_version-is-first-class-on-every-read-and-write), [§4 Decision 3](../docs/RECITERAI-SPEC.md#4-decision-3--review-state-is-machine-readable-pipeline-state), and [§5/§6 Decision 5](../docs/RECITERAI-SPEC.md#6-decision-5--structured-change-signaling). (completed 2026-05-12)
   - `hierarchy_version` stamped on every activity record; rotation state keyed by `(cwid, hierarchy_version)`
   - `REVIEW#` records as machine-readable cold-path gate; `python -m review approve …` CLI with pre-write validator
   - `diff.json` per publish + S3 write-order contract + read-tolerance rules + `Cache-Control` on `latest/*`
@@ -65,7 +65,7 @@ Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarc
 
 **Estimate:** 8–12 days.
 
-**Plans:** 0/3 plans executed
+**Plans:** 0/3 plans complete
 - [ ] `11-PLAN-hierarchy-versioning.md` — D-01..D-06, D-17: hierarchy_version stamping, rotation history PK rewrite, cold-path cutover audit row
 - [ ] `11-PLAN-review-state.md` — D-07, D-08: REVIEW# DDB row + `python -m review approve|validate` CLI + pre-write validator
 - [ ] `11-PLAN-change-signaling.md` — D-09..D-16, D-18: diff.json + 5-step S3 write-order + Cache-Control + G-29 fix + STAGE# run_id substrate
