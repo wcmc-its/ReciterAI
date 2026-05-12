@@ -72,6 +72,7 @@ from utils.stage_records import (
     write_failed,
     write_skipped,
 )
+from utils.event_records import load_thresholds, write_low_confidence_assignment
 from prompts.subtopic_assignment import (
     ASSIGNMENT_SYSTEM_PROMPT,
     BUILD_ASSIGNMENT_USER_MESSAGE,
@@ -167,6 +168,45 @@ def _per_pmid_assign_input_hash(hierarchy_draft: dict, pmid: str) -> str:
             "model_ids": STAGE_MODEL_IDS,
         },
     )
+
+
+def _maybe_write_low_confidence_event(
+    *,
+    stage_table,
+    thresholds: dict | None,
+    pmid: str,
+    topic_id: str,
+    candidate_confidences: dict[str, float],
+) -> None:
+    """Write a LOW_CONFIDENCE_ASSIGNMENT# row when all valid candidate
+    confidences are below `low_confidence_floor` (spec §9).
+
+    No-op when `stage_table` or `thresholds` is None. Failures are
+    logged and swallowed — feedback writes must not break assignment.
+    """
+    if stage_table is None or thresholds is None:
+        return
+    floor = thresholds.get("low_confidence_floor")
+    if floor is None:
+        return
+    if not candidate_confidences:
+        # No valid candidates at all is a model/prompt issue, not a
+        # low-confidence signal; let the existing logging/STAGE# path handle.
+        return
+    max_conf = max(candidate_confidences.values())
+    if max_conf >= float(floor):
+        return
+    try:
+        write_low_confidence_assignment(
+            stage_table,
+            pmid=pmid,
+            topic_id=topic_id,
+            candidate_confidences=candidate_confidences,
+        )
+    except Exception as exc:
+        logger.warning(
+            f"Failed to write LOW_CONFIDENCE_ASSIGNMENT# row for pmid={pmid}: {exc}"
+        )
 
 
 def _parse_pmid_list_arg(value: str | None) -> list[str] | None:
@@ -491,6 +531,7 @@ def _process_pmid(
     confidence_floor: float,
     dry_run: bool,
     stage_table=None,
+    thresholds: dict | None = None,
 ) -> dict:
     """
     Worker: classify one PMID and (unless dry-run) write to every matching row.
@@ -550,6 +591,20 @@ def _process_pmid(
         raw_assignments, valid_subtopic_ids, confidence_floor
     )
     stats["filtered_count"] = len(confidences)
+
+    # T6 — LOW_CONFIDENCE_ASSIGNMENT# feedback event. Evaluated against the
+    # full candidate set (no confidence_floor) so a subtopic at 0.31 doesn't
+    # silently disqualify the PMID from drift detection.
+    raw_valid = _filter_valid_assignments(
+        raw_assignments, valid_subtopic_ids, 0.0
+    )
+    _maybe_write_low_confidence_event(
+        stage_table=stage_table,
+        thresholds=thresholds,
+        pmid=pmid,
+        topic_id=topic_meta.get("id", ""),
+        candidate_confidences=raw_valid,
+    )
 
     if not confidences:
         # Unassigned activity — leave the row alone; Tier 3 fallback applies.
@@ -640,6 +695,18 @@ def run(
     t_stage_start = time.monotonic()
     # --dry-run keeps STAGE# writes off too — symmetric with publish.py.
     stage_table = None if dry_run else get_table(TABLE_NAME)
+
+    # T6 — Phase 10 thresholds (low_confidence_floor for the
+    # LOW_CONFIDENCE_ASSIGNMENT# event). Missing file is non-fatal so
+    # operators can still run the pipeline without the config.
+    try:
+        thresholds = load_thresholds()
+    except FileNotFoundError:
+        logger.warning(
+            "config/thresholds.json missing; "
+            "skipping LOW_CONFIDENCE_ASSIGNMENT# event writes"
+        )
+        thresholds = None
 
     # 1. Load taxonomy + hierarchy draft
     taxonomy = _load_taxonomy()
@@ -798,6 +865,7 @@ def run(
             confidence_floor=confidence_floor,
             dry_run=dry_run,
             stage_table=stage_table,
+            thresholds=thresholds,
         )
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:

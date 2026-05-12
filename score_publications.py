@@ -60,6 +60,7 @@ from utils.stage_records import (
     write_failed,
     write_skipped,
 )
+from utils.event_records import load_thresholds, write_uncovered_pmid
 
 logging.basicConfig(
     level=logging.INFO,
@@ -135,6 +136,65 @@ def _per_pmid_input_hash(taxonomy_version: str, pmid: str) -> str:
             "model_ids": STAGE_MODEL_IDS,
         },
     )
+
+
+def _maybe_write_uncovered_event(
+    *,
+    stage_table,
+    thresholds: dict | None,
+    pmid: str,
+    taxonomy_version: str,
+    screening_scores: dict,
+    dense_scores: dict,
+) -> None:
+    """Write an UNCOVERED_PMID# row if top topic score is below the floor.
+
+    No-op when `stage_table` is None (dry-run / no AWS creds) or when
+    `thresholds` is None (legacy callers that opted out). Failures are
+    logged and swallowed — feedback-event writes must not break scoring.
+    """
+    if stage_table is None or thresholds is None:
+        return
+    floor = thresholds.get("uncovered_score_floor")
+    if floor is None:
+        return
+    top_topic_score, top3 = _evaluate_uncovered(screening_scores, dense_scores)
+    if top_topic_score >= float(floor):
+        return
+    try:
+        write_uncovered_pmid(
+            stage_table,
+            pmid=pmid,
+            taxonomy_version=taxonomy_version,
+            top_topics=top3,
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to write UNCOVERED_PMID# row for pmid={pmid}: {exc}")
+
+
+def _evaluate_uncovered(
+    screening_scores: dict,
+    dense_scores: dict,
+) -> tuple[float, list[tuple[str, float]]]:
+    """Compute the top topic score and top-3 (topic_id, score) tuples for the
+    UNCOVERED_PMID# event check (spec §9).
+
+    Prefers dense (Sonnet-refined) scores when present; falls back to
+    screening scores for the early-exit case where no topics cleared the
+    0.3 screening threshold. Both branches surface "the best the model
+    could fit" so the drift evaluator can decide whether the corpus has
+    drifted out from under the taxonomy.
+    """
+    if dense_scores:
+        scored = [
+            (tid, float(v.get("score", 0.0))) for tid, v in dense_scores.items()
+        ]
+    elif screening_scores:
+        scored = [(tid, float(s)) for tid, s in screening_scores.items()]
+    else:
+        return 0.0, []
+    scored.sort(key=lambda t: (-t[1], t[0]))
+    return scored[0][1], scored[:3]
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +405,7 @@ def score_one_publication(
     int_to_id: dict,
     id_to_int: dict,
     stage_table=None,
+    thresholds: dict | None = None,
 ) -> ScoringResult:
     """
     Score a single publication via two-pass Bedrock calls.
@@ -411,6 +472,14 @@ def score_one_publication(
                 scored_at=datetime.now(timezone.utc).isoformat(),
                 screening_passed_topics=[],
             )
+            _maybe_write_uncovered_event(
+                stage_table=stage_table,
+                thresholds=thresholds,
+                pmid=pmid,
+                taxonomy_version=taxonomy_version,
+                screening_scores=screening_scores,
+                dense_scores={},
+            )
             result.status = 'complete'
             return result
 
@@ -449,6 +518,14 @@ def score_one_publication(
             dynamo_client, table_name, pmid, 'complete', taxonomy_version,
             scored_at=datetime.now(timezone.utc).isoformat(),
             screening_passed_topics=list(passed_topics.keys()),
+        )
+        _maybe_write_uncovered_event(
+            stage_table=stage_table,
+            thresholds=thresholds,
+            pmid=pmid,
+            taxonomy_version=taxonomy_version,
+            screening_scores=screening_scores,
+            dense_scores=dense_scores,
         )
         result.status = 'complete'
 
@@ -531,6 +608,7 @@ async def score_batch_async(
     id_to_int: dict,
     concurrency: int = 15,
     stage_table=None,
+    thresholds: dict | None = None,
 ) -> list:
     """
     Score publications concurrently using asyncio with a semaphore.
@@ -554,7 +632,7 @@ async def score_batch_async(
             result = await asyncio.to_thread(
                 score_one_publication, pub, bedrock, taxonomy,
                 dynamo_client, table_name, int_to_id, id_to_int,
-                stage_table,
+                stage_table, thresholds,
             )
             if result.status == 'failed':
                 failure_count += 1
@@ -649,6 +727,15 @@ async def main():
     t_stage_start = time.monotonic()
     stage_table = get_table()
 
+    # --- Phase 10 thresholds (T6 — UNCOVERED_PMID# event floor) ---
+    try:
+        thresholds = load_thresholds()
+    except FileNotFoundError:
+        logger.warning(
+            "config/thresholds.json missing; skipping UNCOVERED_PMID# event writes"
+        )
+        thresholds = None
+
     # --- Load taxonomy (taxonomy_v2 is the reviewed, approved taxonomy) ---
     assert TAXONOMY_FILE.exists(), (
         f"Taxonomy file not found: {TAXONOMY_FILE}\n"
@@ -735,6 +822,7 @@ async def main():
             unscored, bedrock, taxonomy, dynamo_client, TABLE_NAME,
             int_to_id, id_to_int, concurrency=args.concurrency,
             stage_table=stage_table,
+            thresholds=thresholds,
         )
 
         # --- Summary ---

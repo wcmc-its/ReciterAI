@@ -1,0 +1,9 @@
+{
+  "uncovered_score_floor": 0.4,
+  "low_confidence_floor": 0.35,
+  "drift_uncovered_rate_alert": 0.05,
+  "drift_low_confidence_topic_max": 50,
+  "drift_window_days": 14,
+  "spotlight_dirty_subtopic_min": 3,
+  "spotlight_dirty_pubs_per_subtopic_min": 5
+}
