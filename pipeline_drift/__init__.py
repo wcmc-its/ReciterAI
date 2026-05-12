@@ -10,9 +10,10 @@ and STAGE#…failed rows over a rolling `drift_window_days` window
 - cold_run_recommended (boolean)
 
 On `cold_run_recommended: true` the evaluator emits a severity-tagged
-alert via `pipeline_common.alert.dispatch` (T11). Until T11 lands the
-evaluator returns the structured payload and a `severity` field; the
-state machine / cron handler is responsible for dispatching.
+alert via `pipeline_common.alert.dispatch` (T11). The condition-to-
+severity mapping (D-11 draft) lives in `pipeline_drift.severity`.
+The evaluator itself returns a structured payload + `severity` field;
+the cron handler dispatches the alert.
 """
 
 __version__ = "0.1.0"
