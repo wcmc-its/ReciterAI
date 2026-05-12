@@ -307,3 +307,101 @@ def test_status_enum_values_are_stable():
     assert sr.STATUS_COMPLETE == "complete"
     assert sr.STATUS_SKIPPED == "skipped"
     assert sr.STATUS_FAILED == "failed"
+
+
+# ---------- Phase 10 (D-07): pure builders ----------
+
+
+def test_build_complete_record_does_no_io():
+    """Builder must be a pure function — no DynamoDB call, no implicit state."""
+    item = sr.build_complete_record(
+        stage="score_publications",
+        scope="GLOBAL",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_estimate_usd=Decimal("1.23"),
+        output_pointer="ddb://reciterai-chatbot",
+        records_written=10_000,
+        model_ids_snapshot=["haiku-4-5", "sonnet-4-6"],
+    )
+    assert item["PK"] == "STAGE#score_publications#GLOBAL"
+    assert item["SK"] == "RUN#2026-05-12T00:00:00Z"
+    assert item["status"] == "complete"
+    assert item["cost_estimate_usd"] == Decimal("1.23")
+    assert item["records_written"] == 10_000
+
+
+def test_build_skipped_record_pins_cost_and_carries_skip_reason():
+    item = sr.build_skipped_record(
+        stage="assign_subtopics",
+        scope="topic:aging_geroscience",
+        input_hash="def",
+        skip_reason="input_hash unchanged since 2026-05-10",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=42,
+    )
+    assert item["status"] == "skipped"
+    assert item["cost_estimate_usd"] == sr.SKIP_COST_USD
+    assert item["skip_reason"] == "input_hash unchanged since 2026-05-10"
+    assert item["PK"] == "STAGE#assign_subtopics#topic:aging_geroscience"
+
+
+def test_build_failed_record_carries_error_payload():
+    item = sr.build_failed_record(
+        stage="score_publications",
+        scope="GLOBAL",
+        input_hash="ghi",
+        error_code="BEDROCK_PARSE_FAIL",
+        error_message="haiku returned malformed json",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=15_000,
+        cost_estimate_usd=Decimal("0.42"),
+        failure_details={"pmids_affected": [12345, 67890]},
+    )
+    assert item["status"] == "failed"
+    assert item["error_code"] == "BEDROCK_PARSE_FAIL"
+    assert item["failure_details"]["pmids_affected"] == [12345, 67890]
+
+
+def test_write_complete_delegates_to_builder():
+    """Phase 10 D-07: writer is build + put_item. Verify the equivalence."""
+    table = MagicMock()
+    written = sr.write_complete(
+        table,
+        stage="score_publications",
+        scope="GLOBAL",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_estimate_usd=Decimal("1.23"),
+    )
+    built = sr.build_complete_record(
+        stage="score_publications",
+        scope="GLOBAL",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_estimate_usd=Decimal("1.23"),
+    )
+    assert written == built
+    table.put_item.assert_called_once_with(Item=built)
+
+
+def test_builders_are_idempotent():
+    """Two identical builds produce equal dicts (modulo `completed_at` default)."""
+    kwargs = dict(
+        stage="score_publications",
+        scope="GLOBAL",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_estimate_usd=Decimal("1.23"),
+    )
+    a = sr.build_complete_record(**kwargs)
+    b = sr.build_complete_record(**kwargs)
+    assert a == b

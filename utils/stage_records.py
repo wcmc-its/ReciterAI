@@ -165,8 +165,7 @@ def _base_item(
     }
 
 
-def write_complete(
-    table: Any,
+def build_complete_record(
     *,
     stage: str,
     scope: str,
@@ -181,7 +180,12 @@ def write_complete(
     force_reason: str | None = None,
 ) -> dict[str, Any]:
     """
-    Write a STAGE# completion row with status=complete.
+    Pure builder for a STAGE# complete row dict. No I/O.
+
+    Phase 10 (D-07): split out of `write_complete` so a Step Functions
+    SDK integration can write the row instead of Python. Python
+    crashing between "work done" and "row written" is now the state
+    machine's problem, not a missed completion signal.
 
     `force_reason` is set only when a `block`-severity gate was
     overridden via `gates/cli.py --force --force-reason "..."`.
@@ -204,12 +208,10 @@ def write_complete(
         item["model_ids_snapshot"] = list(model_ids_snapshot)
     if force_reason is not None:
         item["force_reason"] = force_reason
-    table.put_item(Item=item)
     return item
 
 
-def write_skipped(
-    table: Any,
+def build_skipped_record(
     *,
     stage: str,
     scope: str,
@@ -221,7 +223,7 @@ def write_skipped(
     model_ids_snapshot: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Write a STAGE# skip row.
+    Pure builder for a STAGE# skip row dict. No I/O.
 
     Skips still emit cost rows (per spec §5) — `cost_estimate_usd` is
     pinned to `SKIP_COST_USD` so dashboards can split real-work cost
@@ -240,12 +242,10 @@ def write_skipped(
     item["skip_reason"] = skip_reason
     if model_ids_snapshot is not None:
         item["model_ids_snapshot"] = list(model_ids_snapshot)
-    table.put_item(Item=item)
     return item
 
 
-def write_failed(
-    table: Any,
+def build_failed_record(
     *,
     stage: str,
     scope: str,
@@ -260,7 +260,7 @@ def write_failed(
     model_ids_snapshot: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Write a STAGE# failure row.
+    Pure builder for a STAGE# failure row dict. No I/O.
 
     `failure_details` carries structured per-gate or per-step context
     (e.g., the list of subtopics that violated `parent_prefix`).
@@ -283,5 +283,30 @@ def write_failed(
         item["failure_details"] = failure_details
     if model_ids_snapshot is not None:
         item["model_ids_snapshot"] = list(model_ids_snapshot)
+    return item
+
+
+def write_complete(table: Any, **kwargs: Any) -> dict[str, Any]:
+    """Build a STAGE# complete row and persist it via `table.put_item`.
+
+    Thin writer: see `build_complete_record` for the full kwargs
+    signature. Cold-path Python uses this; hot-path Step Functions
+    consumes the builder output via SDK integration instead.
+    """
+    item = build_complete_record(**kwargs)
+    table.put_item(Item=item)
+    return item
+
+
+def write_skipped(table: Any, **kwargs: Any) -> dict[str, Any]:
+    """Build a STAGE# skip row and persist it. See `build_skipped_record`."""
+    item = build_skipped_record(**kwargs)
+    table.put_item(Item=item)
+    return item
+
+
+def write_failed(table: Any, **kwargs: Any) -> dict[str, Any]:
+    """Build a STAGE# failed row and persist it. See `build_failed_record`."""
+    item = build_failed_record(**kwargs)
     table.put_item(Item=item)
     return item
