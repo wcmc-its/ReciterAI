@@ -18,7 +18,6 @@ publish data that would trip SPS's hierarchy ETL.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -142,7 +141,6 @@ def bundle(
     augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
     taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
     excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
-    generated_at: str | None = None,
     strict: bool = True,
 ) -> dict[str, Any]:
     """
@@ -152,7 +150,6 @@ def bundle(
         augmented_dir: directory containing `hierarchy_augmented_*.json` files.
         taxonomy_path: source for the top-level `taxonomy_version` stamp.
         excluded_topics_path: frozen config listing topics excluded from publication.
-        generated_at: ISO8601 timestamp to stamp; defaults to now() in UTC.
         strict: when True (default), raise `MissingUIFieldsError` if any subtopic
             lacks display_name or short_description. Set False only for
             structural/development checks.
@@ -180,14 +177,8 @@ def bundle(
             f"re-run relabel_subtopics.py before bundling. Sample: {sample}"
         )
 
-    if generated_at is None:
-        generated_at = (
-            datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-        )
-
     return {
         "version": "subtopic_v1",
-        "generated_at": generated_at,
         "taxonomy_version": taxonomy_version,
         "excluded_topics": excluded,
         "topics": topics,
@@ -201,14 +192,12 @@ def write_bundle(
     augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
     taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
     excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
-    generated_at: str | None = None,
 ) -> Path:
     """Run bundle() in strict mode and write the result to `out_path`."""
     hierarchy = bundle(
         augmented_dir=augmented_dir,
         taxonomy_path=taxonomy_path,
         excluded_topics_path=excluded_topics_path,
-        generated_at=generated_at,
         strict=True,
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)

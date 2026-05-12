@@ -91,7 +91,6 @@
   "type": "object",
   "required": [
     "version",
-    "generated_at",
     "taxonomy_version",
     "excluded_topics",
     "topics",

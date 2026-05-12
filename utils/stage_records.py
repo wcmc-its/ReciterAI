@@ -179,6 +179,7 @@ def build_complete_record(
     records_written: int | None = None,
     model_ids_snapshot: list[str] | None = None,
     force_reason: str | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# complete row dict. No I/O.
@@ -190,6 +191,10 @@ def build_complete_record(
 
     `force_reason` is set only when a `block`-severity gate was
     overridden via `gates/cli.py --force --force-reason "..."`.
+
+    `run_id` (Phase 11 D-13): optional cold-run identifier used by diff.json
+    producers to correlate assign-stage STAGE# rows with the current cold-run.
+    Backwards-compatible — omitted when None so existing consumers see no change.
     """
     item = _base_item(
         stage=stage,
@@ -209,6 +214,8 @@ def build_complete_record(
         item["model_ids_snapshot"] = list(model_ids_snapshot)
     if force_reason is not None:
         item["force_reason"] = force_reason
+    if run_id is not None:
+        item["run_id"] = run_id
     return item
 
 
@@ -222,6 +229,7 @@ def build_skipped_record(
     completed_at: str | None = None,
     duration_ms: int,
     model_ids_snapshot: list[str] | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# skip row dict. No I/O.
@@ -229,6 +237,8 @@ def build_skipped_record(
     Skips still emit cost rows so SUM() over `cost_observed_usd` returns
     a meaningful aggregate. Phase 10 D-09 pins skip cost to zero (no
     work performed); the DDB GetItem lookup cost is not modeled per row.
+
+    `run_id` (Phase 11 D-13): optional cold-run identifier. Backwards-compatible.
     """
     item = _base_item(
         stage=stage,
@@ -243,6 +253,8 @@ def build_skipped_record(
     item["skip_reason"] = skip_reason
     if model_ids_snapshot is not None:
         item["model_ids_snapshot"] = list(model_ids_snapshot)
+    if run_id is not None:
+        item["run_id"] = run_id
     return item
 
 
@@ -259,6 +271,7 @@ def build_failed_record(
     cost_observed_usd: Decimal,
     failure_details: dict | None = None,
     model_ids_snapshot: list[str] | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# failure row dict. No I/O.
@@ -267,6 +280,8 @@ def build_failed_record(
     (e.g., the list of subtopics that violated `parent_prefix`).
     Truncate large payloads at the call site if they risk approaching
     DynamoDB's 400KB item limit.
+
+    `run_id` (Phase 11 D-13): optional cold-run identifier. Backwards-compatible.
     """
     item = _base_item(
         stage=stage,
@@ -284,6 +299,8 @@ def build_failed_record(
         item["failure_details"] = failure_details
     if model_ids_snapshot is not None:
         item["model_ids_snapshot"] = list(model_ids_snapshot)
+    if run_id is not None:
+        item["run_id"] = run_id
     return item
 
 

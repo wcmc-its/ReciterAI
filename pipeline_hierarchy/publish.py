@@ -91,11 +91,10 @@ def compute_publish_input_hash(
 ) -> str:
     """Compute the publish stage's input_hash.
 
-    `hierarchy_dict` is hashed *without* its `generated_at` field — that
-    re-stamps on every run and would otherwise make the hash unstable
-    across content-identical publishes (spec G-29). Phase 11 may move
-    `generated_at` out of the hierarchy bytes entirely; until then this
-    is the local mitigation.
+    `hierarchy_dict` is hashed directly — Phase 11 D-14 removed `generated_at`
+    from the hierarchy dict entirely (G-29 fix). The field no longer appears
+    in bundle() output so no filtering is required; the hash is stable across
+    content-identical publishes by construction.
 
     Model IDs are included even though publish itself doesn't invoke
     models, so any model swap anywhere in the pipeline invalidates
@@ -105,9 +104,11 @@ def compute_publish_input_hash(
     code change to the bundler invalidates the skip cache without
     relying on file-mtime heuristics.
     """
-    h_for_hash = {k: v for k, v in hierarchy_dict.items() if k != "generated_at"}
+    # G-29 fixed upstream per D-14; no embedded timestamp remains in the hierarchy dict.
+    # The hierarchy dict from bundle() is already free of generated_at. Computing the
+    # hash directly without filtering is now equivalent but we keep a clean canonical form.
     h_canonical = json.dumps(
-        h_for_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        hierarchy_dict, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     return compute_input_hash(
         STAGE_NAME,
