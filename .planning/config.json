@@ -1,6 +1,6 @@
 {
   "model_profile": "balanced",
-  "commit_docs": false,
+  "commit_docs": true,
   "search_gitignored": false,
   "branching_strategy": "none",
   "phase_branch_template": "feat/phase-{phase}",
