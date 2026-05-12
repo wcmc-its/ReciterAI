@@ -2,6 +2,12 @@
 
 Mocks DynamoDB (Table) and S3 — no network. End-to-end exercise of the
 real DynamoDB is a manual operator step documented in 09-SUMMARY.md.
+
+Phase 11 additions (Tasks 5-8):
+- Write order: exact 5-step put_object sequence (D-11)
+- Cache-Control on latest/manifest.json only (D-11)
+- STAGE#g29_cutover write under --g29-cutover flag (D-16)
+- run_id threading into STAGE# complete row (D-13)
 """
 
 from __future__ import annotations
@@ -409,3 +415,243 @@ def test_post_upload_schema_roundtrip_failure_surfaces_but_does_not_fail_run():
     # Complete row still gets written.
     puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
     assert any(p["status"] == "complete" for p in puts)
+
+
+# ---------- Phase 11 Task 2: S3 write order (D-11) ----------
+
+
+class StubS3PutCapture:
+    """Stub S3HierarchyClient subclass that captures put_object calls in order.
+
+    Analog of test_spotlight_rotation_selector.py:309-319 custom stub pattern.
+    """
+
+    def __init__(self):
+        self.put_calls = []  # list of (key, kwargs) tuples
+
+    def put_object(self, key: str, body: bytes, content_type: str = "application/json",
+                   cache_control: str | None = None) -> None:
+        self.put_calls.append({"key": key, "body": body, "cache_control": cache_control})
+
+    def get_object_bytes(self, key: str) -> bytes:
+        # Simulate no prev manifest (first publish) and empty hierarchy for prev
+        from botocore.exceptions import ClientError
+        if key == "latest/manifest.json":
+            raise ClientError(
+                {"Error": {"Code": "NoSuchKey", "Message": "Not Found"}}, "GetObject"
+            )
+        # For schema roundtrip gate — return the real schema bytes
+        schema_path = REPO_ROOT / "docs/hierarchy.schema.json"
+        if key.endswith("hierarchy.schema.json"):
+            return schema_path.read_bytes()
+        # Default: return minimal hierarchy JSON for round-trip gate
+        bundled = _minimal_bundled_dict()
+        return json.dumps(bundled).encode("utf-8")
+
+    def key_exists(self, key: str) -> bool:
+        return False
+
+
+def _patch_io_with_s3_stub(
+    *,
+    bundled: dict | None = None,
+    table: MagicMock | None = None,
+    write_local: MagicMock | None = None,
+):
+    """Patch publish main() but use a real StubS3PutCapture for S3."""
+    bundled = bundled if bundled is not None else _minimal_bundled_dict()
+    table = table if table is not None else MagicMock()
+    write_local = write_local if write_local is not None else MagicMock()
+
+    fake_manifest = {
+        "schema_version": "1.0.0",
+        "taxonomy_version": "taxonomy_v2",
+        "version": "v2026-05-12",
+        "generated_at": "2026-05-12T00:00:00Z",
+        "sha256": "deadbeef" * 8,
+        "artifact_bytes": 1234,
+    }
+
+    s3_stub = StubS3PutCapture()
+
+    return (
+        patch.object(publish, "bundle", return_value=bundled),
+        patch.object(publish, "get_table", return_value=table),
+        patch.object(
+            publish,
+            "generate",
+            return_value=(b"hierarchy-bytes", b"schema-bytes", fake_manifest),
+        ),
+        patch.object(publish, "write_local", write_local),
+        patch.object(publish, "S3HierarchyClient", return_value=s3_stub),
+        table,
+        write_local,
+        s3_stub,
+        fake_manifest,
+    )
+
+
+def test_s3_write_order_is_exactly_5_steps():
+    """D-11: upload_to_s3 must issue exactly 5 PutObjects in the documented order.
+    Order: (1) {v}/hierarchy.json, (2) {v}/hierarchy.schema.json,
+           (3) {v}/diff.json, (4) {v}/manifest.json, (5) latest/manifest.json."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main([])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+    assert len(s3_stub.put_calls) == 5, (
+        f"Expected 5 S3 PutObject calls (D-11), got {len(s3_stub.put_calls)}: "
+        f"{[c['key'] for c in s3_stub.put_calls]}"
+    )
+    keys = [c["key"] for c in s3_stub.put_calls]
+    version = fake_manifest["version"]
+    assert keys[0] == f"{version}/hierarchy.json", f"Step 1 must be {version}/hierarchy.json"
+    assert keys[1] == f"{version}/hierarchy.schema.json", f"Step 2 must be {version}/hierarchy.schema.json"
+    assert keys[2] == f"{version}/diff.json", f"Step 3 must be {version}/diff.json"
+    assert keys[3] == f"{version}/manifest.json", f"Step 4 must be {version}/manifest.json"
+    assert keys[4] == "latest/manifest.json", "Step 5 must be latest/manifest.json"
+
+
+def test_cache_control_set_only_on_latest_manifest():
+    """D-11: Cache-Control: max-age=60, must-revalidate must be on the 5th call
+    (latest/manifest.json) ONLY. Other 4 calls must NOT carry CacheControl."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main([])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+    assert len(s3_stub.put_calls) == 5
+
+    # 5th call (latest/manifest.json) must carry Cache-Control
+    latest_call = s3_stub.put_calls[4]
+    assert latest_call["key"] == "latest/manifest.json"
+    assert latest_call["cache_control"] == "max-age=60, must-revalidate", (
+        "latest/manifest.json must carry Cache-Control: max-age=60, must-revalidate"
+    )
+
+    # Other 4 calls must NOT carry Cache-Control
+    for i, call in enumerate(s3_stub.put_calls[:4]):
+        assert call["cache_control"] is None, (
+            f"Call {i+1} ({call['key']}) must NOT carry cache_control, got {call['cache_control']!r}"
+        )
+
+
+def test_g29_cutover_flag_writes_audit_row():
+    """D-16: --g29-cutover flag writes STAGE#g29_cutover#GLOBAL audit row with
+    required fields. Without the flag, no such row is written."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main(["--g29-cutover"])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+
+    # Find the g29_cutover audit row
+    all_puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
+    cutover_rows = [p for p in all_puts if "g29_cutover" in p.get("PK", "")]
+    assert len(cutover_rows) == 1, (
+        f"Expected exactly 1 g29_cutover row, found {len(cutover_rows)}: {cutover_rows}"
+    )
+    row = cutover_rows[0]
+    assert row["PK"] == "STAGE#g29_cutover#GLOBAL"
+    assert row["SK"].startswith("RUN#")
+    assert "new_publish_sha" in row
+    assert "hierarchy_version_at_cutover" in row
+    assert "started_at" in row
+    assert "completed_at" in row
+
+
+def test_no_g29_cutover_row_without_flag():
+    """D-16: Without --g29-cutover, no g29_cutover STAGE# row is written."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main([])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+    all_puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
+    cutover_rows = [p for p in all_puts if "g29_cutover" in p.get("PK", "")]
+    assert len(cutover_rows) == 0, "No g29_cutover row without --g29-cutover flag"
+
+
+def test_run_id_threaded_into_complete_row():
+    """D-13: --run-id abc threads run_id into the STAGE# complete row."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main(["--run-id", "test-run-123"])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+    all_puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
+    complete_rows = [p for p in all_puts if p.get("status") == "complete"]
+    assert len(complete_rows) >= 1
+    assert complete_rows[0]["run_id"] == "test-run-123", (
+        "D-13: run_id must be threaded into the STAGE# complete row"
+    )
+
+
+def test_no_run_id_omits_field_from_complete_row():
+    """D-13: Without --run-id, the STAGE# complete row must NOT have a run_id key."""
+    (
+        p_bundle, p_table, p_generate, p_write_local, p_s3,
+        table, write_local_mock, s3_stub, fake_manifest,
+    ) = _patch_io_with_s3_stub()
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main([])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_OK
+    all_puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
+    complete_rows = [p for p in all_puts if p.get("status") == "complete"]
+    assert len(complete_rows) >= 1
+    assert "run_id" not in complete_rows[0], (
+        "D-13: run_id must not appear in STAGE# row when not passed"
+    )
