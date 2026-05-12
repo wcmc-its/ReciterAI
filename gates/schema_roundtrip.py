@@ -71,12 +71,16 @@ def schema_roundtrip_gate(
     try:
         hierarchy = json.loads(hierarchy_bytes)
         schema = json.loads(schema_bytes)
-    except json.JSONDecodeError as err:
+    except (json.JSONDecodeError, TypeError, ValueError) as err:
+        # JSONDecodeError covers malformed JSON; TypeError/ValueError cover
+        # the case where the S3 client returned something that isn't bytes
+        # or str (defensive — the gate contract is "always return GateResult,
+        # never raise").
         return GateResult(
             name="schema_roundtrip",
             passed=False,
             severity=SEVERITY_WARN,
-            summary=f"published artifact is not valid JSON: {err.msg}",
+            summary=f"published artifact could not be parsed as JSON: {err.__class__.__name__}",
             details={"error": str(err)},
         )
 
