@@ -27,6 +27,7 @@ ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from
 
 - [GETTING_STARTED.md](GETTING_STARTED.md) — local setup, env vars, running each pipeline
 - [ARCHITECTURE.md](ARCHITECTURE.md) — data flow, axes, publishing channels
+- [docs/RECITERAI-SPEC.md](docs/RECITERAI-SPEC.md) — architectural decisions and execution status (read this before picking up any architectural work)
 - [docs/taxonomy-methodology.md](docs/taxonomy-methodology.md) — design principles for the Axis 1 taxonomy
 - [docs/topic-subtopic-assignment.md](docs/topic-subtopic-assignment.md) — mechanics of how publications get labeled
 - [docs/hierarchy-contract.md](docs/hierarchy-contract.md) — S3 hierarchy artifact consumer contract
