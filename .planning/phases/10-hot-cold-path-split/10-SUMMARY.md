@@ -130,12 +130,14 @@ completed: 2026-05-12
 - `pipeline_drift/severity.md` was moved to `docs/severity.md` so it lives alongside the rest of the operator docs (`hot-cold-paths.md`, `data-model-and-queries.md`). Cross-references updated.
 - `docs/RECITERAI-SPEC.md` still has 3 stale `cost_estimate_usd` references that T2's acceptance criterion (`grep -r cost_estimate_usd` → empty across code + docs) demanded be removed. Will be cleaned up in the verification follow-up.
 
-**Verification findings (PARTIAL):** Two end-of-wire integration gaps were flagged by `gsd-verifier`:
+**Verification findings (PARTIAL → CLOSED by commit `55622d6`):**
 
-- **Spotlight orchestrator** (`pipeline_spotlight/orchestrator.py:244–253`) raises `NotImplementedError` on its production DDB query path. The dirty-gate logic itself is fully tested, but the EventBridge `reciterai-spotlight-monthly` target will fail on real cron invocation.
-- **Drift evaluator** has no `handler(event, context)` function and no code path calls `pipeline_common.alert.dispatch`. The pure evaluator + DRIFT# writer are tested, but the EventBridge `reciterai-drift-daily` Lambda entry point and the alert-emission wire-up are not in the codebase.
+Initial verification flagged two end-of-wire integration gaps; both were closed before phase advancement:
 
-Both gaps are real shipping issues for the cron-driven lanes; the underlying logic is sound, but the Lambda entry points are missing. Recommend a follow-up plan to close them before the EventBridge rules are deployed to prod.
+- **Spotlight orchestrator** previously raised `NotImplementedError` on its production DDB query path. `pipeline_spotlight/orchestrator.handler` now wires `resolve_new_pmid_assignments` (TOPIC# scan filtered on `created_at >= since`) + `resolve_top_subtopic_ids` (defers to `spotlight.pool_ranker.rank_pool`), and routes exceptions through `alert.dispatch(severity='ERROR', open_issue=True)`.
+- **Drift evaluator** now has a `handler(event, context)` Lambda entry point that scans the three event-row types over the rolling window, runs `run_evaluation`, and dispatches via `pipeline_common.alert.dispatch` based on the evaluator's `severity` field (OK→no alert, WARN→Slack only, ERROR with `cold_run_recommended`→Slack + GitHub issue).
+
+**Re-verification: 6/6 PASS, 0 PARTIAL.**
 
 ## Threat Flags
 
@@ -149,7 +151,10 @@ Both gaps are real shipping issues for the cron-driven lanes; the underlying log
 
 - **Phase 11 (version stamping, REVIEW# records, diff.json contract)**: blocked on the cold path's actual `publish_hierarchy` integration — Phase 10 delivered the cold-path CLI but `--initiated-by drift_alert` is the audit trail; the version stamping is Phase 11's contract to enforce.
 - **Phase 12 (feedback event consumption)**: unblocked. `UNCOVERED_PMID#` and `LOW_CONFIDENCE_ASSIGNMENT#` event records ship in their final shape; Phase 12 wires the Sonnet sweep that consumes them.
-- **Pre-deploy follow-ups required** before the EventBridge rules are enabled in prod:
-  1. Add `handler(event, context)` to `pipeline_drift/evaluator.py` and wire `pipeline_common.alert.dispatch` based on the evaluator's `severity` field.
-  2. Fix the `NotImplementedError` in `pipeline_spotlight/orchestrator.py:244–253` so the monthly Lambda target actually queries STAGE# rows.
-  3. Strip the 3 stale `cost_estimate_usd` references from `docs/RECITERAI-SPEC.md`.
+- **Pre-deploy follow-ups originally required** (all closed by commit `55622d6`):
+  1. ✅ Added `handler(event, context)` to `pipeline_drift/evaluator.py` with `pipeline_common.alert.dispatch` wired to the evaluator's `severity` field.
+  2. ✅ Removed `NotImplementedError` from `pipeline_spotlight/orchestrator.py`; production DDB wiring via `resolve_new_pmid_assignments` + `resolve_top_subtopic_ids`.
+  3. ✅ Renamed `cost_estimate_usd` → `cost_observed_usd` in `docs/RECITERAI-SPEC.md`.
+  4. ✅ Bonus: TF-04 closed (`pipeline_hot/orchestrator.py` lock-collision branch now dispatches `alert.dispatch('WARN', ...)`); bootstrap-lookback date math bug fixed.
+
+Phase 10 is ready for EventBridge rule activation in prod.

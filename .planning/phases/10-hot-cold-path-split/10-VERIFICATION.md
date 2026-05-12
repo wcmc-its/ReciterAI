@@ -1,39 +1,18 @@
 ---
 phase: 10-hot-cold-path-split
-verified: 2026-05-12T16:46:29Z
-status: gaps_found
-score: 4/6 must-haves verified (2 PARTIAL)
+verified: 2026-05-12T20:15:00Z
+status: passed
+score: 6/6 must-haves verified
 re_verification:
-  previous_status: none
-  previous_score: n/a
-gaps:
-  - truth: "Drift evaluator writes DRIFT# rows and emits severity-correct alerts"
-    status: partial
-    reason: "DRIFT# row writer + severity classification + alert dispatcher all exist and are unit-tested in isolation, but no Lambda `handler()` exists in pipeline_drift to tie them together. `infra/eventbridge.json` line 48 targets `reciterai-drift-evaluator` Lambda; no such entry point exists in the codebase, and no production code path calls `alert.dispatch(...)` from drift evaluation. The 'emits severity-correct alerts' half of the clause is unverified end-to-end."
-    artifacts:
-      - path: "pipeline_drift/evaluator.py"
-        issue: "No `def handler(event, context)` — module exposes `evaluate()`, `run_evaluation()`, `write_drift_row()` only. Module docstring (lines 1-23) does not mention alert dispatch."
-      - path: "pipeline_drift/__init__.py"
-        issue: "Lines 12-16 claim 'On cold_run_recommended: true the evaluator emits a severity-tagged alert via pipeline_common.alert.dispatch (T11). … the cron handler dispatches the alert.' — but no cron handler exists in the package."
-      - path: "infra/eventbridge.json"
-        issue: "Line 41-54 wires `reciterai-drift-evaluator` Lambda target with no matching Python entry point. Deploy script (`scripts/deploy_cron.sh`) would publish a Lambda that crashes on invocation because EventBridge invocation requires `handler` in the deployment package."
-      - path: "tests/test_pipeline_drift_evaluator.py"
-        issue: "14 unit tests cover evaluate() + run_evaluation(); none cover handler() or end-to-end alert dispatch (no integration test wires DriftEvaluation severity → alert.dispatch call)."
-    missing:
-      - "pipeline_drift/evaluator.py: add `handler(event, context)` that: (a) loads thresholds, (b) queries DDB for uncovered/low-confidence/stage-failed rows, (c) calls run_evaluation(), (d) invokes pipeline_common.alert.dispatch(severity=..., open_issue=cold_run_recommended) with the DriftEvaluation result"
-      - "tests/test_pipeline_drift_evaluator.py (or new test_pipeline_drift_handler.py): integration test that runs handler() against a synthetic STAGE# corpus and asserts alert.dispatch is called with the right severity"
-
-  - truth: "Spotlight regen gated by dirty-subtopic threshold"
-    status: partial
-    reason: "dirty_gate.evaluate_gate() implements D-03 thresholds correctly with 12 unit tests covering both branches (gate-holds writes skipped row; gate-triggers invokes backfill_spotlight and writes complete row). HOWEVER, the production Lambda entry point (`pipeline_spotlight/orchestrator.handler`) raises NotImplementedError when invoked without injected test data (lines 244-253). The DDB query helpers that resolve `new_pmid_assignments` and `top_subtopic_ids` from STAGE# rows + pool_ranker are explicitly deferred. EventBridge cron `reciterai-spotlight-monthly` (infra/eventbridge.json line 24-37) targets this Lambda, so a real cron invocation will fail."
-    artifacts:
-      - path: "pipeline_spotlight/orchestrator.py"
-        issue: "handler() raises NotImplementedError unless caller injects `new_pmid_assignments` and `top_subtopic_ids` (lines 244-253). Comment says 'precise STAGE# index queries land alongside T10's drift evaluator since both consume the same STAGE# corpus' — but T10 (pipeline_drift/evaluator.py) did not ship those query helpers either."
-    missing:
-      - "Implement the STAGE# query path in pipeline_spotlight/orchestrator.py that resolves `new_pmid_assignments` from STAGE#score_publications# + STAGE#assign_subtopics# rows since last `STAGE#spotlight_refresh#GLOBAL` `complete`"
-      - "Wire pool_ranker.rank_pool() to populate `top_subtopic_ids`"
-      - "Or: explicitly defer the spotlight production wiring to a follow-up phase and document this in the SUMMARY"
-
+  previous_status: gaps_found
+  previous_score: 4/6
+  gaps_closed:
+    - "Drift evaluator writes DRIFT# rows and emits severity-correct alerts"
+    - "Spotlight regen gated by dirty-subtopic threshold"
+  gaps_remaining: []
+  regressions: []
+  closure_commit: 55622d646372614d74f64b9b872e68d4155cd1b4
+gaps: []
 deferred: []
 ---
 
@@ -157,3 +136,57 @@ Minor spec drift that does not block the goal:
 
 _Verified: 2026-05-12T16:46:29Z_
 _Verifier: Claude (gsd-verifier)_
+
+---
+
+## Re-verification 2026-05-12T20:15:00Z (post-commit 55622d6)
+
+**Trigger:** Commit `55622d6` "fix(10): close 3 end-of-wire gaps + TF-04 from verify/secure findings" claims to resolve the two PARTIAL findings (clauses 3 and 4). Scope of fix: `pipeline_drift/evaluator.py`, `pipeline_spotlight/orchestrator.py`, plus tests and `docs/RECITERAI-SPEC.md`. Bonus TF-04 fix in `pipeline_hot/orchestrator.py`.
+
+**Result:** Both gaps closed. **All 6 clauses PASS. No regressions.** Status promoted from `gaps_found` → `passed`. Score 4/6 → 6/6.
+
+### Re-verified Truths
+
+| # | Truth | Previous | Current | Evidence |
+|---|-------|----------|---------|----------|
+| 3 | Spotlight regen gated by dirty-subtopic threshold | PARTIAL | **PASS** | `pipeline_spotlight/orchestrator.py` no longer contains `NotImplementedError` (`grep -n "NotImplementedError" pipeline_spotlight/orchestrator.py` → empty). New production-path helpers: `resolve_new_pmid_assignments` (lines 86-127) scans `TOPIC#` rows since cutoff with `begins_with(PK, "TOPIC#") AND created_at >= :since`, collapsing to `{pmid: [subtopic_id,...]}`; `resolve_top_subtopic_ids` (lines 130-143) defers to `spotlight.pool_ranker.rank_pool` with injectable seam. `handler()` (lines 287-343) wires the full flow: resolve last complete → scan TOPIC# rows → rank top-50 → `run_gate()` → on exception calls `alert.dispatch("ERROR", ..., open_issue=True)` (line 331). New tests in `tests/test_pipeline_spotlight_dirty_gate.py` cover DDB scan filter, ranker injection, end-to-end handler, and ERROR alert on failure. |
+| 4 | Drift evaluator writes DRIFT# rows and emits severity-correct alerts | PARTIAL | **PASS** | `pipeline_drift/evaluator.py` now exposes `handler(event, context)` at line 363. Handler (lines 363-444): loads thresholds via `load_thresholds`, scans `UNCOVERED_PMID#` and `LOW_CONFIDENCE_ASSIGNMENT#` rows via `_scan_by_pk_prefix`, scans `STAGE#*` failed rows via `_scan_stage_failed_since` (filter on `started_at`), counts distinct new PMIDs from `STAGE#score_publications#` rows for the uncovered_rate denominator, calls `run_evaluation()` (which persists the `DRIFT#evaluation` row), then dispatches alert at line 428: `alert.dispatch(severity, message, context, open_issue=cold_run)`. OK → no alert (line 421 guards `severity in ("WARN","ERROR")`); WARN → Slack only (`open_issue=False` when `cold_run_recommended=False`); ERROR with `cold_run_recommended=True` → Slack + GitHub issue. Four new tests in `tests/test_pipeline_drift_evaluator.py` cover OK→no-alert, WARN→Slack-only, ERROR→Slack+issue, and per-PMID dedup in the new_pmid counter. |
+| 6 | Step Functions writes STAGE# rows; crash mid-handler doesn't lose completion signal | PASS | **PASS (no regression)** | `pipeline_hot/state_machine.asl.json` not touched by commit `55622d6` (`git diff HEAD~1 HEAD --stat -- pipeline_hot/state_machine.asl.json` → empty). `test_state_machine_asl_shape.py` → 11 passed. |
+
+### Regression check (clauses 1, 2, 5)
+
+Commit touched only `pipeline_drift/evaluator.py`, `pipeline_spotlight/orchestrator.py`, `pipeline_hot/orchestrator.py`, `docs/RECITERAI-SPEC.md`, and three test files. No changes to `pipeline_hot/state_machine.asl.json`, `pipeline_cold/run.py`, or `tests/test_rollup_incremental_parity.py`. Full suite passes: **294 passed in 1.17s** (was 283 — +11 new tests, 0 regressions).
+
+### Anti-pattern status
+
+| Item | Previous | Current |
+|------|----------|---------|
+| `pipeline_spotlight/orchestrator.py:249` `raise NotImplementedError` | WARNING | **RESOLVED** — `grep -n "NotImplementedError" pipeline_spotlight/orchestrator.py` returns nothing |
+| `pipeline_drift/evaluator.py` missing `def handler` | WARNING | **RESOLVED** — `handler` defined at line 363; calls `alert.dispatch` at line 428 |
+| `docs/RECITERAI-SPEC.md` lingering `cost_estimate_usd` references | INFO | **RESOLVED** — commit message confirms rename to `cost_observed_usd`; no further code-grep performed in this re-verification (out of scope of failed clauses) |
+| `pipeline_common/dirty_set.py`, `pipeline_common/envelope.py` not shipped | INFO | Unchanged (location/spec drift, not blocking — same status as initial pass) |
+| `pipeline_drift/severity.md` shipped at `docs/severity.md` | INFO | Unchanged (location drift, not blocking) |
+
+### New key links verified
+
+| From | To | Via | Status | Details |
+|------|----|----|--------|---------|
+| `pipeline_drift/evaluator.handler` | `pipeline_common.alert.dispatch` | direct call | **WIRED** | Line 428; dispatched on WARN/ERROR with `open_issue=cold_run_recommended` |
+| `pipeline_drift/evaluator.handler` | DDB scans for 3 row types | `_scan_by_pk_prefix`, `_scan_stage_failed_since` | **WIRED** | Lines 401-407 |
+| `pipeline_spotlight/orchestrator.handler` | `pipeline_common.alert.dispatch` | direct call (exception path) | **WIRED** | Line 331; ERROR with `open_issue=True` |
+| `pipeline_spotlight/orchestrator.handler` | `resolve_new_pmid_assignments` + `resolve_top_subtopic_ids` | direct calls | **WIRED** | Lines 313-319 |
+| EventBridge `reciterai-drift-daily` rule | `pipeline_drift.evaluator.handler` | Lambda entry point | **WIRED** | `handler()` now exists; deployment package would be invokable |
+| `pipeline_hot/orchestrator.py` lock-collision path | `pipeline_common.alert.dispatch` | direct call | **WIRED (bonus)** | Line 271; TF-04 closure — WARN dispatched on every lock skip per D-11 |
+
+### Re-verified status
+
+**Status:** `passed`
+**Score:** 6/6 must-haves verified
+**Gaps remaining:** 0
+**Regressions:** 0
+**Human verification:** none — all clauses are codebase-verifiable
+
+---
+
+_Re-verified: 2026-05-12T20:15:00Z_
+_Re-verifier: Claude (gsd-verifier)_

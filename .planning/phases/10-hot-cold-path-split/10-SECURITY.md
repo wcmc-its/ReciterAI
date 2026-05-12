@@ -1,11 +1,12 @@
 ---
 phase: 10-hot-cold-path-split
 audited: 2026-05-12
-status: open_threats
+reaudited: 2026-05-12
+status: secured
 asvs_level: 2
 threats_total: 5
-threats_closed: 4
-threats_open: 1
+threats_closed: 5
+threats_open: 0
 block_on: open
 ---
 
@@ -183,3 +184,64 @@ Items 2 and 3 are flagged in the Verification report and are outside the strict 
 ## Verdict
 
 4 of 5 declared threat flags are CLOSED with file:line evidence and passing tests. **TF-04 is OPEN**: the lock-collision skip writes the STAGE# audit row but does not emit the WARN Slack alert that D-11 promises operators — the orchestrator only emits `logger.warning` and the state machine routes the skip directly to `Succeed`. This is a one-call-site fix (`alert.dispatch("WARN", …)` in `pipeline_hot/orchestrator.py:260-271`) plus a unit test. Per `block_on: open`, the audit blocks production cron enablement until TF-04 is closed.
+
+---
+
+## Re-audit 2026-05-12 (post commit 55622d6)
+
+**Trigger:** Commit `55622d6` — *"fix(10): close 3 end-of-wire gaps + TF-04 from verify/secure findings"* — claimed to close TF-04 by wiring `alert.dispatch("WARN", ...)` into the lock-collision branch of `pipeline_hot/orchestrator.py` and adding a covering test. Re-verified against source, not commit message.
+
+### TF-04 — Lock-collision starvation — **CLOSED**
+
+**Producer wired:**
+- `pipeline_hot/orchestrator.py:40` — module now imports `from pipeline_common import alert`.
+- `pipeline_hot/orchestrator.py:271-280` — immediately after `write_skipped_hot_run_locked(...)` and the `logger.warning(...)` call, the orchestrator now invokes:
+  ```
+  alert.dispatch(
+      "WARN",
+      "Hot path skipped — prior execution still RUNNING",
+      {
+          "source": "pipeline_hot.orchestrator",
+          "skip_reason": SKIP_REASON_LOCKED,
+          "state_machine_arn": state_machine_arn,
+          "started_at": started_at,
+      },
+  )
+  ```
+  Severity is the literal `"WARN"`, message matches the D-11 promise, and `skip_reason` is carried in the context payload — the exact shape the audit required.
+
+**Test wired:**
+- `tests/test_pipeline_hot_orchestrator.py:168-212` `test_handler_lock_collision_dispatches_warn_alert`:
+  - Stubs `boto3` so `is_state_machine_running` returns True (line 174-182).
+  - Stubs `get_table` so the DDB skipped-row write does not raise (line 185-186).
+  - Monkeypatches `orch.alert.dispatch` with a capturing lambda (line 189-194).
+  - Invokes `orch.handler(...)` (line 196-202).
+  - Asserts: `result["status"] == "skipped"`, `result["skip_reason"] == SKIP_REASON_LOCKED`, **exactly one** `alert.dispatch` call (line 206), positional severity is `"WARN"` (line 209), message contains the collision phrasing (line 210), and `ctx["skip_reason"] == SKIP_REASON_LOCKED` (line 212).
+
+This is the exact test contract the original audit asked for under "Required to close" item 2.
+
+### Regression check — TF-01, TF-02, TF-03, TF-05
+
+Confirmed `git show --stat 55622d6` touches only `pipeline_hot/orchestrator.py`, `pipeline_spotlight/orchestrator.py`, `pipeline_drift/evaluator.py`, plus their respective test files. The four previously-CLOSED threats are anchored in:
+- TF-01, TF-02 → `pipeline_common/alert.py` (untouched).
+- TF-03 → `infra/lambda_iam_policy.json` + `tests/test_infra_eventbridge_shape.py` (untouched).
+- TF-05 → `utils/stage_records.py` + `tests/test_stage_records.py` (untouched).
+
+No regression surface. The earlier evidence still stands.
+
+### Updated Threat Verification Table
+
+| # | Threat | Disposition | Status | Evidence |
+|---|--------|-------------|--------|----------|
+| TF-01 | Slack webhook URL handling | mitigate | **CLOSED** | `pipeline_common/alert.py:46,89` |
+| TF-02 | gh CLI shell-out (command injection) | mitigate | **CLOSED** | `pipeline_common/alert.py:108-115` |
+| TF-03 | IAM least-privilege | mitigate | **CLOSED** (with note) | `infra/lambda_iam_policy.json:19-22,34-39`; `tests/test_infra_eventbridge_shape.py:147-173` |
+| TF-04 | Lock-collision starvation (skip + WARN alert per D-11) | mitigate | **CLOSED** | Producer: `pipeline_hot/orchestrator.py:271-280` (import at line 40). Test: `tests/test_pipeline_hot_orchestrator.py:168-212`. |
+| TF-05 | Cost telemetry first-class zeros | mitigate | **CLOSED** | `utils/stage_records.py:44,215-246`; `tests/test_stage_records.py:200-218,301-304,338-348` |
+
+### Final Tally
+
+- **Threats closed: 5 / 5**
+- **Threats open: 0**
+- **Status:** `secured`
+- Per `block_on: open`, the audit no longer blocks production cron enablement on Phase 10 threat-flag grounds. The two reliability blockers (Pre-Deploy Blockers items 2 and 3 above — spotlight handler `NotImplementedError`, drift handler missing) were also closed by the same commit 55622d6 per its message; those are outside the strict threat-flag scope of this security audit and remain the verifier's call, not the auditor's. The optional ASL-state-level lock-skip routing (original "Required to close" item 3) was not adopted; Python-level dispatch is the chosen implementation and is sufficient for D-11.
