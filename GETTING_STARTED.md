@@ -45,6 +45,28 @@ A successful `env_check.py` means:
 - ReciterDB is reachable
 - Required tables/columns exist (`reciterai_synopsis.external_id`, `analysis_summary_person`, `reciterai_keyword_relevance`)
 
+## IAM Policy
+
+Two reference IAM policies live in `docs/`. Use them as the starting
+template when provisioning the AWS role or user that runs the
+pipeline.
+
+| File | Use for |
+|------|---------|
+| [`docs/aws-iam-pipeline-policy.json`](docs/aws-iam-pipeline-policy.json) | The runtime role for the pipeline itself — write access to `s3://wcmc-reciterai-hierarchy/` for hierarchy publishes and to `s3://wcmc-reciterai-artifacts/` for spotlight artifacts. Attach to the AWS identity that runs `backfill_spotlight.py` and the hierarchy publish stage. |
+| [`docs/aws-iam-pipeline-policy-artifacts.json`](docs/aws-iam-pipeline-policy-artifacts.json) | The artifacts-bucket policy — controls write access to `s3://wcmc-reciterai-artifacts/`. Attach to the publish-stage role and to any downstream-consumer role (e.g. the SPS service account that reads spotlight artifacts). |
+
+Both files are versioned with the codebase so any IAM change goes
+through the same review path as code. Operators with AWS console
+access can copy-paste either into the IAM policy editor; the JSON
+is valid as-is.
+
+If a stage fails with `AccessDenied` against a resource not covered
+by these policies, that's a real signal — either the policy needs
+extending or the stage is doing something it wasn't intended to.
+Don't paper over with `*` permissions; update the JSON, get review,
+then apply.
+
 ## Pipeline runs
 
 The pipelines run in this order. Most are idempotent and resumable. All persist progress to DynamoDB so a re-run picks up where it stopped.
