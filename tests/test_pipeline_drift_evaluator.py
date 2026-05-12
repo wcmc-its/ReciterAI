@@ -456,3 +456,196 @@ def test_run_evaluation_writes_one_drift_row():
     assert row["SK"] == "DAY#2026-05-12"
     assert out["severity"] == "WARN"
     assert out["cold_run_recommended"] is False
+
+
+# ---------- Phase 12 D-34: per_topic_low_confidence ----------
+
+
+def test_per_topic_low_confidence_populated_from_in_window_rows():
+    """evaluate() returns per_topic_low_confidence dict with counts per topic_id.
+
+    Feed 2 rows for topic_a and 1 for topic_b; assert the new field
+    maps topic_a → 2 and topic_b → 1.
+    """
+    rows = (
+        [_low_conf(f"a{i}", "topic_a", NOW - 1 * DAY) for i in range(2)] +
+        [_low_conf("b0", "topic_b", NOW - 1 * DAY)]
+    )
+    result = evaluate(
+        uncovered_rows=[],
+        low_confidence_rows=rows,
+        stage_failed_rows=[],
+        new_pmid_count=100,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+    assert result.per_topic_low_confidence == {"topic_a": 2, "topic_b": 1}
+
+
+def test_per_topic_low_confidence_sparse_zero_omitted():
+    """Topics with zero in-window count are absent from per_topic_low_confidence.
+
+    Feed rows only for topic_a; topic_x has no events in window.
+    Absence of topic_x key == zero (sparse-by-default contract, D-34).
+    """
+    rows = [_low_conf("a0", "topic_a", NOW - 1 * DAY)]
+    result = evaluate(
+        uncovered_rows=[],
+        low_confidence_rows=rows,
+        stage_failed_rows=[],
+        new_pmid_count=100,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+    assert "topic_x" not in result.per_topic_low_confidence
+    assert "topic_a" in result.per_topic_low_confidence
+
+
+def test_to_dynamodb_item_omits_field_when_dict_empty():
+    """Sparse-by-default: when per_topic_low_confidence is empty, field absent from DDB item.
+
+    Consumers of old DRIFT#evaluation rows (without the field) read absence
+    as zero via item.get("per_topic_low_confidence", {}).
+    """
+    d = DriftEvaluation(
+        window_start="",
+        window_end="2026-05-12T00:00:00Z",
+        drift_window_days=1,
+        uncovered_count=0,
+        low_confidence_count=0,
+        stage_failed_count=0,
+        new_pmid_count=0,
+        uncovered_rate=0.0,
+        low_confidence_max_topic=None,
+        low_confidence_max_count=0,
+        triggered_thresholds=[],
+        cold_run_recommended=False,
+        severity="OK",
+        per_topic_low_confidence={},
+    )
+    item = d.to_dynamodb_item()
+    assert "per_topic_low_confidence" not in item
+
+
+def test_to_dynamodb_item_includes_field_when_non_empty():
+    """When per_topic_low_confidence is non-empty, field is present in DDB item.
+
+    Values must be int (not Decimal) — counts are int, not float.
+    """
+    d = DriftEvaluation(
+        window_start="",
+        window_end="2026-05-12T00:00:00Z",
+        drift_window_days=1,
+        uncovered_count=0,
+        low_confidence_count=0,
+        stage_failed_count=0,
+        new_pmid_count=0,
+        uncovered_rate=0.0,
+        low_confidence_max_topic=None,
+        low_confidence_max_count=0,
+        triggered_thresholds=[],
+        cold_run_recommended=False,
+        severity="OK",
+        per_topic_low_confidence={"a": 3, "b": 1},
+    )
+    item = d.to_dynamodb_item()
+    assert "per_topic_low_confidence" in item
+    assert item["per_topic_low_confidence"] == {"a": 3, "b": 1}
+    # All values must be int, not Decimal or float.
+    for v in item["per_topic_low_confidence"].values():
+        assert isinstance(v, int), f"expected int, got {type(v)}"
+
+
+def test_low_confidence_max_topic_unchanged():
+    """Behavior contract: low_confidence_max_topic and low_confidence_max_count
+    are computed exactly as before Phase 12 D-34's additive field.
+
+    Uses the same input as test_per_topic_low_confidence_populated_from_in_window_rows.
+    After adding per_topic_low_confidence, max_topic=topic_a (count=2) is preserved.
+    """
+    rows = (
+        [_low_conf(f"a{i}", "topic_a", NOW - 1 * DAY) for i in range(2)] +
+        [_low_conf("b0", "topic_b", NOW - 1 * DAY)]
+    )
+    result = evaluate(
+        uncovered_rows=[],
+        low_confidence_rows=rows,
+        stage_failed_rows=[],
+        new_pmid_count=100,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+    # The existing max-topic semantics must be preserved.
+    assert result.low_confidence_max_topic == "topic_a"
+    assert result.low_confidence_max_count == 2
+
+
+def test_severity_ladder_unchanged():
+    """Behavior contract: severity ladder is unaffected by D-34's additive field.
+
+    See test_severity_warn_when_uncovered_below_alert_rate for the existing
+    assertion; this test verifies the same invariant holds after Phase 12
+    D-34's additive field addition.
+    """
+    # 1 uncovered / 100 new = 1% < 5% alert → WARN (below ERROR threshold).
+    result = evaluate(
+        uncovered_rows=[_uncov("p", NOW - 1 * DAY)],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=100,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+    assert result.severity == "WARN"
+    assert result.cold_run_recommended is False
+    # per_topic_low_confidence does not affect severity.
+    assert result.per_topic_low_confidence == {}
+
+
+def test_cold_run_recommended_unchanged():
+    """Behavior contract: cold_run_recommended derivation is unaffected by D-34.
+
+    A known input that produced cold_run_recommended=True before Phase 12
+    (uncovered rate >= 5%) still produces True.
+    """
+    rows = [_uncov(f"p{i}", NOW - 1 * DAY) for i in range(5)]
+    result = evaluate(
+        uncovered_rows=rows,
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=100,  # 5/100 = 5% == alert floor → ERROR
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+    assert result.cold_run_recommended is True
+    assert result.severity == "ERROR"
+    # per_topic_low_confidence for this input is empty (no low-conf rows).
+    assert result.per_topic_low_confidence == {}
+
+
+def test_consumer_reads_absent_field_as_absent():
+    """Consumer contract for backward compatibility (D-34 sparse semantics).
+
+    An old DRIFT#evaluation DDB row (predating Phase 12) won't have the
+    per_topic_low_confidence key. Consumers MUST use:
+        item.get("per_topic_low_confidence", {})
+    This returns an empty dict for old rows and the dict for new rows.
+    Both cases: treat absent key as "zero counts for all topics."
+
+    This test emulates a consumer reading an old row dict and demonstrates
+    the safe access pattern.
+    """
+    # Simulate an old DRIFT#evaluation row (no per_topic_low_confidence key).
+    old_row: dict = {
+        "PK": "DRIFT#evaluation",
+        "SK": "DAY#2025-01-01",
+        "record_type": "DRIFT_EVALUATION",
+        "severity": "OK",
+    }
+    # Safe consumer pattern — returns {} for missing key.
+    per_topic = old_row.get("per_topic_low_confidence", {})
+    assert per_topic == {}
+    # For a new row with data, same pattern returns the dict.
+    new_row = {**old_row, "per_topic_low_confidence": {"cardio": 5}}
+    per_topic_new = new_row.get("per_topic_low_confidence", {})
+    assert per_topic_new == {"cardio": 5}
