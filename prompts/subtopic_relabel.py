@@ -52,6 +52,22 @@ RULES:
    - Do NOT use the original `label` verbatim if it violates these rules — rewrite it.
    - Do NOT include the parent topic name (e.g., do NOT prefix with "Cancer:" or
      "Aging —") unless the subtopic is genuinely indistinguishable without it.
+   - CRITICAL — no parent-prefix repetition. The parent topic context is already
+     established by the hierarchy. Do NOT begin `display_name` with a word from the
+     parent topic's name or id. The reader already knows the parent context; repeating
+     it is redundant and reads as an error.
+       - Under parent "Microbiome Research" (id `microbiome_research`):
+         BAD:  "Microbiome & Cancer Immunotherapy Response"
+         GOOD: "Cancer Immunotherapy Response"
+       - Under parent "Pulmonary Critical Care" (id `pulmonary_critical_care`):
+         BAD:  "Pulmonary Hypertension & Vascular Disease"
+         GOOD: "Hypertension & Vascular Disease"
+       - Under parent "Radiology Medical Imaging" (id `radiology_medical_imaging`):
+         BAD:  "Radiology Education & Workforce Development"
+         GOOD: "Education & Workforce Development"
+     The check applies to the FIRST word of `display_name` after normalization (lowercase,
+     hyphens stripped). If the only honest first word would repeat the parent, choose a
+     synonym or restructure the phrase.
 3. `short_description` rules:
    - Single noun-phrase tagline, <= 140 characters.
    - Plain language a research dean would understand on first read.

@@ -21,6 +21,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -66,6 +67,48 @@ def _all_draft_topic_ids() -> list:
         if stem.startswith("hierarchy_draft_"):
             out.append(stem[len("hierarchy_draft_"):])
     return out
+
+
+_PARENT_PREFIX_STOPWORDS = {
+    "and", "or", "of", "the", "in", "on", "for", "to", "a", "an", "&", "with", "at",
+}
+
+
+def _parent_tokens(topic_id: str, topic_label: str) -> set:
+    """Tokens (lowercased) that the first word of display_name must not match."""
+    tokens = set()
+    for tok in topic_id.split("_"):
+        t = tok.lower().strip()
+        if t and t not in _PARENT_PREFIX_STOPWORDS:
+            tokens.add(t)
+    for tok in topic_label.split():
+        t = "".join(c for c in tok.lower() if c.isalnum())
+        if t and t not in _PARENT_PREFIX_STOPWORDS:
+            tokens.add(t)
+    return tokens
+
+
+def find_parent_prefix_violation(
+    topic_id: str, topic_label: str, display_name: str
+) -> Optional[str]:
+    """
+    Return a short reason string if display_name's first word repeats a parent topic
+    word, else None. Normalization: lowercase, strip surrounding punctuation, drop
+    internal hyphens (so "Pre-Clinical" -> "preclinical").
+    """
+    if not display_name:
+        return None
+    raw_first = display_name.split()[0]
+    cleaned = "".join(c for c in raw_first.lower() if c.isalnum() or c == "-")
+    first_norm = cleaned.replace("-", "")
+    if not first_norm:
+        return None
+    if first_norm in _parent_tokens(topic_id, topic_label):
+        return (
+            f"display_name first word {raw_first!r} repeats parent topic "
+            f"(parent label: {topic_label!r}, parent id: {topic_id!r})"
+        )
+    return None
 
 
 def _is_already_populated(subtopic: dict) -> bool:
@@ -135,6 +178,68 @@ def _apply_relabels(subtopics: list, relabels: list, topic_id: str) -> tuple:
     return patched, missing
 
 
+def _collect_parent_prefix_violations(
+    subtopics: list, topic_id: str, topic_label: str
+) -> list:
+    """Inspect every patched subtopic and return [{id, display_name, reason}, ...]."""
+    out = []
+    for s in subtopics:
+        dn = s.get("display_name") or ""
+        reason = find_parent_prefix_violation(topic_id, topic_label, dn)
+        if reason:
+            out.append({"id": s.get("id"), "display_name": dn, "reason": reason})
+    return out
+
+
+def _retry_parent_prefix_violations(
+    client: BedrockClient,
+    topic_id: str,
+    topic_label: str,
+    topic_description: str,
+    subtopics: list,
+    violations: list,
+) -> list:
+    """
+    Re-prompt Sonnet for ONLY the violating subtopics, with the violation reasons
+    spelled out. Apply the new labels in place. Return any violations that remain.
+    """
+    bad_ids = {v["id"] for v in violations}
+    bad_subs = [s for s in subtopics if s.get("id") in bad_ids]
+    if not bad_subs:
+        return []
+
+    violation_lines = "\n".join(
+        f"- id={v['id']!r}: {v['reason']}. Current display_name={v['display_name']!r}."
+        for v in violations
+    )
+    user_msg = BUILD_RELABEL_USER_MESSAGE(
+        topic_id=topic_id,
+        topic_label=topic_label,
+        topic_description=topic_description,
+        subtopics=bad_subs,
+    )
+    user_msg += (
+        "\n\nIMPORTANT: the previous attempt for these subtopics produced a "
+        "display_name whose first word repeats the parent topic. That is forbidden "
+        "by rule 2 of the system prompt. Regenerate each entry with a display_name "
+        "whose first word does NOT match any word in the parent topic. "
+        "Specific failures from the previous attempt:\n"
+        f"{violation_lines}"
+    )
+    messages = [{"role": "user", "content": user_msg}]
+    parsed = client.call_json(
+        model=SONNET_MODEL,
+        messages=messages,
+        system=RELABEL_SYSTEM_PROMPT,
+        max_tokens=4096,
+        temperature=0.0,
+    )
+    relabels = parsed.get("relabels", [])
+    if relabels:
+        _apply_relabels(bad_subs, relabels, topic_id)
+    return _collect_parent_prefix_violations(bad_subs, topic_id, topic_label)
+
+
 def relabel_topic(
     client: BedrockClient,
     topic_id: str,
@@ -201,6 +306,27 @@ def relabel_topic(
         f"(missing={len(missing)})"
     )
 
+    violations = _collect_parent_prefix_violations(subtopics, topic_id, topic_label)
+    if violations:
+        logger.warning(
+            f"[{topic_id}] {len(violations)} parent-prefix violation(s) after first pass; "
+            f"retrying those subtopics with violation context"
+        )
+        violations = _retry_parent_prefix_violations(
+            client=client,
+            topic_id=topic_id,
+            topic_label=topic_label,
+            topic_description=topic_description,
+            subtopics=subtopics,
+            violations=violations,
+        )
+        if violations:
+            logger.error(
+                f"[{topic_id}] {len(violations)} parent-prefix violation(s) STILL present "
+                f"after retry; writing file but run will exit non-zero. Offenders: "
+                + ", ".join(f"{v['id']}={v['display_name']!r}" for v in violations)
+            )
+
     if dry_run:
         sample = subtopics[0]
         logger.info(
@@ -253,6 +379,7 @@ def relabel_topic(
         "topic_id": topic_id,
         "patched": patched,
         "missing": len(missing),
+        "parent_prefix_violations": [v["id"] for v in violations],
         "subtopic_count": len(subtopics),
     }
 
@@ -320,18 +447,29 @@ def main() -> int:
 
     total_patched = sum(r.get("patched", 0) for r in results)
     skipped = [r for r in results if r.get("skipped")]
+    violators = [r for r in results if r.get("parent_prefix_violations")]
+    total_violations = sum(len(r.get("parent_prefix_violations", [])) for r in results)
     print(
         "\n=== Relabel summary ===\n"
-        f"  topics processed:   {len(topic_ids)}\n"
-        f"  topics succeeded:   {len(results) - len(skipped)}\n"
-        f"  topics skipped:     {len(skipped)}\n"
-        f"  topics failed:      {len(failures)}\n"
-        f"  subtopics patched:  {total_patched}\n"
-        f"  dry_run:            {args.dry_run}\n"
+        f"  topics processed:        {len(topic_ids)}\n"
+        f"  topics succeeded:        {len(results) - len(skipped)}\n"
+        f"  topics skipped:          {len(skipped)}\n"
+        f"  topics failed:           {len(failures)}\n"
+        f"  subtopics patched:       {total_patched}\n"
+        f"  parent-prefix violations: {total_violations} "
+        f"(across {len(violators)} topic(s), after retry)\n"
+        f"  dry_run:                 {args.dry_run}\n"
     )
     if failures:
         for fail in failures:
             print(f"  FAIL {fail['topic_id']}: {fail['error']}")
+    if violators:
+        for r in violators:
+            print(
+                f"  PARENT-PREFIX {r['topic_id']}: "
+                f"{', '.join(r['parent_prefix_violations'])}"
+            )
+    if failures or violators:
         return 1
     return 0
 
