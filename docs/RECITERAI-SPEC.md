@@ -229,7 +229,7 @@ SK: "RUN#{started_at}"
   skip_reason: "input_hash unchanged since 2026-05-04T12:00Z" | null,
   started_at, completed_at,
   output_pointer: "s3://..." | "ddb://...",
-  cost_estimate_usd: number,
+  cost_observed_usd: number,
   records_written: integer
 }
 ```
@@ -237,8 +237,8 @@ SK: "RUN#{started_at}"
 ### Rules
 
 - Before a stage runs, it computes its `input_hash` and queries for a `complete` record with that hash. If found, write a `skipped` record and exit zero.
-- **A skip still writes a row.** `status: "skipped"`, `skip_reason` set, `duration_ms` measured (wall clock from hash compute through lookup), `cost_estimate_usd` populated. The point of distinguishing skips is observability, which collapses if skipped runs are invisible — dashboards need to split "we spent $X on real work, $Y on skips that correctly detected hash matches." A skip that emits no row is the same as no skip at all.
-- **Skip cost formula** (v1, intentionally simple): `cost_estimate_usd = 0.0000003` per skip — one DynamoDB `GetItem` of <1KB at on-demand pricing (~$0.25 per million reads). No Bedrock calls happen during a skip by construction (the hash check precedes any model invocation). The constant beats wall-clock-derived estimates because skip duration is dominated by Python startup, which is not an AWS cost. Revisit the formula if/when stages start doing materially-expensive input-collection work *before* the hash check.
+- **A skip still writes a row.** `status: "skipped"`, `skip_reason` set, `duration_ms` measured (wall clock from hash compute through lookup), `cost_observed_usd` populated. The point of distinguishing skips is observability, which collapses if skipped runs are invisible — dashboards need to split "we spent $X on real work, $Y on skips that correctly detected hash matches." A skip that emits no row is the same as no skip at all.
+- **Skip cost formula** (v1, intentionally simple): `cost_observed_usd = 0.0000003` per skip — one DynamoDB `GetItem` of <1KB at on-demand pricing (~$0.25 per million reads). No Bedrock calls happen during a skip by construction (the hash check precedes any model invocation). The constant beats wall-clock-derived estimates because skip duration is dominated by Python startup, which is not an AWS cost. Revisit the formula if/when stages start doing materially-expensive input-collection work *before* the hash check.
 - Memoization, not Bazel-strict reproducibility. LLM stochasticity is its own concern; suppressing it isn't worth the engineering.
 - **Model IDs are part of `input_hash`.** Centralizing the pinned Bedrock model IDs (residual item, below) is not pure hygiene — it's a precondition for `input_hash` correctness. If a stage's model ID changes, the input space changes, so the hash must change. Each stage's `input_hash` schema explicitly includes the model ID(s) it depends on.
 
@@ -246,7 +246,7 @@ SK: "RUN#{started_at}"
 
 - **G-17 cleanly**: the assignment stage's `input_hash` includes `hierarchy_version`. A hierarchy change invalidates assignments naturally. The "unassigned vs unprocessed" distinction stops mattering — the question is "was this PMID processed against the current hierarchy_version yet?"
 - **G-3**: "what changed since last run" is now a DynamoDB query, not operator memory.
-- **G-14** (cost telemetry was unaggregated): `cost_estimate_usd` per stage rolls up cleanly per run.
+- **G-14** (cost telemetry was unaggregated): `cost_observed_usd` per stage rolls up cleanly per run.
 
 ---
 

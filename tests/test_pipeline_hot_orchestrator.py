@@ -162,6 +162,56 @@ def test_write_skipped_for_lock_carries_correct_skip_reason():
     assert captured[0]["PK"] == "STAGE#hot_run#GLOBAL"
 
 
+# ---------- lock-collision: handler emits WARN alert (TF-04) ----------
+
+
+def test_handler_lock_collision_dispatches_warn_alert(monkeypatch):
+    """D-11: lock collision must emit a WARN alert (Slack) in addition to
+    writing the STAGE# skipped row. logger.warning alone is not enough —
+    the severity table promises a Slack notification on every collision.
+    """
+    # Stub the boto3 SFN client so is_state_machine_running returns True.
+    fake_sfn = MagicMock()
+    fake_sfn.list_executions.return_value = {
+        "executions": [
+            {"executionArn": "arn:aws:states:::execution:other-run"},
+        ],
+    }
+    fake_boto3 = MagicMock()
+    fake_boto3.client.return_value = fake_sfn
+    monkeypatch.setitem(__import__("sys").modules, "boto3", fake_boto3)
+
+    # Stub the DDB table so the skipped row write doesn't blow up.
+    fake_table = MagicMock()
+    monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
+
+    # Capture the dispatch call.
+    dispatch_calls: list = []
+    monkeypatch.setattr(
+        orch.alert,
+        "dispatch",
+        lambda *a, **kw: dispatch_calls.append((a, kw)) or {"slack": True, "issue": False},
+    )
+
+    result = orch.handler(
+        {
+            "state_machine_arn": "arn:aws:states:::stateMachine:reciterai-hot-path",
+            "execution_arn": "arn:aws:states:::execution:self-run",
+            "run_id": "smoke-1",
+        }
+    )
+
+    assert result["status"] == "skipped"
+    assert result["skip_reason"] == orch.SKIP_REASON_LOCKED
+    assert len(dispatch_calls) == 1, "expected exactly one alert.dispatch call"
+    args, kwargs = dispatch_calls[0]
+    # Positional: severity, message, context
+    assert args[0] == "WARN"
+    assert "prior execution" in args[1].lower() or "running" in args[1].lower()
+    ctx = args[2]
+    assert ctx["skip_reason"] == orch.SKIP_REASON_LOCKED
+
+
 # ---------- build_state_machine_input ----------
 
 

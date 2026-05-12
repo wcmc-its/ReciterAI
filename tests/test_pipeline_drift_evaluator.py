@@ -244,6 +244,196 @@ def test_to_dynamodb_item_carries_triggered_thresholds_list():
 # ---------- run_evaluation persistence ----------
 
 
+# ---------- handler: Lambda entry point + alert wire-up (Clause 4 fix) ----------
+
+
+def _make_paged_scan(items_by_call: list[list[dict]]):
+    """Return a side_effect that yields successive scan responses."""
+    calls = iter(items_by_call)
+
+    def _scan(**kwargs):
+        try:
+            return {"Items": next(calls), "LastEvaluatedKey": None}
+        except StopIteration:
+            return {"Items": [], "LastEvaluatedKey": None}
+
+    return _scan
+
+
+def test_handler_dispatches_no_alert_on_ok_severity(monkeypatch):
+    """Empty window → severity=OK → no alert.dispatch call."""
+    from pipeline_drift import evaluator
+
+    table = MagicMock()
+    table.scan.return_value = {"Items": [], "LastEvaluatedKey": None}
+    table.put_item.return_value = {}
+
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_table", lambda *a, **kw: table
+    )
+    monkeypatch.setattr(
+        "utils.event_records.load_thresholds",
+        lambda *a, **kw: {
+            "drift_window_days": 14,
+            "drift_uncovered_rate_alert": 0.05,
+            "drift_low_confidence_topic_max": 50,
+        },
+    )
+
+    dispatched: list = []
+    monkeypatch.setattr(
+        "pipeline_common.alert.dispatch",
+        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": False, "issue": False},
+    )
+
+    result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
+    assert result["severity"] == "OK"
+    assert dispatched == []
+
+
+def test_handler_dispatches_warn_when_low_band_events_exist(monkeypatch):
+    """One uncovered PMID in window with 100 new PMIDs → 1% rate → WARN."""
+    from pipeline_drift import evaluator
+
+    table = MagicMock()
+
+    def scan(**kwargs):
+        fexp = kwargs["FilterExpression"]
+        eav = kwargs["ExpressionAttributeValues"]
+        if eav.get(":p") == "UNCOVERED_PMID#":
+            return {"Items": [_uncov("p1", NOW - 1 * DAY)], "LastEvaluatedKey": None}
+        if eav.get(":p") == "LOW_CONFIDENCE_ASSIGNMENT#":
+            return {"Items": [], "LastEvaluatedKey": None}
+        if ":failed" in eav:
+            return {"Items": [], "LastEvaluatedKey": None}
+        if ":stage" in eav and eav.get(":stage") == "STAGE#score_publications#":
+            # 100 new PMIDs aggregate
+            return {
+                "Items": [
+                    {
+                        "PK": "STAGE#score_publications#GLOBAL",
+                        "status": "complete",
+                        "records_written": 100,
+                    }
+                ],
+                "LastEvaluatedKey": None,
+            }
+        return {"Items": [], "LastEvaluatedKey": None}
+
+    table.scan.side_effect = scan
+    table.put_item.return_value = {}
+
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_table", lambda *a, **kw: table
+    )
+    monkeypatch.setattr(
+        "utils.event_records.load_thresholds",
+        lambda *a, **kw: {
+            "drift_window_days": 14,
+            "drift_uncovered_rate_alert": 0.05,
+            "drift_low_confidence_topic_max": 50,
+        },
+    )
+
+    dispatched: list = []
+    monkeypatch.setattr(
+        "pipeline_common.alert.dispatch",
+        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": True, "issue": False},
+    )
+
+    result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
+    assert result["severity"] == "WARN"
+    assert len(dispatched) == 1
+    args, kwargs = dispatched[0]
+    assert args[0] == "WARN"
+    assert kwargs.get("open_issue") is False
+
+
+def test_handler_dispatches_error_with_open_issue_on_cold_run_recommended(monkeypatch):
+    """Uncovered rate ≥ 5% → ERROR + open_issue=True."""
+    from pipeline_drift import evaluator
+
+    table = MagicMock()
+
+    def scan(**kwargs):
+        eav = kwargs["ExpressionAttributeValues"]
+        if eav.get(":p") == "UNCOVERED_PMID#":
+            # 6 uncovered events in window
+            return {
+                "Items": [_uncov(f"p{i}", NOW - 1 * DAY) for i in range(6)],
+                "LastEvaluatedKey": None,
+            }
+        if eav.get(":p") == "LOW_CONFIDENCE_ASSIGNMENT#":
+            return {"Items": [], "LastEvaluatedKey": None}
+        if ":failed" in eav:
+            return {"Items": [], "LastEvaluatedKey": None}
+        if eav.get(":stage") == "STAGE#score_publications#":
+            # 100 new PMIDs aggregate → 6/100 = 6% > 5%
+            return {
+                "Items": [
+                    {
+                        "PK": "STAGE#score_publications#GLOBAL",
+                        "status": "complete",
+                        "records_written": 100,
+                    }
+                ],
+                "LastEvaluatedKey": None,
+            }
+        return {"Items": [], "LastEvaluatedKey": None}
+
+    table.scan.side_effect = scan
+    table.put_item.return_value = {}
+
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_table", lambda *a, **kw: table
+    )
+    monkeypatch.setattr(
+        "utils.event_records.load_thresholds",
+        lambda *a, **kw: {
+            "drift_window_days": 14,
+            "drift_uncovered_rate_alert": 0.05,
+            "drift_low_confidence_topic_max": 50,
+        },
+    )
+
+    dispatched: list = []
+    monkeypatch.setattr(
+        "pipeline_common.alert.dispatch",
+        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": True, "issue": True},
+    )
+
+    result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
+    assert result["severity"] == "ERROR"
+    assert result["cold_run_recommended"] is True
+    assert len(dispatched) == 1
+    args, kwargs = dispatched[0]
+    assert args[0] == "ERROR"
+    assert "cold run recommended" in args[1].lower()
+    assert kwargs.get("open_issue") is True
+    # Context payload carries triage info
+    ctx = args[2]
+    assert "triggered_thresholds" in ctx
+    assert ctx["cold_run_recommended"] is True
+
+
+def test_count_new_pmids_dedupes_per_pmid_rows():
+    """Per-PMID STAGE#score_publications#pmid:* rows count distinct pmid."""
+    from pipeline_drift.evaluator import _count_new_pmids_since
+
+    table = MagicMock()
+    table.scan.return_value = {
+        "Items": [
+            {"PK": "STAGE#score_publications#pmid:1", "pmid": "1", "status": "complete"},
+            {"PK": "STAGE#score_publications#pmid:1", "pmid": "1", "status": "complete"},
+            {"PK": "STAGE#score_publications#pmid:2", "pmid": "2", "status": "failed"},
+            {"PK": "STAGE#score_publications#GLOBAL", "status": "complete", "records_written": 100},
+        ],
+        "LastEvaluatedKey": None,
+    }
+    # max(distinct pmid count=2, aggregate=100) = 100
+    assert _count_new_pmids_since(table, since_iso="2026-04-28T00:00:00Z") == 100
+
+
 def test_run_evaluation_writes_one_drift_row():
     captured: list = []
     table = MagicMock()

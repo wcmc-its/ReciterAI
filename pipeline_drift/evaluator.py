@@ -245,3 +245,200 @@ def run_evaluation(
         "low_confidence_max_topic": eval_.low_confidence_max_topic,
         "low_confidence_max_count": eval_.low_confidence_max_count,
     }
+
+
+# ---------------------------------------------------------------------------
+# Production DDB query seams
+# ---------------------------------------------------------------------------
+
+
+def _scan_by_pk_prefix(
+    table: Any, *, pk_prefix: str, since_iso: str
+) -> list[dict]:
+    """Scan a single-table item type filtered by PK prefix + created_at.
+
+    Used to collect UNCOVERED_PMID# and LOW_CONFIDENCE_ASSIGNMENT# rows
+    within the rolling drift window. STAGE#…failed uses a different
+    timestamp field so it has its own helper below.
+    """
+    kwargs = {
+        "FilterExpression": "begins_with(#pk, :p) AND created_at >= :since",
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {":p": pk_prefix, ":since": since_iso},
+    }
+    out: list[dict] = []
+    last_key = None
+    while True:
+        if last_key is not None:
+            kwargs["ExclusiveStartKey"] = last_key
+        resp = table.scan(**kwargs)
+        out.extend(resp.get("Items", []))
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key:
+            break
+    return out
+
+
+def _scan_stage_failed_since(table: Any, *, since_iso: str) -> list[dict]:
+    """Collect STAGE#*#failed rows in window.
+
+    Filters on started_at (STAGE# rows use started_at, not created_at).
+    """
+    kwargs = {
+        "FilterExpression": (
+            "begins_with(#pk, :stage) AND #status = :failed AND started_at >= :since"
+        ),
+        "ExpressionAttributeNames": {"#pk": "PK", "#status": "status"},
+        "ExpressionAttributeValues": {
+            ":stage": "STAGE#",
+            ":failed": "failed",
+            ":since": since_iso,
+        },
+    }
+    out: list[dict] = []
+    last_key = None
+    while True:
+        if last_key is not None:
+            kwargs["ExclusiveStartKey"] = last_key
+        resp = table.scan(**kwargs)
+        out.extend(resp.get("Items", []))
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key:
+            break
+    return out
+
+
+def _count_new_pmids_since(table: Any, *, since_iso: str) -> int:
+    """Denominator for uncovered_rate: distinct PMIDs that landed via
+    score_publications STAGE# rows in window.
+
+    Counts distinct values of the `pmid` field from
+    STAGE#score_publications#pmid:* rows. The score writer emits one
+    failed row per failing PMID and one aggregated complete row per
+    run — both carry a `pmid` attribute we can dedupe on. When the
+    score writer emits only a global aggregate row (no per-PMID rows),
+    we fall back to counting UNCOVERED_PMID# rows plus the
+    `records_written` aggregate from the latest complete row.
+    """
+    kwargs = {
+        "FilterExpression": (
+            "begins_with(#pk, :stage) AND started_at >= :since"
+        ),
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {
+            ":stage": "STAGE#score_publications#",
+            ":since": since_iso,
+        },
+    }
+    seen: set[str] = set()
+    aggregate_count = 0
+    last_key = None
+    while True:
+        if last_key is not None:
+            kwargs["ExclusiveStartKey"] = last_key
+        resp = table.scan(**kwargs)
+        for item in resp.get("Items", []):
+            pmid = item.get("pmid")
+            if pmid:
+                seen.add(str(pmid))
+            else:
+                # Whole-corpus aggregate row: use records_written.
+                rw = item.get("records_written")
+                if rw and item.get("status") == "complete":
+                    try:
+                        aggregate_count = max(aggregate_count, int(rw))
+                    except (TypeError, ValueError):
+                        pass
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key:
+            break
+    return max(len(seen), aggregate_count)
+
+
+# ---------------------------------------------------------------------------
+# Lambda entry point
+# ---------------------------------------------------------------------------
+
+
+def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
+    """EventBridge daily-cron entry point.
+
+    Event fields (all optional):
+        thresholds_path: override default config/thresholds.json
+        now:             ISO-8601 override for `now` (test injection)
+
+    Production flow:
+      1. Load thresholds from config/thresholds.json.
+      2. Scan three event-row types within drift_window_days.
+      3. Count new PMIDs in window for the uncovered_rate denominator.
+      4. Run evaluator + persist DRIFT# row.
+      5. Dispatch a severity-tagged alert via pipeline_common.alert.
+
+    OK → no alert. WARN → Slack only. ERROR → Slack + GitHub issue
+    (open_issue=True; the dispatcher dedupes on the open drift-alert
+    label so daily fires don't spam new issues).
+    """
+    # Local imports keep cold-start fast and let tests avoid pulling boto3.
+    from utils.dynamodb_helpers import get_table, TABLE_NAME
+    from utils.event_records import load_thresholds
+    from pipeline_common import alert
+
+    event = event or {}
+    thresholds_path = event.get("thresholds_path")
+    now = (
+        _parse_iso(event["now"])
+        if event.get("now")
+        else datetime.now(timezone.utc)
+    )
+
+    thresholds = load_thresholds(thresholds_path)
+    window_days = int(thresholds.get("drift_window_days", 14))
+    since = now - timedelta(days=window_days)
+    since_iso = since.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+    table = get_table(TABLE_NAME)
+
+    uncovered_rows = _scan_by_pk_prefix(
+        table, pk_prefix="UNCOVERED_PMID#", since_iso=since_iso
+    )
+    low_confidence_rows = _scan_by_pk_prefix(
+        table, pk_prefix="LOW_CONFIDENCE_ASSIGNMENT#", since_iso=since_iso
+    )
+    stage_failed_rows = _scan_stage_failed_since(table, since_iso=since_iso)
+    new_pmid_count = _count_new_pmids_since(table, since_iso=since_iso)
+
+    result = run_evaluation(
+        table=table,
+        uncovered_rows=uncovered_rows,
+        low_confidence_rows=low_confidence_rows,
+        stage_failed_rows=stage_failed_rows,
+        new_pmid_count=new_pmid_count,
+        thresholds=thresholds,
+        now=now,
+    )
+
+    severity = result["severity"]
+    if severity in ("WARN", "ERROR"):
+        cold_run = result["cold_run_recommended"]
+        message = (
+            "Drift threshold tripped"
+            + (" — cold run recommended" if cold_run else "")
+            + f": {', '.join(result['triggered_thresholds']) or 'no specific threshold'}"
+        )
+        alert.dispatch(
+            severity,  # type: ignore[arg-type]
+            message,
+            {
+                "source": "pipeline_drift.evaluator",
+                "window_days": window_days,
+                "window_start": since_iso,
+                "uncovered_rate": result["uncovered_rate"],
+                "low_confidence_max_topic": result["low_confidence_max_topic"],
+                "low_confidence_max_count": result["low_confidence_max_count"],
+                "triggered_thresholds": result["triggered_thresholds"],
+                "cold_run_recommended": cold_run,
+            },
+            open_issue=cold_run,
+        )
+
+    return result

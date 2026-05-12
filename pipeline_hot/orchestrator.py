@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,7 @@ from utils.stage_records import (
     build_skipped_record,
     write_skipped,
 )
+from pipeline_common import alert
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +119,9 @@ def resolve_delta_pmids(
     if last_run_at is None:
         # Bootstrap window. We refuse to fall back further to keep
         # delta-set sizes bounded for state-machine cost.
-        lookback = datetime.now(timezone.utc).replace(microsecond=0)
-        lookback = lookback.replace(
-            day=max(1, lookback.day - _BOOTSTRAP_LOOKBACK_DAYS)
+        lookback = (
+            datetime.now(timezone.utc).replace(microsecond=0)
+            - timedelta(days=_BOOTSTRAP_LOOKBACK_DAYS)
         )
         since_iso = lookback.isoformat(timespec="seconds").replace("+00:00", "Z")
         logger.warning(
@@ -263,6 +264,19 @@ def handler(event: dict, context: Any = None) -> dict:
             logger.warning(
                 "Hot path skipped — prior execution still RUNNING. "
                 f"state_machine_arn={state_machine_arn}"
+            )
+            # D-11: WARN alert on lock collision so repeated collisions
+            # become visible. Single-collision noise is acceptable; the
+            # severity table marks this WARN (Slack-only, no GH issue).
+            alert.dispatch(
+                "WARN",
+                "Hot path skipped — prior execution still RUNNING",
+                {
+                    "source": "pipeline_hot.orchestrator",
+                    "skip_reason": SKIP_REASON_LOCKED,
+                    "state_machine_arn": state_machine_arn,
+                    "started_at": started_at,
+                },
             )
             return {
                 "status": "skipped",

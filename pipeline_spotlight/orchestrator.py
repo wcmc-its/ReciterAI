@@ -48,6 +48,7 @@ from utils.stage_records import (
 )
 
 from pipeline_spotlight.dirty_gate import GateResult, evaluate_gate
+from pipeline_common import alert
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,66 @@ def resolve_last_spotlight_complete(table: Any) -> str | None:
         if item.get("status") == STATUS_COMPLETE:
             return item.get("started_at")
     return None
+
+
+def resolve_new_pmid_assignments(
+    table: Any,
+    *,
+    since_iso: str | None,
+) -> dict[str, list[str]]:
+    """Discover (pmid -> [subtopic_id, ...]) for PMIDs whose TOPIC#
+    activity rows landed since `since_iso`.
+
+    Uses the same scan pattern as `spotlight.pool_ranker.rank_pool`
+    (FilterExpression `begins_with(PK, "TOPIC#")`) but additionally
+    filters on `created_at >= since_iso` to scope to landed-since rows.
+    `since_iso=None` means "no prior spotlight" — return everything
+    (caller will likely regen unconditionally).
+
+    The returned mapping is what `evaluate_gate` consumes.
+    """
+    pk_prefix = "TOPIC#"
+    kwargs: dict[str, Any] = {
+        "FilterExpression": "begins_with(#pk, :p)",
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {":p": pk_prefix},
+    }
+    if since_iso:
+        kwargs["FilterExpression"] += " AND created_at >= :since"
+        kwargs["ExpressionAttributeValues"][":since"] = since_iso
+
+    assignments: dict[str, list[str]] = {}
+    last_key = None
+    while True:
+        if last_key is not None:
+            kwargs["ExclusiveStartKey"] = last_key
+        resp = table.scan(**kwargs)
+        for item in resp.get("Items", []):
+            pmid = item.get("pmid")
+            subtopic_id = item.get("primary_subtopic_id")
+            if not pmid or not subtopic_id:
+                continue
+            assignments.setdefault(str(pmid), []).append(str(subtopic_id))
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key:
+            break
+    return assignments
+
+
+def resolve_top_subtopic_ids(
+    *,
+    pool_size: int = 50,
+    rank_pool_fn: Callable | None = None,
+) -> list[str]:
+    """Return the top-N subtopic_ids from `spotlight.pool_ranker.rank_pool`.
+
+    `rank_pool_fn` is injected for testability and defaults to the
+    production ranker at call time.
+    """
+    if rank_pool_fn is None:
+        from spotlight.pool_ranker import rank_pool as rank_pool_fn  # type: ignore
+    entries = rank_pool_fn(pool_size=pool_size)
+    return [getattr(e, "subtopic_id", None) or e["subtopic_id"] for e in entries]
 
 
 # ---------------------------------------------------------------------------
@@ -226,35 +287,57 @@ def run_gate(
 def handler(event: dict, context: Any = None) -> dict:
     """Lambda entry point for the monthly spotlight cron.
 
-    Expected event (all optional — sensible defaults for cron invocation):
+    Event (all fields optional; cron invocation passes none of them):
         {
           "new_pmid_assignments": {...},   # test injection only
-          "top_subtopic_ids":     [...]    # test injection only
+          "top_subtopic_ids":     [...],   # test injection only
+          "force":                false    # if true, bypass the dirty gate
         }
 
-    The production path queries DynamoDB for both. For Phase 10 T9 the
-    DDB query helpers are stubs callers can override; T10+ wires them
-    to the real STAGE# index + pool_ranker.
+    Production path:
+      1. Resolve last spotlight complete -> since_iso.
+      2. Scan TOPIC# rows since since_iso -> {pmid: [subtopic_id,...]}.
+      3. Rank the top-50 via spotlight.pool_ranker.
+      4. Run the dirty gate; persist STAGE# row.
+
+    Failures route to alert.dispatch(severity='ERROR', open_issue=True)
+    per D-11. Successful gate skips and successful regens are silent;
+    operators inspect the STAGE# row via the dashboard.
     """
     table = get_table(TABLE_NAME)
     thresholds = load_thresholds()
 
     new_pmid_assignments = event.get("new_pmid_assignments")
     top_subtopic_ids = event.get("top_subtopic_ids")
-    if new_pmid_assignments is None or top_subtopic_ids is None:
-        # Production wiring: query DynamoDB + pool_ranker. Left as a
-        # deliberate seam: T9 ships the gate semantics + STAGE# wrap;
-        # the precise STAGE# index queries land alongside T10's drift
-        # evaluator since both consume the same STAGE# corpus.
-        raise NotImplementedError(
-            "Spotlight production DDB wiring lands in T10/T12 alongside the "
-            "shared STAGE# query helpers; until then, pass "
-            "new_pmid_assignments + top_subtopic_ids in the event."
-        )
 
-    return run_gate(
-        table=table,
-        new_pmid_assignments=new_pmid_assignments,
-        top_subtopic_ids=top_subtopic_ids,
-        thresholds=thresholds,
-    )
+    if new_pmid_assignments is None:
+        last_complete_at = resolve_last_spotlight_complete(table)
+        new_pmid_assignments = resolve_new_pmid_assignments(
+            table, since_iso=last_complete_at
+        )
+    if top_subtopic_ids is None:
+        top_subtopic_ids = resolve_top_subtopic_ids()
+
+    try:
+        return run_gate(
+            table=table,
+            new_pmid_assignments=new_pmid_assignments,
+            top_subtopic_ids=top_subtopic_ids,
+            thresholds=thresholds,
+        )
+    except Exception as exc:
+        # run_gate already writes the failed STAGE# row before re-raising.
+        # Surface the failure to operators per D-11.
+        alert.dispatch(
+            "ERROR",
+            f"Spotlight refresh failed: {type(exc).__name__}",
+            {
+                "source": "pipeline_spotlight.orchestrator",
+                "error_type": type(exc).__name__,
+                "error_message": str(exc)[:500],
+                "new_pmid_count": len(new_pmid_assignments),
+                "top_subtopic_count": len(top_subtopic_ids),
+            },
+            open_issue=True,
+        )
+        raise
