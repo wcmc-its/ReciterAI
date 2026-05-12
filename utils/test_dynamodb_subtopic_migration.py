@@ -164,3 +164,49 @@ def test_public_api_surface():
     for name in expected:
         assert hasattr(m, name), f"missing export: {name}"
         assert callable(getattr(m, name))
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 Task 1 — Test 1: hierarchy_version stamped in UpdateItem
+# ---------------------------------------------------------------------------
+
+
+def test_p11_update_activity_subtopics_stamps_hierarchy_version(mock_table):
+    """hierarchy_version required kwarg appears in UpdateExpression + EAV."""
+    from utils.dynamodb_subtopic_migration import update_activity_subtopics
+
+    update_activity_subtopics(
+        pk="TOPIC#aging_geroscience",
+        sk="SCORE#0850#ACTIVITY#pmid_12345#cwid_abc",
+        subtopic_ids=["s1", "s2"],
+        primary_subtopic_id="s1",
+        confidences={"s1": 0.87, "s2": 0.42},
+        hierarchy_version="v2026-06-01",
+    )
+
+    assert mock_table.update_item.call_count == 1
+    kwargs = mock_table.update_item.call_args.kwargs
+    # hierarchy_version must appear in UpdateExpression
+    assert "hierarchy_version = :hv" in kwargs["UpdateExpression"]
+    # Value must flow through ExpressionAttributeValues
+    values = kwargs["ExpressionAttributeValues"]
+    assert values[":hv"] == "v2026-06-01"
+
+
+def test_p11_update_activity_subtopics_existing_fields_still_present(mock_table):
+    """All original fields (sids, pid, confs) still in the UpdateExpression."""
+    from utils.dynamodb_subtopic_migration import update_activity_subtopics
+
+    update_activity_subtopics(
+        pk="TOPIC#x",
+        sk="SCORE#0500#ACTIVITY#pmid_1#cwid_a",
+        subtopic_ids=["s1"],
+        primary_subtopic_id="s1",
+        confidences={"s1": 0.5},
+        hierarchy_version="v2026-06-01",
+    )
+    kwargs = mock_table.update_item.call_args.kwargs
+    expr = kwargs["UpdateExpression"]
+    assert "subtopic_ids = :sids" in expr
+    assert "primary_subtopic_id = :pid" in expr
+    assert "subtopic_confidences = :confs" in expr

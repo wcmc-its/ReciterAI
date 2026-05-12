@@ -399,3 +399,88 @@ def test_14_update_history_no_publish_id_interpolation_into_expression():
     # But it MUST appear in ExpressionAttributeValues.
     eav = client.update_calls[0]["ExpressionAttributeValues"]
     assert eav[":pid"] == {"S": suspect}
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 Task 1 tests — hierarchy_version plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_p11_fetch_history_builds_versioned_pk():
+    """Test 2: fetch_history with hierarchy_version builds PK with version segment."""
+    from spotlight.rotation_selector import fetch_history
+
+    items_by_pk = {
+        "SPOTLIGHT_HISTORY#v2026-06-01#sub_a": {
+            "PK": {"S": "SPOTLIGHT_HISTORY#v2026-06-01#sub_a"},
+            "SK": {"S": "STATE"},
+            "last_shown_at": {"S": "2026-05-01T10:00:00Z"},
+        },
+        "SPOTLIGHT_HISTORY#v2026-06-01#sub_b": {
+            "PK": {"S": "SPOTLIGHT_HISTORY#v2026-06-01#sub_b"},
+            "SK": {"S": "STATE"},
+            "last_shown_at": {"S": "2026-04-01T10:00:00Z"},
+        },
+    }
+    client = StubBatchGetClient(items_by_pk=items_by_pk)
+    result = fetch_history(client, ["sub_a", "sub_b"], hierarchy_version="v2026-06-01")
+
+    # Verify keys sent to DDB had the version segment
+    assert len(client.calls) == 1
+    from spotlight.rotation_selector import TABLE_NAME
+    keys_sent = client.calls[0][TABLE_NAME]["Keys"]
+    pks_sent = [k["PK"]["S"] for k in keys_sent]
+    assert "SPOTLIGHT_HISTORY#v2026-06-01#sub_a" in pks_sent
+    assert "SPOTLIGHT_HISTORY#v2026-06-01#sub_b" in pks_sent
+
+    # Verify result maps subtopic_id (last segment) to last_shown_at
+    assert result.get("sub_a") == "2026-05-01T10:00:00Z"
+    assert result.get("sub_b") == "2026-04-01T10:00:00Z"
+
+
+def test_p11_ingest_responses_rsplit_parser():
+    """Test 3: _ingest_responses uses rsplit('#', 1) to extract subtopic_id from new PK shape."""
+    from spotlight.rotation_selector import _ingest_responses, TABLE_NAME
+
+    # Simulate response with versioned PK
+    resp = {
+        "Responses": {
+            TABLE_NAME: [
+                {
+                    "PK": {"S": "SPOTLIGHT_HISTORY#v2026-06-01#sub_a"},
+                    "SK": {"S": "STATE"},
+                    "last_shown_at": {"S": "2026-05-01T10:00:00Z"},
+                },
+                {
+                    "PK": {"S": "SPOTLIGHT_HISTORY#v2026-06-01#sub_with#hash"},
+                    "SK": {"S": "STATE"},
+                    "last_shown_at": {"S": "2026-04-15T10:00:00Z"},
+                },
+            ]
+        }
+    }
+    result: dict = {}
+    _ingest_responses(resp, result)
+
+    # rsplit('#', 1)[-1] takes the LAST segment
+    assert result.get("sub_a") == "2026-05-01T10:00:00Z"
+    assert result.get("sub_with#hash") == "2026-04-15T10:00:00Z"
+
+
+def test_p11_update_history_versioned_pk():
+    """Test 4: update_history with hierarchy_version writes versioned PK."""
+    from spotlight.history_writer import update_history
+    from spotlight.rotation_selector import Selection
+
+    selections = [
+        Selection(
+            entry=_make_pool_entry("sub_a", "parent_a", 80.0),
+            sel_score=80.0,
+            last_shown_at=None,
+        ),
+    ]
+    client = StubUpdateClient()
+    update_history(client, selections, publish_id="v2026-06-01", hierarchy_version="v2026-06-01")
+    assert len(client.update_calls) == 1
+    pk_val = client.update_calls[0]["Key"]["PK"]["S"]
+    assert pk_val == "SPOTLIGHT_HISTORY#v2026-06-01#sub_a"
