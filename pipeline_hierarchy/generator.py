@@ -38,25 +38,34 @@ def _sort_topics(hierarchy: dict[str, Any]) -> dict[str, Any]:
 def build_hierarchy(
     *,
     source_path: Path = SOURCE_HIERARCHY,
+    hierarchy: dict[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     """
-    Load hierarchy_full.json, re-stamp generated_at, ensure see_also, sort topics.
+    Build the canonical in-memory hierarchy: re-stamp generated_at, ensure
+    see_also, sort topic keys.
 
     Args:
-        source_path: path to the pre-bundled hierarchy_full.json.
+        source_path: path to a pre-bundled hierarchy_full.json. Ignored when
+                     `hierarchy` is provided.
+        hierarchy: in-memory hierarchy dict (e.g. from
+                   `pipeline_hierarchy.bundler.bundle`). Preferred call shape now
+                   that the bundler regenerates this on every publish.
         generated_at: ISO8601 timestamp to stamp; if None, uses now() in UTC.
                       Pinning this is the only way to get a reproducible sha256
                       across runs (used by the reproducibility test).
 
     Returns the in-memory hierarchy dict, ready for serialization.
     """
-    raw = json.loads(source_path.read_text(encoding="utf-8"))
+    if hierarchy is None:
+        hierarchy = json.loads(source_path.read_text(encoding="utf-8"))
+    else:
+        hierarchy = dict(hierarchy)  # shallow copy so re-stamping doesn't mutate caller
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    raw["generated_at"] = generated_at
-    raw.setdefault("see_also", [])
-    return _sort_topics(raw)
+    hierarchy["generated_at"] = generated_at
+    hierarchy.setdefault("see_also", [])
+    return _sort_topics(hierarchy)
 
 
 def validate(hierarchy: dict[str, Any], schema_path: Path = SCHEMA_PATH) -> None:
@@ -67,6 +76,7 @@ def validate(hierarchy: dict[str, Any], schema_path: Path = SCHEMA_PATH) -> None
 def generate(
     *,
     source_path: Path = SOURCE_HIERARCHY,
+    hierarchy: dict[str, Any] | None = None,
     schema_path: Path = SCHEMA_PATH,
     version: str | None = None,
     generated_at: str | None = None,
@@ -75,6 +85,10 @@ def generate(
     Produce the three artifact components (hierarchy bytes, schema bytes, manifest).
 
     Args:
+        source_path: pre-bundled file to read when `hierarchy` is not provided.
+        hierarchy: in-memory hierarchy dict (e.g. from
+                   `pipeline_hierarchy.bundler.bundle`). When set, `source_path`
+                   is ignored.
         version: artifact version label (e.g. "v2026-05-11"); defaults to
                  "v{ISO-date}" based on the resolved generated_at.
         generated_at: see build_hierarchy().
@@ -82,7 +96,11 @@ def generate(
     Returns:
         (hierarchy_bytes, schema_bytes, manifest_dict)
     """
-    hierarchy = build_hierarchy(source_path=source_path, generated_at=generated_at)
+    hierarchy = build_hierarchy(
+        source_path=source_path,
+        hierarchy=hierarchy,
+        generated_at=generated_at,
+    )
     validate(hierarchy, schema_path=schema_path)
 
     hierarchy_bytes = _canonical_serialize(hierarchy)

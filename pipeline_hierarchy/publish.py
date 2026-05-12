@@ -21,6 +21,7 @@ import json
 import sys
 from pathlib import Path
 
+from pipeline_hierarchy.bundler import MissingUIFieldsError, bundle
 from pipeline_hierarchy.generator import REPO_ROOT, generate
 from utils.s3_client import S3HierarchyClient
 
@@ -56,9 +57,29 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Artifact version label (default: v{ISO-date} from generated_at).",
     )
+    parser.add_argument(
+        "--no-rebuild",
+        action="store_true",
+        help=(
+            "Skip the per-topic bundler and read the checked-in "
+            "hierarchy_full.json directly. Escape hatch for debugging only — "
+            "the default rebuilds so a stale bundle can never reach SPS."
+        ),
+    )
     args = parser.parse_args(argv)
 
-    hierarchy_bytes, schema_bytes, manifest = generate(version=args.version)
+    if args.no_rebuild:
+        print("[publish] --no-rebuild set; reading checked-in hierarchy_full.json")
+        hierarchy_bytes, schema_bytes, manifest = generate(version=args.version)
+    else:
+        try:
+            hierarchy_dict = bundle()
+        except MissingUIFieldsError as exc:
+            print(f"[publish] bundler refused to ship stale data: {exc}", file=sys.stderr)
+            return 2
+        hierarchy_bytes, schema_bytes, manifest = generate(
+            hierarchy=hierarchy_dict, version=args.version
+        )
     version = manifest["version"]
 
     out_dir = REPO_ROOT / "out" / "hierarchy" / version

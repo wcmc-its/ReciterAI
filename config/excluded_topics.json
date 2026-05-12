@@ -1,0 +1,15 @@
+{
+  "_comment": "Frozen list of taxonomy topics excluded from the published hierarchy. Carry-forward from the original Phase 5 hand-crafted hierarchy_full.json. To be replaced by a query against the processing tracker once that source exists (see issue #4 DoD item 4).",
+  "excluded_topics": [
+    {
+      "id": "implementation_science",
+      "reason": "clustering quality fail",
+      "activity_count": 1314
+    },
+    {
+      "id": "oral_craniofacial_health",
+      "reason": "below cold-start floor",
+      "activity_count": 25
+    }
+  ]
+}
