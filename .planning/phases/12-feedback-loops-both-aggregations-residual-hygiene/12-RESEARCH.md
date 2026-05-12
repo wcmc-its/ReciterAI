@@ -727,37 +727,28 @@ The gate must be IMPORTED at the publish stage so the `@register_gate` decorator
 | A6 | SPS does not currently consume `cwid_subtopic_counts.csv` | Runtime State Inventory | Direct rename without dual-emission breaks the SPS pipeline. Mitigation: ask SPS team before committing the rename. |
 | A7 | `publish_id` has cwid embedded in a parseable position | Code Examples (CRITIC_REJECT# write) | If the format is opaque, we need a separate `cwid` parameter passed into `run_critic_loop` (currently it accepts `publish_id` only). Confirm against `pipeline_spotlight/orchestrator.py`. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the SPS pipeline read `cwid_subtopic_counts.csv` today?** (D-13 audit)
+   **RESOLVED (2026-05-12):** Audit deferred per CONTEXT D-13 safe-path default. Plan-aggregations Task 3 ships dual-name emission (both `cwid_subtopic_counts.csv` and `faculty_subtopic_counts_exclusive.csv`) for one cold-run cycle; old name dropped in a follow-up phase. Operator sign-off on SPS audit recorded in SUMMARY at phase close.
    - What we know: Three in-repo readers — `rollup_by_cwid.py:61`, `build_cwid_json.py:12`, `tests/test_rollup_incremental_parity.py:68`. No evidence of external (SPS) reads.
    - What's unclear: SPS source is not in this workspace; cannot grep it directly.
    - Recommendation: One-line ping to SPS team. Default to dual-name emission for one cold-run cycle to be safe (cheap insurance, removable in a follow-up phase).
 
 2. **Does the existing critic-write site at line 571 have access to `cwid`?**
-   - What we know: `run_critic_loop` receives `publish_id` (which is operator-controlled, likely `publish_{cwid}_{ts}` but planner must confirm).
-   - What's unclear: If `publish_id` does not embed `cwid` parseably, the critic loop needs an additional parameter.
-   - Recommendation: Verify by reading `pipeline_spotlight/orchestrator.py` where `publish_id` is minted. If not parseable, the planner adds a `cwid: str` parameter to `run_critic_loop`. Backwards-compatible since this is a new parameter.
+   **RESOLVED (2026-05-12) — escalated to user, awaiting decision:** Code inspection confirmed: `publish_id = f"v{date.today().isoformat()}"` (`backfill_spotlight.py:362`); `SubtopicMeta` carries only `subtopic_id/label/description/parent_topic_label` (`spotlight/sensitive_gate.py:38`); the critic loop is fundamentally per-subtopic, not per-cwid; `SPOTLIGHT_REVIEW#` is keyed on `(publish_id, subtopic_id)`. CONTEXT D-08's `CRITIC_REJECT#{cwid}#{pmid_set_hash}` keying does not map cleanly to the call site. Three options surfaced to user for resolution before planner revises: (α) re-key to `CRITIC_REJECT#{subtopic_id}#{pmid_set_hash}` and `SPOTLIGHT_DIAGNOSTIC#{subtopic_id}`; (β) fan-out per author CWID in `selected_papers` (write amplification); (γ) defer CRITIC_REJECT# producer to a later phase. Resolution pending in CONTEXT amendment.
 
 3. **Should the `feedback_sweep` cold stage write a STAGE# row?**
-   - What we know: Every other cold stage does (per Phase 9 substrate). The orchestrator wraps cold runs with `STAGE#cold_run#GLOBAL`.
-   - What's unclear: Operator CLI invocations of `python -m feedback sweep` — do those also write STAGE# rows, or only the cold-path invocation?
-   - Recommendation: Yes for both. Stage name `feedback_sweep`, scope `GLOBAL`. The `source_sweep_run_id` lives in the STAGE# row body for correlation. Following Phase 11's pattern.
+   **RESOLVED (2026-05-12):** Yes for both code paths. Stage name `feedback_sweep`, scope `GLOBAL`, `source_sweep_run_id` in row body for correlation. Plan-feedback-consumer Task 3 implements this following Phase 11 substrate pattern.
 
 4. **D-07's persistence-window read source — extend `DRIFT#evaluation` or re-scan raw events?**
-   - What we know: Current `DriftEvaluation.to_dynamodb_item()` persists only single max-topic per day; no per-topic dict.
-   - What's unclear: Whether the planner accepts an additive `per_topic_low_confidence` field on the row (small drift-evaluator extension despite CONTEXT saying "does not extend it"), or has the sweep re-scan `LOW_CONFIDENCE_ASSIGNMENT#` rows directly each invocation.
-   - Recommendation: Extend the row. Cheap, backwards-compatible (same pattern as Phase 11 `run_id`), and avoids duplicating scan logic that the drift evaluator already does. CONTEXT's "does not extend it" is best read as "does not change the count semantics or the alert ladder" — adding an additive field that the drift evaluator already computes in memory satisfies that constraint.
+   **RESOLVED (2026-05-12):** Extend additively with sparse `per_topic_low_confidence` dict. CONTEXT D-04 prohibition replaced (CR-2026-05-12) with precise additive-extension language; CONTEXT D-34 added to lock sparse representation. Plan-drift-extension Task 1 implements; plan-feedback-consumer Task 2 consumes.
 
 5. **`assign_subtopics.py:95` shows `DEFAULT_CONFIDENCE_FLOOR = 0.3`, but CONTEXT D-23 says 0.35.**
-   - What we know: Current code default is 0.3; spec §9 and `low_confidence_floor` in `thresholds.json` are 0.35.
-   - What's unclear: Which value is the policy decision and which is a stale code default. The two values represent the same concept (drop below this confidence) but live on different sides of a code/config split.
-   - Recommendation: Lift to `thresholds.json` with value 0.35 (matches `low_confidence_floor`); update the CLI default to read from config; the per-invocation `--confidence-floor` flag still overrides. The change from 0.3 → 0.35 is a deliberate behavior change; flag it in PR review and in the SUMMARY.
+   **RESOLVED (2026-05-12):** CONTEXT D-23 + D-25 corrected (CR-2026-05-12): the two floors are distinct concepts (`confidence_floor` = assignment-time, `low_confidence_floor` = event-emission) AND distinct current values (0.3 vs 0.35). Phase 12 G-18 preserves 0.3 as the operational default. Whether 0.3 is the right target is tracked separately in `.planning/issues/0001-confidence-floor-target.md` and is NOT in Phase 12 scope.
 
 6. **Module name: `feedback/`, `pipeline_feedback/`, or fold into `pipeline_cold/`?**
-   - What we know: Phase 10 introduced `pipeline_*` convention for cold-path-adjacent modules (drift, hot, cold, spotlight); Phase 11 used `review/` for operator CLI without `pipeline_*` because it's purely operator-facing.
-   - What's unclear: Whether the hybrid nature (cold stage + operator CLI) tips toward `pipeline_*`.
-   - Recommendation: **`pipeline_feedback/`**. The cold-stage role is real, and the `pipeline_*` prefix is more honest about that. The CLI entry remains `python -m pipeline_feedback sweep` / `render` — slightly longer than `python -m feedback` but consistent with operator muscle memory from `python -m pipeline_cold.run`.
+   **RESOLVED (2026-05-12):** `pipeline_feedback/`. Matches Phase 10 cold-path-adjacent module convention; the cold-stage role is real and the `pipeline_*` prefix is honest about that. CLI entry is `python -m pipeline_feedback sweep`/`render`. Plan-feedback-consumer uses this name throughout.
 
 ## Environment Availability
 
@@ -805,7 +796,7 @@ This phase is rich in invariants and is exactly the kind of work that benefits f
 | §9 diagnostic D-09 | SPOTLIGHT_DIAGNOSTIC# count is distinct rejected pmid_sets, not events | unit | `pytest tests/test_feedback_sweep.py::test_diagnostic_distinct_pmid_sets` | ❌ Wave 0 |
 | §9 render D-03 | Same row in → same bytes out; no generated_at in markdown body | unit | `pytest tests/test_feedback_render.py::test_byte_identical_render` | ❌ Wave 0 |
 | §11 G-18 thresholds | All existing keys + new keys present in thresholds.json | unit | `pytest tests/test_thresholds_keys.py -x` | ❌ Wave 0 |
-| §11 G-18 confidence_floor not collapsed with low_confidence_floor (D-25) | Both keys exist, both 0.35 | unit | `pytest tests/test_thresholds_keys.py::test_two_floor_keys_distinct` | ❌ Wave 0 |
+| §11 G-18 confidence_floor not collapsed with low_confidence_floor (D-25) | Both keys exist; confidence_floor=0.3, low_confidence_floor=0.35 (per D-25 CR-2026-05-12) | unit | `pytest tests/test_thresholds_keys.py::test_two_floor_keys_distinct` | ❌ Wave 0 |
 | §11 D-27 schema validation | Malformed thresholds.json fails env_check.py | unit | `pytest tests/test_thresholds_schema.py -x` | ❌ Wave 0 |
 | §11 G-36 reproducibility | `hierarchy.json` byte-stable on second run | unit | `pytest tests/test_hierarchy_reproducibility.py -x` | ✅ (exists; verify still green) |
 | §11 G-37 E2E | Stripped-down fixture corpus through cold path | integration | `pytest tests/test_cold_path_e2e.py -x` | ❌ Wave 0 |
