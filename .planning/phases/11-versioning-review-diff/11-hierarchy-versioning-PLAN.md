@@ -75,6 +75,10 @@ must_haves:
       pattern: "hierarchy_version=version"
 ---
 
+## Scope note
+
+Scope note: 14 files modified across 2 tasks. Above the 10-file soft threshold but tasks decompose cleanly; reviewer should expect a heavier single-context execution per task.
+
 <objective>
 Phase 11 Surface 1: stamp `hierarchy_version` on every activity record that carries
 subtopic fields, change rotation history PK shape to be hierarchy-version-keyed, and

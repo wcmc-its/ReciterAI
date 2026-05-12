@@ -46,6 +46,7 @@ must_haves:
     - "D-18: reassigned_pmid_count in diff.json means rows touched this run (= records_written), NOT primary_changed semantics"
     - "Cache-Control: max-age=60, must-revalidate is set on latest/manifest.json (hierarchy scope only; spotlight latest/* deferred per OQ-4)"
     - "O-01 resolved: first-ever-publish edge case emits diff.json with from_version: null (explicit signal, does not depend on consumer 404 handling)"
+    - "Unit-test parallelism with hierarchy-versioning is honest (env var mocked in tests); pipeline-level integration smoke assumes hierarchy-versioning Task 1.6 has landed first."
   artifacts:
     - path: "pipeline_hierarchy/publish.py"
       provides: "compute_diff() function; updated upload_to_s3() 5-step order; STAGE#g29_cutover write on --g29-cutover flag"
@@ -54,13 +55,13 @@ must_haves:
       provides: "Shared diff-stats compute (used by diff.json producer; future REVIEW# template wiring)"
       contains: "compute_diff_stats"
     - path: "pipeline_hierarchy/bundler.py"
-      provides: "No longer stamps generated_at into hierarchy dict"
+      provides: "No longer stamps generated_at into hierarchy dict; generated_at kwarg fully removed from both bundle() and write_bundle()"
       contains: "# generated_at removed per D-14"
     - path: "pipeline_hierarchy/generator.py"
       provides: "Does not write generated_at into hierarchy; still writes generated_at into manifest"
       contains: "manifest"
     - path: "utils/s3_client.py"
-      provides: "put_object accepts optional cache_control kwarg"
+      provides: "put_object accepts optional cache_control kwarg. get_object_bytes already exists (line 120) — reused by diff producer."
       contains: "cache_control"
     - path: "utils/stage_records.py"
       provides: "build_complete_record / build_skipped_record / build_failed_record accept optional run_id kwarg"
@@ -76,13 +77,17 @@ must_haves:
       pattern: "run_id"
     - from: "pipeline_hierarchy/publish.py::compute_diff"
       to: "prev hierarchy.json on S3"
-      via: "S3 GET on s3://wcmc-reciterai-hierarchy/{prev_version}/hierarchy.json"
-      pattern: "S3HierarchyClient"
+      via: "S3HierarchyClient.get_object_bytes(f'{prev_version}/hierarchy.json')"
+      pattern: "get_object_bytes"
     - from: "pipeline_hierarchy/publish.py::upload_to_s3"
       to: "utils/s3_client.py::put_object(cache_control=...)"
       via: "kwarg pass-through"
       pattern: "cache_control"
 ---
+
+## Scope note
+
+Scope note: 15 files modified across 2 tasks. Above the 10-file soft threshold but tasks decompose cleanly; reviewer should expect a heavier single-context execution per task.
 
 <objective>
 Phase 11 Surface 3: ship the structured change-signaling contract. Three integrated
@@ -162,20 +167,46 @@ From pipeline_hierarchy/publish.py:245-330 (publish_hierarchy main):
 - run_gates(stage="publish_post", ...) at line 330
 - write_complete(...) at line 351 (STAGE# substrate write)
 
-From pipeline_hierarchy/bundler.py:180-195 (CURRENT — Phase 11 modifies):
+From pipeline_hierarchy/bundler.py:140-218 (CURRENT — Phase 11 modifies):
 ```python
-if generated_at is None:
-    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+def bundle(
+    *,
+    augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
+    taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
+    excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
+    generated_at: str | None = None,    # ← DROP (D-14, W2)
+    strict: bool = True,
+) -> dict[str, Any]:
+    ...
+    if generated_at is None:                                       # ← DROP block (D-14, W2)
+        generated_at = datetime.now(timezone.utc).isoformat(...)
+    return {
+        "version": "subtopic_v1",
+        "generated_at": generated_at,    # ← DROP THIS LINE (D-14)
+        ...
+    }
 
-return {
-    "version": "subtopic_v1",
-    "generated_at": generated_at,   # ← DROP THIS LINE (D-14)
-    "taxonomy_version": taxonomy_version,
-    "excluded_topics": excluded,
-    "topics": topics,
-    "see_also": [],
-}
+def write_bundle(
+    *,
+    out_path: Path = DEFAULT_OUT_PATH,
+    augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
+    taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
+    excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
+    generated_at: str | None = None,    # ← DROP (D-14, W2 — caller cascade)
+) -> Path:
+    hierarchy = bundle(
+        augmented_dir=augmented_dir,
+        taxonomy_path=taxonomy_path,
+        excluded_topics_path=excluded_topics_path,
+        generated_at=generated_at,        # ← DROP pass-through (D-14, W2)
+        strict=True,
+    )
+    ...
 ```
+NOTE (W2): `write_bundle` calls `bundle(generated_at=...)`. Dropping `generated_at`
+from `bundle()` requires the same drop from `write_bundle()` signature AND from the
+inner call. The end-state grep gate is `! grep -n "generated_at" pipeline_hierarchy/bundler.py`
+returns empty (no occurrences remaining).
 
 From pipeline_hierarchy/generator.py:60-67 (CURRENT — Phase 11 modifies):
 ```python
@@ -197,6 +228,18 @@ def put_object(self, key: str, body: bytes, content_type: str = "application/jso
     )
     logger.info(f"Uploaded s3://{self.bucket}/{key} ({len(body):,} bytes)")
 ```
+
+From utils/s3_client.py:120-137 (EXISTING — Phase 11 REUSES, do not duplicate):
+```python
+def get_object_bytes(self, key: str) -> bytes:
+    """Fetch raw bytes for an S3 object."""
+    resp = self._get_client().get_object(Bucket=self.bucket, Key=key)
+    body = resp["Body"].read()
+    logger.info(f"Fetched s3://{self.bucket}/{key} ({len(body):,} bytes)")
+    return body
+```
+NOTE (W1): the diff producer uses THIS existing method — do NOT add a new
+`get_object()` accessor alongside it.
 
 From utils/stage_records.py:200-212 (existing optional-kwarg-then-conditional-attach pattern):
 ```python
@@ -255,10 +298,10 @@ SK: RUN#{started_at}
     utils/test_s3_client.py
   </files>
   <read_first>
-    pipeline_hierarchy/bundler.py (full file; the stamp at line 183-195)
+    pipeline_hierarchy/bundler.py (full file; the stamp at line 183-195 AND write_bundle at 198-218)
     pipeline_hierarchy/generator.py (full file; the stamp at line 60-67 + manifest construction at 114-121)
     pipeline_hierarchy/publish.py (full file; compute_publish_input_hash at line 86-121 — the defensive `generated_at` strip is a no-op after D-14)
-    utils/s3_client.py (full file)
+    utils/s3_client.py (full file; confirm get_object_bytes at line 120 already exists)
     utils/stage_records.py (full file; the three builders + their optional-kwarg pattern)
     docs/hierarchy.schema.json (to determine if `generated_at` is `required` and must be moved to optional)
     tests/test_hierarchy_bundler.py (extend)
@@ -266,25 +309,33 @@ SK: RUN#{started_at}
     tests/test_stage_records.py (extend with run_id-passthrough tests)
   </read_first>
   <behavior>
-    - Test 1 (tests/test_hierarchy_bundler.py): `bundler.bundle(...)` returns a dict that does NOT contain key `generated_at`.
-    - Test 2 (tests/test_hierarchy_publisher.py): `generator.build_hierarchy(...)` produces a hierarchy dict without `generated_at`; the produced manifest DOES contain `generated_at`.
-    - Test 3 (tests/test_hierarchy_reproducibility.py): calling `bundler.bundle(...)` twice with the same inputs produces byte-identical `json.dumps(..., sort_keys=True)` output. Calling `generator.build_hierarchy(...)` twice ditto. (This is the G-36 prerequisite.)
-    - Test 4 (tests/test_hierarchy_publisher.py): the manifest `generated_at` value passes the standard ISO regex `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`.
-    - Test 5 (utils/test_s3_client.py): `S3HierarchyClient.put_object(key, body, cache_control="max-age=60, must-revalidate")` calls underlying boto3 client with `CacheControl="max-age=60, must-revalidate"`. `put_object(key, body)` (default kwargs) does NOT include `CacheControl` in the boto3 call kwargs. Use `botocore.stub.Stubber` OR MagicMock for `_get_client()`.
-    - Test 6 (tests/test_stage_records.py): all three builders accept `run_id="abc-123"` and produce a dict containing `"run_id": "abc-123"`. Called without `run_id`, the produced dict does NOT contain that key (backwards-compat).
-    - Test 7 (docs/hierarchy.schema.json): if `generated_at` was in the `required` array on hierarchy.json's schema, it must now be removed; the schema must still validate a hierarchy dict WITHOUT `generated_at` AND validate manifest.json (separate file or pointer) WITH `generated_at`. (Phase 11 only changes the hierarchy schema, not manifest schema.)
+    - Test 1 (tests/test_hierarchy_bundler.py): `bundler.bundle(...)` returns a dict that does NOT contain key `generated_at`. The `bundle()` signature no longer accepts a `generated_at` kwarg (TypeError if passed).
+    - Test 2 (tests/test_hierarchy_bundler.py): `bundler.write_bundle(out_path=...)` runs without a `generated_at` kwarg; passing `generated_at=` raises TypeError.
+    - Test 3 (tests/test_hierarchy_publisher.py): `generator.build_hierarchy(...)` produces a hierarchy dict without `generated_at`; the produced manifest DOES contain `generated_at`.
+    - Test 4 (tests/test_hierarchy_reproducibility.py): calling `bundler.bundle(...)` twice with the same inputs produces byte-identical `json.dumps(..., sort_keys=True)` output. Calling `generator.build_hierarchy(...)` twice ditto. (This is the G-36 prerequisite.)
+    - Test 5 (tests/test_hierarchy_publisher.py): the manifest `generated_at` value passes the standard ISO regex `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`.
+    - Test 6 (utils/test_s3_client.py): `S3HierarchyClient.put_object(key, body, cache_control="max-age=60, must-revalidate")` calls underlying boto3 client with `CacheControl="max-age=60, must-revalidate"`. `put_object(key, body)` (default kwargs) does NOT include `CacheControl` in the boto3 call kwargs. Use `botocore.stub.Stubber` OR MagicMock for `_get_client()`.
+    - Test 7 (tests/test_stage_records.py): all three builders accept `run_id="abc-123"` and produce a dict containing `"run_id": "abc-123"`. Called without `run_id`, the produced dict does NOT contain that key (backwards-compat).
+    - Test 8 (docs/hierarchy.schema.json): if `generated_at` was in the `required` array on hierarchy.json's schema, it must now be removed; the schema must still validate a hierarchy dict WITHOUT `generated_at` AND validate manifest.json (separate file or pointer) WITH `generated_at`. (Phase 11 only changes the hierarchy schema, not manifest schema.)
   </behavior>
   <action>
-    A. `pipeline_hierarchy/bundler.py` (D-14):
-       - At lines 183-195: drop the line `"generated_at": generated_at,` from the returned dict.
-       - Per RESEARCH recommendation: drop the `generated_at` parameter from the `bundle()` signature entirely (no in-repo callers pass it other than `publish.py`, which is updated in Task 2). Add a docstring note: `# generated_at removed per D-14 — manifest.json carries the timestamp; hierarchy.json is bit-stable across reruns.`
-       - If `datetime` import becomes unused, remove it.
+    A. `pipeline_hierarchy/bundler.py` (D-14, W2 — full caller-cascade removal of `generated_at`):
+       (a) `bundle()` signature: drop the `generated_at: str | None = None` kwarg entirely.
+       (b) `bundle()` body: drop the `if generated_at is None: generated_at = datetime.now(...).isoformat(...)` block (lines ~183-186) and drop the `"generated_at": generated_at,` line from the returned dict (line ~190).
+       (c) `write_bundle()` signature: drop the `generated_at: str | None = None` kwarg (line ~204).
+       (d) `write_bundle()` body: drop the `generated_at=generated_at,` pass-through in the inner `bundle(...)` call (line ~211).
+       (e) If `datetime` / `timezone` imports become unused after (b), remove them.
+       (f) Add a docstring note on `bundle()`: `# generated_at removed per D-14 — manifest.json carries the timestamp; hierarchy.json is bit-stable across reruns.`
+       (g) Search and update any OTHER in-repo callers of `write_bundle` or `bundle` that pass `generated_at=...`. Run `grep -n "write_bundle(\|bundle(" pipeline_hierarchy/ scripts/ tests/` to enumerate; drop the kwarg at every call site (existing analysis confirms `write_bundle` is only self-called inside bundler.py, but verify in case tests pass it).
+
+       **Acceptance grep gate (W2):** after the fix, `grep -n "generated_at" pipeline_hierarchy/bundler.py` returns NO matches (zero occurrences in the file — no references, no comments mentioning the kwarg, no docstring references). The verify block enforces this.
 
     B. `pipeline_hierarchy/generator.py` (D-14):
        - At line 66: drop the line `hierarchy["generated_at"] = generated_at`.
-       - KEEP `generated_at` local variable (still used at line 111 to derive `version` label).
+       - KEEP `generated_at` local variable in `build_hierarchy` and `generate` (still used at line 111 to derive `version` label and at line 118 for manifest stamp).
        - KEEP `manifest["generated_at"] = resolved_generated_at` at line 118 (D-14: manifest.json continues to carry it).
        - Add a comment at the dropped-line site: `# generated_at NOT written into hierarchy per D-14 (G-29 fix); manifest still carries it.`
+       - Also: the call to `bundle(...)` inside `build_hierarchy` (around line 102) currently passes `generated_at=generated_at` per the pre-Phase-11 contract. After step A (bundler no longer accepts the kwarg), this call site must drop `generated_at=generated_at`. The local `generated_at` variable stays for the manifest-stamp path.
 
     C. `pipeline_hierarchy/publish.py::compute_publish_input_hash` (lines 86-121):
        - The defensive strip of `generated_at` (line 108) is now a no-op (field never exists in the bundle). Remove the strip and update the comment to: `# G-29 fixed upstream per D-14; no embedded timestamp remains in the hierarchy dict.` Be careful not to remove other defensive logic — read the function in full first.
@@ -294,7 +345,7 @@ SK: RUN#{started_at}
        - If `generated_at` is NOT in `required`, no change needed; flag this in the summary.
        - Manifest schema (if present in the same file) keeps `generated_at` as required.
 
-    E. `utils/s3_client.py:100-118` — `cache_control` optional kwarg:
+    E. `utils/s3_client.py:100-118` — `cache_control` optional kwarg on `put_object`:
        ```python
        def put_object(
            self,
@@ -314,6 +365,7 @@ SK: RUN#{started_at}
            self._get_client().put_object(**kwargs)
            logger.info(f"Uploaded s3://{self.bucket}/{key} ({len(body):,} bytes)")
        ```
+       **Do NOT add a new `get_object()` method (W1):** `S3HierarchyClient.get_object_bytes(key) → bytes` already exists at line 120. The diff producer in Task 2 reuses it.
 
     F. `utils/stage_records.py` (D-13):
        - In `build_complete_record`, `build_skipped_record`, `build_failed_record`: add `run_id: Optional[str] = None` kwarg. Append the conditional-attach line near the existing optional-kwarg block (around lines 200-212):
@@ -324,26 +376,27 @@ SK: RUN#{started_at}
        - Update docstrings to mention `run_id` as an optional Phase 11 substrate addition (D-13) used by cold-path callers to correlate diff.json compute with assign-stage STAGE# rows.
 
     G. Tests:
-       - `tests/test_hierarchy_bundler.py`: add a test that asserts `"generated_at" not in bundle(...)`.
+       - `tests/test_hierarchy_bundler.py`: add (1) a test that asserts `"generated_at" not in bundle(...)`; (2) a test that `bundle(generated_at="...")` raises TypeError; (3) a test that `write_bundle(generated_at="...")` raises TypeError.
        - `tests/test_hierarchy_publisher.py`: assert `"generated_at" not in hierarchy_dict`; assert `manifest["generated_at"]` matches the ISO regex.
-       - `tests/test_hierarchy_reproducibility.py` (NEW): two-pass bundle + build, assert `json.dumps(..., sort_keys=True)` byte-equal across passes. Use fixed `generated_at` parameter (or fixed `datetime.utcnow` via monkeypatch) for the manifest variant of the test to also assert deterministic manifest (the manifest will differ on `generated_at` if generation time differs — that's expected per D-14 — so the manifest reproducibility test is "given fixed generated_at, manifest is byte-equal"; the hierarchy reproducibility test does NOT pin `generated_at` because hierarchy doesn't have it anymore).
+       - `tests/test_hierarchy_reproducibility.py` (NEW): two-pass bundle + build, assert `json.dumps(..., sort_keys=True)` byte-equal across passes. Since `bundle()` no longer accepts `generated_at`, the hierarchy reproducibility test does NOT pin `generated_at` — the hierarchy is timestamp-free by construction. For the manifest variant, monkeypatch `datetime.now` (or pass a fixed `generated_at` via `build_hierarchy`'s remaining kwarg path) to get deterministic manifest output across passes.
        - `tests/test_stage_records.py`: extend with 6 new assertions — two per builder (one with run_id passed, one without).
-       - `utils/test_s3_client.py` (NEW): MagicMock-based test for `_get_client()` return; assert `CacheControl` kwarg is conditionally included.
+       - `utils/test_s3_client.py` (NEW): MagicMock-based test for `_get_client()` return; assert `CacheControl` kwarg is conditionally included on `put_object`. (No new `get_object_bytes` tests required here unless coverage gap exists — that method is already in production use.)
 
     H. Update the `pipeline_hierarchy.publish` callsite of `upload_to_s3` to NOT yet wire diff.json or cache_control (Task 2 does that). For this task: only the `cache_control` kwarg is exposed; no caller passes it yet. This keeps Task 1 self-contained.
   </action>
   <verify>
     <automated>cd /Users/paulalbert/Dropbox/GitHub/ReciterAI &amp;&amp; pytest tests/test_hierarchy_bundler.py tests/test_hierarchy_publisher.py tests/test_hierarchy_reproducibility.py tests/test_stage_records.py utils/test_s3_client.py -x</automated>
     Manual greps:
-    - `grep -n '"generated_at"' pipeline_hierarchy/bundler.py` returns NO match in the returned dict (the only matches should be in comments).
+    - W2 acceptance gate: `! grep -n "generated_at" pipeline_hierarchy/bundler.py` returns empty (zero occurrences of `generated_at` anywhere in the file — not in code, not in comments, not in docstrings).
     - `grep -n 'hierarchy\["generated_at"\]' pipeline_hierarchy/generator.py` returns NO match.
     - `grep -n 'manifest\["generated_at"\]\|manifest\.update.*generated_at\|"generated_at": resolved_generated_at' pipeline_hierarchy/generator.py` returns the preserved manifest stamp.
     - `grep -n 'cache_control' utils/s3_client.py` returns the new kwarg.
+    - `grep -n 'get_object_bytes' utils/s3_client.py` returns exactly the existing definition (1 occurrence at line ~120); no new accessor added (W1).
     - `grep -n 'if run_id is not None' utils/stage_records.py` returns 3 matches (one per builder).
     - Schema check: `python -c "import json; s = json.load(open('docs/hierarchy.schema.json')); print('generated_at' in s.get('required', []))"` prints `False` (or the schema is structured such that the hierarchy-shape doesn't list it as required).
   </verify>
   <done>
-    All 7 tests pass; greps confirm G-29 is removed from hierarchy.json side; manifest still carries `generated_at`; STAGE# builders accept the optional `run_id` kwarg with no regression to existing callers; S3 client's `put_object` accepts `cache_control` with default-None backwards-compat.
+    All 8 tests pass; greps confirm G-29 is removed from hierarchy.json side (including from the entire `bundler.py` file via the W2 acceptance gate); manifest still carries `generated_at`; STAGE# builders accept the optional `run_id` kwarg with no regression to existing callers; S3 client's `put_object` accepts `cache_control` with default-None backwards-compat; `get_object_bytes` is NOT duplicated.
   </done>
 </task>
 
@@ -359,14 +412,14 @@ SK: RUN#{started_at}
   <read_first>
     pipeline_hierarchy/publish.py (full file — every relevant site: compute_publish_input_hash, publish_hierarchy main, upload_to_s3, write_complete)
     pipeline_hierarchy/generator.py (manifest construction at line 114-121; need to know manifest fields available for diff producer)
-    utils/s3_client.py (post-Task 1 — confirm cache_control kwarg signature)
+    utils/s3_client.py (post-Task 1 — confirm cache_control kwarg signature AND the existing `get_object_bytes` at line 120 used by compute_diff)
     utils/stage_records.py (post-Task 1 — confirm run_id kwarg accepted by build_complete_record)
     tests/test_publish_integration.py (existing test patterns for publish flow)
     docs/hierarchy-contract.md (current contract doc; Phase 11 documents the new write order and diff.json)
   </read_first>
   <behavior>
-    - Test 1 (tests/test_publish_diff.py — happy path with prev version): `compute_diff(prev_version="v2026-05-06", new_hierarchy={...}, run_id="abc", table=mock, s3_client=mock)` where mock S3 returns a prev hierarchy with `taxonomy_version="taxonomy_v2"`, 5 subtopics; new hierarchy has `taxonomy_version="taxonomy_v3"`, 6 subtopics (1 added). Mock DDB returns one STAGE# assign row with `records_written=42` for run_id="abc". → diff dict has `diff_schema_version="1.0.0"`, `from_version="v2026-05-06"`, `to_version="<new version>"`, `taxonomy_version_changed=True`, `added_subtopics` length 1, `reassigned_pmid_count=42`, `editorial_only=False`.
-    - Test 2 (first-ever-publish per O-01): `compute_diff(prev_version=None, new_hierarchy={...}, run_id="abc", table=mock, s3_client=mock)` → diff dict has `from_version: null` (Python `None`), all `added_subtopics`/`removed_subtopics`/`renamed_subtopics` empty (no comparison), `taxonomy_version_changed=False`, `reassigned_pmid_count` from STAGE# rows, `editorial_only=False`.
+    - Test 1 (tests/test_publish_diff.py — happy path with prev version): `compute_diff(prev_version="v2026-05-06", new_hierarchy={...}, run_id="abc", table=mock, s3_client=mock)` where mock S3 returns a prev hierarchy with `taxonomy_version="taxonomy_v2"`, 5 subtopics; new hierarchy has `taxonomy_version="taxonomy_v3"`, 6 subtopics (1 added). Mock DDB returns one STAGE# assign row with `records_written=42` for run_id="abc". → diff dict has `diff_schema_version="1.0.0"`, `from_version="v2026-05-06"`, `to_version="<new version>"`, `taxonomy_version_changed=True`, `added_subtopics` length 1, `reassigned_pmid_count=42`, `editorial_only=False`. The S3 call must be `s3_client.get_object_bytes("v2026-05-06/hierarchy.json")` (W1: existing method, not a new `get_object()`).
+    - Test 2 (first-ever-publish per O-01): `compute_diff(prev_version=None, new_hierarchy={...}, run_id="abc", table=mock, s3_client=mock)` → diff dict has `from_version: null` (Python `None`), all `added_subtopics`/`removed_subtopics`/`renamed_subtopics` empty (no comparison), `taxonomy_version_changed=False`, `reassigned_pmid_count` from STAGE# rows, `editorial_only=False`. No `get_object_bytes` call is made (prev_version is None).
     - Test 3 (editorial_only derivation): only renamed_subtopics non-empty, no taxonomy change, no add/remove, reassigned == 0 → `editorial_only=True`. Same scenario with reassigned > 0 → `editorial_only=False`.
     - Test 4 (run_id filter): two STAGE# assign rows in DDB — one with run_id="abc" (records_written=42), one with run_id="xyz" (records_written=999). `compute_diff(..., run_id="abc", ...)` → `reassigned_pmid_count == 42` ONLY (xyz row is filtered out).
     - Test 5 (tests/test_publish_integration.py — write order): asserting the EXACT order of `put_object` calls on a stubbed `S3HierarchyClient`. Use a custom stub class (analog from test_spotlight_rotation_selector.py:309-319) that captures calls into a list. Order must be: (1) `{version}/hierarchy.json`, (2) `{version}/hierarchy.schema.json`, (3) `{version}/diff.json`, (4) `{version}/manifest.json`, (5) `latest/manifest.json`.
@@ -484,11 +537,13 @@ SK: RUN#{started_at}
         First-ever-publish (O-01): prev_version is None → from_version: null
         in output; structural diffs are empty (no prev to compare).
         """
-        # 1. Fetch prev hierarchy
+        # 1. Fetch prev hierarchy via existing S3HierarchyClient.get_object_bytes (W1).
+        #    Do NOT introduce a new accessor — get_object_bytes already exists
+        #    in utils/s3_client.py:120 and is the canonical S3 GET method.
         prev_hierarchy: Optional[dict] = None
         if prev_version is not None:
             try:
-                body = s3_client.get_object(f"{prev_version}/hierarchy.json")
+                body = s3_client.get_object_bytes(f"{prev_version}/hierarchy.json")
                 prev_hierarchy = json.loads(body)
             except Exception as exc:
                 # Treat as first-ever-publish per O-01 (explicit null)
@@ -521,19 +576,11 @@ SK: RUN#{started_at}
     Returns the matching items list. If `run_id is None`, returns `[]`
     (no rows attribute to "this run").
 
-    Also need helper `s3_client.get_object(key)`: if the existing
-    `S3HierarchyClient` does not have a `get_object` method, add one
-    following the same lazy-client + logging convention as `put_object`:
-    ```python
-    def get_object(self, key: str) -> bytes:
-        resp = self._get_client().get_object(Bucket=self.bucket, Key=key)
-        body = resp["Body"].read()
-        logger.info(f"Downloaded s3://{self.bucket}/{key} ({len(body):,} bytes)")
-        return body
-    ```
-    (This is a small surface addition to `utils/s3_client.py` made in this
-    plan because the diff producer is the first in-repo S3 GET caller — flag
-    in the SUMMARY.)
+    **W1 — S3 GET access:** Reuse the existing `S3HierarchyClient.get_object_bytes(key) → bytes`
+    method (`utils/s3_client.py:120`). Do NOT add a new accessor (no `get_object`,
+    no `download_object`, no wrapper). The method returns raw bytes; `compute_diff`
+    calls `json.loads(body)` to deserialize. The verify block grep-confirms that no
+    new accessor was introduced.
 
     C. `pipeline_hierarchy/publish.py::upload_to_s3` (D-11 new 5-step order):
     ```python
@@ -569,13 +616,13 @@ SK: RUN#{started_at}
        - Add `--g29-cutover` flag to argparse (action="store_true", help="One-time: write STAGE#g29_cutover#GLOBAL audit row").
        - Add `--run-id` flag (default: `os.environ.get("RECITERAI_COLD_RUN_ID")`).
        - After `generate(...)` and before `upload_to_s3(...)`:
-         - Resolve `prev_version` from `latest/manifest.json` via S3 GET; if 404 (first-ever-publish), set to None.
+         - Resolve `prev_version` from `latest/manifest.json` via `s3.get_object_bytes("latest/manifest.json")` (W1: reuse existing method); on `ClientError` with code `NoSuchKey`, set to None (first-ever-publish).
          - Call `diff = compute_diff(prev_version=prev_version, new_hierarchy=hierarchy_dict, to_version=version, run_id=run_id, table=table, s3_client=s3)`.
          - Encode: `diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")`.
        - Call `upload_to_s3(version, hierarchy, schema, manifest, diff_bytes)`.
        - In `write_complete(...)` call at line 351: thread `run_id=run_id` kwarg through to `build_complete_record` (the Task-1 substrate addition).
        - If `args.g29_cutover`:
-         - Fetch previous publish sha: `prev_manifest = json.loads(s3.get_object("latest/manifest.json"))` (or None on 404); `previous_publish_sha = prev_manifest.get("sha256") if prev_manifest else None`.
+         - Fetch previous publish sha: `try: prev_manifest = json.loads(s3.get_object_bytes("latest/manifest.json")); previous_publish_sha = prev_manifest.get("sha256") except ClientError: previous_publish_sha = None`.
          - Write cutover row:
            ```python
            cutover_item = build_complete_record(
@@ -602,7 +649,7 @@ SK: RUN#{started_at}
        - Add a §"Operator coordination (D-15)" section noting the SPS downstream-effects conversation expected at G-29 cutover time. Capture the coordination as a runbook entry: pre-cutover ping, expected reindex window, rollback plan.
 
     F. Tests:
-       - `tests/test_publish_diff.py` (NEW): cover Tests 1-4 above. Pure-function-style — pass dicts in, assert dicts out. Mock S3HierarchyClient with MagicMock; mock DDB table similarly.
+       - `tests/test_publish_diff.py` (NEW): cover Tests 1-4 above. Pure-function-style — pass dicts in, assert dicts out. Mock S3HierarchyClient with MagicMock (assert `mock_s3.get_object_bytes.assert_called_once_with("v2026-05-06/hierarchy.json")` for the happy-path test); mock DDB table similarly.
        - `tests/test_publish_integration.py` (extend): cover Tests 5, 6, 7, 8. For Test 5 (write order), use a stub `S3HierarchyClient` subclass that captures calls into a list (analog: `test_spotlight_rotation_selector.py:309-319` custom stub pattern).
 
     G. Per D-15 — operator coordination is captured as a documentation deliverable in `docs/hierarchy-contract.md` and the SUMMARY notes it. No engineering work beyond documentation. The 30-min SPS conversation is an external coordination task; the SUMMARY flags it as a follow-up for the operator at cutover time.
@@ -614,14 +661,15 @@ SK: RUN#{started_at}
     - `grep -n 'from_version' pipeline_hierarchy/publish.py pipeline_hierarchy/diff_stats.py` returns matches showing `prev_version` flows into `from_version` (which becomes JSON `null` on None).
     - `grep -n 'editorial_only' pipeline_hierarchy/diff_stats.py` returns the derivation function.
     - `grep -n 'cache_control=.max-age=60' pipeline_hierarchy/publish.py` returns exactly 1 match (the latest/manifest.json line).
-    - `grep -c 's3.put_object\|s3_client.put_object' pipeline_hierarchy/publish.py | grep -v '^#'` &gt;= 5 (the 5 PutObjects of the new write order — verify count is 5, not 3).
+    - `grep 's3.put_object\|s3_client.put_object' pipeline_hierarchy/publish.py | grep -v '^#' | grep -v '^\s*#' | wc -l` &gt;= 5 (the 5 PutObjects of the new write order — verify count is 5, not 3; comment-stripped to satisfy grep gate hygiene).
     - `grep -n 'STAGE#g29_cutover' pipeline_hierarchy/publish.py` returns the cutover write site.
     - `grep -n 'g29-cutover' pipeline_hierarchy/publish.py` returns the argparse flag.
+    - **W1 acceptance gate:** `grep -n 'get_object_bytes' pipeline_hierarchy/publish.py` returns matches (compute_diff + prev-manifest fetch + g29-cutover fetch); `grep -n 'def get_object\b' utils/s3_client.py` returns NO new method definition beyond the existing `get_object_bytes` at line 120 (specifically: no bare `def get_object(`).
     - Doc check: `grep -n 'from_version.*null\|first-ever-publish' docs/hierarchy-contract.md` returns the O-01 documentation.
     - Doc check: `grep -n 'Cache-Control\|max-age=60' docs/hierarchy-contract.md` returns the cache-control documentation.
   </verify>
   <done>
-    All 8 tests pass; greps confirm the 5-step write order is in place; first-ever-publish path (prev_version=None) produces `from_version: null`; STAGE#g29_cutover writes only under `--g29-cutover`; docs/hierarchy-contract.md documents all Phase 11 contract additions.
+    All 8 tests pass; greps confirm the 5-step write order is in place; first-ever-publish path (prev_version=None) produces `from_version: null`; STAGE#g29_cutover writes only under `--g29-cutover`; docs/hierarchy-contract.md documents all Phase 11 contract additions; the diff producer uses the existing `S3HierarchyClient.get_object_bytes` method (W1) — no new accessor introduced.
   </done>
 </task>
 
@@ -660,6 +708,8 @@ SK: RUN#{started_at}
 - Per D-15: SPS operator coordination is captured as a runbook section in
   `docs/hierarchy-contract.md`; the actual conversation is an external task flagged in
   the SUMMARY for the operator to schedule at cutover time.
+- W1 enforced: diff producer reuses existing `S3HierarchyClient.get_object_bytes` (utils/s3_client.py:120); no new accessor was added.
+- W2 enforced: `pipeline_hierarchy/bundler.py` contains zero occurrences of `generated_at` after the fix (bundle + write_bundle signatures + call-cascade all cleaned).
 </verification>
 
 <success_criteria>
@@ -667,11 +717,12 @@ SK: RUN#{started_at}
 - D-10: diff producer lives in `pipeline_hierarchy/publish.py` (and `diff_stats.py` for pure pieces); no new stage.
 - D-11: upload_to_s3 issues exactly 5 PutObjects in the documented order.
 - D-12: diff.json contains `diff_schema_version: "1.0.0"`.
-- D-14: hierarchy.json has no `generated_at`; manifest.json still does.
+- D-14: hierarchy.json has no `generated_at`; manifest.json still does; `pipeline_hierarchy/bundler.py` has zero occurrences of `generated_at` (W2 acceptance gate).
 - D-16: STAGE#g29_cutover#GLOBAL row written under `--g29-cutover` flag with the documented fields.
 - D-18: `reassigned_pmid_count` == sum of records_written across the filtered assign STAGE# rows (rows-touched semantics).
 - O-01: first-ever-publish emits diff.json with `from_version: null`.
 - Cache-Control: `max-age=60, must-revalidate` on `latest/manifest.json`.
+- W1: diff producer uses existing `S3HierarchyClient.get_object_bytes`; no new S3 GET accessor was introduced in `utils/s3_client.py`.
 - All tests pass: `pytest tests/test_hierarchy_bundler.py tests/test_hierarchy_publisher.py tests/test_hierarchy_reproducibility.py tests/test_stage_records.py utils/test_s3_client.py tests/test_publish_diff.py tests/test_publish_integration.py -x`
 </success_criteria>
 
@@ -681,11 +732,12 @@ Create `.planning/phases/11-versioning-review-diff/11-SUMMARY-change-signaling.m
 - The 5-step S3 write order (with the "diff before manifest" rationale)
 - diff.json shape (full JSON example)
 - Cache-Control on latest/manifest.json
-- G-29 fix scope (bundler + generator + manifest preservation)
+- G-29 fix scope (bundler + generator + manifest preservation); note that `generated_at` was fully removed from `bundler.py` (both `bundle()` and `write_bundle()` signatures) per W2 cascade
 - STAGE# run_id substrate addition (backwards-compatible)
 - STAGE#g29_cutover gate (--g29-cutover flag)
 - Open items resolved: O-01 (from_version: null on first publish)
 - D-15 follow-up: SPS operator-coordination conversation scheduled for cutover day (not engineering deliverable)
 - Note on OQ-3 / OQ-4: D-18 resolution adopts rows-touched semantics (records_written); spotlight latest/* Cache-Control is deferred (out of scope this plan)
-- Note: added `S3HierarchyClient.get_object()` because the diff producer is the first S3 GET caller in the repo
+- W1 note: diff producer reuses existing `S3HierarchyClient.get_object_bytes` (utils/s3_client.py:120); no new S3 GET accessor was added
+- W3 note: unit-test parallelism with hierarchy-versioning is honest (env var mocked); full-pipeline integration smoke assumes hierarchy-versioning Task 1.6 has landed first
 </output>
