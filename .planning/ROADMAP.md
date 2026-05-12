@@ -88,18 +88,18 @@ Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* �
 **Plans:** 0/8 plans complete (waves: 6 parallel in wave 1, 2 in wave 2, 1 in wave 3)
 
 Wave 1 (parallel):
-- [ ] `12-PLAN-thresholds-substrate.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
-- [ ] `12-PLAN-feedback-producer.md` — D-08, D-30, D-31: `CritReasonCode` StrEnum + `CRITIC_REJECT#{cwid}#{pmid_set_hash}` additive write at `spotlight/critic.py:571` alongside existing SPOTLIGHT_REVIEW#
-- [ ] `12-PLAN-drift-extension.md` — D-34: additive sparse `per_topic_low_confidence` on `DriftEvaluation.to_dynamodb_item()`; behavior contract preserved
-- [ ] `12-PLAN-aggregations.md` — D-12..D-18, D-33: `_aggregate_exclusive` + `_aggregate_inclusive` + parallel DDB partitions + CSV rename with dual-write deprecation + reconciliation gate + D-33 in-stream invariant
-- [ ] `12-PLAN-residual-docs.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
+- [ ] `12-thresholds-substrate-PLAN.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
+- [ ] `12-feedback-producer-PLAN.md` — D-08, D-30, D-31: `CritReasonCode` StrEnum + `CRITIC_REJECT#{cwid}#{pmid_set_hash}` additive write at `spotlight/critic.py:571` alongside existing SPOTLIGHT_REVIEW#
+- [ ] `12-drift-extension-PLAN.md` — D-34: additive sparse `per_topic_low_confidence` on `DriftEvaluation.to_dynamodb_item()`; behavior contract preserved
+- [ ] `12-aggregations-PLAN.md` — D-12..D-18, D-33: `_aggregate_exclusive` + `_aggregate_inclusive` + parallel DDB partitions + CSV rename with dual-write deprecation + reconciliation gate + D-33 in-stream invariant
+- [ ] `12-residual-docs-PLAN.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
 
 Wave 2 (parallel, depend on wave 1):
-- [ ] `12-PLAN-feedback-consumer.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
-- [ ] `12-PLAN-g36-reproducibility.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
+- [ ] `12-feedback-consumer-PLAN.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
+- [ ] `12-g36-reproducibility-PLAN.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
 
 Wave 3 (depends on every other wave-1 + wave-2 plan, gated per D-20):
-- [ ] `12-PLAN-g37-e2e.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
+- [ ] `12-g37-e2e-PLAN.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
 
 ### Phase 8: Tools / Axis 2 Pipeline
 
@@ -122,7 +122,7 @@ Productionize the tool/method extraction pipeline (currently a placeholder). **B
 ## Conventions
 
 - Phase artifacts: `.planning/phases/{padded_phase}-{slug}/{padded_phase}-{TYPE}.md` where TYPE ∈ {CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION}
-- Plan files: `{padded_phase}-PLAN.md` (single) or `{padded_phase}-PLAN-{slug}.md` (multi-plan wave)
+- Plan files: `{padded_phase}-PLAN.md` (single) or `{padded_phase}-{slug}-PLAN.md` (multi-plan wave). The slug goes BEFORE `-PLAN.md` — `gsd-sdk` discovers plans via `.endsWith('-PLAN.md')`, so files named `{padded_phase}-PLAN-{slug}.md` will not be picked up by `phase-plan-index` or `/gsd-execute-phase`.
 - One commit per plan; commit messages reference the plan ID
 - Verify against goal-backward criteria before marking a phase complete
 
