@@ -226,12 +226,20 @@ def test_live_bundler_matches_current_hierarchy_structure():
         assert rebuilt_ids == current_ids, f"subtopic id mismatch in {tid}"
 
 
-def test_live_bundler_strict_mode_fails_until_relabel_repopulates():
-    """The strict-mode bundle should fail with a clear error today because no
-    augmented file has display_name yet. This test pins that failure mode so a
-    future relabel run can flip it."""
-    with pytest.raises(MissingUIFieldsError):
-        bundle(
-            augmented_dir=DEFAULT_AUGMENTED_DIR,
-            generated_at="2026-05-11T00:00:00Z",
-        )
+def test_live_bundler_strict_mode_succeeds_after_relabel():
+    """Post-2026-05-12 relabel pass: every augmented file has display_name +
+    short_description populated, so strict-mode bundle succeeds. This is the
+    flip of the prior `_fails_until_relabel_repopulates` test, which pinned
+    the pre-relabel failure mode."""
+    rebuilt = bundle(
+        augmented_dir=DEFAULT_AUGMENTED_DIR,
+        generated_at="2026-05-12T00:00:00Z",
+    )
+    assert len(rebuilt["topics"]) == 65
+    total = sum(len(t["subtopics"]) for t in rebuilt["topics"].values())
+    assert total == 1526
+    # Every subtopic carries both D-19 fields.
+    for topic in rebuilt["topics"].values():
+        for sub in topic["subtopics"]:
+            assert sub.get("display_name"), f"missing display_name on {sub.get('id')}"
+            assert sub.get("short_description"), f"missing short_description on {sub.get('id')}"

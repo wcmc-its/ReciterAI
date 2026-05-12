@@ -40,6 +40,26 @@ HAIKU_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"
 OPUS_MODEL = "us.anthropic.claude-opus-4-7"
 
+# Stage-keyed view of the pinned model IDs. Used by Phase 9 substrate
+# (utils.stage_records.compute_input_hash) so a model swap in any stage
+# invalidates that stage's content-addressed skip cache automatically.
+# Keys are stage names; values are the model ID strings above.
+#
+# Adding a stage: append a row here. Removing a stage: leave the key in
+# place but point it at a comment explaining the deprecation, since
+# input_hash records persisted in DynamoDB still reference it.
+MODEL_IDS_BY_STAGE: dict[str, str] = {
+    "screening":               HAIKU_MODEL,   # score_publications Pass 1
+    "scoring":                 SONNET_MODEL,  # score_publications Pass 2
+    "subtopic_discovery":      SONNET_MODEL,  # discover_subtopics
+    "subtopic_assignment":     HAIKU_MODEL,   # assign_subtopics
+    "subtopic_relabel":        SONNET_MODEL,  # relabel_subtopics (display_name/short_description)
+    "taxonomy_generation":     SONNET_MODEL,  # generate_taxonomy
+    "see_also_generation":     SONNET_MODEL,  # generate_see_also
+    "spotlight_lede":          OPUS_MODEL,    # spotlight.lede_generator
+    "spotlight_critic":        HAIKU_MODEL,   # spotlight.critic
+}
+
 
 class BedrockClient:
     """
