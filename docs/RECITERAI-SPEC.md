@@ -19,7 +19,7 @@ v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered arou
 | §11 G-32 (`excluded_topics` source) + bundler | Issue #4 | **closed 2026-05-12** — bundler proven end-to-end on first production publish (`v2026-05-12`); static `hierarchy_full.json` deletion deferred to a follow-up | [#4](https://github.com/wcmc-its/ReciterAI/issues/4) ✓ |
 | §7 parent-prefix gate | Issue #2 | **closed 2026-05-12** — cleanup re-ran across all 65 topics / 1,526 subtopics; SPS `etl:hierarchy` reports `warnings: 0` against `v2026-05-12` | [#2](https://github.com/wcmc-its/ReciterAI/issues/2) ✓ |
 | §5 Decision 4 (content-addressed stages) + §7 Decision 6 (gates framework) | Phase 9 | **complete 2026-05-12** — substrate + 4 gates + `publish.py` integration + CLI + docs all shipped; 115 tests passing | see `.planning/phases/09-substrate-stages-and-gates/09-SUMMARY.md` |
-| §2 Decision 1 (hot/cold split) | Phase 10 | not started — substrate ready | [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (parent) |
+| §2 Decision 1 (hot/cold split) | Phase 10 | **planned 2026-05-12** — CONTEXT + PLAN committed (`f3b6a5b`); 14 tasks across 4 waves; awaiting execution. See `.planning/phases/10-hot-cold-path-split/`. | [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (parent) |
 | §3 + §4 + §6 Decisions 2/3/5 (versioning, review, diff) | Phase 11 | not started | not yet issued |
 | §8 + §9 + residual cleanup | Phase 12 | not started | not yet issued |
 | §10 Axis 2 producer | Phase 8 | blocked | [#5](https://github.com/wcmc-its/ReciterAI/issues/5), [#6](https://github.com/wcmc-its/ReciterAI/issues/6), [#7](https://github.com/wcmc-its/ReciterAI/issues/7), [#8](https://github.com/wcmc-its/ReciterAI/issues/8) (`decision-deferred`) |
