@@ -147,6 +147,20 @@ SK: RUN#{started_at}
 
 Six months from now, "why did the hierarchy sha flip on date X without any content changing" is answerable from a single DDB get — not git archaeology against `bundler.py`.
 
+### D-17: Pre-Phase-11 activity-row backfill uses a single sentinel (research follow-up to D-02)
+
+D-02 originally described a per-row inferred `hierarchy_version` via a `PROCESSING#` join. Phase 11 research confirmed `PROCESSING#` rows do not carry `hierarchy_version` at write time (they predate the field) — the join is empty for every legacy row, so the D-02 mechanism would produce 100% orphans.
+
+Resolution: stamp every pre-Phase-11 row that carries subtopic fields with `hierarchy_version = "v0.0.0-pre-phase-11"`. Honest about the mapping gap, sorts before every real `v{ISO-date}`, preserves provenance via the row's existing `taxonomy_version`, and keeps the orphan sentinel (`0.0.0-orphan` from D-02) reserved for its narrower meaning ("legitimately missing PROCESSING# join evidence", not "pre-feature").
+
+The migration script still reports counts (rows-stamped, rows-skipped-because-already-stamped) but skips the PROCESSING# join entirely for legacy rows.
+
+### D-18: `reassigned_pmid_count` in `diff.json` means rows touched this run
+
+Research surfaced two readings: "rows touched this run" (= existing `records_written` counter) vs "primary subtopic changed vs prior run" (requires per-PMID read-then-write to compare old vs new `primary_subtopic_id`).
+
+Resolution: rows-touched semantics. Cheap (already tracked); no read-before-write penalty on the publish path; honest signal that the field name will reflect verbatim ("number of activity rows that had subtopic fields rewritten in this publish"). If downstream consumers later need primary-changed semantics, that's a follow-up phase that pays for the read-before-write cost explicitly.
+
 ## Open items for plan-phase (deliberately not locked)
 
 ### O-01: First-ever-publish edge case for `diff.json`
