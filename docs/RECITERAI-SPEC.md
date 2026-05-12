@@ -18,8 +18,8 @@ v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered arou
 |---|---|---|---|
 | §11 G-32 (`excluded_topics` source) + bundler | Issue #4 | **closed 2026-05-12** — bundler proven end-to-end on first production publish (`v2026-05-12`); static `hierarchy_full.json` deletion deferred to a follow-up | [#4](https://github.com/wcmc-its/ReciterAI/issues/4) ✓ |
 | §7 parent-prefix gate | Issue #2 | **closed 2026-05-12** — cleanup re-ran across all 65 topics / 1,526 subtopics; SPS `etl:hierarchy` reports `warnings: 0` against `v2026-05-12` | [#2](https://github.com/wcmc-its/ReciterAI/issues/2) ✓ |
-| §5 Decision 4 (content-addressed stages) + §7 Decision 6 (gates framework) | Phase 9 | not started | not yet issued |
-| §2 Decision 1 (hot/cold split) | Phase 10 | not started | [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (parent) |
+| §5 Decision 4 (content-addressed stages) + §7 Decision 6 (gates framework) | Phase 9 | **complete 2026-05-12** — substrate + 4 gates + `publish.py` integration + CLI + docs all shipped; 115 tests passing | see `.planning/phases/09-substrate-stages-and-gates/09-SUMMARY.md` |
+| §2 Decision 1 (hot/cold split) | Phase 10 | not started — substrate ready | [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (parent) |
 | §3 + §4 + §6 Decisions 2/3/5 (versioning, review, diff) | Phase 11 | not started | not yet issued |
 | §8 + §9 + residual cleanup | Phase 12 | not started | not yet issued |
 | §10 Axis 2 producer | Phase 8 | blocked | [#5](https://github.com/wcmc-its/ReciterAI/issues/5), [#6](https://github.com/wcmc-its/ReciterAI/issues/6), [#7](https://github.com/wcmc-its/ReciterAI/issues/7), [#8](https://github.com/wcmc-its/ReciterAI/issues/8) (`decision-deferred`) |
@@ -30,7 +30,7 @@ v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered arou
 
 **Decision-deferred** (per §10): the four Axis 2 producer-model questions exist as tracked issues with label `decision-deferred`. Phase 8 is blocked until all four close.
 
-**Recent slip-checkpoints fired**: none yet. (§12 names the end-of-week-2 Phase 9 checkpoint as the next watch date.)
+**Recent slip-checkpoints fired**: none. Phase 9's end-of-working-day-5 checkpoint did not fire — phase shipped in a single ~6-hour session because two tasks (G-35 centralization, table provisioning) collapsed to additive/docs-only work and two more were pure docs. The 5–8 day plan estimate was conservative.
 
 **Production state (2026-05-12)**: `s3://wcmc-reciterai-hierarchy/latest/manifest.json` → `v2026-05-12`, sha256 `84eecdb29881…`, 65 topics / 1,526 subtopics, taxonomy `taxonomy_v2`, schema `1.0.0`. First publish via the #4 bundler. G-29 (sha churn from `generated_at` re-stamping) observed in real life — sha differed between dry-run and real publish despite identical inputs. Not a problem here; flagged for Phase 11.
 
