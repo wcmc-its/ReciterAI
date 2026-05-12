@@ -15,6 +15,10 @@
 | DEEPDIVE# | `DEEPDIVE#{domain}` | `META` | 1 | Deep dive placeholder |
 | PROCESSING# | `PROCESSING#pmid_{pmid}` | `STATUS` | ~6.5K | Scoring pipeline tracker |
 | STAGE# | `STAGE#{stage_name}#{scope}` | `RUN#{started_at}` | grows over time | Phase 9 substrate (content-addressed completion records) |
+| STAGE#hot_run | `STAGE#hot_run#GLOBAL` | `RUN#{started_at}` | one per hot-path tick | Phase 10: hot-path orchestrator audit row (anchors `last_successful_hot_run_at`) |
+| UNCOVERED_PMID# | `UNCOVERED_PMID#{pmid}` | `GLOBAL` | event-volume | Phase 10: PMID whose top topic score is below the uncovered floor |
+| LOW_CONFIDENCE_ASSIGNMENT# | `LOW_CONFIDENCE_ASSIGNMENT#{pmid}` | `GLOBAL` | event-volume | Phase 10: PMID whose subtopic-assignment confidence is below floor across all candidates |
+| DRIFT# | `DRIFT#evaluation` | `DAY#YYYY-MM-DD` | one per day | Phase 10: drift evaluator output (rolling-window thresholds, severity, cold-run recommendation) |
 
 ### Global Secondary Indexes
 
@@ -153,6 +157,114 @@ A GSI keyed on `input_hash` is deferred to Phase 10 — at one consumer (`publis
 ### Why a separate item type instead of a separate table
 
 Single-table design is the existing convention in `reciterai-chatbot` (see Record Types table above). Adding a new table introduces a second connection, a second IAM policy slice, and a second cost line for no benefit — `STAGE#` items share zero schema with the others and live under their own PK namespace anyway.
+
+---
+
+## Phase 10 Records
+
+Four new record types land in Phase 10 (hot/cold path split). Each uses the existing `reciterai-chatbot` table; no new table or GSI was needed.
+
+### `STAGE#hot_run#GLOBAL` — hot-path orchestrator audit row
+
+Per spec §6. Written by `pipeline_hot.orchestrator` on every hot-path tick. Anchors `last_successful_hot_run_at` so the next tick can compute the delta PMID set.
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `STAGE#hot_run#GLOBAL` (constant). |
+| `SK` | string | `RUN#{started_at}` — same shape as the generic STAGE# substrate. |
+| `stage` | string | `"hot_run"`. |
+| `scope` | string | `"GLOBAL"`. |
+| `status` | string enum | `complete` \| `skipped` \| `failed`. `skipped` with `skip_reason: "prior_run_in_progress"` is the lock-collision sentinel (Open Q 10.5). |
+| `started_at`, `completed_at` | ISO 8601 | Wall-clock execution window of the Step Functions run. |
+| `duration_ms` | number | |
+| `cost_observed_usd` | Decimal | Aggregated cost from all stage envelopes (score + assign + rollup). |
+| `delta_pmid_count` | integer | Number of PMIDs the orchestrator handed to the score stage. |
+| `state_machine_execution_arn` | string \| null | The Step Functions execution that wrote this row. Useful for cross-referencing the AWS console. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "When was the last successful hot run?" | Query `PK = STAGE#hot_run#GLOBAL` with `ScanIndexForward=False`; first row where `status == complete` is the cutoff (see `pipeline_hot.orchestrator.find_last_successful_hot_run_at`). |
+| "Did any recent hot run fail or skip?" | Same query, inspect status of the top-N rows. |
+| "How much has the hot path cost this quarter?" | Scan `PK = STAGE#hot_run#GLOBAL` with `started_at >= cutoff`, sum `cost_observed_usd`. |
+
+### `UNCOVERED_PMID#{pmid}` — uncovered-PMID event record
+
+Per spec §9 (replaces v1 G-12's silent force-fit). Written by `score_publications` when a PMID's top topic score is below `config.uncovered_score_floor` (default 0.4). The drift evaluator consumes these.
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `UNCOVERED_PMID#{pmid}`. |
+| `SK` | string | `GLOBAL` (constant — one row per PMID; idempotent overwrite on retry). |
+| `record_type` | string | `"UNCOVERED_PMID"`. |
+| `pmid` | string | Same as the PK segment; denormalized for GSI / filtering. |
+| `taxonomy_version` | string | The taxonomy version at evaluation time. Drift signal is *per-taxonomy*; a taxonomy bump invalidates the back-window. |
+| `top_topic_score` | Decimal | The highest score seen across all topics for this PMID. |
+| `top_topics` | list[map] | Top-3 closest topics: `[{topic_id, score}]` ordered descending by score. Operator triage data — narrows the "why uncovered" question. |
+| `created_at` | ISO 8601 | When the event was written. |
+| `source_stage` | string | `"score_publications"`. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "How many PMIDs are uncovered in the last 14 days?" | Scan `begins_with(PK, "UNCOVERED_PMID#")` with `created_at >= cutoff`. The drift evaluator does exactly this. |
+| "Which topics keep almost-matching the uncovered PMIDs?" | Same scan, aggregate `top_topics[].topic_id` counts to find candidates for taxonomy expansion. |
+
+### `LOW_CONFIDENCE_ASSIGNMENT#{pmid}` — low-confidence subtopic event record
+
+Per spec §9. Written by `assign_subtopics` when every candidate subtopic confidence under the PMID's top topic falls below `config.low_confidence_floor` (default 0.35). Stored *per-topic* (the field carries `topic_id`) so the drift evaluator can roll up "any single topic accumulates >50" per spec §9.
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `LOW_CONFIDENCE_ASSIGNMENT#{pmid}`. |
+| `SK` | string | `GLOBAL`. |
+| `record_type` | string | `"LOW_CONFIDENCE_ASSIGNMENT"`. |
+| `pmid` | string | |
+| `topic_id` | string | The PMID's top topic. Pivots the per-topic drift aggregation. |
+| `max_confidence` | Decimal | Highest confidence across all candidate subtopics — the headroom before the floor. |
+| `candidate_confidences` | map[subtopic_id → Decimal] | Full classifier output for the candidates considered. |
+| `created_at` | ISO 8601 | |
+| `source_stage` | string | `"assign_subtopics"`. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "Which topic has the most low-confidence assignments?" | Scan `begins_with(PK, "LOW_CONFIDENCE_ASSIGNMENT#")` with `created_at >= cutoff`, group by `topic_id`. The drift evaluator persists `low_confidence_max_topic` + `low_confidence_max_count` on its DRIFT# row so the dashboard doesn't have to repeat this. |
+
+### `DRIFT#evaluation` — daily drift evaluator output
+
+Per spec §9. Written by `pipeline_drift.evaluator` once per daily evaluation. Single row per evaluation day (idempotent overwrite if the cron fires twice the same day).
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `DRIFT#evaluation` (constant). |
+| `SK` | string | `DAY#YYYY-MM-DD` from the window-end date — gives natural daily idempotency. |
+| `record_type` | string | `"DRIFT_EVALUATION"`. |
+| `window_start`, `window_end` | ISO 8601 | The rolling-N-day window the evaluation covered. |
+| `drift_window_days` | integer | Window size (default 14 — from `config.drift_window_days`). |
+| `uncovered_count` | integer | Count of UNCOVERED_PMID# events in window. |
+| `low_confidence_count` | integer | Count of LOW_CONFIDENCE_ASSIGNMENT# events in window. |
+| `stage_failed_count` | integer | Count of `STAGE#…#failed` rows in window. |
+| `new_pmid_count` | integer | Denominator for `uncovered_rate` (total PMIDs landed in window). |
+| `uncovered_rate` | Decimal | `uncovered_count / new_pmid_count` rounded to 6 places. Zero when `new_pmid_count == 0`. |
+| `low_confidence_max_topic` | string \| null | Topic with the most low-confidence events. |
+| `low_confidence_max_count` | integer | Count for that topic. |
+| `triggered_thresholds` | list[string] | Names of thresholds that fired: `uncovered_rate_alert`, `low_confidence_topic_max`, `stage_failures_in_window`. Drives the severity-table mapping in `pipeline_drift.severity`. |
+| `cold_run_recommended` | boolean | `true` iff severity is `ERROR` and one of the cold-run-trigger conditions fired (uncovered_rate_alert or low_confidence_topic_max). |
+| `severity` | string enum | `OK` \| `WARN` \| `ERROR`. Source of truth for the dispatcher in `pipeline_common.alert`. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "What does the most recent drift evaluation say?" | Query `PK = DRIFT#evaluation` with `ScanIndexForward=False`, limit=1. |
+| "What's the drift trend over the last N days?" | Same query, no limit; iterate `triggered_thresholds` + `uncovered_rate` per day for a quick chart. |
+| "Did any evaluation in the last week recommend a cold run?" | Query `PK = DRIFT#evaluation` with `SK >= DAY#{cutoff}`, filter `cold_run_recommended == true`. |
+
+The four Phase 10 record types are write-only this phase. Phase 12 wires consumption: the UNCOVERED_PMID# events feed a Sonnet sweep for taxonomy expansion, and the LOW_CONFIDENCE_ASSIGNMENT# events feed a subtopic split/merge decision.
 
 ---
 
