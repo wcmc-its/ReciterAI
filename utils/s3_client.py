@@ -117,6 +117,25 @@ class S3HierarchyClient:
         )
         logger.info(f"Uploaded s3://{self.bucket}/{key} ({len(body):,} bytes)")
 
+    def get_object_bytes(self, key: str) -> bytes:
+        """Fetch raw bytes for an S3 object.
+
+        Args:
+            key: S3 object key (e.g. "v2026-05-12/hierarchy.json").
+
+        Returns:
+            Raw object body as bytes.
+
+        Raises:
+            botocore.exceptions.ClientError: On 404 (NoSuchKey) or other errors.
+              Callers that want to treat 404 specially should catch ClientError
+              and inspect e.response["Error"]["Code"].
+        """
+        resp = self._get_client().get_object(Bucket=self.bucket, Key=key)
+        body = resp["Body"].read()
+        logger.info(f"Fetched s3://{self.bucket}/{key} ({len(body):,} bytes)")
+        return body
+
     def key_exists(self, key: str) -> bool:
         """Check whether an S3 key exists via HeadObject.
 
