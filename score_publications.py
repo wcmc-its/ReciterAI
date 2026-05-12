@@ -24,12 +24,15 @@ Security (T-03-01, T-03-02):
 - Publication data (titles, abstracts, synopses) is publicly available PubMed content.
 """
 
+import hashlib
 import json
 import sys
 import os
 import asyncio
 import logging
 import argparse
+import time
+from decimal import Decimal
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -37,14 +40,25 @@ from datetime import datetime, timezone
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
-from utils.bedrock_client import BedrockClient, HAIKU_MODEL, SONNET_MODEL
+from utils.bedrock_client import (
+    BedrockClient, HAIKU_MODEL, SONNET_MODEL, MODEL_IDS_BY_STAGE,
+)
 from utils.dynamodb_helpers import (
-    get_dynamo_client, TABLE_NAME, mark_processing,
+    get_dynamo_client, get_table, TABLE_NAME, mark_processing,
     get_processing_status, to_decimal, make_score_sk
 )
 from utils.sql_queries import (
     PUBLICATION_EXTRACTION_SQL, FACULTY_METADATA_SQL,
     AUTHOR_MAPPING_SQL, get_db_connection,
+)
+from utils.stage_records import (
+    build_complete_record,
+    build_skipped_record,
+    compute_input_hash,
+    should_skip,
+    write_complete,
+    write_failed,
+    write_skipped,
 )
 
 logging.basicConfig(
@@ -62,6 +76,65 @@ SCREENING_THRESHOLD = 0.3
 
 # Target failure rate (D-11)
 TARGET_FAILURE_RATE = 0.01  # 1%
+
+# Phase 10 STAGE# substrate (D-07). Run-level memoization uses GLOBAL scope;
+# per-PMID failure records use scope = "pmid:{pmid}" so a single bad PMID
+# does not pollute the run-level skip cache.
+STAGE_NAME = "score_publications"
+STAGE_SCOPE_GLOBAL = "GLOBAL"
+
+# Stubbed cost — Phase 10 follow-up wires a Bedrock usage counter through
+# from BedrockClient. Skip rows continue to use SKIP_COST_OBSERVED_USD.
+SCORE_COST_USD = Decimal("0")
+
+STAGE_MODEL_IDS = [
+    MODEL_IDS_BY_STAGE["screening"],
+    MODEL_IDS_BY_STAGE["scoring"],
+]
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _pmid_scope(pmid: str) -> str:
+    return f"pmid:{pmid}"
+
+
+def compute_score_input_hash(
+    *,
+    taxonomy_version: str,
+    pmids: list,
+) -> str:
+    """Content-addressed input hash for the score_publications run.
+
+    `pmid_set_sha256` collapses the (potentially large) PMID set so two
+    runs over identical inputs collide on the substrate skip cache.
+    Different delta windows naturally produce different PMID sets, so
+    the window timestamp does not need to enter the hash separately.
+    """
+    pmid_set_hash = hashlib.sha256(
+        ",".join(sorted({str(p) for p in pmids})).encode("utf-8")
+    ).hexdigest()
+    return compute_input_hash(
+        STAGE_NAME,
+        {
+            "taxonomy_version": taxonomy_version,
+            "pmid_set_sha256": pmid_set_hash,
+            "model_ids": STAGE_MODEL_IDS,
+        },
+    )
+
+
+def _per_pmid_input_hash(taxonomy_version: str, pmid: str) -> str:
+    return compute_input_hash(
+        STAGE_NAME,
+        {
+            "taxonomy_version": taxonomy_version,
+            "pmid": str(pmid),
+            "model_ids": STAGE_MODEL_IDS,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +344,7 @@ def score_one_publication(
     table_name: str,
     int_to_id: dict,
     id_to_int: dict,
+    stage_table=None,
 ) -> ScoringResult:
     """
     Score a single publication via two-pass Bedrock calls.
@@ -286,6 +360,9 @@ def score_one_publication(
         synopsis=str(pub.get('synopsis') or ''),
         abstract=str(pub.get('abstract') or ''),
     )
+
+    t_pmid_start = time.monotonic()
+    pmid_started_at = _now_iso()
 
     try:
         taxonomy_version = taxonomy['taxonomy_version']
@@ -386,6 +463,24 @@ def score_one_publication(
             )
         except Exception as dynamo_err:
             logger.error(f"Failed to write failed status to DynamoDB for pmid={pmid}: {dynamo_err}")
+        if stage_table is not None:
+            try:
+                tv = taxonomy.get('taxonomy_version', 'unknown')
+                write_failed(
+                    stage_table,
+                    stage=STAGE_NAME,
+                    scope=_pmid_scope(pmid),
+                    input_hash=_per_pmid_input_hash(tv, pmid),
+                    error_code=type(e).__name__,
+                    error_message=error_msg[:1000],
+                    started_at=pmid_started_at,
+                    completed_at=_now_iso(),
+                    duration_ms=int((time.monotonic() - t_pmid_start) * 1000),
+                    cost_observed_usd=SCORE_COST_USD,
+                    model_ids_snapshot=STAGE_MODEL_IDS,
+                )
+            except Exception as stage_err:
+                logger.error(f"Failed to write STAGE# failed row for pmid={pmid}: {stage_err}")
         result.status = 'failed'
         result.error = error_msg
 
@@ -435,6 +530,7 @@ async def score_batch_async(
     int_to_id: dict,
     id_to_int: dict,
     concurrency: int = 15,
+    stage_table=None,
 ) -> list:
     """
     Score publications concurrently using asyncio with a semaphore.
@@ -457,7 +553,8 @@ async def score_batch_async(
         async with semaphore:
             result = await asyncio.to_thread(
                 score_one_publication, pub, bedrock, taxonomy,
-                dynamo_client, table_name, int_to_id, id_to_int
+                dynamo_client, table_name, int_to_id, id_to_int,
+                stage_table,
             )
             if result.status == 'failed':
                 failure_count += 1
@@ -527,7 +624,30 @@ async def main():
         '--concurrency', type=int, default=15,
         help='Maximum concurrent Bedrock calls (default: 15, T-03-03)'
     )
+    parser.add_argument(
+        '--delta-since', metavar='ISO8601', default=None,
+        help=(
+            'Hot-path delta cutoff. Recorded in the STAGE# input_hash so '
+            'distinct delta windows do not share skip cache. PMID-set '
+            'resolution is the orchestrator (pipeline_hot) responsibility; '
+            'this script trusts the inbound publication set.'
+        ),
+    )
+    parser.add_argument(
+        '--emit-envelope', action='store_true',
+        help=(
+            'Phase 10 D-07 hot-path mode. On exit, emit the STAGE# '
+            'complete/skipped record as JSON on stdout instead of writing '
+            'to DynamoDB. The Step Functions DynamoDB:PutItem SDK '
+            'integration consumes the envelope and persists the row.'
+        ),
+    )
     args = parser.parse_args()
+
+    # --- STAGE# substrate setup (Phase 10 D-07) ---
+    stage_started_at = _now_iso()
+    t_stage_start = time.monotonic()
+    stage_table = get_table()
 
     # --- Load taxonomy (taxonomy_v2 is the reviewed, approved taxonomy) ---
     assert TAXONOMY_FILE.exists(), (
@@ -564,6 +684,47 @@ async def main():
         unscored = unscored[:args.test]
         print(f"[--test mode] Limiting run to first {args.test} publications")
 
+    # --- Phase 10 D-07: STAGE# input_hash + should_skip gate ---
+    input_hash = compute_score_input_hash(
+        taxonomy_version=taxonomy['taxonomy_version'],
+        pmids=[str(p['pmid']) for p in unscored],
+    )
+    skip, prior = should_skip(
+        stage_table,
+        stage=STAGE_NAME,
+        scope=STAGE_SCOPE_GLOBAL,
+        input_hash=input_hash,
+    )
+    if skip:
+        completed_at = _now_iso()
+        duration_ms = int((time.monotonic() - t_stage_start) * 1000)
+        skip_reason = (
+            f"input_hash unchanged since prior complete run at "
+            f"{prior.get('started_at', '?')}"
+        )
+        skipped_kwargs = dict(
+            stage=STAGE_NAME,
+            scope=STAGE_SCOPE_GLOBAL,
+            input_hash=input_hash,
+            skip_reason=skip_reason,
+            started_at=stage_started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            model_ids_snapshot=STAGE_MODEL_IDS,
+        )
+        if args.emit_envelope:
+            print(json.dumps(build_skipped_record(**skipped_kwargs), default=str))
+        else:
+            write_skipped(stage_table, **skipped_kwargs)
+        print(
+            f"[STAGE# skip] score_publications skipped — prior complete at "
+            f"{prior.get('started_at', '?')} (input_hash {input_hash[:12]})"
+        )
+        return
+
+    scored_records: list = []
+    scoring_results_path = Path(__file__).parent / 'scoring_results.json'
+
     if not unscored:
         print("Nothing to score — all publications already complete.")
     else:
@@ -573,6 +734,7 @@ async def main():
         results = await score_batch_async(
             unscored, bedrock, taxonomy, dynamo_client, TABLE_NAME,
             int_to_id, id_to_int, concurrency=args.concurrency,
+            stage_table=stage_table,
         )
 
         # --- Summary ---
@@ -596,7 +758,6 @@ async def main():
         print("\n--- Phase 3: Saving outputs ---")
         scored_records = serialize_results(results)
 
-        scoring_results_path = Path(__file__).parent / 'scoring_results.json'
         output = {
             'taxonomy_version': taxonomy['taxonomy_version'],
             'scored_publications': scored_records,
@@ -617,6 +778,26 @@ async def main():
     print(f"Saved {len(faculty_metadata)} faculty profiles -> {faculty_metadata_path}")
 
     print("\nResults saved. Run load_dynamodb.py next.")
+
+    # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
+    completed_at = _now_iso()
+    duration_ms = int((time.monotonic() - t_stage_start) * 1000)
+    complete_kwargs = dict(
+        stage=STAGE_NAME,
+        scope=STAGE_SCOPE_GLOBAL,
+        input_hash=input_hash,
+        started_at=stage_started_at,
+        completed_at=completed_at,
+        duration_ms=duration_ms,
+        cost_observed_usd=SCORE_COST_USD,
+        output_pointer=str(scoring_results_path),
+        records_written=len(scored_records),
+        model_ids_snapshot=STAGE_MODEL_IDS,
+    )
+    if args.emit_envelope:
+        print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+    else:
+        write_complete(stage_table, **complete_kwargs)
 
 
 if __name__ == "__main__":
