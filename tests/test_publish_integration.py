@@ -251,7 +251,7 @@ def test_skip_on_matching_prior_complete_row():
     assert len(puts) == 1
     assert puts[0]["status"] == "skipped"
     assert "input_hash unchanged since" in puts[0]["skip_reason"]
-    assert puts[0]["cost_estimate_usd"] == Decimal("0.0000003")
+    assert puts[0]["cost_observed_usd"] == Decimal("0")
 
 
 def test_no_skip_on_different_input_hash():

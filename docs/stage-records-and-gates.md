@@ -92,7 +92,7 @@ if skip:
     return  # exit 0
 ```
 
-**Critical invariant**: a skip MUST emit a `STAGE#` row. The runner pins `cost_estimate_usd = SKIP_COST_USD` ($0.0000003 — one DDB GetItem) so dashboards split real-work cost from skip-detection cost. A skip that emits no row is the same as no skip at all.
+**Critical invariant**: a skip MUST emit a `STAGE#` row with `cost_observed_usd = Decimal("0")` and `skip_reason` set (Phase 10 D-09). Skips are first-class zeros for `SUM(cost_observed_usd)` aggregation. The DDB GetItem lookup cost (~$0.0000003) is below noise floor and not modeled per row. A skip that emits no row is the same as no skip at all.
 
 `should_skip` only matches `complete` rows. Prior `failed` or `skipped` rows do NOT short-circuit a re-run.
 
@@ -127,7 +127,7 @@ write_complete(
     input_hash=input_hash,
     started_at=started_at,
     duration_ms=duration_ms,
-    cost_estimate_usd=Decimal("4.20"),
+    cost_observed_usd=Decimal("4.20"),
     output_pointer=output_pointer,
     records_written=12345,
     model_ids_snapshot=sorted({MODEL_IDS_BY_STAGE["screening"], MODEL_IDS_BY_STAGE["scoring"]}),
@@ -246,6 +246,6 @@ Most test files do NOT need this fixture. Use it only when your test asserts on 
 - **No GSI on `input_hash`.** Phase 9 queries by PK and filters in Python. Fine for the publish stage's single PK with a handful of rows. Phase 10 should add a GSI when more stages integrate and per-PK row counts grow.
 - **No drift evaluator.** Spec §2's `DRIFT#` records and Slack/GitHub alerting are Phase 10. Today's substrate writes `STAGE#` rows but nothing periodically inspects them.
 - **No diff.json.** Spec §6's structured change signaling is Phase 11. Today's consumers still rely on `manifest.sha256` as the only signal.
-- **No cross-stage cost telemetry dashboard.** The `cost_estimate_usd` field is populated on every row; aggregating it is a Phase 12 hygiene item.
+- **No cross-stage cost telemetry dashboard.** The `cost_observed_usd` field is populated on every row; aggregating it is a Phase 12 hygiene item.
 
 If your new stage needs any of these, raise it as a phase-scoping question — don't fork the substrate.

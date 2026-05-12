@@ -266,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
                 started_at=started_at,
                 completed_at=completed_at,
                 duration_ms=duration_ms,
-                cost_estimate_usd=PUBLISH_COST_USD,
+                cost_observed_usd=PUBLISH_COST_USD,
                 failure_details=failure_details,
                 model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),
             )
@@ -356,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
         started_at=started_at,
         completed_at=completed_at,
         duration_ms=duration_ms,
-        cost_estimate_usd=PUBLISH_COST_USD,
+        cost_observed_usd=PUBLISH_COST_USD,
         output_pointer=f"s3://wcmc-reciterai-hierarchy/{version}/",
         records_written=manifest["artifact_bytes"],
         model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),

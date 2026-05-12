@@ -161,14 +161,14 @@ def test_write_complete_minimal_shape():
         started_at="2026-05-12T00:00:00Z",
         completed_at="2026-05-12T00:00:05Z",
         duration_ms=5000,
-        cost_estimate_usd=Decimal("0.01"),
+        cost_observed_usd=Decimal("0.01"),
     )
     assert item["PK"] == "STAGE#publish_hierarchy#GLOBAL"
     assert item["SK"] == "RUN#2026-05-12T00:00:00Z"
     assert item["status"] == "complete"
     assert item["input_hash"] == "abc"
     assert item["duration_ms"] == 5000
-    assert item["cost_estimate_usd"] == Decimal("0.01")
+    assert item["cost_observed_usd"] == Decimal("0.01")
     # Optional fields should be absent when not passed.
     assert "output_pointer" not in item
     assert "records_written" not in item
@@ -185,7 +185,7 @@ def test_write_complete_with_optional_fields():
         input_hash="abc",
         started_at="2026-05-12T00:00:00Z",
         duration_ms=5000,
-        cost_estimate_usd=Decimal("0.01"),
+        cost_observed_usd=Decimal("0.01"),
         output_pointer="s3://wcmc-reciterai-hierarchy/v2026-05-12/",
         records_written=1526,
         model_ids_snapshot=["haiku-4-5", "sonnet-4-6"],
@@ -198,7 +198,8 @@ def test_write_complete_with_optional_fields():
 
 
 def test_write_skipped_pins_cost_to_skip_constant():
-    """Spec §5: skipped rows MUST carry cost_estimate_usd = SKIP_COST_USD."""
+    """Phase 10 D-09: skipped rows MUST carry cost_observed_usd = 0
+    (no work performed); skips are first-class zeros for aggregation."""
     table = MagicMock()
     item = sr.write_skipped(
         table,
@@ -210,8 +211,8 @@ def test_write_skipped_pins_cost_to_skip_constant():
         duration_ms=42,
     )
     assert item["status"] == "skipped"
-    assert item["cost_estimate_usd"] == sr.SKIP_COST_USD
-    assert item["cost_estimate_usd"] == Decimal("0.0000003")
+    assert item["cost_observed_usd"] == sr.SKIP_COST_OBSERVED_USD
+    assert item["cost_observed_usd"] == Decimal("0")
     assert item["skip_reason"] == "input_hash unchanged since 2026-05-10T12:00:00Z"
     assert item["duration_ms"] == 42
     table.put_item.assert_called_once_with(Item=item)
@@ -243,7 +244,7 @@ def test_write_failed_includes_error_and_details():
         error_message="3 subtopics violated parent-prefix gate",
         started_at="2026-05-12T00:00:00Z",
         duration_ms=1200,
-        cost_estimate_usd=Decimal("0"),
+        cost_observed_usd=Decimal("0"),
         failure_details={
             "violations": [
                 {"topic_id": "microbiome_research", "subtopic_id": "x", "first_word": "microbiome"}
@@ -278,7 +279,7 @@ def test_round_trip_skip_after_complete():
         input_hash="abc",
         started_at="2026-05-12T00:00:00Z",
         duration_ms=5000,
-        cost_estimate_usd=Decimal("0.01"),
+        cost_observed_usd=Decimal("0.01"),
     )
 
     skip, prior = sr.should_skip(
@@ -297,9 +298,10 @@ def test_round_trip_skip_after_complete():
 # ---------- enum / constant guards ----------
 
 
-def test_skip_cost_is_pinned_to_spec_value():
-    """Spec §5 pins SKIP_COST_USD at $0.0000003 (one sub-1KB DDB GetItem)."""
-    assert sr.SKIP_COST_USD == Decimal("0.0000003")
+def test_skip_cost_is_pinned_to_zero():
+    """Phase 10 D-09: SKIP_COST_OBSERVED_USD = 0 (no work performed on skip).
+    DDB GetItem lookup cost is below noise floor and not modeled per-row."""
+    assert sr.SKIP_COST_OBSERVED_USD == Decimal("0")
 
 
 def test_status_enum_values_are_stable():
@@ -321,7 +323,7 @@ def test_build_complete_record_does_no_io():
         started_at="2026-05-12T00:00:00Z",
         completed_at="2026-05-12T00:01:00Z",
         duration_ms=60_000,
-        cost_estimate_usd=Decimal("1.23"),
+        cost_observed_usd=Decimal("1.23"),
         output_pointer="ddb://reciterai-chatbot",
         records_written=10_000,
         model_ids_snapshot=["haiku-4-5", "sonnet-4-6"],
@@ -329,7 +331,7 @@ def test_build_complete_record_does_no_io():
     assert item["PK"] == "STAGE#score_publications#GLOBAL"
     assert item["SK"] == "RUN#2026-05-12T00:00:00Z"
     assert item["status"] == "complete"
-    assert item["cost_estimate_usd"] == Decimal("1.23")
+    assert item["cost_observed_usd"] == Decimal("1.23")
     assert item["records_written"] == 10_000
 
 
@@ -343,7 +345,7 @@ def test_build_skipped_record_pins_cost_and_carries_skip_reason():
         duration_ms=42,
     )
     assert item["status"] == "skipped"
-    assert item["cost_estimate_usd"] == sr.SKIP_COST_USD
+    assert item["cost_observed_usd"] == sr.SKIP_COST_OBSERVED_USD
     assert item["skip_reason"] == "input_hash unchanged since 2026-05-10"
     assert item["PK"] == "STAGE#assign_subtopics#topic:aging_geroscience"
 
@@ -357,7 +359,7 @@ def test_build_failed_record_carries_error_payload():
         error_message="haiku returned malformed json",
         started_at="2026-05-12T00:00:00Z",
         duration_ms=15_000,
-        cost_estimate_usd=Decimal("0.42"),
+        cost_observed_usd=Decimal("0.42"),
         failure_details={"pmids_affected": [12345, 67890]},
     )
     assert item["status"] == "failed"
@@ -376,7 +378,7 @@ def test_write_complete_delegates_to_builder():
         started_at="2026-05-12T00:00:00Z",
         completed_at="2026-05-12T00:01:00Z",
         duration_ms=60_000,
-        cost_estimate_usd=Decimal("1.23"),
+        cost_observed_usd=Decimal("1.23"),
     )
     built = sr.build_complete_record(
         stage="score_publications",
@@ -385,7 +387,7 @@ def test_write_complete_delegates_to_builder():
         started_at="2026-05-12T00:00:00Z",
         completed_at="2026-05-12T00:01:00Z",
         duration_ms=60_000,
-        cost_estimate_usd=Decimal("1.23"),
+        cost_observed_usd=Decimal("1.23"),
     )
     assert written == built
     table.put_item.assert_called_once_with(Item=built)
@@ -400,7 +402,7 @@ def test_builders_are_idempotent():
         started_at="2026-05-12T00:00:00Z",
         completed_at="2026-05-12T00:01:00Z",
         duration_ms=60_000,
-        cost_estimate_usd=Decimal("1.23"),
+        cost_observed_usd=Decimal("1.23"),
     )
     a = sr.build_complete_record(**kwargs)
     b = sr.build_complete_record(**kwargs)

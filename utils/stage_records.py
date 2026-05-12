@@ -36,11 +36,12 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-# Pinned skip cost (spec §5). One sub-1KB DDB GetItem at on-demand
-# pricing (~$0.25 / million reads). Wall-clock skip duration is
-# dominated by Python startup, which is not an AWS cost — hence a
-# constant rather than a duration-derived estimate.
-SKIP_COST_USD = Decimal("0.0000003")
+# Skip observed cost (Phase 10 D-09). Skipped stages did no work — the
+# observed cost is zero. The DDB GetItem cost (~$0.0000003) is below
+# noise floor and orthogonal to "what did the work cost?", so it is
+# explicitly not folded in. Treat skips as first-class zeros for
+# cost-aggregation queries; absence breaks SUM() over the field.
+SKIP_COST_OBSERVED_USD = Decimal("0")
 
 # Status enum. Strings rather than IntEnum because they're written to
 # DynamoDB and read by humans scanning the table.
@@ -149,7 +150,7 @@ def _base_item(
     started_at: str,
     completed_at: str,
     duration_ms: int,
-    cost_estimate_usd: Decimal,
+    cost_observed_usd: Decimal,
 ) -> dict[str, Any]:
     return {
         "PK": _pk(stage, scope),
@@ -161,7 +162,7 @@ def _base_item(
         "started_at": started_at,
         "completed_at": completed_at,
         "duration_ms": duration_ms,
-        "cost_estimate_usd": cost_estimate_usd,
+        "cost_observed_usd": cost_observed_usd,
     }
 
 
@@ -173,7 +174,7 @@ def build_complete_record(
     started_at: str,
     completed_at: str | None = None,
     duration_ms: int,
-    cost_estimate_usd: Decimal,
+    cost_observed_usd: Decimal,
     output_pointer: str | None = None,
     records_written: int | None = None,
     model_ids_snapshot: list[str] | None = None,
@@ -198,7 +199,7 @@ def build_complete_record(
         started_at=started_at,
         completed_at=completed_at or _now_iso(),
         duration_ms=duration_ms,
-        cost_estimate_usd=cost_estimate_usd,
+        cost_observed_usd=cost_observed_usd,
     )
     if output_pointer is not None:
         item["output_pointer"] = output_pointer
@@ -225,9 +226,9 @@ def build_skipped_record(
     """
     Pure builder for a STAGE# skip row dict. No I/O.
 
-    Skips still emit cost rows (per spec §5) — `cost_estimate_usd` is
-    pinned to `SKIP_COST_USD` so dashboards can split real-work cost
-    from skip-detection cost without losing skipped runs to invisibility.
+    Skips still emit cost rows so SUM() over `cost_observed_usd` returns
+    a meaningful aggregate. Phase 10 D-09 pins skip cost to zero (no
+    work performed); the DDB GetItem lookup cost is not modeled per row.
     """
     item = _base_item(
         stage=stage,
@@ -237,7 +238,7 @@ def build_skipped_record(
         started_at=started_at,
         completed_at=completed_at or _now_iso(),
         duration_ms=duration_ms,
-        cost_estimate_usd=SKIP_COST_USD,
+        cost_observed_usd=SKIP_COST_OBSERVED_USD,
     )
     item["skip_reason"] = skip_reason
     if model_ids_snapshot is not None:
@@ -255,7 +256,7 @@ def build_failed_record(
     started_at: str,
     completed_at: str | None = None,
     duration_ms: int,
-    cost_estimate_usd: Decimal,
+    cost_observed_usd: Decimal,
     failure_details: dict | None = None,
     model_ids_snapshot: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -275,7 +276,7 @@ def build_failed_record(
         started_at=started_at,
         completed_at=completed_at or _now_iso(),
         duration_ms=duration_ms,
-        cost_estimate_usd=cost_estimate_usd,
+        cost_observed_usd=cost_observed_usd,
     )
     item["error_code"] = error_code
     item["error_message"] = error_message

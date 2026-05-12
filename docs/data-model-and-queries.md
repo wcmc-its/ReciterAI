@@ -120,7 +120,7 @@ The system provides three independent dimensions for evaluating publications:
 
 ## STAGE# Substrate Records (Phase 9)
 
-Per [`docs/RECITERAI-SPEC.md` §5](RECITERAI-SPEC.md#5-decision-4--content-addressed-stage-completion). Every pipeline stage that integrates with the substrate writes a `STAGE#` row carrying a content-addressed `input_hash`. A subsequent run with the same `input_hash` short-circuits — writing a `skipped` row that still carries `duration_ms` and a pinned `SKIP_COST_USD = 0.0000003` (spec invariant: skips MUST emit cost rows so dashboards split real-work cost from skip-detection cost).
+Per [`docs/RECITERAI-SPEC.md` §5](RECITERAI-SPEC.md#5-decision-4--content-addressed-stage-completion). Every pipeline stage that integrates with the substrate writes a `STAGE#` row carrying a content-addressed `input_hash`. A subsequent run with the same `input_hash` short-circuits — writing a `skipped` row that still carries `duration_ms` and `cost_observed_usd = Decimal("0")` (Phase 10 D-09: skips are first-class zeros for `SUM(cost_observed_usd)` aggregation; DDB GetItem lookup cost is not modeled per row).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -133,7 +133,7 @@ Per [`docs/RECITERAI-SPEC.md` §5](RECITERAI-SPEC.md#5-decision-4--content-addre
 | `skip_reason` | string \| null | Set only when `status == "skipped"`. |
 | `started_at`, `completed_at` | ISO 8601 strings | |
 | `duration_ms` | number | Wall clock from start to completion (including hash compute + lookup for skips). |
-| `cost_estimate_usd` | Decimal | `SKIP_COST_USD` for skipped rows; per-stage estimate for complete/failed rows. |
+| `cost_observed_usd` | Decimal | `Decimal("0")` for skipped rows (no work performed); observed Bedrock/AWS cost for complete and failed rows. Never omitted. |
 | `output_pointer` | string \| null | `s3://...` or `ddb://...`; format per-stage. |
 | `records_written` | integer \| null | |
 | `model_ids_snapshot` | list[string] \| null | The Bedrock model IDs that contributed to `input_hash` (see `utils.bedrock_client.MODEL_IDS_BY_STAGE`). |
@@ -146,7 +146,7 @@ Per [`docs/RECITERAI-SPEC.md` §5](RECITERAI-SPEC.md#5-decision-4--content-addre
 |---|---|
 | "Has this exact input ever been processed by stage X under scope Y?" | Query `PK = STAGE#{stage}#{scope}`, filter on `input_hash == target` and `status == complete` in Python. See `utils.stage_records.find_existing_complete`. |
 | "What's the most recent run of stage X under scope Y?" | Same query, `ScanIndexForward=False`, take the first row. |
-| "How much did pipeline runs cost in the last 7 days?" | Scan with `started_at >= cutoff`, sum `cost_estimate_usd` (split by `status` for the real-work vs skip-detection split). |
+| "How much did pipeline runs cost in the last 7 days?" | Scan with `started_at >= cutoff`, sum `cost_observed_usd` (split by `status` for the real-work vs skip-detection split). |
 
 A GSI keyed on `input_hash` is deferred to Phase 10 — at one consumer (`publish_hierarchy`), the row count per PK is tiny and the in-Python filter on `input_hash` is cheap. Phase 10 should reassess when score/assignment/rollup/spotlight stages start writing.
 

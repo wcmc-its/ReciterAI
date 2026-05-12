@@ -32,10 +32,10 @@ Version-pinned `hierarchy.json` + `hierarchy.schema.json` MUST be uploaded befor
 
 `publish` integrates with `utils.stage_records` (content-addressed `STAGE#` rows) and `gates/` (registered quality gates). On every run:
 
-- A content-addressed `input_hash` is computed from a `generated_at`-free representation of the bundled hierarchy, plus the schema sha, the excluded_topics sha, the pinned model IDs, and the bundler `__version__`. A prior `complete` row with the same hash short-circuits with a `skipped` row (carrying `SKIP_COST_USD = 0.0000003`).
+- A content-addressed `input_hash` is computed from a `generated_at`-free representation of the bundled hierarchy, plus the schema sha, the excluded_topics sha, the pinned model IDs, and the bundler `__version__`. A prior `complete` row with the same hash short-circuits with a `skipped` row (carrying `SKIP_COST_OBSERVED_USD = 0` per Phase 10 D-09).
 - Block-severity gates (`schema_validation`, `parent_prefix`, `pii_scan`) run pre-upload. A failure writes a `failed` row and exits non-zero. Override path: `--force --force-reason "..."` proceeds and writes `force_reason` into the complete row's audit field.
 - Warn-severity gates (`schema_roundtrip`) run post-upload. Failures surface in stderr but do NOT halt — bytes are already live.
-- A complete row is written at the end with `cost_estimate_usd`, `output_pointer`, `records_written`, and `model_ids_snapshot`.
+- A complete row is written at the end with `cost_observed_usd`, `output_pointer`, `records_written`, and `model_ids_snapshot`.
 
 Substrate documentation for new stage authors: [`docs/stage-records-and-gates.md`](../docs/stage-records-and-gates.md). Ad-hoc gate runner: `python -m gates --stage publish --hierarchy v2026-05-12`.
 
