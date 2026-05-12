@@ -14,6 +14,7 @@
 | TAXONOMY# | `TAXONOMY#{version}` | `META` | 1 | 67 domain topics, versioned |
 | DEEPDIVE# | `DEEPDIVE#{domain}` | `META` | 1 | Deep dive placeholder |
 | PROCESSING# | `PROCESSING#pmid_{pmid}` | `STATUS` | ~6.5K | Scoring pipeline tracker |
+| STAGE# | `STAGE#{stage_name}#{scope}` | `RUN#{started_at}` | grows over time | Phase 9 substrate (content-addressed completion records) |
 
 ### Global Secondary Indexes
 
@@ -114,6 +115,44 @@ The system provides three independent dimensions for evaluating publications:
 #### "How many publications do we have on [topic]?"
 - **Access**: Query `PK = TOPIC#{topic_id}`, count distinct PMIDs
 - **Note**: Count reflects publications >= 2020 with synopses that scored >= 0.3 on dense scoring. Not a complete publication count.
+
+---
+
+## STAGE# Substrate Records (Phase 9)
+
+Per [`docs/RECITERAI-SPEC.md` §5](RECITERAI-SPEC.md#5-decision-4--content-addressed-stage-completion). Every pipeline stage that integrates with the substrate writes a `STAGE#` row carrying a content-addressed `input_hash`. A subsequent run with the same `input_hash` short-circuits — writing a `skipped` row that still carries `duration_ms` and a pinned `SKIP_COST_USD = 0.0000003` (spec invariant: skips MUST emit cost rows so dashboards split real-work cost from skip-detection cost).
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `STAGE#{stage_name}#{scope}` — scope is `"GLOBAL"` for whole-pipeline stages, topic-specific for per-topic stages (subtopic discovery, assignment). |
+| `SK` | string | `RUN#{started_at}` ISO 8601, lex order = chronological. |
+| `stage` | string | Same as the stage segment of PK; denormalized for filtering. |
+| `scope` | string | Same as the scope segment of PK; denormalized for filtering. |
+| `input_hash` | string (hex sha256) | Computed by `utils.stage_records.compute_input_hash(stage, inputs)`. The schema of `inputs` is per-stage; documented in each integrating stage's plan. |
+| `status` | string enum | `complete` \| `skipped` \| `failed`. Only `complete` rows anchor future skips. |
+| `skip_reason` | string \| null | Set only when `status == "skipped"`. |
+| `started_at`, `completed_at` | ISO 8601 strings | |
+| `duration_ms` | number | Wall clock from start to completion (including hash compute + lookup for skips). |
+| `cost_estimate_usd` | Decimal | `SKIP_COST_USD` for skipped rows; per-stage estimate for complete/failed rows. |
+| `output_pointer` | string \| null | `s3://...` or `ddb://...`; format per-stage. |
+| `records_written` | integer \| null | |
+| `model_ids_snapshot` | list[string] \| null | The Bedrock model IDs that contributed to `input_hash` (see `utils.bedrock_client.MODEL_IDS_BY_STAGE`). |
+| `force_reason` | string \| null | Populated when a `block`-severity gate was overridden via `python -m gates --force --force-reason "..."`. |
+| `error_code`, `error_message`, `failure_details` | mixed \| null | Set only when `status == "failed"`. |
+
+### Query patterns
+
+| Question | Access |
+|---|---|
+| "Has this exact input ever been processed by stage X under scope Y?" | Query `PK = STAGE#{stage}#{scope}`, filter on `input_hash == target` and `status == complete` in Python. See `utils.stage_records.find_existing_complete`. |
+| "What's the most recent run of stage X under scope Y?" | Same query, `ScanIndexForward=False`, take the first row. |
+| "How much did pipeline runs cost in the last 7 days?" | Scan with `started_at >= cutoff`, sum `cost_estimate_usd` (split by `status` for the real-work vs skip-detection split). |
+
+A GSI keyed on `input_hash` is deferred to Phase 10 — at one consumer (`publish_hierarchy`), the row count per PK is tiny and the in-Python filter on `input_hash` is cheap. Phase 10 should reassess when score/assignment/rollup/spotlight stages start writing.
+
+### Why a separate item type instead of a separate table
+
+Single-table design is the existing convention in `reciterai-chatbot` (see Record Types table above). Adding a new table introduces a second connection, a second IAM policy slice, and a second cost line for no benefit — `STAGE#` items share zero schema with the others and live under their own PK namespace anyway.
 
 ---
 
