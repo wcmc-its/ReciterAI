@@ -39,6 +39,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
 
 - [ ] **Phase 12: Feedback Loops, Both Aggregations, Residual Hygiene** — Implements spec §8 (both aggregations), §9 (feedback-event *consumption* — critic-reject events, uncovered-PMID Sonnet sweeps), and §11 residual maintenance items (G-1, G-18, G-24, G-34, G-36, G-37).
   - Estimate: 4–6 days
+  - Plans: 8 (waves: 6 parallel in wave 1, 2 in wave 2, 1 in wave 3 — see Phase details)
 
 - [ ] **Phase 8: Tools / Axis 2 Pipeline** — Productionize the tool/method extraction pipeline (currently a placeholder).
   - **Blocked on resolution of #5, #6, #7, #8.** Do not start producer implementation until all four `decision-deferred` issues close. See [docs/RECITERAI-SPEC.md §10](../docs/RECITERAI-SPEC.md#10-decision-axis-2-tools--commit-to-the-producer-model-not-a-date).
@@ -83,6 +84,22 @@ Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* �
 **Canonical refs:** `docs/RECITERAI-SPEC.md` §8, §9, §11.
 
 **Estimate:** 4–6 days.
+
+**Plans:** 0/8 plans complete (waves: 6 parallel in wave 1, 2 in wave 2, 1 in wave 3)
+
+Wave 1 (parallel):
+- [ ] `12-PLAN-thresholds-substrate.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
+- [ ] `12-PLAN-feedback-producer.md` — D-08, D-30, D-31: `CritReasonCode` StrEnum + `CRITIC_REJECT#{cwid}#{pmid_set_hash}` additive write at `spotlight/critic.py:571` alongside existing SPOTLIGHT_REVIEW#
+- [ ] `12-PLAN-drift-extension.md` — D-34: additive sparse `per_topic_low_confidence` on `DriftEvaluation.to_dynamodb_item()`; behavior contract preserved
+- [ ] `12-PLAN-aggregations.md` — D-12..D-18, D-33: `_aggregate_exclusive` + `_aggregate_inclusive` + parallel DDB partitions + CSV rename with dual-write deprecation + reconciliation gate + D-33 in-stream invariant
+- [ ] `12-PLAN-residual-docs.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
+
+Wave 2 (parallel, depend on wave 1):
+- [ ] `12-PLAN-feedback-consumer.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
+- [ ] `12-PLAN-g36-reproducibility.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
+
+Wave 3 (depends on every other wave-1 + wave-2 plan, gated per D-20):
+- [ ] `12-PLAN-g37-e2e.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
 
 ### Phase 8: Tools / Axis 2 Pipeline
 
