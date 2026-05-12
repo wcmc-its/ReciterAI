@@ -46,6 +46,49 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
   - Output: TOOL# records in DynamoDB
   - The Phase 5 hierarchy contract already accommodates tool integration on the consumer side.
 
+---
+
+## Phase details
+
+### Phase 11: Versioning, Review State, Diff Signaling
+
+Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarchy_version-is-first-class-on-every-read-and-write), [§4 Decision 3](../docs/RECITERAI-SPEC.md#4-decision-3--review-state-is-machine-readable-pipeline-state), and [§5/§6 Decision 5](../docs/RECITERAI-SPEC.md#6-decision-5--structured-change-signaling).
+
+**Deliverables:**
+
+- `hierarchy_version` stamped on every activity record (TOPIC#, IMPACT#, TOOL#, etc.); rotation state keyed by `(cwid, hierarchy_version)` rather than by `cwid` alone. Lets dashboards pin to a version and unblocks A/B testing of hierarchies.
+- `REVIEW#` records as machine-readable cold-path gate. `python -m review approve …` CLI with a pre-write validator that refuses to flag a cold-path mint as approved if any quality gate failed.
+- `diff.json` per publish + S3 write-order contract + read-tolerance rules + `Cache-Control` on `latest/*`.
+- Move `generated_at` out of `hierarchy.json` (G-29 fix) so the file is bit-stable across reruns with identical inputs.
+
+**Canonical refs:** `docs/RECITERAI-SPEC.md` §3, §4, §5, §6, §11 (G-29).
+
+**Estimate:** 8–12 days.
+
+### Phase 12: Feedback Loops, Both Aggregations, Residual Hygiene
+
+Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* — critic-reject events, uncovered-PMID Sonnet sweeps), plus §11 residual maintenance (G-1, G-18, G-24, G-34, G-36, G-37).
+
+**Deliverables:**
+
+- Consume the `UNCOVERED_PMID#` + `LOW_CONFIDENCE_ASSIGNMENT#` event records that Phase 10 produces — trigger Sonnet sweeps for taxonomy expansion, surface subtopic split/merge candidates.
+- Both aggregations live side by side: the exclusive primary-subtopic rollup (current) plus the inclusive multi-assignment rollup.
+- Critic-reject event records and the §11 residual maintenance items.
+
+**Canonical refs:** `docs/RECITERAI-SPEC.md` §8, §9, §11.
+
+**Estimate:** 4–6 days.
+
+### Phase 8: Tools / Axis 2 Pipeline
+
+Productionize the tool/method extraction pipeline (currently a placeholder). **Blocked on resolution of #5, #6, #7, #8.** Do not start producer implementation until all four `decision-deferred` issues close. See [docs/RECITERAI-SPEC.md §10](../docs/RECITERAI-SPEC.md#10-decision-axis-2-tools--commit-to-the-producer-model-not-a-date).
+
+**Source:** `reciterai_keyword_relevance` table (not LLM-generated).
+**Output:** TOOL# records in DynamoDB.
+**Note:** The Phase 5 hierarchy contract already accommodates tool integration on the consumer side.
+
+---
+
 ### Out of scope for M2
 
 - Chatbot UI / chat runtime work (paused; lives in `~/Dropbox/GitHub/ReciterAI-Chatbot`, local-only)
