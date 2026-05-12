@@ -532,6 +532,7 @@ def _process_pmid(
     dry_run: bool,
     stage_table=None,
     thresholds: dict | None = None,
+    hierarchy_version: str = "",
 ) -> dict:
     """
     Worker: classify one PMID and (unless dry-run) write to every matching row.
@@ -645,6 +646,7 @@ def _process_pmid(
                 subtopic_ids=subtopic_ids,
                 primary_subtopic_id=primary,
                 confidences=confidences,
+                hierarchy_version=hierarchy_version,
             )
             stats["rows_written"] += 1
         except Exception as exc:
@@ -690,6 +692,19 @@ def run(
     delta_pmids: list[str] | None = None,
     emit_envelope: bool = False,
 ) -> dict:
+    # Phase 11 D-01: resolve hierarchy_version from env before any work.
+    # pipeline_cold.run.main() sets this env var for all subprocess stages.
+    # Raise early with an actionable message if absent (prevents silent
+    # writes without version stamps).
+    hierarchy_version = os.environ.get("RECITERAI_HIERARCHY_VERSION")
+    if not hierarchy_version:
+        raise RuntimeError(
+            "RECITERAI_HIERARCHY_VERSION is not set. "
+            "Cold-path plumbing (pipeline_cold.run.main) sets this env var "
+            "automatically. For manual runs, export RECITERAI_HIERARCHY_VERSION "
+            "before invoking assign_subtopics."
+        )
+
     t0 = time.time()
     stage_started_at = _now_iso()
     t_stage_start = time.monotonic()
@@ -866,6 +881,7 @@ def run(
             dry_run=dry_run,
             stage_table=stage_table,
             thresholds=thresholds,
+            hierarchy_version=hierarchy_version,
         )
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:

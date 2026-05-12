@@ -133,9 +133,13 @@ def selection_score(pool_score: float, last_shown_at: Optional[str]) -> float:
 
 
 def fetch_history(
-    client, subtopic_ids: list[str]
+    client, subtopic_ids: list[str], *, hierarchy_version: str
 ) -> dict[str, Optional[str]]:
-    """Read SPOTLIGHT_HISTORY#{subtopic_id} for each id via BatchGetItem.
+    """Read SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id} via BatchGetItem.
+
+    Phase 11 D-04: PK shape is now
+    ``SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id}``.
+    ``hierarchy_version`` is a required keyword argument.
 
     Returns a dict keyed by subtopic_id with ``last_shown_at`` (str) values.
     Subtopic IDs absent from DynamoDB are NOT included in the returned dict
@@ -150,6 +154,8 @@ def fetch_history(
     Args:
         client: a low-level boto3 DynamoDB client (or test stub).
         subtopic_ids: list of subtopic_id strings to look up.
+        hierarchy_version: The active hierarchy version (e.g. "v2026-06-01").
+            Operator/code-controlled; embedded in PK key strings.
 
     Returns:
         dict mapping subtopic_id → last_shown_at ISO string (or None if
@@ -161,7 +167,10 @@ def fetch_history(
     for start in range(0, len(subtopic_ids), BATCH_GET_LIMIT):
         chunk = subtopic_ids[start : start + BATCH_GET_LIMIT]
         keys = [
-            {"PK": {"S": f"{_HISTORY_PK_PREFIX}{sid}"}, "SK": {"S": "STATE"}}
+            {
+                "PK": {"S": f"{_HISTORY_PK_PREFIX}{hierarchy_version}#{sid}"},
+                "SK": {"S": "STATE"},
+            }
             for sid in chunk
         ]
         request_items = {TABLE_NAME: {"Keys": keys}}
@@ -189,6 +198,11 @@ def fetch_history(
 def _ingest_responses(resp: dict, result: dict[str, Optional[str]]) -> None:
     """Extract subtopic_id → last_shown_at from a batch_get_item response.
 
+    Phase 11 D-04: PK shape is ``SPOTLIGHT_HISTORY#{version}#{subtopic_id}``.
+    Uses ``rsplit('#', 1)[-1]`` to extract the subtopic_id as the LAST segment
+    so that subtopic_ids containing ``#`` are handled correctly and future
+    additional segments (if any) would not break parsing.
+
     Mutates ``result`` in place. Skips items missing PK or last_shown_at
     cleanly (cold-start fallback applies via ``.get``).
     """
@@ -196,7 +210,10 @@ def _ingest_responses(resp: dict, result: dict[str, Optional[str]]) -> None:
         pk = item.get("PK", {}).get("S", "")
         if not pk.startswith(_HISTORY_PK_PREFIX):
             continue
-        sid = pk[len(_HISTORY_PK_PREFIX) :]
+        # rsplit on '#' with maxsplit=1 takes the LAST segment as subtopic_id.
+        # This is correct for the new PK shape SPOTLIGHT_HISTORY#{version}#{sid}
+        # and also handles subtopic_ids that themselves contain '#'.
+        sid = pk.rsplit("#", 1)[-1]
         last = item.get("last_shown_at", {}).get("S")
         result[sid] = last
 

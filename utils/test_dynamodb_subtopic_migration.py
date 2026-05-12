@@ -49,6 +49,7 @@ def test_update_activity_subtopics_shape(mock_table):
         subtopic_ids=["s1", "s2"],
         primary_subtopic_id="s1",
         confidences={"s1": 0.87, "s2": 0.42},
+        hierarchy_version="v2026-05-12",
     )
 
     assert mock_table.update_item.call_count == 1
@@ -141,6 +142,7 @@ def test_raw_float_inputs_do_not_raise(mock_table):
         subtopic_ids=["s1"],
         primary_subtopic_id="s1",
         confidences={"s1": 0.5},
+        hierarchy_version="v2026-05-12",
     )
     # Raw floats in scores
     update_faculty_subtopic_scores(
@@ -203,7 +205,7 @@ def test_p11_update_activity_subtopics_existing_fields_still_present(mock_table)
         subtopic_ids=["s1"],
         primary_subtopic_id="s1",
         confidences={"s1": 0.5},
-        hierarchy_version="v2026-06-01",
+        hierarchy_version="v2026-06-01",  # already has it
     )
     kwargs = mock_table.update_item.call_args.kwargs
     expr = kwargs["UpdateExpression"]

@@ -243,9 +243,11 @@ def test_p11_run_propagates_hierarchy_version_to_update_activity(monkeypatch):
         "review_status": "approved",
     }
 
-    # Patch _classify_activity to return a confident assignment
-    def fake_classify(activity, subtopic_defs, topic_meta, client):
-        return {"atherosclerosis": 0.9}
+    # Patch _classify_activity to return a confident assignment in the correct tuple format.
+    # _classify_activity returns (raw_assignments_list, usage_dict).
+    # raw_assignments_list items are {"subtopic_id": ..., "confidence": ...} dicts.
+    def fake_classify(client, activity, topic_meta, subtopic_defs):
+        return ([{"subtopic_id": "atherosclerosis", "confidence": 0.9}], {})
 
     monkeypatch.setattr(ast_mod, "_classify_activity", fake_classify)
 
