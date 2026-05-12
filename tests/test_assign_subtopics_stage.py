@@ -212,3 +212,128 @@ def test_parse_pmid_list_from_file(tmp_path: Path):
 def test_parse_pmid_list_missing_file_raises(tmp_path: Path):
     with pytest.raises(SystemExit):
         ast_mod._parse_pmid_list_arg(f"@{tmp_path}/does-not-exist.txt")
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 Task 1 — Test 5: hierarchy_version propagated through run()
+# ---------------------------------------------------------------------------
+
+
+def test_p11_run_propagates_hierarchy_version_to_update_activity(monkeypatch):
+    """Test 5: assign_subtopics.run() reads hierarchy_version from env and
+    propagates it to update_activity_subtopics via mock assertion."""
+    import os
+    import assign_subtopics as ast_mod
+
+    # Patch env to supply hierarchy_version
+    monkeypatch.setenv("RECITERAI_HIERARCHY_VERSION", "v2026-06-01")
+
+    captured_calls = []
+
+    def fake_update_activity_subtopics(**kwargs):
+        captured_calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(ast_mod, "update_activity_subtopics", fake_update_activity_subtopics)
+
+    # Minimal hierarchy with one subtopic
+    hierarchy_draft = {
+        "topic_id": "cardiovascular_disease",
+        "subtopics": [{"id": "atherosclerosis", "label": "A", "description": "..."}],
+        "review_status": "approved",
+    }
+
+    # Patch _classify_activity to return a confident assignment in the correct tuple format.
+    # _classify_activity returns (raw_assignments_list, usage_dict).
+    # raw_assignments_list items are {"subtopic_id": ..., "confidence": ...} dicts.
+    def fake_classify(client, activity, topic_meta, subtopic_defs):
+        return ([{"subtopic_id": "atherosclerosis", "confidence": 0.9}], {})
+
+    monkeypatch.setattr(ast_mod, "_classify_activity", fake_classify)
+
+    # Patch _query_topic_activity_rows to return one row with a PMID
+    fake_row = {
+        "PK": "TOPIC#cardiovascular_disease",
+        "SK": "SCORE#0850#ACTIVITY#pmid_99#cwid_abc",
+        "pmid": "99",
+        "impact_score": "0.85",
+    }
+    monkeypatch.setattr(ast_mod, "_query_topic_activity_rows", lambda tid: [fake_row])
+
+    # Patch _dedupe_by_pmid to return a pre-built grouped dict
+    grouped = {
+        "99": {
+            "activity": {"pmid": "99", "title": "t", "synopsis": "s"},
+            "rows": [fake_row],
+            "has_primary": False,
+        }
+    }
+    monkeypatch.setattr(ast_mod, "_dedupe_by_pmid", lambda rows: grouped)
+
+    # Patch should_skip to never skip
+    monkeypatch.setattr(ast_mod, "should_skip", lambda *a, **k: (False, {}))
+
+    # Patch get_table to return None-like mock (dry_run=True skips stage writes)
+    import tempfile, json as _json
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False
+    ) as f:
+        _json.dump(hierarchy_draft, f)
+        draft_path = Path(f.name)
+
+    try:
+        result = ast_mod.run(
+            topic_id="cardiovascular_disease",
+            draft_path=draft_path,
+            concurrency=1,
+            confidence_floor=0.3,
+            limit=None,
+            resume=False,
+            dry_run=False,
+        )
+    finally:
+        draft_path.unlink(missing_ok=True)
+
+    # The update call must have been made with hierarchy_version
+    assert len(captured_calls) >= 1, "update_activity_subtopics was never called"
+    for call in captured_calls:
+        assert call.get("hierarchy_version") == "v2026-06-01", (
+            f"hierarchy_version missing or wrong: {call}"
+        )
+
+
+def test_p11_run_raises_if_hierarchy_version_env_absent(monkeypatch):
+    """run() raises RuntimeError if RECITERAI_HIERARCHY_VERSION is not set."""
+    import assign_subtopics as ast_mod
+
+    monkeypatch.delenv("RECITERAI_HIERARCHY_VERSION", raising=False)
+
+    import tempfile, json as _json
+    from pathlib import Path
+
+    hierarchy_draft = {
+        "topic_id": "cardiovascular_disease",
+        "subtopics": [{"id": "atherosclerosis", "label": "A", "description": "..."}],
+        "review_status": "approved",
+    }
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False
+    ) as f:
+        _json.dump(hierarchy_draft, f)
+        draft_path = Path(f.name)
+
+    try:
+        with pytest.raises(RuntimeError, match="RECITERAI_HIERARCHY_VERSION"):
+            ast_mod.run(
+                topic_id="cardiovascular_disease",
+                draft_path=draft_path,
+                concurrency=1,
+                confidence_floor=0.3,
+                limit=None,
+                resume=False,
+                dry_run=False,
+            )
+    finally:
+        draft_path.unlink(missing_ok=True)

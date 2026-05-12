@@ -29,10 +29,13 @@ gates favor a plain Python orchestrator.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import os
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -165,10 +168,20 @@ def run_stage(
     *,
     repo_root: Path,
     runner=None,
+    env: dict | None = None,
 ) -> StageOutcome:
     """Invoke a single stage. `runner` is injected for testability; falls
     back to `subprocess.run` looked up at call time so a test
-    `monkeypatch.setattr(subprocess, "run", ...)` intercepts the call."""
+    `monkeypatch.setattr(subprocess, "run", ...)` intercepts the call.
+
+    Args:
+        stage: The stage to run.
+        repo_root: Working directory for the subprocess.
+        runner: Optional callable to replace subprocess.run (for testing).
+        env: Optional environment dict to pass to the subprocess. If None,
+            inherits from the current process. Phase 11: carries
+            RECITERAI_COLD_RUN_ID and RECITERAI_HIERARCHY_VERSION.
+    """
     t0 = time.monotonic()
     logger.info(f"[cold] starting stage={stage.name}: {' '.join(stage.command)}")
     invoker = runner if runner is not None else subprocess.run
@@ -178,6 +191,7 @@ def run_stage(
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
     duration_ms = int((time.monotonic() - t0) * 1000)
     if proc.returncode == 0:
@@ -218,6 +232,39 @@ def compute_cold_run_input_hash(
 # ---------------------------------------------------------------------------
 
 
+def _read_prev_version_from_latest_manifest() -> str | None:
+    """Read `version` from s3://wcmc-reciterai-hierarchy/latest/manifest.json.
+
+    Returns the version string (e.g. "v2026-05-01") if the manifest exists,
+    or None on first-ever cold run (404 / NoSuchKey). Other S3 errors are
+    re-raised so the operator sees auth/permission issues immediately.
+
+    Phase 11 D-06: prev_version is captured at the start of main() so the
+    cutover audit row can record what version was active before this run.
+    """
+    try:
+        from botocore.exceptions import ClientError
+        from utils.s3_client import S3HierarchyClient, HIERARCHY_BUCKET
+
+        s3 = S3HierarchyClient(bucket=HIERARCHY_BUCKET)
+        data = s3.get_object_bytes("latest/manifest.json")
+        manifest = json.loads(data)
+        return manifest.get("version")
+    except Exception as exc:
+        # Check for 404 / NoSuchKey patterns
+        error_code = ""
+        if hasattr(exc, "response"):
+            error_code = exc.response.get("Error", {}).get("Code", "")  # type: ignore[attr-defined]
+        if error_code in ("404", "NoSuchKey"):
+            logger.info("No previous hierarchy manifest found (first cold run).")
+            return None
+        logger.warning(
+            "Could not read latest/manifest.json from S3 (prev_version will be None): %s",
+            exc,
+        )
+        return None
+
+
 def _print_plan(stages: list[ColdStage], initiated_by: str) -> None:
     print(f"\n--- pipeline_cold.run plan (initiated_by={initiated_by}) ---")
     for i, s in enumerate(stages, 1):
@@ -253,6 +300,15 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--hierarchy-version", default=None, metavar="VERSION",
+        help=(
+            "Hierarchy version string to stamp on this cold run "
+            "(e.g. 'v2026-06-01'). If omitted, minted as v{started_at[:10]} "
+            "(the ISO date of the run). Set via RECITERAI_HIERARCHY_VERSION "
+            "env var for all subprocess stages."
+        ),
+    )
+    parser.add_argument(
         "--skip-stage-write", action="store_true",
         help=(
             "Skip the STAGE#cold_run DynamoDB write (per-stage scripts still "
@@ -277,6 +333,20 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parent.parent
     started_at = _now_iso()
     t_run = time.monotonic()
+
+    # Phase 11: mint run_id and hierarchy_version at run start so all
+    # subprocess stages inherit a consistent version stamp.
+    run_id = str(uuid.uuid4())
+    new_version = args.hierarchy_version or f"v{started_at[:10]}"
+    prev_version = _read_prev_version_from_latest_manifest()
+
+    # Build env dict to pass to all stage subprocesses (inherits current env).
+    env_for_stages = {
+        **os.environ,
+        "RECITERAI_COLD_RUN_ID": run_id,
+        "RECITERAI_HIERARCHY_VERSION": new_version,
+    }
+
     input_hash = compute_cold_run_input_hash(
         started_at=started_at, stages=stages, initiated_by=args.initiated_by
     )
@@ -285,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
 
     outcomes: list[StageOutcome] = []
     for stage in stages:
-        outcome = run_stage(stage, repo_root=repo_root)
+        outcome = run_stage(stage, repo_root=repo_root, env=env_for_stages)
         outcomes.append(outcome)
         if outcome.status == "failed":
             duration_ms = int((time.monotonic() - t_run) * 1000)
@@ -318,6 +388,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # All stages green.
     duration_ms = int((time.monotonic() - t_run) * 1000)
+    completed_at = _now_iso()
     print(f"\n--- cold run complete in {duration_ms / 1000:.1f}s ---")
     for o in outcomes:
         print(f"  {o.name:>22}: {o.status} ({o.duration_ms} ms)")
@@ -328,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
             scope=COLD_RUN_SCOPE,
             input_hash=input_hash,
             started_at=started_at,
-            completed_at=_now_iso(),
+            completed_at=completed_at,
             duration_ms=duration_ms,
             cost_observed_usd=COLD_RUN_COST_USD,
             records_written=len(outcomes),
@@ -338,6 +409,35 @@ def main(argv: list[str] | None = None) -> int:
         item["initiated_by"] = args.initiated_by
         item["stage_names"] = [o.name for o in outcomes]
         table.put_item(Item=item)
+
+        # Phase 11 D-06 / O-03: write STAGE#hierarchy_version_cutover#GLOBAL
+        # audit row at END of main(), after all stages succeed. Single write
+        # (atomic); Phase 10 per-stage STAGE# rows already provide the
+        # partial-failure trail.
+        # migrated_rotation_count and orphan_count default to 0 here;
+        # they are populated by the one-shot migration scripts
+        # (scripts/migrate_spotlight_history_pk.py) when run as a separate
+        # operator step during the cutover window.
+        cutover_input_hash = compute_input_hash(
+            "hierarchy_version_cutover",
+            {"new_version": new_version},
+        )
+        cutover_row = build_complete_record(
+            stage="hierarchy_version_cutover",
+            scope="GLOBAL",
+            input_hash=cutover_input_hash,
+            started_at=started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=COLD_RUN_COST_USD,
+        )
+        cutover_row["prev_version"] = prev_version
+        cutover_row["new_version"] = new_version
+        cutover_row["migrated_rotation_count"] = 0
+        cutover_row["orphan_count"] = 0
+        cutover_row["initiated_by"] = args.initiated_by
+        cutover_row["run_id"] = run_id
+        table.put_item(Item=cutover_row)
 
     return 0
 

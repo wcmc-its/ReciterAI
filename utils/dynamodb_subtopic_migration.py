@@ -12,6 +12,11 @@ the existing `to_decimal` helper from utils.dynamodb_helpers.
 Idempotent: rerunning an UpdateItem on the same row overwrites subtopic
 fields with the same values — no double-counting risk.
 
+Phase 11 D-01: every UpdateItem that writes subtopic fields ALSO stamps
+hierarchy_version in the same SET expression. `hierarchy_version` is a
+string (e.g. "v2026-06-01") — no Decimal coercion needed. Flows through
+ExpressionAttributeValues only (no expression string interpolation).
+
 Portability note (CLAUDE.md §personIdentifier): the literal `cwid_` prefix
 used in `FACULTY#cwid_<pid>` is the Python write-side counterpart to PM's
 `WCM_FACULTY_UID_PREFIX` constant (exported from
@@ -20,7 +25,7 @@ porting to another institution's identifier scheme (NetID, Access ID), both
 must be updated together along with Phase 1's `load_dynamodb.py`.
 
 Public API (exactly three names):
-- update_activity_subtopics(pk, sk, subtopic_ids, primary_subtopic_id, confidences)
+- update_activity_subtopics(pk, sk, subtopic_ids, primary_subtopic_id, confidences, *, hierarchy_version)
 - update_faculty_subtopic_scores(person_identifier, topic_id, scores)
 - clear_faculty_subtopic_scores_for_topic(person_identifier, topic_id)
 """
@@ -40,8 +45,16 @@ def update_activity_subtopics(
     subtopic_ids: list[str],
     primary_subtopic_id: str,
     confidences: Mapping[str, float],
+    *,
+    hierarchy_version: str,
 ) -> dict:
     """Write Pass 2 output to an activity record (D-16 schema).
+
+    Phase 11 D-01: hierarchy_version is a required keyword argument and is
+    stamped in the same SET expression as the subtopic fields. This prevents
+    dangling references between activity records and recomputed hierarchies.
+    hierarchy_version is operator/code-controlled (e.g. "v2026-06-01") and
+    flows through ExpressionAttributeValues only — no expression interpolation.
 
     Args:
         pk: DynamoDB partition key, e.g. "TOPIC#aging_geroscience".
@@ -50,6 +63,8 @@ def update_activity_subtopics(
         primary_subtopic_id: Highest-confidence subtopic; used for Tier 1 ranking.
         confidences: {subtopic_id: confidence_float}. Raw Python floats are
                      accepted; they are internally coerced via to_decimal().
+        hierarchy_version: Semver-shaped version string (e.g. "v2026-06-01") for
+                           the hierarchy that produced these assignments. Required.
 
     Returns:
         The boto3 update_item response dict.
@@ -60,12 +75,14 @@ def update_activity_subtopics(
         UpdateExpression=(
             "SET subtopic_ids = :sids, "
             "primary_subtopic_id = :pid, "
-            "subtopic_confidences = :confs"
+            "subtopic_confidences = :confs, "
+            "hierarchy_version = :hv"
         ),
         ExpressionAttributeValues={
             ":sids": list(subtopic_ids),
             ":pid": primary_subtopic_id,
             ":confs": {k: to_decimal(v) for k, v in confidences.items()},
+            ":hv": hierarchy_version,
         },
     )
 
