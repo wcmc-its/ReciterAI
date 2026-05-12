@@ -65,7 +65,7 @@ Implements spec [§3 Decision 2](../docs/RECITERAI-SPEC.md#3-decision-2--hierarc
 
 **Estimate:** 8–12 days.
 
-**Plans:** 3 plans (all Wave 1, independent contract surfaces — parallel execution)
+**Plans:** 0/3 plans executed
 - [ ] `11-PLAN-hierarchy-versioning.md` — D-01..D-06, D-17: hierarchy_version stamping, rotation history PK rewrite, cold-path cutover audit row
 - [ ] `11-PLAN-review-state.md` — D-07, D-08: REVIEW# DDB row + `python -m review approve|validate` CLI + pre-write validator
 - [ ] `11-PLAN-change-signaling.md` — D-09..D-16, D-18: diff.json + 5-step S3 write-order + Cache-Control + G-29 fix + STAGE# run_id substrate
