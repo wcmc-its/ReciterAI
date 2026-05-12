@@ -45,21 +45,33 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from threading import Lock
 
 # Ensure repo root is importable regardless of cwd
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils.bedrock_client import BedrockClient, HAIKU_MODEL
+from utils.bedrock_client import BedrockClient, HAIKU_MODEL, MODEL_IDS_BY_STAGE
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.dynamodb_subtopic_migration import update_activity_subtopics
+from utils.stage_records import (
+    build_complete_record,
+    build_skipped_record,
+    compute_input_hash,
+    should_skip,
+    write_complete,
+    write_failed,
+    write_skipped,
+)
 from prompts.subtopic_assignment import (
     ASSIGNMENT_SYSTEM_PROMPT,
     BUILD_ASSIGNMENT_USER_MESSAGE,
@@ -83,6 +95,97 @@ DEFAULT_CONFIDENCE_FLOOR = 0.3     # Below this, assignments are dropped (D-02)
 DEFAULT_CONCURRENCY = 15           # Phase 1 precedent (score_publications)
 DEFAULT_DRAFT_DIR = Path(".planning/phases/04-subtopic-system")
 TIE_EPSILON = 0.001                # Confidences within this are considered tied
+
+# Phase 10 STAGE# substrate (D-07). Run-level memoization is keyed on
+# topic_id because this script runs per-topic. Per-PMID failure rows use
+# scope = "pmid:{pmid}" so failures do not pollute the run-level cache.
+STAGE_NAME = "assign_subtopics"
+STAGE_MODEL_IDS = [MODEL_IDS_BY_STAGE["subtopic_assignment"]]
+
+# Stubbed cost — Phase 10 follow-up wires a Bedrock usage counter. Skip
+# rows continue to use the substrate's SKIP_COST_OBSERVED_USD.
+ASSIGN_COST_USD = Decimal("0")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _topic_scope(topic_id: str) -> str:
+    return f"topic:{topic_id}"
+
+
+def _pmid_scope(pmid: str) -> str:
+    return f"pmid:{pmid}"
+
+
+def _hierarchy_canonical_sha256(hierarchy_draft: dict) -> str:
+    """Canonical sha256 over the hierarchy draft, excluding non-deterministic fields.
+
+    Substitute for `hierarchy_version` until Phase 11 stamps it first-class on
+    every record (spec §3, Decision 2). Excludes any `generated_at` /
+    `review_status` keys that re-stamp on rerun without changing content.
+    """
+    ignore = {"generated_at", "review_status"}
+    h_for_hash = {k: v for k, v in hierarchy_draft.items() if k not in ignore}
+    canonical = json.dumps(
+        h_for_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def compute_assign_input_hash(
+    *,
+    hierarchy_draft: dict,
+    pmids: list,
+) -> str:
+    """Content-addressed input hash for an assign_subtopics run.
+
+    Phase 11 will replace `hierarchy_draft_sha256` with the stamped
+    `hierarchy_version`; the substitution preserves the substrate
+    contract because both collapse the hierarchy state to a stable key.
+    """
+    pmid_set_hash = hashlib.sha256(
+        ",".join(sorted({str(p) for p in pmids})).encode("utf-8")
+    ).hexdigest()
+    return compute_input_hash(
+        STAGE_NAME,
+        {
+            "hierarchy_draft_sha256": _hierarchy_canonical_sha256(hierarchy_draft),
+            "pmid_set_sha256": pmid_set_hash,
+            "model_ids": STAGE_MODEL_IDS,
+        },
+    )
+
+
+def _per_pmid_assign_input_hash(hierarchy_draft: dict, pmid: str) -> str:
+    return compute_input_hash(
+        STAGE_NAME,
+        {
+            "hierarchy_draft_sha256": _hierarchy_canonical_sha256(hierarchy_draft),
+            "pmid": str(pmid),
+            "model_ids": STAGE_MODEL_IDS,
+        },
+    )
+
+
+def _parse_pmid_list_arg(value: str | None) -> list[str] | None:
+    """Parse --delta-pmids: 'pmid1,pmid2,...' or '@/path/to/file' (one PMID per line).
+
+    Returns None when no value is provided (the run processes the full topic set).
+    """
+    if value is None:
+        return None
+    if value.startswith("@"):
+        path = Path(value[1:])
+        if not path.exists():
+            raise SystemExit(f"--delta-pmids file not found: {path}")
+        return [
+            line.strip()
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+    return [s.strip() for s in value.split(",") if s.strip()]
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +490,7 @@ def _process_pmid(
     hierarchy_draft: dict,
     confidence_floor: float,
     dry_run: bool,
+    stage_table=None,
 ) -> dict:
     """
     Worker: classify one PMID and (unless dry-run) write to every matching row.
@@ -405,6 +509,8 @@ def _process_pmid(
         "output_tokens": 0,
     }
 
+    t_pmid_start = time.monotonic()
+    pmid_started_at = _now_iso()
     try:
         raw_assignments, usage = _classify_activity(
             client=client,
@@ -416,6 +522,25 @@ def _process_pmid(
         logger.warning(f"Haiku call failed for pmid={pmid}: {exc}")
         stats["status"] = "failed"
         stats["error"] = str(exc)
+        if stage_table is not None:
+            try:
+                write_failed(
+                    stage_table,
+                    stage=STAGE_NAME,
+                    scope=_pmid_scope(pmid),
+                    input_hash=_per_pmid_assign_input_hash(hierarchy_draft, pmid),
+                    error_code=type(exc).__name__,
+                    error_message=str(exc)[:1000],
+                    started_at=pmid_started_at,
+                    completed_at=_now_iso(),
+                    duration_ms=int((time.monotonic() - t_pmid_start) * 1000),
+                    cost_observed_usd=ASSIGN_COST_USD,
+                    model_ids_snapshot=STAGE_MODEL_IDS,
+                )
+            except Exception as stage_err:
+                logger.warning(
+                    f"Failed to write STAGE# failed row for pmid={pmid}: {stage_err}"
+                )
         return stats
 
     stats["input_tokens"] = usage.get("inputTokens", 0) or 0
@@ -507,8 +632,14 @@ def run(
     limit: int | None,
     resume: bool,
     dry_run: bool,
+    delta_pmids: list[str] | None = None,
+    emit_envelope: bool = False,
 ) -> dict:
     t0 = time.time()
+    stage_started_at = _now_iso()
+    t_stage_start = time.monotonic()
+    # --dry-run keeps STAGE# writes off too — symmetric with publish.py.
+    stage_table = None if dry_run else get_table(TABLE_NAME)
 
     # 1. Load taxonomy + hierarchy draft
     taxonomy = _load_taxonomy()
@@ -547,6 +678,15 @@ def run(
     grouped = _dedupe_by_pmid(qualified_rows)
     logger.info(f"Unique PMIDs: {len(grouped)}")
 
+    # 2b. --delta-pmids filter (Phase 10 hot path)
+    if delta_pmids is not None:
+        delta_set = {str(p) for p in delta_pmids}
+        grouped = {p: g for p, g in grouped.items() if str(p) in delta_set}
+        logger.info(
+            f"--delta-pmids: restricted to {len(grouped)} PMIDs "
+            f"(intersection of topic set and delta list)"
+        )
+
     # 3. Apply --resume filter
     pmids_todo: list = []
     skipped_resume = 0
@@ -565,6 +705,52 @@ def run(
     if limit is not None and limit > 0:
         pmids_todo = pmids_todo[:limit]
         logger.info(f"--limit={limit} applied; {len(pmids_todo)} PMIDs to process")
+
+    # 4b. Phase 10 D-07: STAGE# input_hash + should_skip gate.
+    # Hash the actual to-process set so the skip cache is content-addressed
+    # against the *intent* of this run.
+    input_hash = compute_assign_input_hash(
+        hierarchy_draft=hierarchy, pmids=pmids_todo
+    )
+    if stage_table is not None:
+        skip, prior = should_skip(
+            stage_table,
+            stage=STAGE_NAME,
+            scope=_topic_scope(topic_id),
+            input_hash=input_hash,
+        )
+        if skip:
+            completed_at = _now_iso()
+            duration_ms = int((time.monotonic() - t_stage_start) * 1000)
+            skip_reason = (
+                f"input_hash unchanged since prior complete run at "
+                f"{prior.get('started_at', '?')}"
+            )
+            skipped_kwargs = dict(
+                stage=STAGE_NAME,
+                scope=_topic_scope(topic_id),
+                input_hash=input_hash,
+                skip_reason=skip_reason,
+                started_at=stage_started_at,
+                completed_at=completed_at,
+                duration_ms=duration_ms,
+                model_ids_snapshot=STAGE_MODEL_IDS,
+            )
+            if emit_envelope:
+                print(json.dumps(build_skipped_record(**skipped_kwargs), default=str))
+            else:
+                write_skipped(stage_table, **skipped_kwargs)
+            logger.info(
+                f"[STAGE# skip] assign_subtopics topic={topic_id} skipped "
+                f"(input_hash {input_hash[:12]}, prior run {prior.get('started_at', '?')})"
+            )
+            return {
+                "topic_id": topic_id,
+                "total_pmids_in_topic": len(grouped),
+                "processed": 0,
+                "stage_status": "skipped",
+                "input_hash": input_hash,
+            }
 
     total = len(pmids_todo)
     if total == 0:
@@ -611,6 +797,7 @@ def run(
             hierarchy_draft=hierarchy,
             confidence_floor=confidence_floor,
             dry_run=dry_run,
+            stage_table=stage_table,
         )
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
@@ -697,6 +884,26 @@ def run(
         else:
             print(f"  {k}: {v}")
 
+    # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
+    if stage_table is not None:
+        completed_at = _now_iso()
+        duration_ms = int((time.monotonic() - t_stage_start) * 1000)
+        complete_kwargs = dict(
+            stage=STAGE_NAME,
+            scope=_topic_scope(topic_id),
+            input_hash=input_hash,
+            started_at=stage_started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=ASSIGN_COST_USD,
+            records_written=total_rows_written,
+            model_ids_snapshot=STAGE_MODEL_IDS,
+        )
+        if emit_envelope:
+            print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+        else:
+            write_complete(stage_table, **complete_kwargs)
+
     return summary
 
 
@@ -747,6 +954,22 @@ def _parse_args():
         "--dry-run", action="store_true",
         help="Classify but do NOT write DynamoDB updates",
     )
+    parser.add_argument(
+        "--delta-pmids", default=None, metavar="LIST",
+        help=(
+            "Phase 10 hot-path filter. Comma-separated PMIDs or '@/path' to a "
+            "file with one PMID per line. Restricts processing to PMIDs in "
+            "the intersection of this topic and the delta list."
+        ),
+    )
+    parser.add_argument(
+        "--emit-envelope", action="store_true",
+        help=(
+            "Phase 10 D-07 hot-path mode. Emit the STAGE# complete/skipped "
+            "record as JSON on stdout instead of writing to DynamoDB. Step "
+            "Functions DynamoDB:PutItem SDK integration persists the row."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -763,4 +986,6 @@ if __name__ == "__main__":
         limit=args.limit,
         resume=args.resume,
         dry_run=args.dry_run,
+        delta_pmids=_parse_pmid_list_arg(args.delta_pmids),
+        emit_envelope=args.emit_envelope,
     )
