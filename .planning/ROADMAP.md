@@ -24,9 +24,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
 
 ### Phases
 
-- [ ] **Phase 7: Hierarchy Publisher** — Move hierarchy artifact generation + S3 publish from the SPS-side stopgap (`Scholars-Profile-System/scripts/generate-hierarchy-artifact.ts`) into this repo. Tracks SPS issue [#180](https://github.com/wcmc-its/Scholars-Profile-System/issues/180).
-  - Goal: Running a single command in this repo produces a new `s3://wcmc-reciterai-hierarchy/v{date}/` prefix with `hierarchy.json` + `hierarchy.schema.json` + `manifest.json`, overwrites `latest/`, and SPS's `etl:hierarchy` picks it up unchanged.
-  - Depends on: nothing in this repo (Phase 5 contract is locked); the SPS stopgap stays in place until this phase's publisher is verified.
+- [x] **Phase 7: Hierarchy Publisher** — Done 2026-05-11. `pipeline_hierarchy/` package owns artifact production + S3 publish. SPS stopgap deleted; SPS #180 closed. See `phases/07-hierarchy-publisher/07-SUMMARY.md`.
 
 - [ ] **Phase 8: Tools / Axis 2 Pipeline** — Productionize the tool/method extraction pipeline (currently a placeholder).
   - Source: `reciterai_keyword_relevance` table (not LLM-generated)
