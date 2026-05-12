@@ -27,6 +27,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
 - [x] **Phase 7: Hierarchy Publisher** — Done 2026-05-11. `pipeline_hierarchy/` package owns artifact production + S3 publish. SPS stopgap deleted; SPS #180 closed. See `phases/07-hierarchy-publisher/07-SUMMARY.md`.
 
 - [ ] **Phase 8: Tools / Axis 2 Pipeline** — Productionize the tool/method extraction pipeline (currently a placeholder).
+  - **Blocked on resolution of #5, #6, #7, #8.** Do not start producer implementation until all four `decision-deferred` issues close. See [docs/RECITERAI-SPEC.md §10](../docs/RECITERAI-SPEC.md#10-decision-axis-2-tools--commit-to-the-producer-model-not-a-date).
   - Source: `reciterai_keyword_relevance` table (not LLM-generated)
   - Output: TOOL# records in DynamoDB
   - The Phase 5 hierarchy contract already accommodates tool integration on the consumer side.

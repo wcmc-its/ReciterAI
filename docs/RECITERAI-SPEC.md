@@ -22,7 +22,7 @@ v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered arou
 | §2 Decision 1 (hot/cold split) | Phase 10 | not started | [#3](https://github.com/wcmc-its/ReciterAI/issues/3) (parent) |
 | §3 + §4 + §6 Decisions 2/3/5 (versioning, review, diff) | Phase 11 | not started | not yet issued |
 | §8 + §9 + residual cleanup | Phase 12 | not started | not yet issued |
-| §10 Axis 2 producer | Phase 8 | blocked | four `decision-deferred` issues (TBD numbers) |
+| §10 Axis 2 producer | Phase 8 | blocked | [#5](https://github.com/wcmc-its/ReciterAI/issues/5), [#6](https://github.com/wcmc-its/ReciterAI/issues/6), [#7](https://github.com/wcmc-its/ReciterAI/issues/7), [#8](https://github.com/wcmc-its/ReciterAI/issues/8) (`decision-deferred`) |
 
 **Issued for grabs**: pure-hygiene items per §11 (G-1, G-18, G-24, G-34, G-37).
 
@@ -424,8 +424,8 @@ Until those four are written down (1–2 pages), no Phase 8 date is honest. The 
 A `docs/tools-producer-model.md` placeholder gets missed. The deferral needs enforcement:
 
 1. **Four GitHub issues** opened with label `decision-deferred`, one per question above. They are the canonical artifact, not a markdown placeholder. Each issue states the question, the options under consideration, and the trigger for closing (a decision, not a passage of time).
-2. **`ROADMAP.md` blocks Phase 8**: under Phase 8, the entry reads *"Blocked on resolution of [#X, #Y, #Z, #W]. Do not start producer implementation until all four are closed."* This makes the dependency machine-readable to anyone running `/gsd-progress` or scanning the roadmap.
-3. **CI-enforced PR check** (when Phase 8 work begins): a GitHub Actions workflow runs on PRs touching `pipeline_tools/` or any `TOOL#` producer code. The workflow `grep`s the PR body for each of the four issue numbers (`#X`, `#Y`, `#Z`, `#W`) and queries the GitHub API to confirm each is `state: closed`. Workflow fails on absent reference or any still-open issue. Not a checkbox on a template — a bot that blocks merge. Checkboxes get ticked; CI doesn't lie.
+2. **`ROADMAP.md` blocks Phase 8**: under Phase 8, the entry reads *"Blocked on resolution of #5, #6, #7, #8. Do not start producer implementation until all four are closed."* This makes the dependency machine-readable to anyone running `/gsd-progress` or scanning the roadmap.
+3. **CI-enforced PR check** (when Phase 8 work begins): a GitHub Actions workflow runs on PRs touching `pipeline_tools/` or any `TOOL#` producer code. The workflow `grep`s the PR body for each of the four issue numbers (`#5`, `#6`, `#7`, `#8`) and queries the GitHub API to confirm each is `state: closed`. Workflow fails on absent reference or any still-open issue. Not a checkbox on a template — a bot that blocks merge. Checkboxes get ticked; CI doesn't lie.
 
 The point: a deferral with teeth has the same shape as a normal blocking issue — it just labels itself "we chose to defer" instead of "we haven't decided yet." Both are tracked the same way.
 
