@@ -97,24 +97,36 @@ class S3HierarchyClient:
             self._client = boto3.client("s3", region_name=self.region)
         return self._client
 
-    def put_object(self, key: str, body: bytes, content_type: str = "application/json") -> None:
+    def put_object(
+        self,
+        key: str,
+        body: bytes,
+        content_type: str = "application/json",
+        cache_control: str | None = None,
+    ) -> None:
         """Upload bytes to S3 at the given key.
 
         Args:
             key: S3 object key (e.g. "v2026-05-06/hierarchy.json").
             body: Raw bytes to upload.
             content_type: HTTP Content-Type header (default: application/json).
+            cache_control: Optional Cache-Control header value (Phase 11 D-11).
+                Set on latest/manifest.json: "max-age=60, must-revalidate".
+                When None (default), CacheControl is not included in the request.
 
         Raises:
             botocore.exceptions.ClientError: On S3 API errors (permissions, etc.).
             botocore.exceptions.NoCredentialsError: If no AWS credentials found.
         """
-        self._get_client().put_object(
-            Bucket=self.bucket,
-            Key=key,
-            Body=body,
-            ContentType=content_type,
-        )
+        kwargs = {
+            "Bucket": self.bucket,
+            "Key": key,
+            "Body": body,
+            "ContentType": content_type,
+        }
+        if cache_control is not None:
+            kwargs["CacheControl"] = cache_control
+        self._get_client().put_object(**kwargs)
         logger.info(f"Uploaded s3://{self.bucket}/{key} ({len(body):,} bytes)")
 
     def get_object_bytes(self, key: str) -> bytes:

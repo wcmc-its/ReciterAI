@@ -1,6 +1,6 @@
 # Hierarchy Artifact — Consumer Contract
 
-`hierarchy.json` is the canonical research-domain hierarchy artifact for WCM faculty expertise data. It is published to `s3://wcmc-reciterai-hierarchy` (us-east-1, IAM-gated, private) on a versioned + `latest/` pattern alongside a co-published JSON Schema (`hierarchy.schema.json`) and manifest (`manifest.json`). Any current or future downstream consumer (current: SPS ETL; deferred: PM ETL migration) integrates against the artifact using only this document and `docs/hierarchy.schema.json`.
+`hierarchy.json` is the canonical research-domain hierarchy artifact for WCM faculty expertise data. It is published to `s3://wcmc-reciterai-hierarchy` (us-east-1, IAM-gated, private) on a versioned + `latest/` pattern alongside a co-published JSON Schema (`hierarchy.schema.json`), manifest (`manifest.json`), and diff summary (`diff.json`). Any current or future downstream consumer (current: SPS ETL; deferred: PM ETL migration) integrates against the artifact using only this document and `docs/hierarchy.schema.json`.
 
 **Authoritative schema source:** `.planning/phases/04-subtopic-system/hierarchy-schema.md` (narrative source of truth, TypeScript interfaces, decision rules). `docs/hierarchy.schema.json` is the machine-readable projection of that document. In case of divergence, `hierarchy-schema.md` wins.
 
@@ -14,12 +14,109 @@
 |------|---------|
 | `s3://wcmc-reciterai-hierarchy/v{ISO-date}/hierarchy.json` | Versioned hierarchy artifact (e.g. `v2026-05-06/hierarchy.json`) |
 | `s3://wcmc-reciterai-hierarchy/v{ISO-date}/hierarchy.schema.json` | Co-published JSON Schema for the same version |
-| `s3://wcmc-reciterai-hierarchy/v{ISO-date}/manifest.json` | Manifest carrying version metadata and sha256 |
+| `s3://wcmc-reciterai-hierarchy/v{ISO-date}/diff.json` | **Phase 11 new:** structured change summary vs previous publish |
+| `s3://wcmc-reciterai-hierarchy/v{ISO-date}/manifest.json` | **Phase 11 new:** version-pinned manifest copy (was only at `latest/` before) |
 | `s3://wcmc-reciterai-hierarchy/latest/hierarchy.json` | Most recent publish (PutObject-overwritten on every publish) |
 | `s3://wcmc-reciterai-hierarchy/latest/hierarchy.schema.json` | Schema for the latest publish |
-| `s3://wcmc-reciterai-hierarchy/latest/manifest.json` | Manifest for the latest publish |
+| `s3://wcmc-reciterai-hierarchy/latest/manifest.json` | Manifest for the latest publish (with `Cache-Control: max-age=60, must-revalidate`) |
 
 **Retention (D-06):** All `v{ISO-date}/` prefixes are retained indefinitely (no S3 Lifecycle rules in this phase). Full historical rollback is available.
+
+---
+
+## S3 Write Order (Phase 11 D-11)
+
+Every publish issues exactly **5 PutObject calls** in this order:
+
+1. `{version}/hierarchy.json` — the artifact itself
+2. `{version}/hierarchy.schema.json` — validator for the artifact
+3. `{version}/diff.json` — **before manifest** so consumers polling `manifest.sha256` can immediately `GetObject diff.json` without encountering an eventually-consistent race
+4. `{version}/manifest.json` — version-pinned manifest copy (Phase 11 addition; was missing before)
+5. `latest/manifest.json` — last, with `Cache-Control: max-age=60, must-revalidate`
+
+**Rationale:** Steps 3→4 ordering guarantees that any consumer that sees a new `manifest.sha256` can immediately fetch `diff.json` to understand what changed — the diff will already be durable in S3.
+
+---
+
+## diff.json — Structured Change Signal (Phase 11 D-09, D-12)
+
+`diff.json` is co-published at `{version}/diff.json` on every publish. It provides SPS ETL a structured description of what changed vs. the previous publish, enabling incremental ETL instead of wholesale reload.
+
+**Shape:**
+
+```json
+{
+  "diff_schema_version": "1.0.0",
+  "from_version": "v2026-05-06",
+  "to_version": "v2026-06-01",
+  "taxonomy_version_changed": false,
+  "added_subtopics": [],
+  "removed_subtopics": [],
+  "renamed_subtopics": [
+    { "id": "aging_cellular_senescence", "old_display_name": "Old Name", "new_display_name": "New Name" }
+  ],
+  "reassigned_pmid_count": 312,
+  "editorial_only": true
+}
+```
+
+**Field semantics:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `diff_schema_version` | string (semver) | Schema version for this diff format. Current: `"1.0.0"`. |
+| `from_version` | string \| null | Previous publish version, e.g. `"v2026-05-06"`. **`null` on first-ever-publish** (O-01 signal — see below). |
+| `to_version` | string | Current publish version. |
+| `taxonomy_version_changed` | boolean | True if `taxonomy_version` changed since the previous publish. |
+| `added_subtopics` | string[] | Subtopic IDs present in the new hierarchy but not the previous one. |
+| `removed_subtopics` | string[] | Subtopic IDs present in the previous hierarchy but not the new one. |
+| `renamed_subtopics` | object[] | Subtopics whose `display_name` changed; each entry carries `id`, `old_display_name`, `new_display_name`. |
+| `reassigned_pmid_count` | integer | Total `records_written` from assign-stage STAGE# rows filtered by the current cold-run's `run_id`. **Rows-touched semantics** (D-18): counts PMIDs processed, not PMIDs whose primary subtopic changed. |
+| `editorial_only` | boolean | True iff ONLY display-name renames occurred AND no PMID reassignment AND no taxonomy version change AND no adds/removes. |
+
+**Consumer guidance:**
+- Check `editorial_only` first. If `True`, only label text changed — no ETL re-key required.
+- If `taxonomy_version_changed` is `True`, re-run the full taxonomy mapping.
+- `added_subtopics`/`removed_subtopics` indicate schema-shape changes that may require ETL schema updates.
+- `reassigned_pmid_count > 0` indicates PMID-to-subtopic mapping changed; re-fetch the hierarchy and re-run the assignment projection.
+
+### First-Ever-Publish: `from_version: null` (O-01)
+
+On the first-ever publish (no previous `latest/manifest.json` exists), `diff.json` is still emitted with `"from_version": null`. This is an **explicit signal** — consumers MUST handle this case explicitly. Do NOT fall through to "treat absence of diff.json as wholesale" — `null` and missing are different signals per spec §6:
+
+- `from_version: null` → no prior version exists; treat as a full baseline load
+- `diff.json` missing (404) → consumer should treat as an error and alert the operator
+
+---
+
+## Cache-Control on `latest/manifest.json` (Phase 11 D-11)
+
+`latest/manifest.json` is uploaded with `Cache-Control: max-age=60, must-revalidate`. This allows SPS ETL and any HTTP-layer cache to hold the manifest for up to 60 seconds without revalidation, while ensuring stale content is never served past the freshness window. Versioned paths (`v{ISO-date}/manifest.json`) do NOT carry a Cache-Control header — they are immutable once written.
+
+---
+
+## G-29 Fix: `generated_at` Removed from `hierarchy.json` (Phase 11 D-14)
+
+**Phase 11 change:** `generated_at` is no longer embedded in `hierarchy.json`. The field continues to be stamped in `manifest.json` only. `hierarchy.json` is now bit-stable across content-identical reruns — two publishes with the same subtopic data produce the same `sha256`.
+
+**Consumer impact:** Consumers reading `generated_at` from `hierarchy.json` will no longer find that field (it will be absent, not null). Consumers MUST read `generated_at` from `manifest.json` instead. Per the D-11 additive-fields rule, the schema tolerates absent optional fields — but consumers with code that explicitly reads `hierarchy["generated_at"]` will receive `undefined`/`null` and must be updated.
+
+**Historical version directories:** Old `v{ISO-date}/hierarchy.json` objects (pre-Phase-11) are NOT rewritten. The `from_version` in `diff.json` continues to point at these historical versions; they remain valid for the version-consistency rule.
+
+### Operator Coordination (D-15) — G-29 Cutover Runbook
+
+**Pre-cutover steps:**
+1. Ping the SPS team (≥1 day advance notice): "Upcoming hierarchy publish will remove `generated_at` from `hierarchy.json`. `manifest.json` continues to carry it. Please update any SPS code reading `hierarchy.generated_at` to read from `manifest.generated_at` instead."
+2. Confirm SPS has deployed the updated ETL before triggering the cutover publish.
+3. Trigger the cutover publish with `--g29-cutover` flag: `python -m pipeline_hierarchy.publish --g29-cutover [--run-id <id>]`. This writes a `STAGE#g29_cutover#GLOBAL` audit row to DynamoDB (D-16) recording `previous_publish_sha`, `new_publish_sha`, `hierarchy_version_at_cutover`, `run_id`, `started_at`, and `completed_at`.
+
+**Expected reindex window:** SPS ETL detects the sha256 change on its next weekly poll. Full reindex is expected to complete within 2 hours.
+
+**Rollback plan:** If SPS reports issues, the previous version directory (`v{ISO-date}/hierarchy.json`) is still intact and includes `generated_at`. SPS can manually pin to the previous version while the ETL code is fixed.
+
+**Audit trail:** The `STAGE#g29_cutover#GLOBAL` row in DynamoDB provides a six-month archaeology record of the cutover event.
+
+---
 
 **Version consistency rule:** Consumers MUST fetch the schema AND the hierarchy from the SAME version prefix. Do NOT mix `latest/hierarchy.json` with a cached schema from a prior fetch. Do NOT mix `v2026-05-06/hierarchy.json` with `latest/hierarchy.schema.json`. Fetching from a consistent prefix guards against schema drift during a 30-day breaking-change deprecation window (see Breaking-Change Policy).
 

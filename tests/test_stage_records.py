@@ -393,6 +393,96 @@ def test_write_complete_delegates_to_builder():
     table.put_item.assert_called_once_with(Item=built)
 
 
+# ---------- Phase 11 D-13: run_id substrate ----------
+
+
+def test_build_complete_record_accepts_run_id():
+    """D-13: build_complete_record accepts optional run_id kwarg and embeds it."""
+    item = sr.build_complete_record(
+        stage="assign_subtopics",
+        scope="topic:aging_geroscience",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_observed_usd=Decimal("0"),
+        run_id="abc-123",
+    )
+    assert item["run_id"] == "abc-123"
+
+
+def test_build_complete_record_without_run_id_omits_field():
+    """D-13: calling without run_id must not produce a run_id key (backwards-compat)."""
+    item = sr.build_complete_record(
+        stage="assign_subtopics",
+        scope="topic:aging_geroscience",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_observed_usd=Decimal("0"),
+    )
+    assert "run_id" not in item, "run_id must be absent when not passed"
+
+
+def test_build_skipped_record_accepts_run_id():
+    """D-13: build_skipped_record accepts optional run_id."""
+    item = sr.build_skipped_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        skip_reason="unchanged",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=42,
+        run_id="abc-123",
+    )
+    assert item["run_id"] == "abc-123"
+
+
+def test_build_skipped_record_without_run_id_omits_field():
+    """D-13: calling without run_id must not produce a run_id key."""
+    item = sr.build_skipped_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        skip_reason="unchanged",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=42,
+    )
+    assert "run_id" not in item
+
+
+def test_build_failed_record_accepts_run_id():
+    """D-13: build_failed_record accepts optional run_id."""
+    item = sr.build_failed_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        error_code="SOME_ERROR",
+        error_message="something failed",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=5_000,
+        cost_observed_usd=Decimal("0"),
+        run_id="abc-123",
+    )
+    assert item["run_id"] == "abc-123"
+
+
+def test_build_failed_record_without_run_id_omits_field():
+    """D-13: calling without run_id must not produce a run_id key."""
+    item = sr.build_failed_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        error_code="SOME_ERROR",
+        error_message="something failed",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=5_000,
+        cost_observed_usd=Decimal("0"),
+    )
+    assert "run_id" not in item
+
+
 def test_builders_are_idempotent():
     """Two identical builds produce equal dicts (modulo `completed_at` default)."""
     kwargs = dict(

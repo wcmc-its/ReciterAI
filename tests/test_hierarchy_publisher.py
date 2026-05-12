@@ -24,13 +24,33 @@ from pipeline_hierarchy.generator import (
 
 PINNED_GENERATED_AT = "2026-05-11T00:00:00Z"
 
+import re
+
 
 def test_build_hierarchy_pins_generated_at_and_sets_see_also():
     h = build_hierarchy(generated_at=PINNED_GENERATED_AT)
-    assert h["generated_at"] == PINNED_GENERATED_AT
+    # D-14: generated_at must NOT be in the hierarchy dict
+    assert "generated_at" not in h, (
+        "D-14: build_hierarchy() must not embed generated_at into the hierarchy dict"
+    )
     assert h["see_also"] == []
     assert h["taxonomy_version"] == "taxonomy_v2"
     assert h["version"] == "subtopic_v1"
+
+
+def test_manifest_includes_generated_at():
+    """D-14: manifest.json continues to carry generated_at; hierarchy.json does not."""
+    _, _, manifest = generate(generated_at=PINNED_GENERATED_AT, version="vtest")
+    assert "generated_at" in manifest, "D-14: manifest must carry generated_at"
+
+
+def test_manifest_generated_at_matches_iso_regex():
+    """D-14: manifest generated_at must be a valid ISO8601 UTC timestamp."""
+    _, _, manifest = generate(generated_at=PINNED_GENERATED_AT, version="vtest")
+    pattern = r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"
+    assert re.match(pattern, manifest["generated_at"]), (
+        f"manifest.generated_at {manifest['generated_at']!r} doesn't match ISO pattern"
+    )
 
 
 def test_topics_are_sorted():
