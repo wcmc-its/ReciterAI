@@ -3,3 +3,4 @@ tqdm>=4.67.0
 pymysql>=1.1.0
 sqlalchemy>=2.0.0
 jsonschema>=4.23.0
+pyyaml>=6.0.1
