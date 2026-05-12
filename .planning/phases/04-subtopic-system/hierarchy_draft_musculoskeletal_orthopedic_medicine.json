@@ -35,7 +35,9 @@
         40148253,
         39335369
       ],
-      "coverage_estimate": 0.119
+      "coverage_estimate": 0.119,
+      "display_name": "Minimally Invasive Spine Surgery",
+      "short_description": "Techniques, navigation, robotics, and outcomes for MIS-TLIF, endoscopic, and lateral interbody fusion approaches."
     },
     {
       "id": "musculoskeletal_cervical_spine_surgery",
@@ -76,7 +78,9 @@
         35580934,
         36189022
       ],
-      "coverage_estimate": 0.146
+      "coverage_estimate": 0.146,
+      "display_name": "Cervical Spine Surgery & Deformity",
+      "short_description": "ACDF, disc arthroplasty, laminoplasty, and craniocervical procedures for degenerative myelopathy and trauma."
     },
     {
       "id": "musculoskeletal_spinal_trauma_lmic",
@@ -97,7 +101,9 @@
         36966909,
         35945864
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Spinal Trauma in Low-Resource Settings",
+      "short_description": "Epidemiology, surgical management, and neurological outcomes of traumatic spinal injuries in East Africa and LMICs."
     },
     {
       "id": "musculoskeletal_spine_surgery_training_technology",
@@ -114,12 +120,14 @@
         34237452,
         32377617
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Spine Surgery Training & Simulation",
+      "short_description": "Simulators, blended learning, telemedicine, and global capacity-building programs for spine surgical education."
     },
     {
       "id": "musculoskeletal_bone_biology_osteoblast_osteoclast",
       "label": "Bone Cell Biology: Osteoblast and Osteoclast Signaling and Differentiation",
-      "description": "Research on the molecular and cellular mechanisms governing osteoblast differentiation, osteoclastogenesis, and skeletal mineralization, including key signaling pathways such as ERK/MAPK, hedgehog, GSK3-\u03b2, and mTORC1. Includes studies on bone-specific kinases, transcription factors, and sex differences in bone cell biology.",
+      "description": "Research on the molecular and cellular mechanisms governing osteoblast differentiation, osteoclastogenesis, and skeletal mineralization, including key signaling pathways such as ERK/MAPK, hedgehog, GSK3-β, and mTORC1. Includes studies on bone-specific kinases, transcription factors, and sex differences in bone cell biology.",
       "seed_pmids": [
         32807497,
         34326333,
@@ -133,7 +141,9 @@
         38194481,
         32979200
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Osteoblast & Osteoclast Cell Biology",
+      "short_description": "Molecular signaling and differentiation pathways governing bone formation, resorption, and skeletal mineralization."
     },
     {
       "id": "musculoskeletal_osteoarthritis_joint_replacement",
@@ -154,7 +164,9 @@
         36147655,
         35537895
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Osteoarthritis & Joint Replacement Outcomes",
+      "short_description": "Diagnosis, conservative care, arthroplasty outcomes, revision rates, and disparities in joint replacement access."
     },
     {
       "id": "musculoskeletal_lumbar_spine_degenerative_disease",
@@ -175,7 +187,9 @@
         37093302,
         33834128
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Lumbar Degenerative Disc & Stenosis",
+      "short_description": "Pathomechanics, diagnosis, and surgical treatment of disc herniation, stenosis, spondylolisthesis, and lumbar fusion."
     },
     {
       "id": "musculoskeletal_bone_health_metabolic",
@@ -195,7 +209,9 @@
         31919536,
         38477743
       ],
-      "coverage_estimate": 0.053
+      "coverage_estimate": 0.053,
+      "display_name": "Bone Health & Metabolic Bone Disease",
+      "short_description": "Osteoporosis, fracture risk, and effects of medications, systemic disease, and hormonal factors on bone density."
     },
     {
       "id": "musculoskeletal_spinal_deformity_pediatric",
@@ -214,7 +230,9 @@
         36745534,
         37778623
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Spinal Deformity Surgical Correction",
+      "short_description": "Scoliosis, sagittal alignment, and craniocervical instability surgery in pediatric and adult populations."
     },
     {
       "id": "musculoskeletal_pain_management_interventional",
@@ -232,7 +250,9 @@
         37916613,
         40871935
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Interventional & Non-Pharmacologic Pain Care",
+      "short_description": "Injection therapies, radiofrequency neurotomy, acupuncture, and digital tools for low back and joint pain."
     },
     {
       "id": "musculoskeletal_cartilage_tissue_engineering",
@@ -247,7 +267,9 @@
         34376496,
         38874519
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Cartilage Tissue Engineering & Regeneration",
+      "short_description": "Scaffolds, stem cell co-culture, and 3D-printed constructs for articular, auricular, and disc regeneration."
     },
     {
       "id": "musculoskeletal_orthopedic_infection_periprosthetic",
@@ -261,7 +283,9 @@
         38556655,
         32045310
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Bone & Implant Infection Management",
+      "short_description": "Diagnosis, microbiology, and treatment of osteomyelitis, periprosthetic joint infections, and post-surgical site infections."
     },
     {
       "id": "musculoskeletal_sports_medicine_upper_extremity",
@@ -277,7 +301,9 @@
         34028204,
         38305349
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Sports Medicine & Upper Extremity Injuries",
+      "short_description": "Shoulder, clavicular, and running injuries in athletes, including imaging, injections, and return-to-sport protocols."
     },
     {
       "id": "musculoskeletal_osseointegration_amputation",
@@ -288,7 +314,9 @@
         38556655,
         40167082
       ],
-      "coverage_estimate": 0.013
+      "coverage_estimate": 0.013,
+      "display_name": "Osseointegrated Prostheses & Amputation Rehab",
+      "short_description": "Implant outcomes, infection management, and quality-of-life benefits of osseointegration for limb amputees."
     },
     {
       "id": "musculoskeletal_ai_digital_health_orthopedics",
@@ -302,7 +330,9 @@
         32528803,
         39185869
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "AI & Digital Health in Orthopedics",
+      "short_description": "Machine learning, neural networks, and digital tools for fracture detection, surgical planning, and pain management."
     },
     {
       "id": "musculoskeletal_facial_fracture_management",
@@ -317,7 +347,9 @@
         33621987,
         33634454
       ],
-      "coverage_estimate": 0.11
+      "coverage_estimate": 0.11,
+      "display_name": "Facial & Craniofacial Fracture Management",
+      "short_description": "Epidemiology, surgical strategies, cost burden, and outcomes for mandible, zygoma, and pediatric craniofacial fractures."
     },
     {
       "id": "musculoskeletal_atlantoaxial_upper_cervical",
@@ -329,7 +361,9 @@
         33719639,
         33065691
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Atlantoaxial & Odontoid Pathology",
+      "short_description": "C1-C2 fusion, odontoid fractures in elderly patients, and atlantoaxial osteoarthritis surgical outcomes."
     },
     {
       "id": "musculoskeletal_spinal_tumor_metastasis",
@@ -341,7 +375,9 @@
         38364027,
         35309866
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Spinal Tumors & Vertebral Metastasis",
+      "short_description": "Surgical outcomes, skeletal stem cell biology of metastasis, and rehabilitation for spinal tumor patients."
     },
     {
       "id": "musculoskeletal_rib_sternal_chest_wall_trauma",
@@ -352,7 +388,9 @@
         32850255,
         38416958
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Chest Wall Trauma & Rib Fixation",
+      "short_description": "Surgical fixation of rib and sternal injuries, including mortality benefits in geriatric trauma populations."
     },
     {
       "id": "musculoskeletal_ckd_mineral_bone_disorder",
@@ -364,7 +402,9 @@
         39688907,
         32016310
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "CKD-Related Mineral & Bone Disorder",
+      "short_description": "FGF23 dysregulation, vitamin D, TNF-alpha, and iron therapy effects on bone metabolism in chronic kidney disease."
     },
     {
       "id": "musculoskeletal_nipple_reconstruction_tissue_engineering",
@@ -375,7 +415,9 @@
         35513336,
         35104251
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Nipple Reconstruction & Cartilage Engineering",
+      "short_description": "Scaffolded costal cartilage and decellularized xenograft approaches to maintaining nipple geometry after reconstruction."
     },
     {
       "id": "musculoskeletal_occipital_neuralgia_headache_nerve",
@@ -386,7 +428,9 @@
         36161789,
         38589998
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Occipital Neuralgia & Nerve Decompression",
+      "short_description": "Fascial changes, migraine associations, and surgical outcomes in occipital neuralgia and compressive neuropathy."
     },
     {
       "id": "musculoskeletal_geriatric_frailty_body_composition",
@@ -397,7 +441,9 @@
         32025539,
         37841940
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Geriatric Frailty & Fall Risk",
+      "short_description": "CT-based body composition profiling, frailty screening, and polypharmacy effects on fall risk in older adults."
     },
     {
       "id": "musculoskeletal_ankle_foot_ligament_fracture",
@@ -408,7 +454,9 @@
         32927417,
         33783578
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Ankle & Foot Fractures and Ligament Injuries",
+      "short_description": "Fixation strategies, MRI-based Lisfranc assessment, and outcomes for ankle, foot, and pediatric ligament injuries."
     },
     {
       "id": "musculoskeletal_psoriatic_arthritis_inflammatory",
@@ -419,7 +467,9 @@
         38570932,
         37656675
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Inflammatory Arthritis & Rheumatic Disease",
+      "short_description": "IL-23-driven psoriatic arthritis pathogenesis, community interventions, and arthritis prevalence in caregivers."
     },
     {
       "id": "musculoskeletal_spine_implant_economics",
@@ -430,7 +480,9 @@
         32796374,
         35044872
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Spine Implant Utilization & Economics",
+      "short_description": "Trends in spinal implant pricing, opioid prescribing patterns, and economic factors shaping spine surgery practice."
     }
   ],
   "uncovered_pmids": [

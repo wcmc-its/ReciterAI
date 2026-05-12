@@ -25,7 +25,9 @@
         35329958,
         40220793
       ],
-      "coverage_estimate": 0.118
+      "coverage_estimate": 0.118,
+      "display_name": "Corneal Confocal Microscopy & Neuropathy",
+      "short_description": "Corneal nerve fiber metrics as diagnostic and prognostic biomarkers for diabetic peripheral neuropathy."
     },
     {
       "id": "ophthalmology_ccm_neurological_systemic_disease",
@@ -51,7 +53,9 @@
         34312122,
         40325027
       ],
-      "coverage_estimate": 0.125
+      "coverage_estimate": 0.125,
+      "display_name": "Confocal Microscopy in Systemic Disease",
+      "short_description": "Corneal nerve and immune cell changes as biomarkers in MS, Parkinson's, dementia, and autoimmune conditions."
     },
     {
       "id": "ophthalmology_amd_treatment_outcomes",
@@ -67,7 +71,9 @@
         38152412,
         40092639
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Macular Degeneration Treatment & Outcomes",
+      "short_description": "Anti-VEGF therapy outcomes, injection patterns, and molecular mechanisms in neovascular and dry AMD."
     },
     {
       "id": "ophthalmology_ocular_gene_therapy",
@@ -82,7 +88,9 @@
         38586605,
         40923693
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Retinal Gene Therapy",
+      "short_description": "AAV vector delivery, optogenetic strategies, and safety evaluations for inherited retinal dystrophies and nAMD."
     },
     {
       "id": "ophthalmology_deep_learning_retinal_imaging",
@@ -100,7 +108,9 @@
         39152209,
         37069534
       ],
-      "coverage_estimate": 0.069
+      "coverage_estimate": 0.069,
+      "display_name": "AI-Driven Retinal Disease Diagnostics",
+      "short_description": "Deep learning models applied to fundus and OCT images for diagnosing and predicting glaucoma and AMD progression."
     },
     {
       "id": "ophthalmology_glaucoma_diagnosis_management",
@@ -114,7 +124,9 @@
         39979631,
         33930396
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Glaucoma Diagnosis & Surgical Management",
+      "short_description": "OCT-based structural monitoring, intraocular pressure regulation, and outcomes of glaucoma surgical devices."
     },
     {
       "id": "ophthalmology_retinal_imaging_diagnostics",
@@ -132,7 +144,9 @@
         34656984,
         38113278
       ],
-      "coverage_estimate": 0.069
+      "coverage_estimate": 0.069,
+      "display_name": "Advanced Retinal Imaging Technologies",
+      "short_description": "Ultra-widefield imaging, swept-source OCT, and quantitative ultrasound for retinal and choroidal assessment."
     },
     {
       "id": "ophthalmology_cataract_vitreoretinal_surgery",
@@ -148,7 +162,9 @@
         38461944,
         39384746
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Cataract & Vitreoretinal Surgical Outcomes",
+      "short_description": "Femtosecond laser cataract surgery, 3D visualization, vitrectomy platforms, and dropless surgical protocols."
     },
     {
       "id": "ophthalmology_myopia_scleral_biomechanics",
@@ -160,7 +176,9 @@
         38964827,
         39384899
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Myopia & Scleral Biomechanics",
+      "short_description": "Structural and biomechanical scleral and choroidal remodeling associated with myopia progression."
     },
     {
       "id": "ophthalmology_diabetic_retinopathy_microvascular",
@@ -174,7 +192,9 @@
         40843061,
         32020843
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Diabetic Retinopathy & Microvascular Disease",
+      "short_description": "Epidemiology, retinal vessel analysis, and glycemic and blood pressure effects on diabetic retinopathy outcomes."
     },
     {
       "id": "ophthalmology_intracranial_hypertension_neuroophthalmology",
@@ -189,7 +209,9 @@
         34004008,
         35380318
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Intracranial Hypertension & Neuro-Ophthalmology",
+      "short_description": "Venous sinus stenting, papilledema detection, and optic nerve monitoring in idiopathic intracranial hypertension."
     },
     {
       "id": "ophthalmology_oculoplastics_adnexal",
@@ -204,7 +226,9 @@
         40336360,
         34609934
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Oculoplastics & Adnexal Conditions",
+      "short_description": "Thyroid eye disease, ptosis, periorbital trauma, and telemedicine use in oculoplastic and adnexal care."
     },
     {
       "id": "ophthalmology_healthcare_delivery_equity",
@@ -219,7 +243,9 @@
         35620370,
         35990564
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Healthcare Equity & Practice Patterns",
+      "short_description": "Workforce diversity, telemedicine adoption, and racial and gender disparities in ophthalmic care delivery."
     },
     {
       "id": "ophthalmology_retinal_degeneration_genetics",
@@ -234,7 +260,9 @@
         38983098,
         40923693
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Inherited Retinal Degeneration Genetics",
+      "short_description": "Genetic and molecular mechanisms of retinitis pigmentosa, Batten disease, and foveal hypoplasia."
     },
     {
       "id": "ophthalmology_diabetic_neuropathy_treatment_glycemic",
@@ -248,7 +276,9 @@
         32576561,
         40366068
       ],
-      "coverage_estimate": 0.18
+      "coverage_estimate": 0.18,
+      "display_name": "Glycemic Control & Neuropathy Progression",
+      "short_description": "Effects of glucose-lowering therapies and insulin delivery on corneal nerve structure and diabetic neuropathy."
     },
     {
       "id": "ophthalmology_ccm_pediatric_metabolic_conditions",
@@ -260,7 +290,9 @@
         37437060,
         40199607
       ],
-      "coverage_estimate": 0.12
+      "coverage_estimate": 0.12,
+      "display_name": "Confocal Microscopy in Pediatric Metabolic Disease",
+      "short_description": "Corneal nerve fiber and immune cell changes in children with obesity, celiac disease, and metabolic syndrome."
     },
     {
       "id": "ophthalmology_vitamin_d_diabetes_complications",
@@ -271,18 +303,22 @@
         32414363,
         34085731
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Vitamin D & Diabetes Complications",
+      "short_description": "Vitamin D metabolite ratios as biomarkers for neuropathy, hypertension, and microvascular disease in diabetes."
     },
     {
       "id": "ophthalmology_ccm_neurodegeneration_rare_disease",
       "label": "Corneal Confocal Microscopy in Neurodegeneration and Rare Diseases",
-      "description": "Application of corneal confocal microscopy and related ocular measures to detect neurodegeneration or autonomic dysfunction in rare and neurological conditions including Guillain-Barr\u00e9 syndrome, Fabry disease, and dementia.",
+      "description": "Application of corneal confocal microscopy and related ocular measures to detect neurodegeneration or autonomic dysfunction in rare and neurological conditions including Guillain-Barré syndrome, Fabry disease, and dementia.",
       "seed_pmids": [
         40166899,
         33854145,
         39759948
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Confocal Microscopy in Rare Neurological Disease",
+      "short_description": "Ocular measures of neurodegeneration and autonomic dysfunction in Guillain-Barré syndrome and Fabry disease."
     },
     {
       "id": "ophthalmology_uveal_melanoma_ocular_oncology",
@@ -293,7 +329,9 @@
         36306727,
         33615842
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Uveal Melanoma & Ocular Oncology",
+      "short_description": "Polycomb repressive complexes and chromosomal instability driving uveal melanoma progression and clinical outcomes."
     }
   ],
   "uncovered_pmids": [

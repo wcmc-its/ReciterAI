@@ -48,7 +48,9 @@
         39231612,
         40891418
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Advanced MRI Physics & Quantitative Methods",
+      "short_description": "Novel MRI acquisition, reconstruction, and quantitative techniques including QSM, diffusion MRI, and MR spectroscopy for tissue characterization."
     },
     {
       "id": "radiology_pet_nuclear_medicine",
@@ -104,7 +106,9 @@
         35268652,
         37890935
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "PET Imaging & Radiopharmaceuticals",
+      "short_description": "PET scanner technology, radiopharmaceutical development, theranostics, and radiolabeled tracers for oncology and neurology."
     },
     {
       "id": "radiology_brain_mri_neuroimaging",
@@ -150,7 +154,9 @@
         33426396,
         38991774
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Brain MRI & Cerebrovascular Biomarkers",
+      "short_description": "Structural and functional MRI characterization of white matter disease, cerebral small vessel disease, and neurodegeneration biomarkers."
     },
     {
       "id": "radiology_functional_mri_connectome",
@@ -198,7 +204,9 @@
         36192411,
         38839036
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Functional MRI & Brain Connectivity",
+      "short_description": "Resting-state and task-based fMRI and connectome mapping applied to psychiatric and neurological conditions."
     },
     {
       "id": "radiology_ai_deep_learning_imaging",
@@ -253,7 +261,9 @@
         40771196,
         38978709
       ],
-      "coverage_estimate": 0.054
+      "coverage_estimate": 0.054,
+      "display_name": "AI & Deep Learning for Image Analysis",
+      "short_description": "Machine learning and deep learning algorithms for image classification, segmentation, and report generation across clinical imaging modalities."
     },
     {
       "id": "radiology_breast_imaging",
@@ -303,7 +313,9 @@
         32505103,
         38424821
       ],
-      "coverage_estimate": 0.048
+      "coverage_estimate": 0.048,
+      "display_name": "Breast Imaging, Screening & Risk Assessment",
+      "short_description": "Mammography, MRI, and tomosynthesis for breast cancer screening, density biomarkers, and interventional breast procedures."
     },
     {
       "id": "radiology_interventional_vascular",
@@ -343,7 +355,9 @@
         39197701,
         39030336
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Interventional & Vascular Procedures",
+      "short_description": "Image-guided catheter-directed therapies, endovascular repair, embolization, and ablation with focus on outcomes and patient safety."
     },
     {
       "id": "radiology_ct_imaging_applications",
@@ -381,7 +395,9 @@
         35880289,
         36737516
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "CT Techniques & Lung Disease Applications",
+      "short_description": "CT imaging for lung cancer screening, interstitial lung abnormalities, body composition analysis, and pulmonary nodule management."
     },
     {
       "id": "radiology_prostate_genitourinary",
@@ -414,7 +430,9 @@
         34389565,
         39363462
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Prostate MRI & Genitourinary Imaging",
+      "short_description": "Multiparametric MRI and PSMA PET/MRI for prostate cancer detection, MRI-guided biopsy, and focal ablation therapies."
     },
     {
       "id": "radiology_cardiac_imaging",
@@ -454,7 +472,9 @@
         37406578,
         34254850
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Cardiac Imaging & Structural Heart Disease",
+      "short_description": "Echocardiography, cardiac MRI, and imaging guidance for structural heart interventions including TAVR and valve repair."
     },
     {
       "id": "radiology_ophthalmology_retinal",
@@ -500,7 +520,9 @@
         40541533,
         36470739
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Ophthalmic & Retinal Imaging",
+      "short_description": "OCT, ultra-widefield retinal imaging, corneal confocal microscopy, and AI-based analysis for glaucoma and macular degeneration."
     },
     {
       "id": "radiology_neuro_spine_imaging",
@@ -543,7 +565,9 @@
         33504201,
         38717313
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Brain Tumor & Spine Imaging",
+      "short_description": "Imaging for glioma, meningioma, and spinal disease, including radiomics, neurosurgical planning, and treatment response assessment."
     },
     {
       "id": "radiology_education_workforce",
@@ -582,7 +606,9 @@
         40167384,
         40795820
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Education & Workforce Development",
+      "short_description": "Simulation-based learning, augmented reality training, curriculum development, and diversity initiatives in radiology education."
     },
     {
       "id": "radiology_alzheimer_neurodegeneration_pet_mri",
@@ -627,7 +653,9 @@
         38495808,
         40730250
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Alzheimer's Disease & Neurodegeneration Imaging",
+      "short_description": "Multimodal PET and MRI to characterize Alzheimer's pathology, track neurodegeneration, and evaluate brain fluid clearance."
     },
     {
       "id": "radiology_radiation_therapy_oncology",
@@ -667,7 +695,9 @@
         40473462,
         40756357
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Radiation Therapy Planning & Radiobiology",
+      "short_description": "Stereotactic and MRI-guided radiotherapy, dosimetry optimization, and radiation combined with immunotherapy in oncology."
     }
   ],
   "uncovered_pmids": [

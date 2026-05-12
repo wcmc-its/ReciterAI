@@ -19,7 +19,9 @@
         39916751,
         37142431
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "MS Imaging Biomarkers & Lesion Characterization",
+      "short_description": "Advanced MRI and corneal confocal techniques for lesion characterization, neurodegeneration, and disability tracking in multiple sclerosis."
     },
     {
       "id": "autoimmune_ms_corneal_neurodegeneration",
@@ -35,7 +37,9 @@
         36808180,
         40166899
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Corneal Confocal Microscopy & Neurodegeneration",
+      "short_description": "Corneal nerve fiber loss and immune cell infiltration as biomarkers of neurodegeneration in MS, lupus, and rheumatoid arthritis."
     },
     {
       "id": "autoimmune_ms_treatment_outcomes",
@@ -50,7 +54,9 @@
         35135557,
         34004008
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "MS Disease-Modifying Therapy Outcomes",
+      "short_description": "Real-world effectiveness, cognitive outcomes, and racial disparities in disease-modifying therapy response for multiple sclerosis."
     },
     {
       "id": "autoimmune_ra_cardiovascular_comorbidities",
@@ -66,7 +72,9 @@
         34288590,
         33065691
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "RA Cardiovascular Risk & Comorbidities",
+      "short_description": "Cardiovascular disease risk, hyperlipidemia, dementia incidence, and perioperative management in rheumatoid arthritis patients."
     },
     {
       "id": "autoimmune_ra_patient_outcomes_disparities",
@@ -81,7 +89,9 @@
         37122490,
         39209814
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "RA Disparities & Patient-Centered Outcomes",
+      "short_description": "Racial and ethnic disparities in RA medication use, self-assessed disease activity, and lay health worker interventions."
     },
     {
       "id": "autoimmune_lupus_pathogenesis_outcomes",
@@ -98,7 +108,9 @@
         39906920,
         39486860
       ],
-      "coverage_estimate": 0.073
+      "coverage_estimate": 0.073,
+      "display_name": "Lupus Pathogenesis & Clinical Outcomes",
+      "short_description": "Type I interferon signaling, mitochondrial dysfunction, and clinical studies on pregnancy morbidity and frailty in SLE."
     },
     {
       "id": "autoimmune_autoreactivity_mechanisms",
@@ -112,7 +124,9 @@
         40737125,
         40684438
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Molecular Mechanisms of Autoreactivity",
+      "short_description": "Posttranslational modifications, B cell germinal centers, and epitope-driven pathogenic autoreactive immune responses."
     },
     {
       "id": "autoimmune_psoriasis_spondyloarthritis",
@@ -123,7 +137,9 @@
         38378002,
         39949039
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Psoriasis, Psoriatic Arthritis & Spondyloarthritis",
+      "short_description": "IL-23-driven skin and joint disease pathogenesis, gut microbiome regulation, and treatment of psoriatic and spondyloarthritis conditions."
     },
     {
       "id": "autoimmune_ici_immune_related_adverse_events",
@@ -135,7 +151,9 @@
         40199607,
         34647433
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Checkpoint Inhibitor Immune-Related Adverse Events",
+      "short_description": "Clinical management of irAEs from immune checkpoint inhibitors, including myocarditis, ophthalmic toxicity, and pre-existing inflammatory disease."
     },
     {
       "id": "autoimmune_graves_thyroid_autoimmune",
@@ -147,7 +165,9 @@
         35386496,
         32852372
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Graves' Disease & Thyroid Autoimmunity",
+      "short_description": "Surgical outcomes, thyroid-stimulating immunoglobulins, thyroid eye disease severity, and IVF outcomes in autoimmune thyroid conditions."
     },
     {
       "id": "autoimmune_scleroderma_ild_pulmonary",
@@ -159,7 +179,9 @@
         39495032,
         39437762
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Scleroderma-ILD & Pulmonary Fibrosis",
+      "short_description": "Patient-centered outcomes, education needs, and progressive pulmonary fibrosis management in systemic autoimmune-associated ILD."
     },
     {
       "id": "autoimmune_immune_thrombocytopenia_vasculitis",
@@ -174,7 +196,9 @@
         36119848,
         39750042
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Immune Thrombocytopenia & Vasculitis",
+      "short_description": "Diagnosis and treatment of immune thrombocytopenia, leukocytoclastic vasculitis, and idiopathic systemic capillary leak syndrome."
     },
     {
       "id": "autoimmune_covid_inflammatory_syndromes",
@@ -190,7 +214,9 @@
         34920834,
         36708984
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "COVID-19 Inflammatory Syndromes & Immunomodulation",
+      "short_description": "MIS-C in children, immunomodulatory treatments, and vaccine-related immune reactions in COVID-19 and rheumatic disease patients."
     },
     {
       "id": "autoimmune_autoimmune_gastritis_celiac",
@@ -203,7 +229,9 @@
         39569895,
         36316419
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Gastritis, Celiac & GI Autoimmunity",
+      "short_description": "Clinical and pathological studies of autoimmune gastritis, celiac disease comorbidities, and concurrent gastrointestinal autoimmune conditions."
     },
     {
       "id": "autoimmune_ibd_clinical_management",
@@ -218,7 +246,9 @@
         31851091,
         38411984
       ],
-      "coverage_estimate": 0.2
+      "coverage_estimate": 0.2,
+      "display_name": "Inflammatory Bowel Disease Management & Outcomes",
+      "short_description": "Biologic therapies, venous thromboembolism risk, and clinical outcomes across inflammatory bowel disease phenotypes."
     },
     {
       "id": "autoimmune_innate_lymphoid_cells",
@@ -229,7 +259,9 @@
         38867048,
         34853467
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Innate Lymphoid Cells in Inflammation",
+      "short_description": "Roles of ILC2s and ILC3s in regulating intestinal inflammation, neuroinflammation, and immune homeostasis."
     },
     {
       "id": "autoimmune_calcium_signaling_immunomodulation",
@@ -240,7 +272,9 @@
         36181482,
         33095579
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Calcium Signaling & Immunomodulatory Pathways",
+      "short_description": "Store-operated calcium entry pathways and their pharmacological modulation as therapeutic targets in immune and inflammatory disease."
     },
     {
       "id": "autoimmune_covid_neurological_vascular",
@@ -251,7 +285,9 @@
         37311536,
         38100573
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "COVID-19 Neurological & Vascular Complications",
+      "short_description": "Pathophysiology of COVID-19 affecting the nervous system, vasculature, and skin, including complement activation and neuro-ophthalmic sequelae."
     },
     {
       "id": "autoimmune_iga_immunoglobulin_biology",
@@ -262,18 +298,22 @@
         39787486,
         33710596
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "IgA Glycomics & Immunoglobulin Function",
+      "short_description": "IgA glycosylation genetics and anti-CD4 IgG autoantibodies in HIV-associated immune dysfunction and brain abnormalities."
     },
     {
       "id": "autoimmune_rorgt_tryptophan_immunotherapy",
-      "label": "Small Molecule Immunomodulators Targeting ROR\u03b3t and Tryptophan Metabolism",
-      "description": "Studies on novel small molecule modulators of immune pathways, including ROR\u03b3t nuclear receptor ligands and tryptophan-derived immunomodulatory metabolites, as potential autoimmune therapeutics.",
+      "label": "Small Molecule Immunomodulators Targeting RORγt and Tryptophan Metabolism",
+      "description": "Studies on novel small molecule modulators of immune pathways, including RORγt nuclear receptor ligands and tryptophan-derived immunomodulatory metabolites, as potential autoimmune therapeutics.",
       "seed_pmids": [
         38239446,
         34290243,
         33095579
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "RORγt & Tryptophan-Pathway Immunomodulators",
+      "short_description": "Novel small molecule modulators of RORγt and tryptophan-derived metabolites as potential autoimmune disease therapeutics."
     },
     {
       "id": "autoimmune_autoimmune_encephalitis_neuropsychiatric",
@@ -284,7 +324,9 @@
         35431844,
         34853467
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Encephalitis & Neuropsychiatric Syndromes",
+      "short_description": "Anti-NMDA receptor encephalitis, blood-brain barrier dysfunction, and immune-mediated neuropsychiatric disorders including schizophrenia."
     }
   ],
   "uncovered_pmids": [

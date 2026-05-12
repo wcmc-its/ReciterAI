@@ -30,7 +30,9 @@
         36796082,
         40737125
       ],
-      "coverage_estimate": 0.047
+      "coverage_estimate": 0.047,
+      "display_name": "Single-Cell & Spatial Multi-Omics",
+      "short_description": "Cell-type-specific gene expression, epigenetic states, and splicing patterns via single-cell and spatial transcriptomics."
     },
     {
       "id": "systems_metabolomics_profiling",
@@ -59,7 +61,9 @@
         34697058,
         32802662
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Metabolomics & Metabolic Profiling",
+      "short_description": "Untargeted and targeted metabolomics to identify biomarkers, disease subtypes, and metabolic reprogramming across conditions."
     },
     {
       "id": "systems_epigenomics_chromatin",
@@ -89,7 +93,9 @@
         33464637,
         36261477
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Epigenomics & Chromatin Architecture",
+      "short_description": "DNA methylation, histone modifications, and 3D genome organization underlying transcriptional regulation and disease."
     },
     {
       "id": "systems_proteomics_network",
@@ -116,7 +122,9 @@
         36915197,
         38571413
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Proteomics & Protein Interaction Networks",
+      "short_description": "Mass spectrometry-based proteomics and interaction mapping to characterize protein networks and discover biomarkers."
     },
     {
       "id": "systems_transcriptome_disease",
@@ -145,7 +153,9 @@
         35380714,
         32668536
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Transcriptomic Disease Signatures & Biomarkers",
+      "short_description": "Bulk RNA sequencing and gene expression profiling to identify disease-associated transcriptional signatures and mechanisms."
     },
     {
       "id": "systems_cancer_genomics_evolution",
@@ -174,7 +184,9 @@
         34879281,
         31962279
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Cancer Genomics & Tumor Evolution",
+      "short_description": "Whole-genome sequencing and multi-omics characterization of tumor heterogeneity, mutational signatures, and therapy resistance."
     },
     {
       "id": "systems_multiomics_integration_methods",
@@ -203,7 +215,9 @@
         36978161,
         33335165
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Multi-Omics Integration & Computational Methods",
+      "short_description": "Machine learning, Bayesian, and network-based frameworks for integrating multi-omics datasets and enabling biomedical discovery."
     },
     {
       "id": "systems_brain_connectivity_network",
@@ -228,7 +242,9 @@
         32202494,
         33833255
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Brain Connectivity & Network Neuroscience",
+      "short_description": "Connectome analysis and computational modeling of brain state dynamics, cognitive outcomes, and neurological disorders."
     },
     {
       "id": "systems_spaceflight_omics",
@@ -247,7 +263,9 @@
         33376973,
         32375154
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Space Biology & Astronaut Omics",
+      "short_description": "Multi-omics characterization of molecular, physiological, and immunological changes in astronauts during spaceflight."
     },
     {
       "id": "systems_microbiome_host_interaction",
@@ -267,7 +285,9 @@
         36703108,
         38862604
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Microbiome-Host Metabolic Interactions",
+      "short_description": "Metagenomic and metabolomic approaches linking gut microbiome composition to host metabolism, immunity, and disease."
     },
     {
       "id": "systems_gene_regulatory_networks",
@@ -289,7 +309,9 @@
         34556886,
         32079618
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Gene Regulatory Networks & Transcription Factors",
+      "short_description": "Transcription factor circuits, enhancer activity, and chromatin remodeling controlling cell fate and disease-associated programs."
     },
     {
       "id": "systems_drug_repurposing_knowledge_graph",
@@ -309,7 +331,9 @@
         33318038,
         40527579
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Drug Repurposing & Biomedical Knowledge Graphs",
+      "short_description": "Network pharmacology and machine learning applied to knowledge graphs for identifying therapeutic targets and repurposing candidates."
     },
     {
       "id": "systems_cell_cycle_proliferation",
@@ -326,7 +350,9 @@
         32783046,
         39392398
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Cell Cycle Regulation & Proliferation",
+      "short_description": "Molecular mechanisms of cell cycle entry, CDK activity, quiescence, and their dysregulation in cancer."
     },
     {
       "id": "systems_rna_modifications_splicing",
@@ -347,12 +373,14 @@
         38862496,
         32651550
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "RNA Modifications & Post-Transcriptional Regulation",
+      "short_description": "m6A modifications, alternative splicing, and isoform diversity shaping gene regulation in development and disease."
     },
     {
       "id": "systems_metabolic_reprogramming_cancer",
       "label": "Metabolic Reprogramming in Cancer and Therapeutic Targeting",
-      "description": "Research characterizing metabolic pathway alterations in cancer cells\u2014including lipid metabolism, mitochondrial function, NAD/NADP biosynthesis, and amino acid metabolism\u2014and identifying metabolic vulnerabilities for therapeutic intervention.",
+      "description": "Research characterizing metabolic pathway alterations in cancer cells—including lipid metabolism, mitochondrial function, NAD/NADP biosynthesis, and amino acid metabolism—and identifying metabolic vulnerabilities for therapeutic intervention.",
       "seed_pmids": [
         34133937,
         35019856,
@@ -370,7 +398,9 @@
         35263592,
         37691621
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Metabolic Reprogramming & Therapeutic Targeting",
+      "short_description": "Lipid, mitochondrial, and amino acid pathway alterations in cancer cells and their exploitation for therapeutic intervention."
     },
     {
       "id": "systems_lymphoma_leukemia_genomics",
@@ -394,7 +424,9 @@
         32123306,
         36167829
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Lymphoma & Leukemia Genomics",
+      "short_description": "Genomic drivers, oncogenic mutations, and therapeutic vulnerabilities in B-cell lymphomas, T-cell lymphomas, and acute leukemias."
     },
     {
       "id": "systems_tumor_immune_microenvironment",
@@ -415,7 +447,9 @@
         38401548,
         35981563
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Tumor Immune Microenvironment & Immunotherapy",
+      "short_description": "Immune cell composition, evasion mechanisms, and checkpoint or CAR-T immunotherapy response across cancer types."
     },
     {
       "id": "systems_neurodegenerative_disease_omics",
@@ -436,7 +470,9 @@
         39419469,
         38938596
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Omics of Neurodegeneration & Neuroinflammation",
+      "short_description": "Multi-omics investigation of Alzheimer's, Parkinson's, and tauopathies including microglial activation and protein aggregation."
     },
     {
       "id": "systems_covid19_host_response",
@@ -457,7 +493,9 @@
         35145507,
         39930758
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "COVID-19 Host Response & Organoid Models",
+      "short_description": "Multi-omic and organoid-based studies of SARS-CoV-2 infection, immune response, and long-term disease sequelae."
     },
     {
       "id": "systems_mycobacterium_tuberculosis_metabolism",
@@ -475,7 +513,9 @@
         32574211,
         33959103
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Tuberculosis Metabolism & Drug Targets",
+      "short_description": "Metabolic pathways, stress adaptation, and genetic essentiality in Mycobacterium tuberculosis for novel drug target identification."
     },
     {
       "id": "systems_prostate_cancer_molecular",
@@ -491,7 +531,9 @@
         38191471,
         34680307
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Prostate Cancer Subtypes & Androgen Signaling",
+      "short_description": "Molecular characterization of prostate cancer progression, androgen receptor signaling, and therapeutic resistance mechanisms."
     },
     {
       "id": "systems_brain_organoids_neuropsychiatric",
@@ -506,7 +548,9 @@
         38272981,
         40914942
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Brain Organoids & Neuropsychiatric Modeling",
+      "short_description": "Patient-derived cerebral organoids revealing cell-type-specific alterations in schizophrenia, autism, and neurodevelopmental disorders."
     },
     {
       "id": "systems_adipose_metabolic_dysfunction",
@@ -522,7 +566,9 @@
         35697385,
         31967391
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Adipose Biology & Obesity-Related Dysfunction",
+      "short_description": "Omics studies of adipocyte differentiation, lipid metabolism, and inflammatory signaling underlying obesity and metabolic disease."
     },
     {
       "id": "systems_hematopoiesis_epigenetics",
@@ -537,7 +583,9 @@
         33432228,
         40377995
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Hematopoiesis, Clonal Evolution & Epigenetics",
+      "short_description": "Epigenetic regulation and clonal hematopoiesis mutations governing blood cell differentiation and malignant transformation."
     },
     {
       "id": "systems_endothelial_vascular_biology",
@@ -551,7 +599,9 @@
         33793321,
         35109843
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Endothelial Biology & Vascular Remodeling",
+      "short_description": "Endothelial cell heterogeneity, angiogenesis, and vascular dysfunction in cancer, atherosclerosis, and organ development."
     },
     {
       "id": "systems_kidney_transplant_omics",
@@ -564,7 +614,9 @@
         38291584,
         37026702
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Kidney Transplant & Allograft Omics",
+      "short_description": "Transcriptomic, proteomic, and metabolomic profiling of allograft function, rejection mechanisms, and transplant biomarkers."
     },
     {
       "id": "systems_network_computational_methods",
@@ -581,7 +633,9 @@
         36677052,
         39015742
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Network Analysis & Omics Data Science",
+      "short_description": "Graph-based algorithms, community detection, and statistical frameworks for network analysis and multi-omics data integration."
     },
     {
       "id": "systems_pancreatic_beta_cell_diabetes",
@@ -596,7 +650,9 @@
         40189102,
         40562034
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Pancreatic Beta Cell Biology & Diabetes",
+      "short_description": "Molecular mechanisms of beta cell function, failure, and regeneration underlying diabetes and glucose homeostasis."
     },
     {
       "id": "systems_airway_epithelium_lung_disease",
@@ -610,7 +666,9 @@
         32668536,
         35767671
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Airway Epithelium & Lung Disease Transcriptomics",
+      "short_description": "Gene expression changes in airway and lung epithelium in response to smoking, environmental exposures, COPD, and infection."
     },
     {
       "id": "systems_aging_epigenetic_clocks",
@@ -625,7 +683,9 @@
         40307992,
         37446292
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Epigenetic Aging Clocks & Age-Related Biology",
+      "short_description": "DNA methylation-based clocks and molecular signatures quantifying biological aging and age-modulating factors across tissues."
     }
   ],
   "uncovered_pmids": [

@@ -18,7 +18,9 @@
         39836322,
         33482136
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "NIH Funding & Physician-Scientist Careers",
+      "short_description": "Grant mechanisms, funding success rates, and career development awards for physician-scientists and biomedical trainees."
     },
     {
       "id": "research_scholarly_training_residency_fellowship",
@@ -33,7 +35,9 @@
         37620206,
         33802934
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Scholarly Training in Residency & Fellowship",
+      "short_description": "Quantity, quality, and barriers to research training across medical residency and fellowship programs."
     },
     {
       "id": "research_diversity_equity_academic_medicine",
@@ -54,7 +58,9 @@
         38768071,
         37851422
       ],
-      "coverage_estimate": 0.072
+      "coverage_estimate": 0.072,
+      "display_name": "Diversity, Equity & Inclusion in Academic Medicine",
+      "short_description": "Representation, promotion, and systemic barriers for underrepresented groups in academic medicine and biomedical research."
     },
     {
       "id": "research_clinical_trial_design_conduct",
@@ -72,7 +78,9 @@
         33631358,
         34797183
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Clinical Trial Design & Methodological Quality",
+      "short_description": "Characteristics, reporting standards, and factors driving premature termination of randomized controlled trials."
     },
     {
       "id": "research_peer_review_publishing_integrity",
@@ -90,7 +98,9 @@
         33043662,
         40277459
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Peer Review, Publishing & Research Integrity",
+      "short_description": "Publication practices, article retractions, research misconduct, and integrity frameworks in biomedical literature."
     },
     {
       "id": "research_electronic_health_records_data_infrastructure",
@@ -110,7 +120,9 @@
         35049262,
         40502275
       ],
-      "coverage_estimate": 0.067
+      "coverage_estimate": 0.067,
+      "display_name": "EHR Data Warehouses & Informatics Infrastructure",
+      "short_description": "Enterprise data warehouses, EHR-based extraction, and informatics platforms supporting clinical and translational research."
     },
     {
       "id": "research_biobanking_biospecimen_management",
@@ -125,7 +137,9 @@
         38237124,
         33131500
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Biobanking & Biospecimen Repository Management",
+      "short_description": "Establishment, standardization, ethical governance, and operations of biobanks and biospecimen repositories."
     },
     {
       "id": "research_race_ethnicity_data_representation",
@@ -140,7 +154,9 @@
         39433911,
         34895873
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Race & Ethnicity Data Quality in Registries",
+      "short_description": "Accuracy and standardization of race and ethnicity data in EHRs, registries, and publications for health equity research."
     },
     {
       "id": "research_systematic_review_evidence_synthesis",
@@ -155,7 +171,9 @@
         37928121,
         39844509
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Systematic Review & Evidence Synthesis Methods",
+      "short_description": "Methodology, search quality, and infrastructure supporting systematic reviews and meta-analyses in biomedical research."
     },
     {
       "id": "research_registry_networks_real_world_data",
@@ -170,7 +188,9 @@
         32477681,
         32552620
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Clinical Registries & Real-World Evidence",
+      "short_description": "Coordinated registry networks, data linkage algorithms, and real-world evidence frameworks for clinical outcomes research."
     },
     {
       "id": "research_omics_sequencing_benchmarking",
@@ -186,7 +206,9 @@
         38007532,
         37026702
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Omics Platforms & Sequencing Benchmarking",
+      "short_description": "Standardization and benchmarking of next-generation sequencing, epigenomics, and metabolomics for reproducible biomedical data."
     },
     {
       "id": "research_ai_nlp_biomedical_data",
@@ -205,7 +227,9 @@
         37094464,
         33997112
       ],
-      "coverage_estimate": 0.061
+      "coverage_estimate": 0.061,
+      "display_name": "AI & NLP for Biomedical Data Infrastructure",
+      "short_description": "Machine learning and natural language processing tools for biomedical data extraction, image analysis, and literature mining."
     },
     {
       "id": "research_institutional_repositories_knowledge_management",
@@ -220,7 +244,9 @@
         39119159,
         34292338
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Institutional Repositories & Knowledge Dissemination",
+      "short_description": "Research data systems, authorship tracking, and computable knowledge frameworks supporting discovery and dissemination."
     },
     {
       "id": "research_clinical_trial_recruitment_participation",
@@ -236,7 +262,9 @@
         36974453,
         32477626
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Clinical Trial Recruitment & Participant Engagement",
+      "short_description": "Strategies and barriers for enrolling diverse populations, including older adults and minorities, into clinical research."
     },
     {
       "id": "research_global_health_capacity_building",
@@ -251,7 +279,9 @@
         34410327,
         39499169
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Global Health Capacity-Building & Collaboration",
+      "short_description": "Infrastructure development and training programs to strengthen research capacity in low-resource and underrepresented settings."
     },
     {
       "id": "research_laboratory_methods_biospecimen_prep",
@@ -267,7 +297,9 @@
         39032144,
         35711426
       ],
-      "coverage_estimate": 0.11
+      "coverage_estimate": 0.11,
+      "display_name": "Laboratory Methods & Biological Sample Preparation",
+      "short_description": "Protocols for preparing biological samples, generating cell lines, and isolating DNA and extracellular materials for downstream analysis."
     },
     {
       "id": "research_genomic_databases_bioinformatics_resources",
@@ -280,7 +312,9 @@
         40676061,
         36777185
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Genomic Databases & Bioinformatics Resources",
+      "short_description": "Cancer driver databases, transcriptome atlases, and computational biology tools supporting genomic and translational research."
     },
     {
       "id": "research_medical_imaging_data_standards",
@@ -292,7 +326,9 @@
         39955301,
         40769991
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Imaging Data Standards & Reproducibility Frameworks",
+      "short_description": "Standardized formats, acquisition protocols, and reproducibility frameworks for MRI, neuroimaging, and biological imaging modalities."
     },
     {
       "id": "research_fellowship_program_director_demographics",
@@ -304,7 +340,9 @@
         37059613,
         34826370
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Program Director Demographics & Leadership",
+      "short_description": "Demographic composition and qualifications of residency and fellowship program directors across medical specialties."
     },
     {
       "id": "research_academic_medicine_compensation_workforce",
@@ -316,7 +354,9 @@
         40884510,
         32072116
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Compensation, Staffing Shortages & Workforce Equity",
+      "short_description": "Salary transparency, staffing shortages, and workforce equity across academic medical specialties."
     },
     {
       "id": "research_preclinical_tumor_models_drug_discovery",
@@ -327,7 +367,9 @@
         39432379,
         36970451
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Preclinical Tumor Models & Drug Discovery Platforms",
+      "short_description": "Patient-derived xenografts and automated experimental platforms for cancer drug discovery and neuroscience research."
     },
     {
       "id": "research_covid19_clinical_policy_response",
@@ -338,7 +380,9 @@
         39348691,
         33991092
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "COVID-19 Clinical Adaptation & Epidemiological Data",
+      "short_description": "Institutional and national responses to COVID-19, including practice adaptations, treatment guidelines, and epidemiological resources."
     },
     {
       "id": "research_specialty_society_awards_recognition",
@@ -349,7 +393,9 @@
         36456760,
         40810248
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Specialty Society Awards & Gender Equity",
+      "short_description": "Demographic disparities in recognition awards and honors across medical specialty societies."
     },
     {
       "id": "research_clinical_outcomes_nlp_datasets",
@@ -360,7 +406,9 @@
         31768897,
         34582043
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Clinical Outcomes Extraction & NLP Benchmarks",
+      "short_description": "Annotated datasets and NLP benchmarks for extracting clinically meaningful outcomes from trial publications."
     },
     {
       "id": "research_genetic_variant_classification_counseling",
@@ -371,7 +419,9 @@
         37975258,
         38477743
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Genetic Variant Classification & Counselor Training",
+      "short_description": "Evidence quality behind variant reclassification and training needs of genetic counselors in emerging subspecialties."
     }
   ],
   "uncovered_pmids": [

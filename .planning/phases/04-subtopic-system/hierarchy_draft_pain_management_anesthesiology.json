@@ -29,7 +29,9 @@
         39847449,
         38227344
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Opioid Prescribing Policy & Regulation",
+      "short_description": "Effects of state and federal opioid laws, monitoring programs, and prescribing caps on dispensing patterns and overdose outcomes."
     },
     {
       "id": "pain_postoperative_opioid_use",
@@ -55,7 +57,9 @@
         39007154,
         38039068
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Postoperative Opioid Use & Multimodal Analgesia",
+      "short_description": "Opioid-sparing strategies, multimodal analgesia, and persistent postoperative opioid use across surgical populations."
     },
     {
       "id": "pain_diabetic_neuropathy_corneal",
@@ -83,7 +87,9 @@
         40169752,
         39239231
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Diabetic Neuropathy & Corneal Nerve Imaging",
+      "short_description": "Diagnosis and progression of diabetic peripheral neuropathy using corneal confocal microscopy and quantitative sensory testing."
     },
     {
       "id": "pain_headache_nerve_decompression",
@@ -108,7 +114,9 @@
         34484886,
         40875228
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Headache Disorders & Surgical Nerve Decompression",
+      "short_description": "Surgical management of occipital neuralgia, migraine, and nerve compression headaches via decompression and neuromodulation."
     },
     {
       "id": "pain_migraine_pharmacotherapy",
@@ -125,7 +133,9 @@
         36794299,
         37382041
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Migraine Treatment & Pharmacotherapy",
+      "short_description": "CGRP-targeted therapies, onabotulinumtoxinA, and socioeconomic factors influencing migraine medication use and adherence."
     },
     {
       "id": "pain_anesthetic_mechanisms_pharmacology",
@@ -148,7 +158,9 @@
         40374654,
         34558821
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Anesthetic Mechanisms & Pharmacology",
+      "short_description": "Molecular and cellular mechanisms of volatile and intravenous anesthetics, including ion channel modulation and synaptic effects."
     },
     {
       "id": "pain_regional_anesthesia_neuraxial",
@@ -170,7 +182,9 @@
         35645647,
         39502899
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Regional & Neuraxial Anesthesia Techniques",
+      "short_description": "Neuraxial blocks, peripheral nerve blocks, and epidural injections across obstetric, surgical, and interventional pain settings."
     },
     {
       "id": "pain_chronic_pain_psychosocial",
@@ -194,7 +208,9 @@
         40875228,
         38712020
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Chronic Pain Psychology & Self-Management",
+      "short_description": "Cognitive-behavioral interventions, psychosocial factors, and digital tools for chronic pain self-management and well-being."
     },
     {
       "id": "pain_cancer_pain_opioids",
@@ -212,7 +228,9 @@
         37781176,
         40715630
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cancer Pain & Oncology Opioid Management",
+      "short_description": "Opioid access, prescribing, and outcomes for cancer patients, including celiac plexus neurolysis and cannabis policy impacts."
     },
     {
       "id": "pain_pelvic_pain_urologic",
@@ -226,7 +244,9 @@
         34351464,
         37865454
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Chronic Pelvic & Urologic Pain Syndromes",
+      "short_description": "Urologic chronic pelvic pain, interstitial cystitis, bladder hyperalgesia, and multidisciplinary diagnosis and treatment approaches."
     },
     {
       "id": "pain_neuromodulation_interventional",
@@ -246,7 +266,9 @@
         39867296,
         38194637
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Neuromodulation & Interventional Procedures",
+      "short_description": "Spinal cord stimulation, radiofrequency neurotomy, transcranial stimulation, and virtual reality-assisted procedural pain relief."
     },
     {
       "id": "pain_perioperative_care_eras",
@@ -269,12 +291,14 @@
         33632637,
         34879926
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Enhanced Recovery & Perioperative Critical Care",
+      "short_description": "ERAS protocols, ICU sedation, perioperative fluid management, and ketamine use to reduce complications and length of stay."
     },
     {
       "id": "pain_neuropathic_pain_mechanisms",
       "label": "Neuropathic Pain Biology & Peripheral Nerve Pathology",
-      "description": "Translational and clinical research on neuropathic pain mechanisms including small fiber neuropathy, peripheral nerve injury, traumatic neuromas, corneal nerve loss in non-diabetic conditions (COVID-19, Guillain-Barr\u00e9), and pharmacological targets such as HCN channels and probucol.",
+      "description": "Translational and clinical research on neuropathic pain mechanisms including small fiber neuropathy, peripheral nerve injury, traumatic neuromas, corneal nerve loss in non-diabetic conditions (COVID-19, Guillain-Barré), and pharmacological targets such as HCN channels and probucol.",
       "seed_pmids": [
         34826876,
         38099280,
@@ -290,7 +314,9 @@
         32149846,
         39622045
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Neuropathic Pain Biology & Nerve Pathology",
+      "short_description": "Small fiber neuropathy, peripheral nerve injury, traumatic neuromas, and pharmacological targets including HCN channels."
     },
     {
       "id": "pain_opioid_biology_addiction",
@@ -311,7 +337,9 @@
         35884695,
         34702407
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Opioid Pharmacology, Addiction & Cannabis Interactions",
+      "short_description": "Opioid receptor biology, endocannabinoid-opioid interactions, and cannabis law effects on opioid use disorder outcomes."
     },
     {
       "id": "pain_disparities_access",
@@ -334,7 +362,9 @@
         38547161,
         31855919
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Health Equity & Pain Care Disparities",
+      "short_description": "Racial, ethnic, socioeconomic, and geographic disparities in pain treatment, opioid access, and anesthesia across populations."
     },
     {
       "id": "pain_minimally_invasive_spine_surgery",
@@ -352,7 +382,9 @@
         38874639,
         32528813
       ],
-      "coverage_estimate": 0.098
+      "coverage_estimate": 0.098,
+      "display_name": "Minimally Invasive Spine Surgery & Decompression",
+      "short_description": "Tubular laminotomy, endoscopic techniques, and TLIF/LLIF approaches for spinal conditions, evaluating outcomes and safety."
     },
     {
       "id": "pain_cervical_spine_surgery_outcomes",
@@ -369,7 +401,9 @@
         38717313,
         38305349
       ],
-      "coverage_estimate": 0.088
+      "coverage_estimate": 0.088,
+      "display_name": "Cervical Spine Surgery Outcomes & Complications",
+      "short_description": "Clinical and radiographic outcomes of ACDF, laminoplasty, corpectomy, and atlantoaxial fusion, including complication rates."
     },
     {
       "id": "pain_breast_reconstruction_sensation",
@@ -388,7 +422,9 @@
         39576643,
         40167054
       ],
-      "coverage_estimate": 0.108
+      "coverage_estimate": 0.108,
+      "display_name": "Breast Sensation Recovery After Reconstruction",
+      "short_description": "Sensory outcomes following mastectomy and reconstruction, including neurotized DIEP flaps and nipple-areola reinnervation."
     },
     {
       "id": "pain_lung_transplant_perioperative",
@@ -400,7 +436,9 @@
         34879926,
         37635039
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Lung Transplant Perioperative Management",
+      "short_description": "Intraoperative and perioperative care of lung transplant patients, including extubation timing and graft dysfunction predictors."
     },
     {
       "id": "pain_intervertebral_disc_degeneration",
@@ -412,12 +450,14 @@
         37213577,
         39238872
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Disc Degeneration & Regenerative Therapies",
+      "short_description": "Pathophysiology of intervertebral disc degeneration and biological or structural interventions for chronic low back pain."
     },
     {
       "id": "pain_complementary_integrative_palliative",
       "label": "Complementary & Integrative Medicine in Palliative & Supportive Care",
-      "description": "Studies examining the use, perception, and evidence base for complementary and integrative medicine (CIM) approaches\u2014including acupuncture, aromatherapy, tai chi, and spiritual care\u2014for pain and symptom management in palliative, oncologic, and chronic pain populations.",
+      "description": "Studies examining the use, perception, and evidence base for complementary and integrative medicine (CIM) approaches—including acupuncture, aromatherapy, tai chi, and spiritual care—for pain and symptom management in palliative, oncologic, and chronic pain populations.",
       "seed_pmids": [
         33887994,
         34788656,
@@ -426,7 +466,9 @@
         39469294,
         32045675
       ],
-      "coverage_estimate": 0.059
+      "coverage_estimate": 0.059,
+      "display_name": "Integrative Medicine in Palliative Care",
+      "short_description": "Acupuncture, aromatherapy, tai chi, and spiritual care for pain and symptom management in palliative and oncologic settings."
     },
     {
       "id": "pain_pediatric_opioid_sedation",
@@ -438,7 +480,9 @@
         32672924,
         34606484
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Pediatric Opioid Use, Sedation & Analgesia",
+      "short_description": "Opioid prescribing, PICU sedation, and analgesia in children, including opioid cap laws and maternal prescription impacts."
     },
     {
       "id": "pain_pain_assessment_older_adults",
@@ -451,7 +495,9 @@
         37656675,
         40887038
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Geriatric Assessment & Home Care",
+      "short_description": "Multidimensional pain measurement tools, drug use patterns, and chronic pain experiences in older adults receiving home care."
     },
     {
       "id": "pain_intraoperative_opioid_cancer_outcomes",
@@ -462,7 +508,9 @@
         37757472,
         33835374
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Intraoperative Opioid Exposure & Cancer Outcomes",
+      "short_description": "Relationship between intraoperative opioid administration and tumor genomics, survival, and perioperative ischemic risk."
     },
     {
       "id": "pain_perioperative_transfusion_blood_management",
@@ -474,7 +522,9 @@
         40589133,
         38976638
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Perioperative Transfusion & Blood Management",
+      "short_description": "Blood product utilization and transfusion protocols in cardiac surgery, liver transplantation, and pediatric craniosynostosis repair."
     },
     {
       "id": "pain_sickle_cell_musculoskeletal_comorbidity",
@@ -486,7 +536,9 @@
         34211496,
         37656675
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Sickle Cell Disease & Musculoskeletal Pain",
+      "short_description": "Surgical morbidity, aromatase inhibitor-related symptoms, and comorbidity burden in sickle cell and musculoskeletal conditions."
     },
     {
       "id": "pain_sleep_neurophysiology_pain",
@@ -498,7 +550,9 @@
         37916613,
         36109613
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Sleep, Neurophysiology & Cognitive Function",
+      "short_description": "Sleep health, cortical arousal monitoring, and cognitive performance in perioperative and chronic pain contexts."
     },
     {
       "id": "pain_prostate_biopsy_urologic_procedures",
@@ -509,7 +563,9 @@
         38212178,
         35047795
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Prostate Biopsy Techniques & Procedural Pain",
+      "short_description": "Transperineal versus transrectal biopsy for infection prevention and cancer detection, with evaluation of in-office ablative procedures."
     }
   ],
   "uncovered_pmids": [

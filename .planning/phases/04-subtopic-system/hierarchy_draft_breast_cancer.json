@@ -33,7 +33,9 @@
         38849477,
         38187066
       ],
-      "coverage_estimate": 0.095
+      "coverage_estimate": 0.095,
+      "display_name": "Screening Modalities & Risk Prediction",
+      "short_description": "Mammographic screening, tomosynthesis, MRI, polygenic risk scores, and mammographic density as a risk factor."
     },
     {
       "id": "breast_hr_positive_treatment",
@@ -59,7 +61,9 @@
         34363748,
         38588311
       ],
-      "coverage_estimate": 0.068
+      "coverage_estimate": 0.068,
+      "display_name": "HR-Positive Disease & Endocrine Therapy",
+      "short_description": "CDK4/6 inhibitors, aromatase inhibitors, tamoxifen, and pharmacogenomics of endocrine therapy in luminal subtypes."
     },
     {
       "id": "breast_tnbc_her2_biology_treatment",
@@ -87,7 +91,9 @@
         37855385,
         39259576
       ],
-      "coverage_estimate": 0.076
+      "coverage_estimate": 0.076,
+      "display_name": "TNBC & HER2-Positive Targeted Therapy",
+      "short_description": "Molecular biology, immunotherapy combinations, and neoadjuvant response prediction in TNBC and HER2-positive disease."
     },
     {
       "id": "breast_liquid_biopsy_ctc_ctdna",
@@ -108,7 +114,9 @@
         32034076,
         40810627
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Liquid Biopsy & Circulating Tumor Markers",
+      "short_description": "Detection and clinical utility of circulating tumor cells and ctDNA for treatment monitoring and resistance profiling."
     },
     {
       "id": "breast_reconstruction_surgical",
@@ -149,7 +157,9 @@
         39993168,
         40888286
       ],
-      "coverage_estimate": 0.125
+      "coverage_estimate": 0.125,
+      "display_name": "Postmastectomy Reconstruction & Outcomes",
+      "short_description": "Implant-based and autologous reconstruction techniques, complications, and comparative outcomes after mastectomy."
     },
     {
       "id": "breast_radiation_immunotherapy",
@@ -168,7 +178,9 @@
         40187749,
         38957315
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Radiotherapy & Immunotherapy Combinations",
+      "short_description": "Hypofractionation, MRI-guided radiotherapy, and radiation combined with checkpoint inhibitors and immune modulators."
     },
     {
       "id": "breast_imaging_diagnosis",
@@ -197,7 +209,9 @@
         38422429,
         34343836
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Advanced Imaging & Biopsy Guidance",
+      "short_description": "MRI, ultrasound, contrast-enhanced mammography, and AI-assisted image analysis for lesion detection and biopsy."
     },
     {
       "id": "breast_disparities_outcomes",
@@ -222,7 +236,9 @@
         35583690,
         40167073
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Racial, Ethnic & Socioeconomic Disparities",
+      "short_description": "Disparities in incidence, treatment access, reconstruction rates, and outcomes across racial and socioeconomic groups."
     },
     {
       "id": "breast_genetics_hereditary",
@@ -244,7 +260,9 @@
         38369186,
         39012906
       ],
-      "coverage_estimate": 0.053
+      "coverage_estimate": 0.053,
+      "display_name": "Hereditary Risk Genes & Cascade Testing",
+      "short_description": "BRCA1/2 and other hereditary risk genes, cascade testing strategies, polygenic scores, and DNA repair mechanisms."
     },
     {
       "id": "breast_tumor_biology_molecular",
@@ -269,7 +287,9 @@
         35126865,
         36538387
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Tumor Molecular Biology & Biomarkers",
+      "short_description": "Gene expression, signaling pathways, tumor heterogeneity, and IHC-based tissue biomarkers including stem cell markers."
     },
     {
       "id": "breast_metastasis_metabolism",
@@ -289,7 +309,9 @@
         32678032,
         32667883
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Metastasis Mechanisms & Metabolic Reprogramming",
+      "short_description": "Organ tropism, metabolic reprogramming, and therapeutic strategies targeting metastatic progression in TNBC and other subtypes."
     },
     {
       "id": "breast_dcis_early_stage",
@@ -307,7 +329,9 @@
         40699594,
         33989019
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "DCIS & Early-Stage Disease Management",
+      "short_description": "Treatment decision-making, active surveillance, cryoablation, and patient-reported outcomes in DCIS and early-stage disease."
     },
     {
       "id": "breast_risk_factors_epidemiology",
@@ -328,7 +352,9 @@
         39420200,
         35914729
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Epidemiology, Risk Factors & Tissue Composition",
+      "short_description": "Reproductive factors, diet, environmental exposures, and their associations with breast tissue composition and cancer incidence."
     },
     {
       "id": "breast_survivorship_qol",
@@ -350,7 +376,9 @@
         33661509,
         35133858
       ],
-      "coverage_estimate": 0.053
+      "coverage_estimate": 0.053,
+      "display_name": "Survivorship, Quality of Life & Comorbidities",
+      "short_description": "Post-treatment quality of life, comorbidity management, psychosocial well-being, and patient-reported outcomes in survivors."
     },
     {
       "id": "breast_covid_imaging_impact",
@@ -361,7 +389,9 @@
         34298342,
         38424821
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "COVID-19 Vaccine Effects on Breast Imaging",
+      "short_description": "Vaccine-induced axillary adenopathy and pandemic-related disruptions to breast imaging volumes and program recovery."
     },
     {
       "id": "breast_cancer_genomics_sv",
@@ -373,18 +403,22 @@
         35637420,
         37673071
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Genome Structural Variation & Multi-Omics",
+      "short_description": "Genome-scale sequencing and multi-omics characterization of structural variants, chromatin conformation, and tumor heterogeneity."
     },
     {
       "id": "breast_ml_precision_oncology",
       "label": "Machine Learning and Computational Methods in Precision Oncology",
-      "description": "Development and application of machine learning models\u2014including biologically constrained and deep learning frameworks\u2014to improve cancer risk prediction, treatment response, and molecular profiling.",
+      "description": "Development and application of machine learning models—including biologically constrained and deep learning frameworks—to improve cancer risk prediction, treatment response, and molecular profiling.",
       "seed_pmids": [
         36852282,
         35239414,
         37350928
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Machine Learning in Precision Oncology",
+      "short_description": "Deep learning and biologically constrained models for cancer risk prediction, treatment response, and molecular profiling."
     },
     {
       "id": "breast_cdk_cell_cycle_therapy",
@@ -395,7 +429,9 @@
         35671839,
         32005108
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "CDK Inhibitors & Cell Cycle Regulation",
+      "short_description": "Mechanistic and translational studies of CDK4/6 inhibitors and cell cycle regulators informing therapeutic strategies."
     },
     {
       "id": "breast_exercise_immune_microenvironment",
@@ -406,40 +442,48 @@
         40443130,
         38556675
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Exercise & Tumor Immune Microenvironment",
+      "short_description": "Physical activity and reproductive factors as modulators of the breast tumor immune microenvironment and cancer progression."
     },
     {
       "id": "breast_cardiotoxicity_cardiooncology",
       "label": "Cardiotoxicity and Cardio-Oncology in Breast Cancer Treatment",
-      "description": "Studies assessing cardiac toxicity from breast cancer therapies\u2014including radiotherapy and chemotherapy\u2014using imaging modalities such as PET and MRI to monitor subacute and chronic cardiovascular effects.",
+      "description": "Studies assessing cardiac toxicity from breast cancer therapies—including radiotherapy and chemotherapy—using imaging modalities such as PET and MRI to monitor subacute and chronic cardiovascular effects.",
       "seed_pmids": [
         32919154,
         37019746,
         33237905
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Cardiotoxicity & Cardio-Oncology",
+      "short_description": "Cardiac toxicity from radiotherapy and chemotherapy assessed via PET and MRI imaging for cardiovascular monitoring."
     },
     {
       "id": "breast_cancer_screening_access_policy",
       "label": "Cancer Screening Access, Policy, and Health System Interventions",
-      "description": "Population-level studies examining adherence to cancer screening guidelines across diverse patient groups\u2014including stroke survivors, mental illness patients, and Medicaid enrollees\u2014and the policy interventions that affect screening uptake.",
+      "description": "Population-level studies examining adherence to cancer screening guidelines across diverse patient groups—including stroke survivors, mental illness patients, and Medicaid enrollees—and the policy interventions that affect screening uptake.",
       "seed_pmids": [
         32019432,
         35032754,
         32705734
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Screening Access, Policy & Health Systems",
+      "short_description": "Population-level screening adherence across diverse patient groups and policy interventions affecting screening uptake."
     },
     {
       "id": "breast_patient_models_biomarkers",
       "label": "Patient-Derived Models and Novel Biomarkers for Cancer Detection",
-      "description": "Development of patient-derived in vitro and in vivo cancer models and novel blood-based or imaging biomarkers\u2014including methylation assays and circulating macrophage-like cells\u2014for cancer detection and monitoring.",
+      "description": "Development of patient-derived in vitro and in vivo cancer models and novel blood-based or imaging biomarkers—including methylation assays and circulating macrophage-like cells—for cancer detection and monitoring.",
       "seed_pmids": [
         35230691,
         40912599,
         32917665
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Patient-Derived Models & Novel Biomarkers",
+      "short_description": "Patient-derived cancer models and blood-based or imaging biomarkers including methylation assays for detection and monitoring."
     },
     {
       "id": "breast_global_health_disparities_support",
@@ -450,7 +494,9 @@
         34538465,
         40045673
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Global Oncology & Decision Support",
+      "short_description": "Capacity-building in low-resource settings, decision support for minority populations, and health literacy in cancer outcomes."
     },
     {
       "id": "breast_her2_pet_imaging_advanced",
@@ -461,7 +507,9 @@
         35671839,
         40913147
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Advanced PET Imaging & HER2/ER Assessment",
+      "short_description": "FES-PET for ER-positive brain metastases and evaluation of HER2 expression levels including very low HER2 subsets."
     },
     {
       "id": "breast_aya_fertility_psychosocial",
@@ -472,7 +520,9 @@
         37916800,
         40671538
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Adolescent & Young Adult Oncology",
+      "short_description": "Fertility preservation, clinical trial accrual, and SOGI data collection in adolescent and young adult cancer patients."
     },
     {
       "id": "breast_hereditary_family_communication",
@@ -483,7 +533,9 @@
         34895873,
         38265174
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Hereditary Risk Communication & Family Notification",
+      "short_description": "Barriers to communicating hereditary cancer risk to at-risk relatives and the role of diverse ancestry consortia."
     }
   ],
   "uncovered_pmids": [

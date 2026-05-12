@@ -57,7 +57,9 @@
       ],
       "coverage_estimate": 0.025,
       "total_weight": 150.382696,
-      "activity_count": 236
+      "activity_count": 236,
+      "display_name": "COVID-19 Outcomes & Surveillance",
+      "short_description": "Population-level studies on SARS-CoV-2 transmission, seroprevalence, vaccine effectiveness, and post-acute sequelae across diverse settings."
     },
     {
       "id": "epidemiology_social_determinants_disparities",
@@ -107,7 +109,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 48.62689,
-      "activity_count": 87
+      "activity_count": 87,
+      "display_name": "Social Determinants & Health Disparities",
+      "short_description": "How social, economic, racial, and neighborhood-level factors shape disease incidence, healthcare access, and health outcomes."
     },
     {
       "id": "epidemiology_chronic_disease_risk_factors",
@@ -157,7 +161,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 132.454321,
-      "activity_count": 260
+      "activity_count": 260,
+      "display_name": "Chronic Disease Risk Factor Analysis",
+      "short_description": "Prevalence, incidence, and modifiable risk factors for cardiovascular disease, diabetes, obesity, and related comorbidities across populations."
     },
     {
       "id": "epidemiology_infectious_disease_surveillance",
@@ -206,7 +212,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 57.622645,
-      "activity_count": 149
+      "activity_count": 149,
+      "display_name": "Infectious Disease Burden & Surveillance",
+      "short_description": "Transmission dynamics, prevalence, and epidemic modeling for HIV, hepatitis, STIs, tuberculosis, and emerging pathogens."
     },
     {
       "id": "epidemiology_opioid_substance_use_policy",
@@ -255,7 +263,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 23.752008,
-      "activity_count": 73
+      "activity_count": 73,
+      "display_name": "Opioid Use Disorders & Drug Policy",
+      "short_description": "Opioid prescribing patterns, overdose mortality, harm reduction interventions, and the impact of drug policy on substance use outcomes."
     },
     {
       "id": "epidemiology_maternal_perinatal_health",
@@ -305,7 +315,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 35.04581,
-      "activity_count": 92
+      "activity_count": 92,
+      "display_name": "Maternal & Perinatal Health Outcomes",
+      "short_description": "Population-level studies on maternal morbidity, perinatal outcomes, pregnancy complications, and reproductive health disparities."
     },
     {
       "id": "epidemiology_cancer_screening_survivorship",
@@ -355,7 +367,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 67.957974,
-      "activity_count": 162
+      "activity_count": 162,
+      "display_name": "Cancer Screening, Disparities & Survivorship",
+      "short_description": "Cancer incidence, screening utilization, disparities in care access, and survivorship prevalence across diverse populations."
     },
     {
       "id": "epidemiology_mental_health_suicide",
@@ -405,7 +419,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 23.680557,
-      "activity_count": 76
+      "activity_count": 76,
+      "display_name": "Mental Health & Suicide Prevention",
+      "short_description": "Prevalence of mental health conditions, suicidal behavior, and social determinants of psychological distress at the population level."
     },
     {
       "id": "epidemiology_healthcare_utilization_fragmentation",
@@ -455,7 +471,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 61.996091,
-      "activity_count": 136
+      "activity_count": 136,
+      "display_name": "Healthcare Utilization & Care Fragmentation",
+      "short_description": "Patterns of healthcare use, care coordination quality, preventable hospitalizations, and readmissions in Medicare and other populations."
     },
     {
       "id": "epidemiology_stroke_cerebrovascular_disease",
@@ -505,7 +523,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 67.890379,
-      "activity_count": 89
+      "activity_count": 89,
+      "display_name": "Stroke & Cerebrovascular Disease Burden",
+      "short_description": "Registry and population-based studies on stroke incidence, risk factors, recurrence, outcomes, and disparities across diverse groups."
     },
     {
       "id": "epidemiology_global_lmic_population_health",
@@ -555,7 +575,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 21.221243,
-      "activity_count": 60
+      "activity_count": 60,
+      "display_name": "Global Health in Low-Income Countries",
+      "short_description": "Disease burden, risk factor prevalence, and community-based interventions in sub-Saharan Africa, South Asia, and other low-income regions."
     },
     {
       "id": "epidemiology_elder_mistreatment_aging",
@@ -605,7 +627,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 24.967872,
-      "activity_count": 59
+      "activity_count": 59,
+      "display_name": "Elder Mistreatment & Long-Term Care",
+      "short_description": "Prevalence, risk factors, and health consequences of elder mistreatment, nursing home quality, and aging-related outcomes in older adults."
     },
     {
       "id": "epidemiology_vaccine_immunization_epidemiology",
@@ -655,7 +679,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 15.837404,
-      "activity_count": 26
+      "activity_count": 26,
+      "display_name": "Vaccine Effectiveness & Immunization Programs",
+      "short_description": "Population-level evaluation of vaccine effectiveness, waning immunity, and the epidemiological impact of vaccination strategies."
     },
     {
       "id": "epidemiology_racial_ethnic_health_disparities_outcomes",
@@ -705,7 +731,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 74.614222,
-      "activity_count": 154
+      "activity_count": 154,
+      "display_name": "Racial & Ethnic Disparities in Clinical Outcomes",
+      "short_description": "Racial and ethnic differences in treatment receipt, surgical outcomes, and mortality across cardiovascular, cancer, and maternal health conditions."
     },
     {
       "id": "epidemiology_machine_learning_ehr_methods",
@@ -755,7 +783,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 25.764101,
-      "activity_count": 56
+      "activity_count": 56,
+      "display_name": "Machine Learning & EHR-Based Methods",
+      "short_description": "Electronic health records, natural language processing, and predictive modeling applied to population-level epidemiological analyses."
     }
   ],
   "uncovered_pmids": [

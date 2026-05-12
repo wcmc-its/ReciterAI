@@ -18,7 +18,9 @@
         39135697,
         35051369
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Gut-Immune System Interactions",
+      "short_description": "How gut microbial communities shape host immune responses, mucosal immunity, and dysbiosis-associated immune dysfunction."
     },
     {
       "id": "microbiome_ilc3_mucosal_immunity",
@@ -35,7 +37,9 @@
         35567744,
         34818549
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Innate Lymphoid Cells & Mucosal Immunity",
+      "short_description": "ILC3 and ILC2 roles in intestinal inflammation, microbiota sensing, immune tolerance, and mucosal barrier function."
     },
     {
       "id": "microbiome_mycobiome_fungal",
@@ -53,7 +57,9 @@
         32680437,
         39303681
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Fungal Communities & Mycobiome Dysbiosis",
+      "short_description": "Fungal-immune interactions, IgA/IgG regulation, and mycobiome dysbiosis in IBD, COVID-19, and cancer."
     },
     {
       "id": "microbiome_bile_acids_metabolism",
@@ -69,7 +75,9 @@
         34095847,
         32084379
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Bile Acid & Metabolite Interactions",
+      "short_description": "Gut microbiota regulation of bile acid metabolism, amino acid processing, and metabolite-driven host physiology and disease."
     },
     {
       "id": "microbiome_fmt_therapeutic",
@@ -85,7 +93,9 @@
         38378002,
         34883059
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Fecal Transplantation & Therapeutic Manipulation",
+      "short_description": "FMT, probiotics, and synbiotics as therapeutic interventions for IBD, pouchitis, and microbiome-guided clinical strategies."
     },
     {
       "id": "microbiome_cancer_immunotherapy",
@@ -101,7 +111,9 @@
         40282413,
         40641046
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Cancer Immunotherapy Response",
+      "short_description": "Gut and tumor-associated microbial communities influencing cancer progression and checkpoint-inhibitor immunotherapy efficacy."
     },
     {
       "id": "microbiome_statistical_computational",
@@ -120,7 +132,9 @@
         37034187,
         40641046
       ],
-      "coverage_estimate": 0.11
+      "coverage_estimate": 0.11,
+      "display_name": "Computational & Statistical Analysis Methods",
+      "short_description": "Machine learning, bioinformatic, and statistical tools for differential abundance testing, batch correction, and multi-omics integration."
     },
     {
       "id": "microbiome_antibiotic_resistance",
@@ -134,7 +148,9 @@
         39371270,
         39804518
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Antibiotic Resistance in Clinical & Environmental Settings",
+      "short_description": "Distribution and transfer of antibiotic resistance genes in hospitals, urban environments, and wastewater via metagenomic surveillance."
     },
     {
       "id": "microbiome_transplant_clinical",
@@ -148,7 +164,9 @@
         39804518,
         40460824
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Transplantation & Immunocompromised Host Dynamics",
+      "short_description": "Gut microbiome composition and clinical outcomes in hematopoietic cell and kidney transplant recipients."
     },
     {
       "id": "microbiome_ibd_gut_inflammation",
@@ -164,7 +182,9 @@
         32685241,
         36323778
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Inflammatory Bowel Disease & Dysbiosis",
+      "short_description": "Gut microbiome alterations in Crohn's disease and ulcerative colitis, including dysbiosis and microbiome-guided treatment strategies."
     },
     {
       "id": "microbiome_reproductive_urogenital",
@@ -177,7 +197,9 @@
         34114389,
         38484249
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Urogenital & Reproductive Tract Communities",
+      "short_description": "Cervicovaginal, urinary, and placental microbial communities and their links to HPV, UTI risk, and pregnancy outcomes."
     },
     {
       "id": "microbiome_spaceflight_omics",
@@ -191,12 +213,14 @@
         38862509,
         33795001
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Host Biology & Microbial Shifts During Spaceflight",
+      "short_description": "Longitudinal multi-omics profiling of astronaut microbiome and immune changes during and after spaceflight missions."
     },
     {
       "id": "microbiome_diet_nutrition",
       "label": "Diet, Nutrition, and Microbiome Interactions",
-      "description": "Studies on how dietary components\u2014including fiber, fermentable carbohydrates, and specific nutrients\u2014shape gut microbiome composition and downstream host metabolic and immune outcomes. Covers inulin, FODMAPs, synbiotics, and dietary restriction effects on microbial communities.",
+      "description": "Studies on how dietary components—including fiber, fermentable carbohydrates, and specific nutrients—shape gut microbiome composition and downstream host metabolic and immune outcomes. Covers inulin, FODMAPs, synbiotics, and dietary restriction effects on microbial communities.",
       "seed_pmids": [
         36323778,
         38506708,
@@ -207,7 +231,9 @@
         37452210,
         38962750
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Diet, Nutrition & Microbial Community Shaping",
+      "short_description": "Dietary fiber, fermentable carbohydrates, and nutrients as modulators of gut microbiome composition and host metabolic outcomes."
     },
     {
       "id": "microbiome_schistosoma_parasitic",
@@ -219,7 +245,9 @@
         40842278,
         32124718
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Parasitic Infections & Host Microbiome Alterations",
+      "short_description": "Helminth and Schistosoma infections reshaping host microbiome composition, mucosal immunity, and systemic immune phenotypes."
     },
     {
       "id": "microbiome_gut_brain_stroke",
@@ -230,7 +258,9 @@
         33040706,
         31809363
       ],
-      "coverage_estimate": 0.14
+      "coverage_estimate": 0.14,
+      "display_name": "Gut-Brain Axis & Cerebrovascular Outcomes",
+      "short_description": "Gut microbial communities, intestinal dysbiosis, and their relationship to ischemic stroke and neurological outcomes."
     },
     {
       "id": "microbiome_respiratory_upper_airway",
@@ -241,7 +271,9 @@
         38211629,
         35915372
       ],
-      "coverage_estimate": 0.14
+      "coverage_estimate": 0.14,
+      "display_name": "Respiratory & Upper Airway Communities",
+      "short_description": "Microbial communities of the respiratory tract and upper airways in chronic rhinosinusitis and aspiration pneumonia."
     },
     {
       "id": "microbiome_tools_methods_collection",
@@ -252,7 +284,9 @@
         39135697,
         36847511
       ],
-      "coverage_estimate": 0.14
+      "coverage_estimate": 0.14,
+      "display_name": "Sample Collection & Genetic Manipulation Tools",
+      "short_description": "Stool collection kits and genetic manipulation techniques enabling mechanistic studies in non-model gut microorganisms."
     },
     {
       "id": "microbiome_intestinal_barrier_neonatal",
@@ -263,7 +297,9 @@
         33882811,
         32273468
       ],
-      "coverage_estimate": 0.14
+      "coverage_estimate": 0.14,
+      "display_name": "Intestinal Barrier Function & Neonatal Gut",
+      "short_description": "Mechanisms maintaining gut barrier integrity, including neonatal necrotizing enterocolitis and alcohol-related permeability interventions."
     },
     {
       "id": "microbiome_engineered_bacteria_therapeutics",
@@ -274,7 +310,9 @@
         39135697,
         35711426
       ],
-      "coverage_estimate": 0.14
+      "coverage_estimate": 0.14,
+      "display_name": "Engineered Bacteria & Synthetic Biology Therapeutics",
+      "short_description": "Genetically engineered probiotics and synthetic biology approaches designed to reprogram tumor microenvironments and enhance immunotherapy."
     }
   ],
   "uncovered_pmids": [

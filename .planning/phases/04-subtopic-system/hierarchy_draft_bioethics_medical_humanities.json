@@ -24,7 +24,9 @@
         35801289,
         32596885
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Foundational Bioethical Theory & Frameworks",
+      "short_description": "Philosophical and historical foundations of bioethics, including patient autonomy, justice, disability rights, and clinical decision-making."
     },
     {
       "id": "bioethics_moral_distress_burnout",
@@ -50,7 +52,9 @@
         35085468,
         39681782
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Burnout, Moral Distress & Resilience",
+      "short_description": "Predictors, measurement, and interventions for physician burnout, moral distress, and psychological wellbeing in healthcare workers."
     },
     {
       "id": "bioethics_covid_ethics_healthcare",
@@ -74,7 +78,9 @@
         32298146,
         33315112
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Pandemic Ethics & Healthcare Worker Experience",
+      "short_description": "Ethical challenges, resource allocation, and clinician mental health impacts during the COVID-19 pandemic."
     },
     {
       "id": "bioethics_end_of_life_decisions",
@@ -97,7 +103,9 @@
         40505995,
         39316300
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "End-of-Life Decision-Making & Advance Care Planning",
+      "short_description": "Ethical and clinical dimensions of DNR orders, surrogate decision-making, and goals-of-care conversations in serious illness."
     },
     {
       "id": "bioethics_disorders_consciousness_neuroethics",
@@ -119,7 +127,9 @@
         35733619,
         40260721
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Neuroethics & Disorders of Consciousness",
+      "short_description": "Ethical, legal, and clinical issues in severe brain injury, disorders of consciousness, and neuromodulation interventions."
     },
     {
       "id": "bioethics_ai_ethics_healthcare",
@@ -142,7 +152,9 @@
         38608915,
         39872195
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "AI Ethics, Bias & Accountability",
+      "short_description": "Algorithmic fairness, liability, and governance frameworks for responsible AI deployment in clinical settings."
     },
     {
       "id": "bioethics_reproductive_ethics",
@@ -163,7 +175,9 @@
         35445500,
         39955598
       ],
-      "coverage_estimate": 0.047
+      "coverage_estimate": 0.047,
+      "display_name": "Reproductive Ethics & Autonomy",
+      "short_description": "Justice and patient rights in abortion, contraception, embryo editing, prenatal policy, and reproductive counseling."
     },
     {
       "id": "bioethics_communication_shared_decision",
@@ -186,7 +200,9 @@
         38363766,
         33457544
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "Shared Decision-Making & Patient Trust",
+      "short_description": "Clinician-patient communication, prognostic disclosure, and interventions to improve shared decision-making in serious illness."
     },
     {
       "id": "bioethics_medical_education_professional_identity",
@@ -209,7 +225,9 @@
         40680405,
         37863781
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "Narrative Medicine & Professional Identity Formation",
+      "short_description": "Humanities-based approaches, storytelling, and arts in medical education to cultivate empathy, resilience, and professional identity."
     },
     {
       "id": "bioethics_gender_diversity_workforce",
@@ -229,7 +247,9 @@
         38416885,
         38417005
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Gender, Diversity & Equity in Medicine",
+      "short_description": "Gender disparities, racial bias, LGBTQ inclusion, and structural inequities in medical training and professional culture."
     },
     {
       "id": "bioethics_research_ethics_consent",
@@ -246,7 +266,9 @@
         40185614,
         38983259
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Research Ethics & Informed Consent",
+      "short_description": "Ethical standards in clinical research, including consent processes, conflicts of interest, biobanking, and research integrity."
     },
     {
       "id": "bioethics_stigma_substance_use",
@@ -263,7 +285,9 @@
         36115889,
         39171235
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Stigma & Substance Use Disorder Care",
+      "short_description": "Clinician and public stigma toward substance use disorders and its effects on treatment access, policy, and healthcare equity."
     },
     {
       "id": "bioethics_elder_mistreatment_ethics",
@@ -281,7 +305,9 @@
         38867518,
         39404755
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Elder Mistreatment & Ethical Care of Older Adults",
+      "short_description": "Identification, evaluation, and ethical dimensions of elder abuse, including interdisciplinary response and ageism in healthcare."
     },
     {
       "id": "bioethics_palliative_care_ethics",
@@ -300,7 +326,9 @@
         35801713,
         32544648
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Palliative Care Ethics & Psychosocial Support",
+      "short_description": "Spiritual care, mental health integration, and cultural influences on end-of-life preferences in hospice and palliative settings."
     },
     {
       "id": "bioethics_disability_crisis_standards",
@@ -317,12 +345,14 @@
         32274630,
         36342486
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Disability Rights & Crisis Resource Allocation",
+      "short_description": "Disability justice frameworks applied to crisis standards of care and resource allocation during public health emergencies."
     },
     {
       "id": "bioethics_ai_clinical_tools",
       "label": "AI and Machine Learning Applications in Clinical Practice",
-      "description": "Research on the development, evaluation, and interpretability of AI/ML tools\u2014including large language models, imaging algorithms, and predictive models\u2014applied to clinical diagnosis, documentation, and patient management.",
+      "description": "Research on the development, evaluation, and interpretability of AI/ML tools—including large language models, imaging algorithms, and predictive models—applied to clinical diagnosis, documentation, and patient management.",
       "seed_pmids": [
         37803009,
         38486010,
@@ -335,7 +365,9 @@
         40277459,
         37990659
       ],
-      "coverage_estimate": 0.11
+      "coverage_estimate": 0.11,
+      "display_name": "AI & Machine Learning in Clinical Practice",
+      "short_description": "Development, evaluation, and interpretability of AI/ML tools for clinical diagnosis, documentation, and patient management."
     },
     {
       "id": "bioethics_caregiver_support",
@@ -349,7 +381,9 @@
         36427169,
         36922113
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Family Caregiver Roles & Support Needs",
+      "short_description": "Experiences, burdens, and support needs of family caregivers in primary care, dementia care, and serious illness settings."
     },
     {
       "id": "bioethics_physician_workload_practice",
@@ -363,7 +397,9 @@
         39721866,
         40884510
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Physician Workload & Practice Management",
+      "short_description": "Time use, clinical workload, duty hour restrictions, and team-based care models affecting physician performance and burnout."
     },
     {
       "id": "bioethics_patient_perspectives_treatment",
@@ -379,7 +415,9 @@
         37972343,
         39579603
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Patient Preferences & Treatment Experiences",
+      "short_description": "Lived experiences, treatment preferences, and decision-making processes of patients across cancer, neurological, and chronic conditions."
     },
     {
       "id": "bioethics_health_equity_access",
@@ -392,19 +430,23 @@
         39101042,
         40611493
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Health Equity, Language Access & Disparities",
+      "short_description": "Disparities in care quality and access related to immigrant status, language proficiency, race/ethnicity, and geography."
     },
     {
       "id": "bioethics_religion_culture_clinical_ethics",
       "label": "Religion, Culture, and Clinical Ethics",
-      "description": "Exploration of how religious traditions and cultural frameworks\u2014including Orthodox Judaism, Islam, and other theocentric worldviews\u2014shape medical ethics, clinical decision-making, and patient care.",
+      "description": "Exploration of how religious traditions and cultural frameworks—including Orthodox Judaism, Islam, and other theocentric worldviews—shape medical ethics, clinical decision-making, and patient care.",
       "seed_pmids": [
         39575535,
         33752441,
         37767653,
         35414307
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Religion, Culture & Clinical Ethics",
+      "short_description": "How religious traditions and cultural frameworks shape medical ethics, clinical decision-making, and patient care."
     },
     {
       "id": "bioethics_asylum_immigration_medicine",
@@ -415,18 +457,22 @@
         34870466,
         35432598
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Asylum Seekers & Forensic Medical Evaluation",
+      "short_description": "Medical and psychological evaluation of asylum seekers, including trauma documentation, displacement impacts, and student-run clinic models."
     },
     {
       "id": "bioethics_cognitive_bias_clinical_decision",
       "label": "Cognitive Bias and Group Dynamics in Clinical Decision-Making",
-      "description": "Research examining how cognitive biases\u2014including confirmation bias, groupthink, and diagnostic anchoring\u2014affect clinical judgment and decision-making quality among healthcare providers.",
+      "description": "Research examining how cognitive biases—including confirmation bias, groupthink, and diagnostic anchoring—affect clinical judgment and decision-making quality among healthcare providers.",
       "seed_pmids": [
         32485753,
         38877491,
         38455076
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cognitive Bias in Clinical Decision-Making",
+      "short_description": "How confirmation bias, groupthink, and diagnostic anchoring affect clinical judgment and decision quality among providers."
     },
     {
       "id": "bioethics_nursing_leadership_resilience",
@@ -437,7 +483,9 @@
         36541188,
         34846212
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Nursing Leadership, Resilience & Workforce Wellbeing",
+      "short_description": "Transformational leadership, job satisfaction, and resilience among nurses and allied health workers in high-stress settings."
     },
     {
       "id": "bioethics_maid_end_of_life_practice",
@@ -448,7 +496,9 @@
         36303444,
         31913493
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Aid-in-Dying Practice & Policy",
+      "short_description": "Physician participation patterns, practice methodologies, and policy implications of medical aid in dying."
     },
     {
       "id": "bioethics_cancer_survivorship_communication",
@@ -460,7 +510,9 @@
         38243739,
         36207653
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Cancer Survivorship & Diagnosis Communication",
+      "short_description": "How cancer diagnoses are communicated to patients and survivors, including uncertainty, survivorship myths, and patient education."
     },
     {
       "id": "bioethics_geriatric_care_aging",
@@ -472,7 +524,9 @@
         36661199,
         37051457
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Geriatric Care & Aging-Related Clinical Needs",
+      "short_description": "Clinical and ethical challenges of caring for older adults, including geriatric cardiology, fellowship training, and chronic disease."
     },
     {
       "id": "bioethics_ems_hospital_protocols",
@@ -483,7 +537,9 @@
         31688424,
         40906009
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Emergency Protocols, Refusal & Discharge Practices",
+      "short_description": "Ethical dimensions of EMS protocols, against-medical-advice discharges, and hospital-based care models including psychiatric consultation."
     }
   ],
   "uncovered_pmids": [

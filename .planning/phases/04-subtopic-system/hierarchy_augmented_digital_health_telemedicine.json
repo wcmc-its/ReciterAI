@@ -39,7 +39,9 @@
       ],
       "coverage_estimate": 0.105,
       "total_weight": 12.598802,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Telehealth Service Delivery & Outcomes",
+      "short_description": "Implementation, utilization, and clinical outcomes of telehealth across medical specialties, comparing virtual and in-person care."
     },
     {
       "id": "digital_telehealth_covid_expansion",
@@ -64,7 +66,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 12.305041,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "COVID-19-Era Telehealth Scale-Up",
+      "short_description": "Rapid expansion of virtual care platforms and remote consultation services during the COVID-19 pandemic, including workflow adaptations."
     },
     {
       "id": "digital_telehealth_equity_access",
@@ -86,7 +90,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 4.717591,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Access Equity & the Digital Divide",
+      "short_description": "Disparities in telehealth access across demographic, socioeconomic, and geographic groups, and interventions to promote equitable virtual care."
     },
     {
       "id": "digital_mhealth_apps_interventions",
@@ -113,7 +119,9 @@
       ],
       "coverage_estimate": 0.062,
       "total_weight": 14.113212,
-      "activity_count": 23
+      "activity_count": 23,
+      "display_name": "Mobile Health Apps & Therapeutics",
+      "short_description": "Smartphone-based apps delivering therapeutic interventions, symptom monitoring, and self-management support across diverse patient populations."
     },
     {
       "id": "digital_wearables_remote_monitoring",
@@ -140,7 +148,9 @@
       ],
       "coverage_estimate": 0.062,
       "total_weight": 8.454605,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Wearables & Remote Patient Monitoring",
+      "short_description": "Wearable sensors and remote monitoring technologies for continuous physiological data collection, disease management, and clinical decision support."
     },
     {
       "id": "digital_ai_ml_clinical_applications",
@@ -166,7 +176,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 3.82333,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "AI & Machine Learning in Clinical Care",
+      "short_description": "AI, machine learning, and large language models applied to clinical diagnosis, disease prediction, and treatment decision support."
     },
     {
       "id": "digital_chatbots_conversational_agents",
@@ -182,7 +194,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 2.665775,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Chatbots & Conversational Health Agents",
+      "short_description": "AI-powered conversational agents supporting mental health screening, patient education, and engagement in healthcare settings."
     },
     {
       "id": "digital_vr_ar_simulation",
@@ -203,7 +217,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 4.325074,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "VR, AR & Simulation in Healthcare",
+      "short_description": "Virtual and augmented reality technologies for clinical training, pain management, procedural education, and therapeutic interventions."
     },
     {
       "id": "digital_medical_education_virtual",
@@ -231,7 +247,9 @@
       ],
       "coverage_estimate": 0.065,
       "total_weight": 7.657529,
-      "activity_count": 23
+      "activity_count": 23,
+      "display_name": "Virtual Medical Education & Training",
+      "short_description": "Online curricula, virtual clinical experiences, and telemedicine skills training for medical students, residents, and healthcare professionals."
     },
     {
       "id": "digital_cognitive_training_older_adults",
@@ -257,7 +275,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 3.804253,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Cognitive Training Tools for Older Adults",
+      "short_description": "Computerized cognitive training programs and digital tools supporting cognitive health and everyday functioning in older adults."
     },
     {
       "id": "digital_older_adults_technology_adoption",
@@ -283,7 +303,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 3.872232,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Technology Adoption & Aging in Place",
+      "short_description": "Factors influencing older adults' adoption of digital technologies and wearables for health management and independent living."
     },
     {
       "id": "digital_patient_portals_health_records",
@@ -303,7 +325,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 3.056394,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Patient Portals & Digital Engagement",
+      "short_description": "Electronic health records, patient portal adoption, secure messaging, and digital tools for patient-provider communication."
     },
     {
       "id": "digital_remote_weight_chronic_disease",
@@ -326,7 +350,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 8.39167,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Remote Chronic Disease & Weight Management",
+      "short_description": "Digitally supported programs for chronic disease management including weight loss, diabetes, heart failure, and cancer survivorship."
     },
     {
       "id": "digital_telehealth_behavioral_mental_health",
@@ -352,7 +378,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 6.982476,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Virtual Behavioral & Mental Health Care",
+      "short_description": "Telepsychiatry and digital interventions for depression, anxiety, PTSD, and substance use disorders, covering outcomes and policy."
     },
     {
       "id": "digital_social_media_online_health",
@@ -372,7 +400,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 2.224602,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Social Media & Online Health Information",
+      "short_description": "Health-related content on social media platforms, online patient communities, misinformation, and digital peer support networks."
     },
     {
       "id": "digital_pediatric_telehealth",
@@ -387,7 +417,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 8.400884,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Pediatric Virtual Care Delivery",
+      "short_description": "Telemedicine and virtual care for pediatric populations, including urgent care, autism programs, and neuropsychology services."
     },
     {
       "id": "digital_genetic_cancer_risk_tools",
@@ -403,7 +435,9 @@
       ],
       "coverage_estimate": 0.065,
       "total_weight": 7.512643,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Web-Based Hereditary Cancer Risk Tools",
+      "short_description": "Technology-assisted platforms for collecting cancer family history, assessing hereditary risk, and facilitating cascade genetic testing."
     },
     {
       "id": "digital_telehealth_global_lmic",
@@ -417,7 +451,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 1.186784,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Telehealth in Low- & Middle-Income Countries",
+      "short_description": "Telemedicine and smartphone-based tools supporting surgical care, emergency transport, and healthcare delivery in resource-limited settings."
     },
     {
       "id": "digital_video_patient_education",
@@ -431,7 +467,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 0.735227,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Video-Based Patient Education",
+      "short_description": "Educational videos and multimedia instructions improving patient comprehension, procedural preparation, and health knowledge."
     },
     {
       "id": "digital_acoustic_biosignal_detection",
@@ -444,7 +482,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 1.584436,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Acoustic & Biosignal-Based Diagnostics",
+      "short_description": "Audio recordings and biosignals for automated screening and detection of seizures, respiratory diseases, and other clinical conditions."
     },
     {
       "id": "digital_harm_reduction_substance_use",
@@ -459,7 +499,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 2.224293,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Technology-Enabled Harm Reduction Services",
+      "short_description": "Digital tools and telehealth strategies supporting harm reduction, syringe service programs, and addiction treatment delivery."
     },
     {
       "id": "digital_elder_abuse_protection",
@@ -472,7 +514,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 1.793904,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Elder Abuse Detection & Intervention",
+      "short_description": "Screening tools and service delivery adaptations for identifying and responding to elder abuse, neglect, and trauma in older adults."
     },
     {
       "id": "digital_clinical_informatics_hospital_operations",
@@ -486,7 +530,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 1.456881,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Clinical Informatics & Hospital Operations",
+      "short_description": "Informatics systems, e-consults, and digital workflows improving hospital operations, clinical decision-making, and patient safety."
     },
     {
       "id": "digital_covid_pandemic_health_system_response",
@@ -501,7 +547,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 1.139263,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "COVID-19 Informatics & System Adaptation",
+      "short_description": "Hospital preparedness, resource reallocation, and informatics-driven clinical protocol adaptations during the COVID-19 pandemic."
     },
     {
       "id": "digital_mhealth_vulnerable_populations",
@@ -516,7 +564,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 0.910953,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Mobile Health for Underserved Populations",
+      "short_description": "Mobile health apps and digital tools targeting vulnerable groups including dialysis patients, transgender individuals, and urban psychiatric patients."
     },
     {
       "id": "digital_college_student_mental_health",
@@ -530,7 +580,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 0.501058,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Virtual Interventions for Student Mental Health",
+      "short_description": "Technology-mediated approaches addressing mental health needs of college students, including culturally tailored virtual programs."
     },
     {
       "id": "digital_telehealth_surgical_specialty",
@@ -544,7 +596,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 2.710721,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Virtual Care in Surgical Specialties",
+      "short_description": "Implementation and outcomes of remote care delivery in surgical fields including plastic surgery, telepathology, and direct-to-consumer kiosks."
     },
     {
       "id": "digital_caregiver_homecare_support",
@@ -558,7 +612,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 4.805537,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Technology Support for Caregivers & Home Care",
+      "short_description": "Mobile apps and technology-assisted interventions supporting informal caregivers, home health aides, and hospice care delivery."
     },
     {
       "id": "digital_passive_sensing_mental_health",
@@ -572,7 +628,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 5.193892,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Passive Sensing & Wearables for Mental Health",
+      "short_description": "Passive sensing technologies and large language models monitoring mental health, detecting depression, and delivering well-being recommendations."
     }
   ],
   "uncovered_pmids": [

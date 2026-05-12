@@ -37,7 +37,9 @@
         38969342,
         31584621
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Somatic Mutation & Tumor Evolution",
+      "short_description": "Whole-genome and targeted sequencing to characterize somatic mutations, structural variants, and clonal drivers of cancer progression."
     },
     {
       "id": "genetics_epigenomics_chromatin",
@@ -74,7 +76,9 @@
         32579919,
         34806083
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Epigenomics & Chromatin Regulation",
+      "short_description": "DNA methylation, histone modifications, and 3D chromatin architecture linking epigenetic states to transcriptional programs in disease."
     },
     {
       "id": "genetics_liquid_biopsy_ctdna",
@@ -108,7 +112,9 @@
         34621263,
         37784176
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Liquid Biopsy & Circulating Tumor DNA",
+      "short_description": "ctDNA, cfDNA, and circulating tumor cells for non-invasive cancer detection, treatment monitoring, and resistance profiling."
     },
     {
       "id": "genetics_gwas_polygenic_risk",
@@ -140,7 +146,9 @@
         38307861,
         36379263
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "GWAS & Polygenic Risk Scores",
+      "short_description": "Genome-wide association studies and polygenic risk score development for disease susceptibility, cancer screening, and population-level prediction."
     },
     {
       "id": "genetics_hereditary_cancer_genetic_counseling",
@@ -171,7 +179,9 @@
         32061568,
         32190411
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Hereditary Cancer & Genetic Counseling",
+      "short_description": "Predisposition syndromes, germline testing, cascade screening, and equitable access to genetic counseling services."
     },
     {
       "id": "genetics_transcriptomics_rna_sequencing",
@@ -204,12 +214,14 @@
         38146838,
         38828640
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Transcriptomics & RNA Biology",
+      "short_description": "Bulk and single-cell RNA sequencing, alternative splicing, and RNA modifications characterizing gene expression across disease contexts."
     },
     {
       "id": "genetics_single_cell_multiomics",
       "label": "Single-Cell Multi-Omics and Spatial Genomics",
-      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling\u2014including spatial transcriptomics\u2014to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
+      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling—including spatial transcriptomics—to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
       "seed_pmids": [
         36593397,
         37563440,
@@ -236,7 +248,9 @@
         35475142,
         36515978
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Single-Cell Multi-Omics & Spatial Genomics",
+      "short_description": "Single-cell and spatially resolved genomic profiling to map cellular heterogeneity in tumors, tissues, and developmental systems."
     },
     {
       "id": "genetics_precision_oncology_biomarkers",
@@ -271,7 +285,9 @@
         34680307,
         39836407
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Oncology Biomarkers & Targeted Therapy",
+      "short_description": "Molecular and genomic profiling to guide cancer treatment selection, identify predictive biomarkers, and evaluate targeted therapies."
     },
     {
       "id": "genetics_epigenetic_aging_clonal_hematopoiesis",
@@ -297,7 +313,9 @@
         38720070,
         36138229
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Epigenetic Aging & Clonal Hematopoiesis",
+      "short_description": "DNA methylation clocks, biological age estimation, and CHIP as aging-related genomic phenomena with cardiovascular and cancer implications."
     },
     {
       "id": "genetics_lymphoma_leukemia_genomics",
@@ -330,7 +348,9 @@
         35705541,
         32442065
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Hematologic Malignancy Genomics",
+      "short_description": "Genomic, epigenomic, and transcriptomic characterization of leukemias and lymphomas to identify driver mutations and precision therapy targets."
     },
     {
       "id": "genetics_gene_therapy_aav",
@@ -359,7 +379,9 @@
         33567216,
         35811100
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Gene Therapy & Genome Editing",
+      "short_description": "AAV vector development, CRISPR-Cas9 editing, and clinical gene therapy trials for neurological, metabolic, and inherited disorders."
     },
     {
       "id": "genetics_breast_cancer_genomics",
@@ -394,7 +416,9 @@
         39272208,
         40443130
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Breast Cancer Genomics & Risk",
+      "short_description": "Hereditary risk, somatic profiling, expression subtypes, and biomarker-guided treatment including BRCA1/2 and polygenic risk assessment."
     },
     {
       "id": "genetics_prostate_cancer_genomics",
@@ -424,7 +448,9 @@
         40178947,
         35638091
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Prostate Cancer Molecular Profiling",
+      "short_description": "Androgen receptor signaling, chromatin remodeling, genomic subtypes, and biomarkers for prognosis and treatment selection in prostate cancer."
     },
     {
       "id": "genetics_spaceflight_omics",
@@ -444,7 +470,9 @@
         38915105,
         40681523
       ],
-      "coverage_estimate": 0.014
+      "coverage_estimate": 0.014,
+      "display_name": "Spaceflight Omics & Astronaut Genomics",
+      "short_description": "Multi-omics characterization of genomic, epigenomic, and immune changes induced by spaceflight in astronauts and civilian participants."
     },
     {
       "id": "genetics_neurological_disease_genomics",
@@ -475,7 +503,9 @@
         38594596,
         35256815
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Neurological & Psychiatric Disease Genomics",
+      "short_description": "GWAS, transcriptomics, and iPSC models illuminating molecular mechanisms of Alzheimer's, schizophrenia, autism, and neurodegeneration."
     }
   ],
   "uncovered_pmids": [

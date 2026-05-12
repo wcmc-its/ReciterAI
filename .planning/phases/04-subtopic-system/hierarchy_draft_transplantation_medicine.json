@@ -24,7 +24,9 @@
         38936464,
         40048628
       ],
-      "coverage_estimate": 0.112
+      "coverage_estimate": 0.112,
+      "display_name": "Kidney Allograft Rejection Diagnostics",
+      "short_description": "Noninvasive biomarkers and molecular diagnostics for T-cell mediated and antibody-mediated kidney allograft rejection."
     },
     {
       "id": "transplantation_liver_outcomes_access",
@@ -47,7 +49,9 @@
         37126326,
         32944958
       ],
-      "coverage_estimate": 0.105
+      "coverage_estimate": 0.105,
+      "display_name": "Liver Transplant Access & Disparities",
+      "short_description": "Waitlist access, racial and socioeconomic inequities, and outcomes in liver transplantation including alcohol-associated liver disease."
     },
     {
       "id": "transplantation_heart_outcomes_complications",
@@ -66,7 +70,9 @@
         39929310,
         38456308
       ],
-      "coverage_estimate": 0.077
+      "coverage_estimate": 0.077,
+      "display_name": "Heart Transplant Outcomes & Complications",
+      "short_description": "Perioperative management, allograft vasculopathy, rejection, and long-term survival after heart transplantation."
     },
     {
       "id": "transplantation_lung_perioperative",
@@ -83,7 +89,9 @@
         40143922,
         40414788
       ],
-      "coverage_estimate": 0.063
+      "coverage_estimate": 0.063,
+      "display_name": "Lung Transplant Perioperative Outcomes",
+      "short_description": "Primary graft dysfunction, ECMO use, and clinical outcomes in double-lung transplantation including cystic fibrosis populations."
     },
     {
       "id": "transplantation_hct_gvhd_complications",
@@ -102,7 +110,9 @@
         36622338,
         35241387
       ],
-      "coverage_estimate": 0.077
+      "coverage_estimate": 0.077,
+      "display_name": "GVHD, Engraftment & HCT Complications",
+      "short_description": "Graft-versus-host disease prophylaxis, engraftment kinetics, and perioperative complications in pediatric and adult HCT."
     },
     {
       "id": "transplantation_hct_donor_matching_access",
@@ -117,7 +127,9 @@
         39641218,
         33694175
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Donor Matching & HCT Access Disparities",
+      "short_description": "HLA matching, unrelated donor identification, and racial disparities in access to allogeneic hematopoietic cell transplantation."
     },
     {
       "id": "transplantation_infectious_complications",
@@ -136,7 +148,9 @@
         37154766,
         37377328
       ],
-      "coverage_estimate": 0.077
+      "coverage_estimate": 0.077,
+      "display_name": "Post-Transplant Infectious Complications",
+      "short_description": "CMV, BK virus, aspergillosis, and other infections in solid organ and hematopoietic cell transplant recipients."
     },
     {
       "id": "transplantation_gut_microbiota",
@@ -148,7 +162,9 @@
         39371270,
         35695506
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Gut Microbiota & Transplant Outcomes",
+      "short_description": "Microbiota composition, antibiotic perturbation, and resistant organism colonization in transplant recipients."
     },
     {
       "id": "transplantation_kidney_donor_recipient",
@@ -167,7 +183,9 @@
         33484065,
         34085731
       ],
-      "coverage_estimate": 0.077
+      "coverage_estimate": 0.077,
+      "display_name": "Kidney Donor Strategies & Recipient Outcomes",
+      "short_description": "HCV-positive and living donors, robotic techniques, frailty assessment, and outcomes in kidney transplant recipients."
     },
     {
       "id": "transplantation_cmv_immunity",
@@ -179,7 +197,9 @@
         32134477,
         35970817
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "CMV Immunity & Vaccine Development",
+      "short_description": "Cytomegalovirus immune responses, antibody correlates of protection, and vaccine development in transplant settings."
     },
     {
       "id": "transplantation_liver_transplant_equity",
@@ -195,7 +215,9 @@
         39729978,
         37439670
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Equity & Policy in Liver Transplantation",
+      "short_description": "Social determinants of health, racial and gender disparities, and policy interventions affecting liver transplant access."
     },
     {
       "id": "transplantation_post_transplant_malignancy",
@@ -207,7 +229,9 @@
         36960939,
         35979657
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Post-Transplant Malignancy & Cancer Risk",
+      "short_description": "Cancers arising in immunosuppressed transplant recipients, including cutaneous carcinoma, CNS lymphoma, and donor-derived leukemia."
     },
     {
       "id": "transplantation_pregnancy_reproductive",
@@ -219,7 +243,9 @@
         34617168,
         36194429
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Pregnancy & Reproductive Outcomes",
+      "short_description": "Reproductive counseling, pregnancy outcomes, and renal function in solid organ transplant recipients."
     },
     {
       "id": "transplantation_hct_lymphoma_myeloma",
@@ -233,7 +259,9 @@
         39243817,
         36622338
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "HCT for Lymphoma, Myeloma & Neoplasms",
+      "short_description": "Clinical outcomes of hematopoietic cell transplantation for Hodgkin lymphoma, multiple myeloma, and myeloproliferative neoplasms."
     },
     {
       "id": "transplantation_covid19_impact",
@@ -245,7 +273,9 @@
         32233055,
         33993134
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "COVID-19 Impact on Transplant Recipients",
+      "short_description": "COVID-19 outcomes in kidney transplant recipients and pandemic effects on transplant program operations."
     },
     {
       "id": "transplantation_aml_hematologic_malignancy_therapy",
@@ -257,7 +287,9 @@
         37254665,
         37952982
       ],
-      "coverage_estimate": 0.13
+      "coverage_estimate": 0.13,
+      "display_name": "AML & Hematologic Malignancy Treatment",
+      "short_description": "Novel targeted therapies and salvage regimens for acute myeloid leukemia, ALL, and related hematologic malignancies."
     },
     {
       "id": "transplantation_myeloid_neoplasm_biology",
@@ -269,7 +301,9 @@
         38065069,
         40000903
       ],
-      "coverage_estimate": 0.13
+      "coverage_estimate": 0.13,
+      "display_name": "Myeloid Neoplasm Biology & Stem Cell Regulation",
+      "short_description": "Molecular biology of MDS, myeloproliferative neoplasms, and hematopoietic stem cell self-renewal including epigenetic regulation."
     },
     {
       "id": "transplantation_islet_beta_cell_transplant",
@@ -280,7 +314,9 @@
         40562034,
         38268979
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Islet & Beta Cell Transplantation",
+      "short_description": "Pancreatic islet and beta cell transplantation strategies including vascularization, subcutaneous engraftment, and cell survival."
     },
     {
       "id": "transplantation_alcohol_liver_disease_cirrhosis",
@@ -292,7 +328,9 @@
         35643416,
         39886332
       ],
-      "coverage_estimate": 0.13
+      "coverage_estimate": 0.13,
+      "display_name": "Alcohol-Associated Liver Disease & Cirrhosis",
+      "short_description": "Prognostic scoring, relapse prediction, and clinical management of alcohol-associated liver disease and decompensated cirrhosis."
     },
     {
       "id": "transplantation_liver_allograft_diagnostics",
@@ -303,7 +341,9 @@
         34303189,
         39069380
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Liver Allograft Diagnostics & HCC Assessment",
+      "short_description": "Serum microRNA biomarkers for liver allograft rejection and imaging-based HCC treatment response using LI-RADS criteria."
     },
     {
       "id": "transplantation_pediatric_hct_complications",
@@ -314,7 +354,9 @@
         39556189,
         32681658
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Pediatric HCT Complications & Survivorship",
+      "short_description": "Bleeding events, HPV vaccine uptake, and thrombotic microangiopathy in pediatric HCT and cancer patients."
     },
     {
       "id": "transplantation_cellular_therapy_processing",
@@ -325,7 +367,9 @@
         31915293,
         33988715
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Cellular Therapy Processing & Cryopreservation",
+      "short_description": "Effects of cryopreservation conditions and storage on viability and recovery of cellular therapy products for transplantation."
     }
   ],
   "uncovered_pmids": [

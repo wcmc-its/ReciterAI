@@ -31,7 +31,9 @@
         40594756,
         71984415
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Cellular Senescence & Molecular Mechanisms",
+      "short_description": "Molecular pathways of aging including senescence, epigenetic clocks, NAD+ metabolism, telomere biology, and senolytic interventions."
     },
     {
       "id": "aging_alzheimers_neurodegeneration",
@@ -78,7 +80,9 @@
         39850358,
         34058741
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Alzheimer's Disease & Neurodegeneration",
+      "short_description": "Biomarkers, neuroimaging, and therapeutic targets for Alzheimer's disease, cognitive decline, and neurodegenerative pathology."
     },
     {
       "id": "aging_brain_imaging_cerebrovascular",
@@ -118,7 +122,9 @@
         36321855,
         39525051
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Brain Imaging & Cerebrovascular Pathology",
+      "short_description": "Neuroimaging of white matter disease, brain iron, blood-brain barrier dysfunction, and glymphatic changes linked to dementia."
     },
     {
       "id": "aging_late_life_depression_mental_health",
@@ -155,7 +161,9 @@
         32690123,
         40717468
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Late-Life Depression & Psychotherapy",
+      "short_description": "Neurobiological correlates and psychotherapy interventions for depression, executive dysfunction, and suicidal ideation in older adults."
     },
     {
       "id": "aging_elder_mistreatment",
@@ -200,7 +208,9 @@
         38109490,
         33926591
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Elder Mistreatment & Protective Interventions",
+      "short_description": "Screening, prevention, and response to physical abuse, financial exploitation, and neglect of older adults."
     },
     {
       "id": "aging_frailty_geriatric_syndromes",
@@ -232,7 +242,9 @@
         36178688,
         34695226
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Frailty & Geriatric Syndromes",
+      "short_description": "Frailty assessment and its consequences including falls, delirium, polypharmacy, and functional decline across disease contexts."
     },
     {
       "id": "aging_nursing_home_ltc",
@@ -270,7 +282,9 @@
         40887038,
         32859298
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Nursing Home Quality & Long-Term Care",
+      "short_description": "Quality, staffing, ownership structures, and resident outcomes in nursing homes and long-term care settings."
     },
     {
       "id": "aging_caregiver_dementia_support",
@@ -311,7 +325,9 @@
         37161303,
         39289141
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Dementia Caregiving & Family Support",
+      "short_description": "Caregiver burden, psychosocial interventions, and care coordination for family caregivers of persons with dementia."
     },
     {
       "id": "aging_technology_cognitive_training",
@@ -355,7 +371,9 @@
         37594791,
         40384289
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Digital Health & Cognitive Training",
+      "short_description": "Technology-based interventions for cognitive training, social engagement, and aging-in-place support for older adults."
     },
     {
       "id": "aging_hiv_older_adults",
@@ -380,7 +398,9 @@
         32271253,
         40116067
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "HIV, Geriatric Comorbidities & Inflammation",
+      "short_description": "Frailty, cognitive impairment, epigenetic aging, and comorbidities in older adults living with HIV."
     },
     {
       "id": "aging_social_determinants_health_disparities",
@@ -412,7 +432,9 @@
         36150265,
         39843675
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Social Determinants & Health Disparities",
+      "short_description": "Neighborhood conditions, race, and care fragmentation as drivers of adverse outcomes in older adult populations."
     },
     {
       "id": "aging_age_related_lung_immunity",
@@ -432,7 +454,9 @@
         40712141,
         38011570
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Pulmonary Disease & Immune Dysfunction",
+      "short_description": "Age-related lung biology including pulmonary fibrosis, impaired antiviral immunity, and senescence-driven lung pathology."
     },
     {
       "id": "aging_cancer_aging_intersection",
@@ -458,7 +482,9 @@
         38862516,
         38634106
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cancer Biology & Oncology in Older Adults",
+      "short_description": "Molecular aging changes promoting tumor progression, geriatric oncology assessment, and cancer survivorship outcomes."
     },
     {
       "id": "aging_heart_failure_cardiovascular_geriatrics",
@@ -488,7 +514,9 @@
         40155186,
         39739736
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Heart Failure & Geriatric Cardiology",
+      "short_description": "Cardiovascular disease management in older adults including polypharmacy, care transitions, and cognitive decline after heart failure."
     },
     {
       "id": "aging_stroke_cerebrovascular_outcomes",
@@ -514,7 +542,9 @@
         37191655,
         32081532
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Stroke & Neurological Outcomes",
+      "short_description": "Risk factors, post-stroke cognitive and functional outcomes, and disparities in cerebrovascular care among older adults."
     },
     {
       "id": "aging_covid19_outcomes_aging",
@@ -540,7 +570,9 @@
         33464637,
         34895192
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "COVID-19 Severity & Age-Related Vulnerability",
+      "short_description": "Age, comorbidities, and immune response as determinants of COVID-19 hospitalization, mortality, and vaccination outcomes."
     },
     {
       "id": "aging_covid19_neurological_rehabilitation",
@@ -553,7 +585,9 @@
         34541022,
         35502860
       ],
-      "coverage_estimate": 0.014
+      "coverage_estimate": 0.014,
+      "display_name": "COVID-19 Neurological Sequelae & Rehabilitation",
+      "short_description": "Cognitive deficits, brain dysfunction, and functional recovery following SARS-CoV-2 infection."
     },
     {
       "id": "aging_pain_management_older_adults",
@@ -570,7 +604,9 @@
         38094933,
         39792470
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Chronic Pain & Musculoskeletal Management",
+      "short_description": "Pain assessment, treatment approaches, and functional impact of chronic musculoskeletal conditions in older adults."
     },
     {
       "id": "aging_social_isolation_loneliness",
@@ -584,7 +620,9 @@
         39404755,
         35267020
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Social Isolation, Loneliness & Well-Being",
+      "short_description": "Health consequences of social isolation and loneliness including mortality, dementia risk, and depression in older adults."
     },
     {
       "id": "aging_geriatric_emergency_trauma",
@@ -602,7 +640,9 @@
         40751176,
         32178839
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Geriatric Emergency Medicine & Trauma",
+      "short_description": "Emergency department care, trauma outcomes, and acute care delivery for older adults including fall-related injuries."
     },
     {
       "id": "aging_liver_fibrosis_metabolic_cognition",
@@ -618,7 +658,9 @@
         34888546,
         40622856
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Liver Fibrosis, Metabolism & Cognitive Risk",
+      "short_description": "Links between hepatic steatosis, metabolic dysfunction, and cognitive impairment or dementia risk in older populations."
     },
     {
       "id": "aging_blood_brain_barrier_neurovascular",
@@ -633,7 +675,9 @@
         37789345,
         36871361
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Blood-Brain Barrier & Neurovascular Integrity",
+      "short_description": "Cerebral microvascular dysfunction and blood-brain barrier permeability in aging, Alzheimer's disease, and neurological conditions."
     },
     {
       "id": "aging_cardiovascular_procedures_outcomes",
@@ -653,7 +697,9 @@
         40549347,
         40535596
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Cardiovascular Procedures & Surgical Risk",
+      "short_description": "Outcomes of valve replacement, coronary revascularization, and ablation in older and high-risk patients by age and sex."
     },
     {
       "id": "aging_spinal_orthopedic_surgery_elderly",
@@ -668,7 +714,9 @@
         40061199,
         32176172
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Spinal & Orthopedic Surgery Outcomes",
+      "short_description": "Surgical outcomes, complications, and functional recovery after spinal and orthopedic procedures in elderly patients."
     },
     {
       "id": "aging_diabetes_metabolic_disease_aging",
@@ -685,7 +733,9 @@
         31967391,
         34531828
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Diabetes & Metabolic Dysfunction",
+      "short_description": "Epidemiology, complications, and metabolic mechanisms of type 2 diabetes in the context of aging-related morbidity."
     },
     {
       "id": "aging_telehealth_home_care_delivery",
@@ -699,7 +749,9 @@
         36343702,
         38979847
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Telehealth & Remote Care Delivery",
+      "short_description": "Feasibility, outcomes, and barriers of telemedicine and remote monitoring for older adults in home and long-term care settings."
     },
     {
       "id": "aging_high_cost_medicare_utilization",
@@ -715,7 +767,9 @@
         40900590,
         40843422
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "High-Cost Medicare & Healthcare Utilization",
+      "short_description": "Patterns of utilization, preventable spending, and care coordination gaps among high-cost Medicare beneficiaries."
     },
     {
       "id": "aging_epigenetic_clocks_biological_aging",
@@ -730,7 +784,9 @@
         39448567,
         32315288
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Epigenetic Clocks & Biological Age",
+      "short_description": "DNA methylation and transcriptional frameworks for measuring biological age and identifying age-modulating compounds."
     },
     {
       "id": "aging_hypothalamic_neuroendocrine_aging",
@@ -744,7 +800,9 @@
         36194429,
         33926719
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Neuroendocrine Regulation & Sex Hormones",
+      "short_description": "Estrogen receptor signaling and hypothalamic neuronal changes associated with aging, menopause, and hypertension."
     },
     {
       "id": "aging_hospice_palliative_end_of_life",
@@ -758,7 +816,9 @@
         35502860,
         34997392
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Hospice, Palliative Care & End-of-Life",
+      "short_description": "Hospice utilization, palliative care needs, and end-of-life preferences among older adults with serious illness."
     }
   ],
   "uncovered_pmids": [

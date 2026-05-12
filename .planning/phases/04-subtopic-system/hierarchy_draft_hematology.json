@@ -31,7 +31,9 @@
         40919482,
         21799999
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Acute Myeloid Leukemia Biology & Treatment",
+      "short_description": "Molecular subtypes, epigenetic drivers, and targeted therapies in newly diagnosed and relapsed AML."
     },
     {
       "id": "hematology_lymphoma_biology_therapy",
@@ -72,7 +74,9 @@
         40487447,
         39747433
       ],
-      "coverage_estimate": 0.087
+      "coverage_estimate": 0.087,
+      "display_name": "Lymphoma Molecular Pathogenesis & Therapy",
+      "short_description": "Epigenetic and molecular mechanisms driving B- and T-cell lymphomas, with novel targeted and cellular therapies."
     },
     {
       "id": "hematology_myeloproliferative_neoplasms_mds",
@@ -96,7 +100,9 @@
         32193254,
         36138229
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Myeloproliferative Neoplasms & MDS",
+      "short_description": "Biology, diagnosis, and management of MPNs and myelodysplastic syndromes, including JAK2 mutations and disease progression."
     },
     {
       "id": "hematology_multiple_myeloma",
@@ -114,7 +120,9 @@
         38869838,
         39167622
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Multiple Myeloma Genomics & Treatment",
+      "short_description": "Genomic profiling of smoldering and active myeloma, with CAR T-cell therapy, proteasome inhibitors, and transplant outcomes."
     },
     {
       "id": "hematology_hematopoiesis_stem_cells",
@@ -135,7 +143,9 @@
         38052043,
         33972312
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Hematopoietic Stem Cells & Bone Marrow Niche",
+      "short_description": "Stem cell self-renewal, epigenetic regulation, clonal hematopoiesis, and bone marrow microenvironment signaling."
     },
     {
       "id": "hematology_car_t_cell_immunotherapy",
@@ -154,7 +164,9 @@
         37254665,
         35088172
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "CAR T-Cell Therapy for Blood Cancers",
+      "short_description": "Design, clinical outcomes, resistance mechanisms, and combination strategies for CAR T-cell therapy in hematologic malignancies."
     },
     {
       "id": "hematology_venous_thromboembolism",
@@ -176,7 +188,9 @@
         40483169,
         36967425
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Venous Thromboembolism Risk & Management",
+      "short_description": "Epidemiology, prophylaxis, and anticoagulation strategies for DVT and PE across diverse patient populations."
     },
     {
       "id": "hematology_pulmonary_embolism_catheter",
@@ -197,7 +211,9 @@
         34157383,
         40454282
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Pulmonary Embolism Catheter-Based Therapies",
+      "short_description": "Catheter-directed thrombolysis, mechanical thrombectomy, and risk stratification for acute pulmonary embolism."
     },
     {
       "id": "hematology_transfusion_medicine_pediatric",
@@ -225,7 +241,9 @@
         37678406,
         34746797
       ],
-      "coverage_estimate": 0.053
+      "coverage_estimate": 0.053,
+      "display_name": "Pediatric & Critical Care Transfusion Medicine",
+      "short_description": "Blood component transfusion practices, thresholds, and outcomes in critically ill children, neonates, and cardiac surgery patients."
     },
     {
       "id": "hematology_red_blood_cell_anemia",
@@ -247,7 +265,9 @@
         35414333,
         39471500
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Red Blood Cell Disorders & Anemia Management",
+      "short_description": "Anemia treatment, sickle cell disease, thalassemia, and transfusion outcomes in surgical and hospitalized patients."
     },
     {
       "id": "hematology_iron_metabolism_therapy",
@@ -266,7 +286,9 @@
         32273468,
         40736650
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Iron Metabolism, Deficiency & Therapy",
+      "short_description": "Intravenous iron treatment, hepcidin biology, FGF23-related mineral homeostasis, and adverse effects of iron therapy."
     },
     {
       "id": "hematology_coagulation_anticoagulation",
@@ -287,7 +309,9 @@
         40401916,
         40358404
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Coagulation Disorders & Anticoagulation",
+      "short_description": "Anticoagulation management with DOACs, warfarin, and antiplatelet agents across cardiac, trauma, and procedural settings."
     },
     {
       "id": "hematology_covid19_thrombosis_coagulopathy",
@@ -306,7 +330,9 @@
         37597510,
         32942274
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "COVID-19 Coagulopathy & Vascular Injury",
+      "short_description": "Thrombotic and coagulopathic complications of COVID-19, including complement-mediated microvascular injury and hypercoagulable states."
     },
     {
       "id": "hematology_hct_transplant_outcomes",
@@ -332,7 +358,9 @@
         38329327,
         39556189
       ],
-      "coverage_estimate": 0.047
+      "coverage_estimate": 0.047,
+      "display_name": "Stem Cell Transplantation Outcomes & Access",
+      "short_description": "Allogeneic and autologous HCT outcomes, GVHD, cord blood transplantation, and racial disparities in transplant access."
     },
     {
       "id": "hematology_platelet_biology_disorders",
@@ -353,7 +381,9 @@
         40080896,
         33629748
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Platelet Biology & Thrombocytopenia Management",
+      "short_description": "Platelet function, immune thrombocytopenia, thrombotic microangiopathies, and platelet transfusion thresholds and outcomes."
     },
     {
       "id": "hematology_stroke_cerebrovascular",
@@ -378,7 +408,9 @@
         38948080,
         33775324
       ],
-      "coverage_estimate": 0.11
+      "coverage_estimate": 0.11,
+      "display_name": "Stroke & Antithrombotic Management",
+      "short_description": "Ischemic stroke, cerebral venous thrombosis, and anticoagulation strategies for stroke prevention in cancer and atrial fibrillation."
     },
     {
       "id": "hematology_lymphoma_diagnosis_staging",
@@ -398,7 +430,9 @@
         32172217,
         38424964
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Lymphoma Diagnosis, Staging & Assessment",
+      "short_description": "Bone marrow biopsy, PET/CT imaging, CSF analysis, and pathologic staging tools for B- and T-cell lymphomas."
     },
     {
       "id": "hematology_lymphoma_targeted_therapy",
@@ -416,7 +450,9 @@
         37801604,
         33861502
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Targeted Agents in Lymphoma & CLL",
+      "short_description": "BTK inhibitors, venetoclax, CDK4/6 inhibitors, and BET inhibitors in B-cell malignancies, CLL, and mantle cell lymphoma."
     },
     {
       "id": "hematology_aml_mds_therapy_biology",
@@ -434,7 +470,9 @@
         36282213,
         34814948
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "AML & MDS Novel Therapeutics & Molecular Biology",
+      "short_description": "Oral azacitidine maintenance, BET and ENL YEATS inhibitors, BCL6 targeting, and cytogenomic characterization of AML and MDS."
     },
     {
       "id": "hematology_lung_lymphatic_vascular",
@@ -447,7 +485,9 @@
         39437762,
         33861685
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Pulmonary Lymphatic & Vascular Biology",
+      "short_description": "Lymphatic endothelial dysfunction in the lung, PAR1-mediated drainage, and lymphatic contributions to COPD and emphysema."
     },
     {
       "id": "hematology_spaceflight_omics",
@@ -460,7 +500,9 @@
         33391848,
         38862509
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Spaceflight Multi-Omics & Cardiovascular Risk",
+      "short_description": "Multi-omic profiling of immune, coagulation, and cardiovascular changes in astronauts during and after spaceflight."
     },
     {
       "id": "hematology_covid19_clinical_outcomes",
@@ -479,7 +521,9 @@
         37872315,
         40007886
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "COVID-19 Clinical Outcomes & Complications",
+      "short_description": "Hospitalized COVID-19 outcomes including inflammatory markers, organ dysfunction, post-acute sequelae, and treatment strategies."
     },
     {
       "id": "hematology_endothelial_vascular_biology",
@@ -491,7 +535,9 @@
         36692963,
         35981563
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Endothelial Cell Biology & Vascular Homeostasis",
+      "short_description": "Endothelial specification, transcription factor regulation, and endothelial-leukemia cell interactions in vascular homeostasis."
     },
     {
       "id": "hematology_ai_nlp_diagnostics",
@@ -503,7 +549,9 @@
         34027414,
         32949781
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "AI & Machine Learning in Diagnostics",
+      "short_description": "Machine learning, NLP, and AI-driven image analysis for hematopathology diagnosis, flow cytometry, and clinical decision support."
     },
     {
       "id": "hematology_cancer_thrombosis_arterial",
@@ -516,7 +564,9 @@
         39321946,
         32036237
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cancer-Associated Arterial Thromboembolism",
+      "short_description": "Arterial thromboembolism risk in solid cancer patients, including genomic predictors of thrombosis and vascular complication management."
     },
     {
       "id": "hematology_sickle_cell_pain_management",
@@ -527,7 +577,9 @@
         33516678,
         36481700
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Sickle Cell Disease Management & Global Health",
+      "short_description": "Pain management, opioid prescribing, linkage-to-care interventions, and clinical outcomes in pediatric and adult sickle cell disease."
     },
     {
       "id": "hematology_eosinophil_gene_therapy",
@@ -538,7 +590,9 @@
         34545183,
         33440144
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Eosinophil Biology & Gene Therapy",
+      "short_description": "AAV-mediated gene therapy for hypereosinophilia and chronic eosinophilic leukemia, and eosinophil regulatory mechanisms."
     },
     {
       "id": "hematology_clonal_hematopoiesis_somatic",
@@ -550,7 +604,9 @@
         39317739,
         33081820
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Clonal Hematopoiesis & Somatic Mutation Risk",
+      "short_description": "CHIP, mosaic chromosomal alterations, and somatic mutations as risk factors for hematologic and solid malignancies."
     },
     {
       "id": "hematology_lung_transplant_perioperative",
@@ -561,7 +617,9 @@
         32741611,
         33726579
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Lung Transplantation Perioperative Outcomes",
+      "short_description": "Perioperative management, transfusion practices, and intraoperative outcomes in lung transplantation including cystic fibrosis cases."
     },
     {
       "id": "hematology_b_cell_differentiation_immunity",
@@ -574,7 +632,9 @@
         32396861,
         33316130
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "B Cell Differentiation & Humoral Immunity",
+      "short_description": "OCT2-mediated chromatin remodeling, ROCK1 proteostasis, CRISPR lymphoma models, and EZH2-driven lymphoma niche formation."
     }
   ],
   "uncovered_pmids": [

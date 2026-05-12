@@ -62,7 +62,9 @@
         37644156,
         43434451
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Tissue & Cytology Morphologic Evaluation",
+      "short_description": "Histopathologic and cytologic characterization of tumors and non-neoplastic lesions across organ systems."
     },
     {
       "id": "pathology_molecular_genomic_cancer",
@@ -113,7 +115,9 @@
         40694497,
         34131192
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Cancer Genomic & Molecular Profiling",
+      "short_description": "Next-generation sequencing and multi-omic profiling of somatic mutations, structural variants, and gene fusions in malignancies."
     },
     {
       "id": "pathology_liquid_biopsy_ctdna",
@@ -152,7 +156,9 @@
         40810627,
         40819062
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Liquid Biopsy & Circulating Tumor DNA",
+      "short_description": "Detection and clinical utility of ctDNA, cfDNA, and circulating tumor cells for cancer diagnosis and treatment monitoring."
     },
     {
       "id": "pathology_digital_computational_pathology",
@@ -192,7 +198,9 @@
         37695363,
         39907244
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Digital & Computational Pathology AI",
+      "short_description": "Machine learning and image analysis algorithms applied to whole slide images for automated diagnosis and biomarker quantification."
     },
     {
       "id": "pathology_clinical_laboratory_assays",
@@ -232,7 +240,9 @@
         39428109,
         36610415
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Diagnostic Test Development & Validation",
+      "short_description": "Development and performance evaluation of immunoassays, PCR tests, flow cytometry, and point-of-care diagnostics for clinical use."
     },
     {
       "id": "pathology_covid19_sars_pathology",
@@ -268,7 +278,9 @@
         39930758,
         40712141
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "COVID-19 Tissue & Laboratory Diagnostics",
+      "short_description": "Histopathologic, molecular, and serological investigations of SARS-CoV-2 infection severity, autopsy findings, and outcomes."
     },
     {
       "id": "pathology_transplant_allograft",
@@ -296,7 +308,9 @@
         37026702,
         40143922
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Transplant Pathology & Allograft Rejection",
+      "short_description": "Molecular and histopathologic assessment of kidney, liver, and lung allograft rejection using noninvasive biomarkers."
     },
     {
       "id": "pathology_corneal_confocal_neuropathy",
@@ -338,7 +352,9 @@
         39671224,
         32934893
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Corneal Confocal Microscopy & Neuropathy",
+      "short_description": "Corneal nerve fiber loss and immune cell changes as surrogate biomarkers for diabetic neuropathy and neurodegeneration."
     },
     {
       "id": "pathology_epigenomics_methylation",
@@ -364,7 +380,9 @@
         32407802,
         31950578
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Epigenomics & DNA Methylation Biomarkers",
+      "short_description": "DNA methylation profiling and epigenetic alterations in cancer, including methylation-based liquid biopsy and prognostic markers."
     },
     {
       "id": "pathology_extracellular_vesicles_biomarkers",
@@ -388,7 +406,9 @@
         35471420,
         34285158
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Extracellular Vesicles & Exosome Biomarkers",
+      "short_description": "Characterization of EVs and exosomes as diagnostic and prognostic biomarkers in cancer, cardiovascular disease, and HIV."
     },
     {
       "id": "pathology_hematopathology_myeloid",
@@ -421,7 +441,9 @@
         39145781,
         36796082
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Hematopathology & Myeloid Neoplasms",
+      "short_description": "Clinicopathologic and molecular characterization of leukemia, myelodysplastic syndromes, lymphomas, and multiple myeloma."
     },
     {
       "id": "pathology_prostate_cancer_pathology",
@@ -452,7 +474,9 @@
         33166087,
         34496233
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Prostate Cancer Grading & Molecular Diagnostics",
+      "short_description": "Histopathologic grading, genomic biomarkers, and imaging-pathology correlations in prostate cancer diagnosis and risk stratification."
     },
     {
       "id": "pathology_thyroid_endocrine_pathology",
@@ -483,7 +507,9 @@
         40261909,
         34621263
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Thyroid & Endocrine Tumor Pathology",
+      "short_description": "Fine-needle aspiration cytology, molecular testing, and histopathologic classification of thyroid and endocrine neoplasms."
     },
     {
       "id": "pathology_infectious_disease_microbiology_lab",
@@ -517,7 +543,9 @@
         38484249,
         40736690
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Infectious Disease Laboratory Diagnostics",
+      "short_description": "Molecular and rapid diagnostic methods for bacterial, viral, fungal, and parasitic pathogens with epidemiological surveillance."
     },
     {
       "id": "pathology_breast_pathology_biomarkers",
@@ -548,7 +576,9 @@
         38194481,
         35233546
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Breast Lesion Pathology & Tissue Biomarkers",
+      "short_description": "Histopathologic features, HER2 testing, and molecular characterization of benign and malignant breast lesions."
     }
   ],
   "uncovered_pmids": [

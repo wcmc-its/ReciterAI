@@ -20,7 +20,9 @@
       ],
       "coverage_estimate": 0.11,
       "total_weight": 13.435727,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Glioma Molecular Biology & Microenvironment",
+      "short_description": "Epigenetic, cellular, and stem cell mechanisms driving glioma, including tumor microenvironment interactions and transcriptional cell states."
     },
     {
       "id": "neuro_glioma_treatment_clinical",
@@ -39,7 +41,9 @@
       ],
       "coverage_estimate": 0.1,
       "total_weight": 4.626442,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "High-Grade Glioma Treatment Strategies",
+      "short_description": "Clinical and translational studies on chemotherapy, radiation, immunotherapy, and targeted agents for glioblastoma and high-grade gliomas."
     },
     {
       "id": "neuro_dipg_ced",
@@ -56,7 +60,9 @@
       ],
       "coverage_estimate": 0.08,
       "total_weight": 2.723145,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "DIPG & Convection-Enhanced Delivery",
+      "short_description": "Treatment of diffuse intrinsic pontine glioma via convection-enhanced delivery, covering pharmacokinetics, dosimetry, and clinical drug trials."
     },
     {
       "id": "neuro_meningioma_imaging_treatment",
@@ -76,7 +82,9 @@
       ],
       "coverage_estimate": 0.11,
       "total_weight": 20.580055,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Meningioma Imaging & Radiosurgery",
+      "short_description": "Diagnosis and management of meningioma using DOTATATE PET/MRI, radiosurgery planning, and novel medical therapies."
     },
     {
       "id": "neuro_pediatric_cns_tumors",
@@ -93,7 +101,9 @@
       ],
       "coverage_estimate": 0.08,
       "total_weight": 7.662893,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Pediatric Brain Tumor Biology & Treatment",
+      "short_description": "Molecular profiling, classification, and therapeutics for pediatric CNS tumors including medulloblastoma, ATRT, and low-grade gliomas."
     },
     {
       "id": "neuro_glioma_molecular_diagnostics",
@@ -109,7 +119,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 6.472042,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Glioma Molecular Classification & Diagnostics",
+      "short_description": "IDH mutation detection, MGMT methylation, WHO classification, and machine learning-based histopathological genotype prediction in gliomas."
     },
     {
       "id": "neuro_brain_tumor_mri_imaging",
@@ -124,7 +136,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 1.434284,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Advanced MRI for Tumor Characterization",
+      "short_description": "DCE-MRI, diffusion kurtosis, and radiomic methods for CNS tumor characterization, treatment response, and pseudoprogression assessment."
     },
     {
       "id": "neuro_skull_base_surgery",
@@ -139,7 +153,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 2.527905,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Skull Base Surgical Approaches",
+      "short_description": "Anatomical and technical studies on frontotemporal, transpetrosal, far lateral, and cavernous sinus approaches for tumor and vascular lesion resection."
     },
     {
       "id": "neuro_intraoperative_mapping",
@@ -152,7 +168,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.79125,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Intraoperative Mapping & Awake Craniotomy",
+      "short_description": "Motor cortex mapping, awake craniotomy techniques, and augmented reality-assisted resection for brain tumor surgery."
     },
     {
       "id": "neuro_brain_metastases",
@@ -166,7 +184,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 2.366105,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Brain Metastases Management & Imaging",
+      "short_description": "PET-based imaging, pharmacological trials, and multidisciplinary care pathways for brain metastases from systemic cancers."
     },
     {
       "id": "neuro_drug_delivery_bbb",
@@ -181,7 +201,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 2.190473,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Blood-Brain Barrier Drug Delivery",
+      "short_description": "Focused ultrasound, intraarterial administration, and convection-enhanced delivery strategies to overcome the blood-brain barrier for CNS therapy."
     },
     {
       "id": "neuro_glioma_organoids_models",
@@ -196,7 +218,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.255028,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Glioblastoma Preclinical Models & Organoids",
+      "short_description": "Patient-derived cerebral organoids, 3D spheroid models, and in vivo mouse glioma systems for preclinical therapeutic testing."
     },
     {
       "id": "neuro_cns_lymphoma_rare_tumors",
@@ -211,7 +235,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 4.016169,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "CNS Lymphoma & Rare Brain Tumors",
+      "short_description": "Clinical studies on primary CNS lymphoma, craniopharyngioma, colloid cysts, and pituitary neoplasms with somatostatin receptor expression."
     },
     {
       "id": "neuro_rehabilitation_outcomes",
@@ -225,7 +251,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 0.821363,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Rehabilitation & Functional Outcomes",
+      "short_description": "Inpatient rehabilitation, spine tumor recovery, and neuropsychological care for patients with brain and spinal cord tumors."
     }
   ],
   "uncovered_pmids": [

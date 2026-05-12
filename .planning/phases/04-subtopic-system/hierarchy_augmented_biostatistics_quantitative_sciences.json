@@ -36,7 +36,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 9.155544,
-      "activity_count": 30
+      "activity_count": 30,
+      "display_name": "Novel Statistical Methods & Methodology",
+      "short_description": "Bayesian, survival, mixed-effects, and nonparametric methods for high-dimensional biomedical and omics data."
     },
     {
       "id": "biostatistics_clinical_trial_design",
@@ -66,7 +68,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 64.046756,
-      "activity_count": 225
+      "activity_count": 225,
+      "display_name": "Clinical Trial Design & Reporting",
+      "short_description": "Design, conduct, and reporting standards for RCTs, including adaptive, pragmatic, and registry-based trial methods."
     },
     {
       "id": "biostatistics_prediction_risk_models",
@@ -101,7 +105,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 81.256371,
-      "activity_count": 270
+      "activity_count": 270,
+      "display_name": "Risk Prediction & Clinical Decision Tools",
+      "short_description": "Development and validation of prognostic scores, nomograms, and risk stratification tools across clinical domains."
     },
     {
       "id": "biostatistics_machine_learning_ai_health",
@@ -136,7 +142,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 33.446588,
-      "activity_count": 96
+      "activity_count": 96,
+      "display_name": "Machine Learning & AI in Health",
+      "short_description": "Deep learning, NLP, and AI methods for clinical prediction, EHR analysis, and medical imaging interpretation."
     },
     {
       "id": "biostatistics_causal_inference_comparative_effectiveness",
@@ -165,7 +173,9 @@
       ],
       "coverage_estimate": 0.01,
       "total_weight": 33.086189,
-      "activity_count": 94
+      "activity_count": 94,
+      "display_name": "Causal Inference & Comparative Effectiveness",
+      "short_description": "Target trial emulation, propensity scores, and instrumental variables to estimate treatment effects from real-world data."
     },
     {
       "id": "biostatistics_epidemiology_infectious_disease",
@@ -211,7 +221,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 46.760323,
-      "activity_count": 134
+      "activity_count": 134,
+      "display_name": "Infectious Disease Modeling & Surveillance",
+      "short_description": "Mathematical modeling, vaccine effectiveness estimation, and transmission dynamics for HIV, SARS-CoV-2, and other pathogens."
     },
     {
       "id": "biostatistics_health_disparities_social_determinants",
@@ -249,7 +261,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 65.744587,
-      "activity_count": 205
+      "activity_count": 205,
+      "display_name": "Disparities, Equity & Social Determinants",
+      "short_description": "Quantitative analysis of racial, socioeconomic, and geographic disparities in outcomes, care access, and social determinants across disease areas."
     },
     {
       "id": "biostatistics_real_world_evidence_healthcare_utilization",
@@ -297,7 +311,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 75.865601,
-      "activity_count": 252
+      "activity_count": 252,
+      "display_name": "Real-World Evidence & Health Policy",
+      "short_description": "Claims, EHR, and registry analyses of utilization patterns, care quality, and policy impacts on health system performance."
     },
     {
       "id": "biostatistics_omics_multiomics_biomarkers",
@@ -330,7 +346,9 @@
       ],
       "coverage_estimate": 0.013,
       "total_weight": 27.463903,
-      "activity_count": 89
+      "activity_count": 89,
+      "display_name": "Multi-Omics Integration & Biomarker Discovery",
+      "short_description": "Statistical methods for genomic, proteomic, and metabolomic data integration, pathway analysis, and disease biomarker identification."
     },
     {
       "id": "biostatistics_patient_subphenotyping_clustering",
@@ -361,7 +379,9 @@
       ],
       "coverage_estimate": 0.012,
       "total_weight": 18.377177,
-      "activity_count": 47
+      "activity_count": 47,
+      "display_name": "Patient Subphenotyping & Precision Medicine",
+      "short_description": "Clustering and latent class methods to identify disease subgroups and guide tailored treatment strategies."
     },
     {
       "id": "biostatistics_survival_analysis_longitudinal",
@@ -386,7 +406,9 @@
       ],
       "coverage_estimate": 0.008,
       "total_weight": 17.602469,
-      "activity_count": 61
+      "activity_count": 61,
+      "display_name": "Survival Analysis & Longitudinal Methods",
+      "short_description": "Time-to-event modeling, competing risks, and longitudinal data methods for clinical and epidemiological research."
     },
     {
       "id": "biostatistics_diagnostic_accuracy_measurement",
@@ -421,7 +443,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 51.937923,
-      "activity_count": 197
+      "activity_count": 197,
+      "display_name": "Diagnostic Accuracy & Instrument Validation",
+      "short_description": "Sensitivity, specificity, and psychometric validation of clinical tests, biomarkers, and patient-reported outcome instruments."
     },
     {
       "id": "biostatistics_opioid_substance_use_policy",
@@ -456,7 +480,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 10.490474,
-      "activity_count": 44
+      "activity_count": 44,
+      "display_name": "Opioid Use & Drug Policy Research",
+      "short_description": "Quantitative study of opioid prescribing, substance use disorder treatment, naloxone access, and drug policy impacts."
     },
     {
       "id": "biostatistics_cost_effectiveness_economic_evaluation",
@@ -486,7 +512,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 7.363483,
-      "activity_count": 26
+      "activity_count": 26,
+      "display_name": "Cost-Effectiveness & Health Economic Evaluation",
+      "short_description": "Decision-analytic modeling and economic evaluation of interventions, screening programs, and health policies."
     }
   ],
   "uncovered_pmids": [

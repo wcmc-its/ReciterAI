@@ -19,7 +19,9 @@
         40181546,
         32759494
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "AAV Vector Engineering & Safety",
+      "short_description": "Capsid modifications, tissue tropism, biodistribution profiling, and quality control for AAV-based gene therapy vectors."
     },
     {
       "id": "gene_aav_cns_neurological",
@@ -36,7 +38,9 @@
         37624739,
         39167658
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "AAV Therapy for Neurological Disorders",
+      "short_description": "Preclinical and clinical AAV-mediated gene delivery to the CNS for Batten disease, Parkinson's, Friedreich's ataxia, and related conditions."
     },
     {
       "id": "gene_ocular_gene_therapy",
@@ -52,7 +56,9 @@
         40092639,
         32146219
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Ocular & Retinal Gene Therapy",
+      "short_description": "AAV-mediated and optogenetic approaches for inherited retinal diseases, neovascular AMD, and macular degeneration."
     },
     {
       "id": "gene_car_t_cell_therapy",
@@ -71,7 +77,9 @@
         40637750,
         38503896
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "CAR T Cell Engineering & Outcomes",
+      "short_description": "CAR design, clinical outcomes in hematologic and solid tumors, and strategies to overcome antigen escape and treatment failure."
     },
     {
       "id": "gene_t_cell_immunotherapy",
@@ -89,7 +97,9 @@
         33988715,
         40810569
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "Adoptive T Cell Transfer Therapies",
+      "short_description": "Manufacturing and clinical evaluation of tumor-infiltrating lymphocytes, cytotoxic T cells, and engineered TCR therapies for cancer and infection."
     },
     {
       "id": "gene_pharmacological_chaperones",
@@ -101,7 +111,9 @@
         34151204,
         40516874
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Pharmacological Chaperones for Protein Misfolding",
+      "short_description": "Small molecules that stabilize misfolded proteins to restore function in lysosomal storage disorders and related diseases."
     },
     {
       "id": "gene_ipsc_genome_editing",
@@ -116,7 +128,9 @@
         37729058,
         32673399
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "iPSC Derivation & CRISPR Disease Modeling",
+      "short_description": "Induced pluripotent stem cell generation, base editing, and precision disease models for therapeutic development and mechanistic research."
     },
     {
       "id": "gene_bac_vector_engineering",
@@ -128,7 +142,9 @@
         32238593,
         33004554
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "High-Capacity Cloning Vector Engineering",
+      "short_description": "Bacterial artificial chromosome construction and large-insert vector protocols for transgenic and gene therapy applications."
     },
     {
       "id": "gene_mrna_rna_therapeutics",
@@ -142,7 +158,9 @@
         37129556,
         35985993
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "mRNA & RNA-Based Therapeutic Platforms",
+      "short_description": "Nucleoside-modified mRNA, circular RNA, and RNA aptamer platforms for vaccines, protein expression, and gene regulation."
     },
     {
       "id": "gene_hepatocyte_liver_therapy",
@@ -154,7 +172,9 @@
         32143547,
         38268979
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Hepatocyte-Targeted Gene & Cell Therapy",
+      "short_description": "AAV transduction, primary hepatocyte expansion, and in vivo implantation models for liver-directed gene and cell therapies."
     },
     {
       "id": "gene_tumor_antigen_immunotherapy",
@@ -169,7 +189,9 @@
         39642889,
         38190392
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Tumor Antigen Discovery & Immunotherapy",
+      "short_description": "Neoantigen and tumor-associated antigen identification, epigenetic strategies, and metabolic approaches to enhance antitumor immune responses."
     },
     {
       "id": "gene_hiv_reservoir_immunotherapy",
@@ -182,7 +204,9 @@
         35985993,
         40810569
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "HIV Reservoir Elimination Strategies",
+      "short_description": "Immunotherapeutic approaches targeting HIV reservoirs, including dendritic cell therapy, BCL-2 antagonism, and mRNA vaccine-mediated latency reversal."
     },
     {
       "id": "gene_nanodelivery_platforms",
@@ -194,7 +218,9 @@
         34761107,
         37659767
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Nanoparticle & Non-Viral Nucleic Acid Delivery",
+      "short_description": "Nanoparticle-based delivery systems for siRNA, mRNA, and combination nucleic acid therapeutics in cancer and cardiovascular disease."
     },
     {
       "id": "gene_cell_therapy_manufacturing",
@@ -206,7 +232,9 @@
         35640533,
         40000903
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Manufacturing, Storage & Quality Control",
+      "short_description": "Cryopreservation, quality control, and production of myeloid progenitor and endothelial cell-assisted therapeutic products."
     },
     {
       "id": "gene_eosinophil_gene_therapy",
@@ -217,7 +245,9 @@
         39725494,
         33253224
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "AAV Therapy for Eosinophilic Disorders",
+      "short_description": "AAV-mediated and vectorized antibody strategies targeting eosinophil reduction in chronic eosinophilic leukemia and hypereosinophilia."
     },
     {
       "id": "gene_endothelial_vascular_biology",
@@ -229,7 +259,9 @@
         33542154,
         32654560
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Endothelial Biology & Vascular Regeneration",
+      "short_description": "Endothelial progenitor cell lineage, clonal repopulation, and roles in blood vessel formation and regenerative medicine."
     },
     {
       "id": "gene_beta_cell_diabetes_therapy",
@@ -240,7 +272,9 @@
         34081913,
         40562034
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Beta Cell Biology & Diabetes Therapeutics",
+      "short_description": "Beta cell heterogeneity, dysfunction in type 2 diabetes, and small molecule strategies to enhance survival and function after transplantation."
     },
     {
       "id": "gene_gut_microbiome_genetic_tools",
@@ -251,7 +285,9 @@
         35051369,
         34929784
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Genetic Manipulation of Gut Microbiota",
+      "short_description": "Tools for engineering non-model gut microorganisms to study host-microbiome interactions, colon inflammation, and disease mechanisms."
     },
     {
       "id": "gene_cancer_immunotherapy_microenvironment",
@@ -262,7 +298,9 @@
         37001503,
         33500244
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Tumor Microenvironment & Immunotherapy Combinations",
+      "short_description": "How the tumor microenvironment shapes immunotherapy response, combining checkpoint blockade with microenvironment-targeting and T cell strategies."
     },
     {
       "id": "gene_gene_therapy_ethics_policy",
@@ -273,7 +311,9 @@
         36226879,
         34530723
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Bioethics & Policy in Advanced Therapies",
+      "short_description": "Ethical frameworks, societal impact analyses, and risk-benefit considerations for gene therapy and advanced biomedical technologies."
     },
     {
       "id": "gene_cardiac_disc_regeneration",
@@ -284,7 +324,9 @@
         34929784,
         40149430
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cardiac & Musculoskeletal Tissue Regeneration",
+      "short_description": "Cell-based, gene-based, and small molecule strategies to restore function in cardiac scar tissue and degenerated intervertebral discs."
     }
   ],
   "uncovered_pmids": [

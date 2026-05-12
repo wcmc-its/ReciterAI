@@ -34,7 +34,9 @@
       ],
       "coverage_estimate": 0.014,
       "total_weight": 61.062187,
-      "activity_count": 188
+      "activity_count": 188,
+      "display_name": "Trial Design & Research Infrastructure",
+      "short_description": "Methodological foundations and organizational infrastructure for designing, conducting, and supporting clinical trials."
     },
     {
       "id": "translational_biomarker_liquid_biopsy",
@@ -64,7 +66,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 55.766966,
-      "activity_count": 108
+      "activity_count": 108,
+      "display_name": "Liquid Biopsy & Circulating Biomarkers",
+      "short_description": "Discovery and validation of ctDNA, cell-free DNA, and proteomic signatures for cancer detection and treatment monitoring."
     },
     {
       "id": "translational_oncology_clinical_trials",
@@ -101,7 +105,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 73.879175,
-      "activity_count": 194
+      "activity_count": 194,
+      "display_name": "Oncology Trials & Treatment Outcomes",
+      "short_description": "Phase I–III trials and real-world studies evaluating systemic, targeted, and immunotherapy regimens across malignancies."
     },
     {
       "id": "translational_machine_learning_ehr",
@@ -133,7 +139,9 @@
       ],
       "coverage_estimate": 0.013,
       "total_weight": 40.666854,
-      "activity_count": 113
+      "activity_count": 113,
+      "display_name": "Machine Learning & EHR Prediction",
+      "short_description": "AI and deep learning applied to electronic health records for risk stratification, subphenotyping, and clinical decision support."
     },
     {
       "id": "translational_imaging_biomarkers",
@@ -165,7 +173,9 @@
       ],
       "coverage_estimate": 0.013,
       "total_weight": 68.267082,
-      "activity_count": 184
+      "activity_count": 184,
+      "display_name": "Quantitative Imaging Biomarkers",
+      "short_description": "Validation of MRI, PET, and computational imaging methods as biomarkers for neurological, cardiovascular, and oncologic diseases."
     },
     {
       "id": "translational_patient_reported_outcomes",
@@ -193,7 +203,9 @@
       ],
       "coverage_estimate": 0.01,
       "total_weight": 16.37453,
-      "activity_count": 82
+      "activity_count": 82,
+      "display_name": "Patient-Reported Outcomes & Quality of Life",
+      "short_description": "Development and application of PRO measures and symptom monitoring tools in trials and real-world clinical settings."
     },
     {
       "id": "translational_covid19_therapeutics_vaccines",
@@ -225,7 +237,9 @@
       ],
       "coverage_estimate": 0.013,
       "total_weight": 53.653003,
-      "activity_count": 101
+      "activity_count": 101,
+      "display_name": "COVID-19 Therapeutics, Vaccines & Epidemiology",
+      "short_description": "Vaccine effectiveness, therapeutic interventions, long COVID characterization, and clinical outcomes for SARS-CoV-2."
     },
     {
       "id": "translational_gene_therapy_aav",
@@ -255,7 +269,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 20.487639,
-      "activity_count": 38
+      "activity_count": 38,
+      "display_name": "Gene Therapy & AAV Vector Development",
+      "short_description": "Engineering, safety evaluation, and therapeutic application of AAV and other gene therapy vectors across disease areas."
     },
     {
       "id": "translational_precision_oncology_genomics",
@@ -285,7 +301,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 93.819023,
-      "activity_count": 187
+      "activity_count": 187,
+      "display_name": "Precision Oncology & Tumor Genomics",
+      "short_description": "Genomic and molecular tumor profiling to identify actionable alterations, predict response, and characterize resistance mechanisms."
     },
     {
       "id": "translational_neurology_stroke_brain_injury",
@@ -315,7 +333,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 31.762594,
-      "activity_count": 80
+      "activity_count": 80,
+      "display_name": "Stroke & Traumatic Brain Injury Research",
+      "short_description": "Biomarker discovery, neuroimaging outcomes, and neuroprotective strategies for stroke, TBI, and neurological disorders."
     },
     {
       "id": "translational_infectious_disease_hiv",
@@ -345,7 +365,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 30.520357,
-      "activity_count": 105
+      "activity_count": 105,
+      "display_name": "HIV, Vaccines & Infectious Disease",
+      "short_description": "HIV pathogenesis, reservoir characterization, broadly neutralizing antibodies, and vaccine development for emerging pathogens."
     },
     {
       "id": "translational_wearables_digital_health",
@@ -373,7 +395,9 @@
       ],
       "coverage_estimate": 0.01,
       "total_weight": 9.063307,
-      "activity_count": 34
+      "activity_count": 34,
+      "display_name": "Wearables, Digital Biomarkers & mHealth",
+      "short_description": "Sensor-based monitoring, mobile health apps, and technology-driven interventions for chronic disease and mental health management."
     },
     {
       "id": "translational_transplant_kidney_allograft",
@@ -402,7 +426,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 16.412026,
-      "activity_count": 38
+      "activity_count": 38,
+      "display_name": "Transplantation & Allograft Biomarker Monitoring",
+      "short_description": "Noninvasive biomarker development for rejection surveillance and clinical management of solid organ transplant recipients."
     },
     {
       "id": "translational_research_workforce_ctsa",
@@ -429,7 +455,9 @@
       ],
       "coverage_estimate": 0.01,
       "total_weight": 6.986507,
-      "activity_count": 22
+      "activity_count": 22,
+      "display_name": "Workforce Development & CTSA Programs",
+      "short_description": "Physician-scientist training, research capacity building, and CTSA hub infrastructure supporting bench-to-bedside science."
     },
     {
       "id": "translational_alzheimers_neurodegeneration_biomarkers",
@@ -458,7 +486,9 @@
       ],
       "coverage_estimate": 0.011,
       "total_weight": 25.64867,
-      "activity_count": 58
+      "activity_count": 58,
+      "display_name": "Alzheimer's Disease & Neurodegeneration Biomarkers",
+      "short_description": "Amyloid, tau, and fluid biomarkers linking molecular pathology to early detection and clinical outcomes in neurodegeneration."
     }
   ],
   "uncovered_pmids": [

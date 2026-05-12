@@ -31,7 +31,9 @@
         37781176,
         34183355
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Tumor Microenvironment & Immunity",
+      "short_description": "Cellular and molecular composition of the tumor microenvironment, including immune cell infiltration, evasion mechanisms, and therapy response."
     },
     {
       "id": "cancer_immunotherapy_checkpoint",
@@ -68,7 +70,9 @@
         40596223,
         40482909
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "Checkpoint-Inhibitor & Cell Immunotherapy",
+      "short_description": "Immune checkpoint pathways, CAR T cell engineering, adoptive cell therapies, and combination immunotherapy strategies."
     },
     {
       "id": "cancer_epigenetics_chromatin",
@@ -101,7 +105,9 @@
         35019856,
         33816459
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Epigenetic & Chromatin Regulation",
+      "short_description": "DNA methylation, histone modifications, and chromatin remodeling complexes driving tumor initiation, progression, and therapy resistance."
     },
     {
       "id": "cancer_metabolism_lipids",
@@ -132,7 +138,9 @@
         39443795,
         40472739
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Metabolic Reprogramming in Tumors",
+      "short_description": "Lipid biosynthesis, glucose metabolism, and mitochondrial function supporting tumor growth, metastasis, and therapy resistance."
     },
     {
       "id": "cancer_metastasis_invasion",
@@ -161,7 +169,9 @@
         34795264,
         35152976
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Metastasis & Invasion Mechanisms",
+      "short_description": "Epithelial-mesenchymal transition, organotropism, pre-metastatic niche formation, and signaling pathways driving metastatic dissemination."
     },
     {
       "id": "cancer_genomics_molecular_profiling",
@@ -194,7 +204,9 @@
         34879281,
         35545680
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Genomics & Multi-Omic Profiling",
+      "short_description": "Whole-genome, transcriptomic, and multi-omic sequencing to characterize mutations, molecular subtypes, and tumor evolution."
     },
     {
       "id": "cancer_liquid_biopsy_ctdna",
@@ -226,7 +238,9 @@
         40819062,
         40810627
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Liquid Biopsy & Circulating Biomarkers",
+      "short_description": "Circulating tumor DNA, CTCs, and extracellular vesicle biomarkers for cancer detection, treatment monitoring, and residual disease assessment."
     },
     {
       "id": "cancer_cell_cycle_proliferation",
@@ -249,7 +263,9 @@
         39448567,
         40367676
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Cell Cycle Control & Proliferation",
+      "short_description": "CDK4/6 activity, Rb-E2F signaling, and checkpoint regulation driving uncontrolled proliferation and informing CDK inhibitor therapy."
     },
     {
       "id": "cancer_dna_repair_genomic_instability",
@@ -272,7 +288,9 @@
         40377995,
         36656933
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "DNA Damage Response & Genomic Instability",
+      "short_description": "DNA repair pathway defects, replication stress, and chromosomal instability contributing to mutagenesis and therapy sensitivity."
     },
     {
       "id": "cancer_tumor_models_preclinical",
@@ -299,7 +317,9 @@
         34359048,
         32301996
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Preclinical Models & Experimental Systems",
+      "short_description": "Patient-derived xenografts, engineered mouse models, organoids, and in vivo systems for studying tumor biology and testing therapeutics."
     },
     {
       "id": "cancer_targeted_therapy_resistance",
@@ -329,7 +349,9 @@
         38628784,
         37930123
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Targeted Therapy & Drug Resistance",
+      "short_description": "Molecular mechanisms of response and resistance to kinase inhibitors, CDK inhibitors, and epigenetic drugs, with strategies to overcome them."
     },
     {
       "id": "cancer_radiotherapy_biology",
@@ -352,7 +374,9 @@
         37891002,
         36106631
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Radiation Biology & Combination Therapy",
+      "short_description": "Biological effects of ionizing radiation on tumors and immunity, including combinations with immunotherapy and mechanisms of radiosensitivity."
     },
     {
       "id": "cancer_lymphoma_leukemia_biology",
@@ -383,7 +407,9 @@
         36468984,
         37801604
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Lymphoma & Leukemia Molecular Biology",
+      "short_description": "Molecular pathogenesis, oncogenic drivers, and clonal evolution in diffuse large B-cell lymphoma, AML, MDS, and related hematologic malignancies."
     },
     {
       "id": "cancer_nanoparticle_drug_delivery",
@@ -406,12 +432,14 @@
         33093456,
         32006395
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Nanoparticle & Targeted Drug Delivery",
+      "short_description": "Engineered nanoparticles, antibody-drug conjugates, and radioimmunotherapy platforms designed to improve tumor targeting and therapeutic index."
     },
     {
       "id": "cancer_oncogenic_signaling_pathways",
       "label": "Oncogenic Signaling Pathways and Tumor Suppressor Biology",
-      "description": "Studies on key oncogenic and tumor suppressor signaling networks in cancer including PI3K/AKT/mTOR, RAS/MAPK, Wnt/\u03b2-catenin, Hippo, NF-\u03baB, and androgen receptor pathways, and how their dysregulation drives malignant transformation and informs therapeutic targeting.",
+      "description": "Studies on key oncogenic and tumor suppressor signaling networks in cancer including PI3K/AKT/mTOR, RAS/MAPK, Wnt/β-catenin, Hippo, NF-κB, and androgen receptor pathways, and how their dysregulation drives malignant transformation and informs therapeutic targeting.",
       "seed_pmids": [
         32792368,
         32814897,
@@ -435,7 +463,9 @@
         40239649,
         39949931
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Oncogenic Signaling & Tumor Suppressors",
+      "short_description": "PI3K/AKT/mTOR, RAS/MAPK, Wnt, and Hippo pathway dysregulation driving malignant transformation and informing therapeutic targeting."
     },
     {
       "id": "cancer_thyroid_cancer_diagnosis_treatment",
@@ -459,7 +489,9 @@
         38656386,
         32948110
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Thyroid Cancer Diagnosis & Treatment",
+      "short_description": "Molecular diagnostics, radioiodine therapy, and surgical outcomes across papillary, anaplastic, follicular, and medullary thyroid carcinoma."
     },
     {
       "id": "cancer_breast_cancer_risk_epidemiology",
@@ -482,7 +514,9 @@
         39888091,
         38231126
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Breast Cancer Risk & Epidemiology",
+      "short_description": "Reproductive history, polygenic risk scores, environmental exposures, and population-based analyses of breast cancer risk factors."
     },
     {
       "id": "cancer_hematologic_malignancy_therapy",
@@ -510,7 +544,9 @@
         40919482,
         35484102
       ],
-      "coverage_estimate": 0.048
+      "coverage_estimate": 0.048,
+      "display_name": "Hematologic Malignancy Treatment & Outcomes",
+      "short_description": "Novel agents and combination regimens for leukemias, myelodysplastic syndromes, myeloproliferative neoplasms, and multiple myeloma."
     },
     {
       "id": "cancer_genitourinary_cancer_therapy",
@@ -532,7 +568,9 @@
         33929895,
         36183140
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Genitourinary Cancer Therapy & Biomarkers",
+      "short_description": "Targeted therapies, immunotherapy combinations, and biomarker-driven treatment selection for bladder, renal cell, and prostate cancers."
     },
     {
       "id": "cancer_prostate_cancer_molecular",
@@ -558,7 +596,9 @@
         40383250,
         39567499
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Prostate Cancer Molecular Biology & Genomics",
+      "short_description": "Molecular subtypes, genomic alterations, neuroendocrine differentiation, and clonal evolution in prostate cancer."
     },
     {
       "id": "cancer_gastroesophageal_cancer_therapy",
@@ -580,7 +620,9 @@
         40203438,
         39948314
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Gastroesophageal & Colorectal Cancer Therapy",
+      "short_description": "Systemic therapies, immunotherapy combinations, and biomarker analyses for gastric, gastroesophageal junction, and colorectal cancers."
     },
     {
       "id": "cancer_brain_tumor_glioma",
@@ -603,7 +645,9 @@
         40602224,
         38579726
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Brain Tumors & Glioma Biology",
+      "short_description": "Molecular classification, therapeutic vulnerabilities, and treatment strategies for glioblastoma, lower-grade gliomas, and pediatric brain tumors."
     },
     {
       "id": "cancer_melanoma_skin_cancer",
@@ -621,7 +665,9 @@
         39308793,
         33796406
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Melanoma Biology & Immunotherapy",
+      "short_description": "Molecular biology, immune responses, and clinical outcomes with checkpoint inhibitors and targeted therapies in melanoma."
     },
     {
       "id": "cancer_ai_computational_pathology",
@@ -646,7 +692,9 @@
         39577685,
         38588311
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "AI & Computational Pathology",
+      "short_description": "Machine learning and deep learning tools for cancer diagnosis, prognosis prediction, and treatment response assessment from histopathology and omics data."
     },
     {
       "id": "cancer_imaging_mri_pet",
@@ -667,7 +715,9 @@
         39810069,
         35597190
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Advanced Imaging: MRI, PET & Quantitative Methods",
+      "short_description": "MRI-based tumor characterization, PET tracers, and multiparametric imaging for cancer diagnosis, treatment monitoring, and theranostics."
     },
     {
       "id": "cancer_cancer_associated_thrombosis_stroke",
@@ -689,7 +739,9 @@
         31913702,
         38874304
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Cancer-Associated Thrombosis & Cardiovascular Risk",
+      "short_description": "Thromboembolic and cardiovascular complications in cancer patients, including stroke mechanisms, cardiotoxicity, and anticoagulation strategies."
     },
     {
       "id": "cancer_small_molecule_drug_discovery",
@@ -710,7 +762,9 @@
         40602224,
         38571413
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Small-Molecule Drug Discovery & Target ID",
+      "short_description": "High-throughput screening and medicinal chemistry to identify and optimize inhibitors targeting kinases, checkpoints, and protein-protein interactions."
     },
     {
       "id": "cancer_clonal_hematopoiesis_genomic_evolution",
@@ -727,7 +781,9 @@
         35587917,
         36608667
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Clonal Hematopoiesis & Genomic Evolution",
+      "short_description": "Somatic mosaicism, chromosomal alterations, and clonal hematopoiesis associations with cancer risk and progression across malignancy types."
     },
     {
       "id": "cancer_tumor_biology_microenvironment_mechanisms",
@@ -752,7 +808,9 @@
         36106631,
         34789823
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Tumor-Stroma Crosstalk & Progression Mechanisms",
+      "short_description": "Mechanistic studies of tumor-stroma interactions, immune evasion, and metabolic reprogramming driving metastasis and therapy resistance."
     },
     {
       "id": "cancer_breast_cancer_molecular_therapy",
@@ -776,7 +834,9 @@
         35008244,
         32064049
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Breast Cancer Molecular Subtypes & Targeted Therapy",
+      "short_description": "Molecular characterization and targeted treatment of triple-negative, HER2-positive, and hormone receptor-positive breast cancer subtypes."
     }
   ],
   "uncovered_pmids": [

@@ -54,7 +54,9 @@
         37747735,
         33938919
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Payment Models & Insurance Policy",
+      "short_description": "Medicare/Medicaid reimbursement, value-based payment programs, drug pricing, and financial organization of health systems."
     },
     {
       "id": "health_care_coordination_fragmentation",
@@ -94,7 +96,9 @@
         36038731,
         40493999
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Care Coordination & Continuity",
+      "short_description": "Ambulatory care fragmentation, health information exchange, and care transitions linked to utilization, cost, and patient outcomes."
     },
     {
       "id": "health_telehealth_digital_health",
@@ -136,7 +140,9 @@
         37128386,
         34310547
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Telehealth & Digital Health Services",
+      "short_description": "Implementation, effectiveness, and equity implications of telemedicine and digital health technologies across clinical settings."
     },
     {
       "id": "health_racial_ethnic_disparities_access",
@@ -184,7 +190,9 @@
         35133858,
         39729978
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Disparities in Access & Outcomes",
+      "short_description": "Racial, ethnic, and socioeconomic gaps in healthcare access, treatment quality, and clinical outcomes, including structural racism interventions."
     },
     {
       "id": "health_opioid_substance_use_policy",
@@ -232,12 +240,14 @@
         40917076,
         36454553
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Opioid Use & Drug Policy",
+      "short_description": "Opioid prescribing, prescription monitoring, medications for opioid use disorder, harm reduction, and substance use treatment financing."
     },
     {
       "id": "health_social_determinants_health_outcomes",
       "label": "Social Determinants of Health and Population Health Outcomes",
-      "description": "Studies examining how social determinants of health (SDOH)\u2014including income, education, neighborhood conditions, housing, and social vulnerability\u2014affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
+      "description": "Studies examining how social determinants of health (SDOH)—including income, education, neighborhood conditions, housing, and social vulnerability—affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
       "seed_pmids": [
         32673521,
         33269599,
@@ -270,7 +280,9 @@
         35404546,
         36721088
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Social Determinants & Population Health",
+      "short_description": "Income, housing, education, and neighborhood conditions as drivers of cardiovascular, cancer, and other population health outcomes."
     },
     {
       "id": "health_hospital_utilization_quality_improvement",
@@ -311,7 +323,9 @@
         38456308,
         39836912
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Hospital Utilization & Patient Safety",
+      "short_description": "Admission rates, readmissions, quality improvement initiatives, and inpatient care organization including ICU staffing and discharge processes."
     },
     {
       "id": "health_nursing_home_long_term_care",
@@ -345,7 +359,9 @@
         34846212,
         40916344
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Nursing Home & Long-Term Care Policy",
+      "short_description": "Nursing home quality, staffing levels, ownership structures, resident outcomes, and policies governing skilled nursing and home health care."
     },
     {
       "id": "health_medicaid_insurance_coverage_expansion",
@@ -381,7 +397,9 @@
         39150035,
         40201657
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Medicaid Expansion & Coverage Access",
+      "short_description": "Effects of Affordable Care Act Medicaid expansion and insurance coverage changes on access, utilization, and health outcomes."
     },
     {
       "id": "health_covid19_pandemic_health_systems",
@@ -421,7 +439,9 @@
         40738001,
         37717648
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Pandemic Impact on Care Delivery",
+      "short_description": "COVID-19 effects on hospital operations, workforce well-being, care model adaptations, and resource allocation across specialties."
     },
     {
       "id": "health_elder_mistreatment_aging_services",
@@ -456,7 +476,9 @@
         39404755,
         39720910
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Elder Mistreatment & Aging Services",
+      "short_description": "Identification, prevention, and response to elder abuse, including ED-based programs, screening tools, and economic consequences."
     },
     {
       "id": "health_cancer_screening_disparities_survivorship",
@@ -494,7 +516,9 @@
         35551674,
         40103414
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Cancer Screening & Survivorship Care",
+      "short_description": "Population-level cancer screening disparities, survivorship care coordination, and access to guideline-concordant oncology services."
     },
     {
       "id": "health_home_health_community_care_workforce",
@@ -532,7 +556,9 @@
         37972753,
         38600818
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Home Health & Community Care Workforce",
+      "short_description": "Home health delivery, community health worker roles, direct care workforce characteristics, and interventions to improve care quality."
     },
     {
       "id": "health_global_health_lmic_systems",
@@ -572,7 +598,9 @@
         38830020,
         39525883
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Global Health Systems in Low-Income Countries",
+      "short_description": "Healthcare delivery, disease burden, and intervention effectiveness in low- and middle-income countries across Africa, Asia, and the Caribbean."
     },
     {
       "id": "health_mental_health_behavioral_policy",
@@ -610,7 +638,9 @@
         38506817,
         40855707
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Behavioral Health Policy & Psychiatric Care",
+      "short_description": "Financing and delivery of mental health services, parity enforcement, primary care integration, and psychiatric workforce issues."
     }
   ],
   "uncovered_pmids": [

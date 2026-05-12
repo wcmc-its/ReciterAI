@@ -22,7 +22,9 @@
         35833509,
         37625988
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Racial Inequities in Maternal Outcomes",
+      "short_description": "Racial and ethnic disparities in severe maternal morbidity, mortality, and delivery outcomes across U.S. hospital systems."
     },
     {
       "id": "maternal_perinatal_mental_health",
@@ -51,7 +53,9 @@
         76047,
         33433445
       ],
-      "coverage_estimate": 0.065
+      "coverage_estimate": 0.065,
+      "display_name": "Perinatal Mental Health & Mood Disorders",
+      "short_description": "Prevalence, prediction, and management of postpartum depression, antenatal anxiety, and peripartum mood disorders."
     },
     {
       "id": "maternal_hypertension_pregnancy",
@@ -68,7 +72,9 @@
         34114389,
         40234153
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Hypertensive Disorders & Cardiovascular Risk",
+      "short_description": "Preeclampsia, chronic hypertension, and long-term cardiovascular outcomes associated with hypertensive disorders of pregnancy."
     },
     {
       "id": "maternal_covid19_pregnancy",
@@ -91,7 +97,9 @@
         40169569,
         32934969
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "COVID-19 Outcomes & Vaccination in Pregnancy",
+      "short_description": "Population-level impacts of SARS-CoV-2 infection and vaccine safety on birth outcomes, placental pathology, and neonatal health."
     },
     {
       "id": "maternal_substance_use_policy",
@@ -113,7 +121,9 @@
         38717771,
         32863501
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Prenatal Substance Use & Child Welfare Policy",
+      "short_description": "Epidemiology and policy effects of opioid and cannabis use in pregnancy on infant outcomes and child welfare involvement."
     },
     {
       "id": "maternal_gestational_diabetes_screening",
@@ -130,7 +140,9 @@
         37907014,
         35914684
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Gestational Diabetes Screening & Interventions",
+      "short_description": "GDM prevalence across diverse populations, glucose screening performance, and community health worker-led management programs."
     },
     {
       "id": "maternal_hepatitis_pregnancy",
@@ -147,7 +159,9 @@
         36221350,
         36935368
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Viral Hepatitis & Perinatal Transmission",
+      "short_description": "Hepatitis B and C seroprevalence, adverse pregnancy outcomes, and mother-to-child transmission risk during the perinatal period."
     },
     {
       "id": "maternal_intrapartum_obstetric_care",
@@ -170,7 +184,9 @@
         35042047,
         39207839
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Labor Management & Cesarean Delivery",
+      "short_description": "Intrapartum clinical practices including oxytocin regimens, cervical ripening, labor analgesia, and cesarean decision-making."
     },
     {
       "id": "maternal_penicillin_allergy_obstetric",
@@ -184,7 +200,9 @@
         38423122,
         38299332
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Penicillin Allergy in Obstetric Patients",
+      "short_description": "Prevalence and clinical management of reported penicillin allergy in pregnancy, including GBS prophylaxis and neonatal outcomes."
     },
     {
       "id": "maternal_placenta_accreta_imaging",
@@ -197,7 +215,9 @@
         34784619,
         40419243
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Placenta Accreta Spectrum Diagnosis & Outcomes",
+      "short_description": "Ultrasound detection, risk stratification, and clinical outcomes of placenta accreta spectrum disorders."
     },
     {
       "id": "maternal_family_planning_tanzania",
@@ -211,7 +231,9 @@
         38847324,
         39955598
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Contraceptive Access & Family Planning in Tanzania",
+      "short_description": "Community-based research on contraceptive uptake, autonomy, and reproductive health education in rural Tanzania."
     },
     {
       "id": "maternal_adolescent_sexual_reproductive_health",
@@ -226,7 +248,9 @@
         32581603,
         35489277
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Adolescent Sexual & Reproductive Health",
+      "short_description": "SRH knowledge, education interventions, and care access among adolescents including refugee and Latinx youth populations."
     },
     {
       "id": "maternal_child_mental_health_sdoh",
@@ -245,7 +269,9 @@
         35195287,
         37994509
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Youth Mental Health & Social Determinants",
+      "short_description": "Population-level mental health outcomes in children and adolescents, shaped by adverse experiences, social determinants, and systemic disparities."
     },
     {
       "id": "maternal_hiv_vertical_transmission",
@@ -261,12 +287,14 @@
         39527587,
         40143253
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "HIV Vertical Transmission & Infant Immunization",
+      "short_description": "Maternal HIV antibody responses and passive immunization strategies for preventing mother-to-child HIV transmission."
     },
     {
       "id": "maternal_congenital_cmv_transmission",
       "label": "Congenital Cytomegalovirus Transmission and Maternal Immune Responses",
-      "description": "Studies investigating maternal immune mechanisms\u2014including neutralizing antibodies, Fc-mediated responses, and ADCC-activating antibodies\u2014that influence congenital human cytomegalovirus transmission risk, as well as placental IgG transfer efficiency and vaccine development strategies.",
+      "description": "Studies investigating maternal immune mechanisms—including neutralizing antibodies, Fc-mediated responses, and ADCC-activating antibodies—that influence congenital human cytomegalovirus transmission risk, as well as placental IgG transfer efficiency and vaccine development strategies.",
       "seed_pmids": [
         37427588,
         35763348,
@@ -275,7 +303,9 @@
         37871009,
         32069486
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Congenital CMV Transmission & Immune Responses",
+      "short_description": "Maternal immune mechanisms influencing congenital cytomegalovirus transmission risk and placental antibody transfer efficiency."
     },
     {
       "id": "maternal_pregnancy_complications_comorbidities",
@@ -293,7 +323,9 @@
         36472763,
         33657042
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Pregnancy Complications & Chronic Comorbidities",
+      "short_description": "Gestational outcomes complicated by autoimmune disorders, connective tissue disease, inflammatory bowel disease, and sleep apnea."
     },
     {
       "id": "maternal_pregnancy_stroke_vascular",
@@ -305,7 +337,9 @@
         34446158,
         38299332
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Stroke & Vascular Complications in Pregnancy",
+      "short_description": "Cerebrovascular and vascular complications during pregnancy and postpartum, including pregnancy-associated stroke and aortic events."
     },
     {
       "id": "maternal_tb_pregnancy",
@@ -318,7 +352,9 @@
         34323955,
         36163664
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Tuberculosis Screening & Prevention in Pregnancy",
+      "short_description": "TB diagnosis, immune responses, and safety of preventive therapy regimens in pregnant women."
     },
     {
       "id": "maternal_neonatal_resuscitation_preterm_care",
@@ -333,7 +369,9 @@
         31796688,
         32846100
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Neonatal Resuscitation & NICU Management",
+      "short_description": "Resuscitation techniques, respiratory support, and clinical management of preterm and critically ill neonates."
     },
     {
       "id": "maternal_preterm_neurodevelopment",
@@ -345,7 +383,9 @@
         33397177,
         34158620
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Preterm Brain Development & Neurodevelopmental Outcomes",
+      "short_description": "Cerebral blood flow, intraventricular hemorrhage, and longitudinal neurodevelopmental outcomes in preterm infants."
     },
     {
       "id": "maternal_ivf_art_outcomes",
@@ -360,7 +400,9 @@
         37487856,
         34278356
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Assisted Reproductive Technology Outcomes & Disparities",
+      "short_description": "IVF and ART live birth rates by obesity, race, and clinic factors, plus long-term health outcomes in ART-conceived children."
     },
     {
       "id": "maternal_uterine_fibroid_fertility",
@@ -371,7 +413,9 @@
         38422502,
         32513565
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Uterine Fibroids & Fertility-Sparing Surgery",
+      "short_description": "Surgical management of uterine fibroids via myomectomy and radiofrequency ablation, with reproductive outcome follow-up."
     },
     {
       "id": "maternal_prenatal_vaccines_immunization",
@@ -386,12 +430,14 @@
         37289272,
         38548700
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Perinatal Vaccination Safety & Immunogenicity",
+      "short_description": "Vaccine safety and immune responses in pregnant and lactating women, including placental antibody transfer and trial inclusion policy."
     },
     {
       "id": "maternal_fetal_programming_neurobiology",
       "label": "Fetal Programming, Maternal Stress, and Offspring Neurobiology",
-      "description": "Research on how prenatal maternal exposures\u2014including stress, immune activation, hormones, and cytokines\u2014program offspring brain development, anxiety, and behavioral outcomes through biological mechanisms.",
+      "description": "Research on how prenatal maternal exposures—including stress, immune activation, hormones, and cytokines—program offspring brain development, anxiety, and behavioral outcomes through biological mechanisms.",
       "seed_pmids": [
         40914942,
         38428650,
@@ -400,7 +446,9 @@
         36458257,
         32712464
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Fetal Programming & Offspring Neurobiology",
+      "short_description": "Prenatal stress, immune activation, and hormonal exposures that program offspring brain development and behavioral outcomes."
     },
     {
       "id": "maternal_prenatal_diagnosis_genetic",
@@ -413,7 +461,9 @@
         35240697,
         33851436
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Prenatal Genetic Screening & Fetal Anomalies",
+      "short_description": "Prenatal diagnosis of fetal structural and genetic abnormalities, screening performance, and decision-making around fetal indications."
     },
     {
       "id": "maternal_postpartum_depression_biomarkers",
@@ -425,7 +475,9 @@
         40776062,
         33434445
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Postpartum Depression Biomarkers & Digital Tools",
+      "short_description": "Neuroactive steroid predictors, machine learning risk models, and AI-based platforms for postpartum depression screening and support."
     },
     {
       "id": "maternal_pediatric_infectious_disease_lmic",
@@ -440,7 +492,9 @@
         35544720,
         35189841
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Pediatric Infectious Disease in Low-Resource Settings",
+      "short_description": "Burden and management of sepsis, pneumonia, malaria, and TB in children across sub-Saharan Africa and other LMICs."
     },
     {
       "id": "maternal_pediatric_obesity_nutrition",
@@ -454,7 +508,9 @@
         36931036,
         35692309
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Pediatric Obesity, Nutrition & Cardiometabolic Risk",
+      "short_description": "Prevalence and management of childhood obesity and cardiometabolic conditions, including dietary patterns and clinical guidelines."
     },
     {
       "id": "maternal_medicaid_insurance_child_welfare",
@@ -467,7 +523,9 @@
         40512511,
         39488420
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Medicaid Expansion & Child Welfare Policy",
+      "short_description": "Impact of Medicaid expansion and insurance coverage on child maltreatment rates and health access for vulnerable pediatric populations."
     },
     {
       "id": "maternal_neonatal_microbiome_immunity",
@@ -479,7 +537,9 @@
         33211756,
         39180604
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Neonatal Microbiome, Immunity & Breastfeeding",
+      "short_description": "Breast milk components and feeding practices shaping neonatal immune development and early-life microbiome composition."
     }
   ],
   "uncovered_pmids": [

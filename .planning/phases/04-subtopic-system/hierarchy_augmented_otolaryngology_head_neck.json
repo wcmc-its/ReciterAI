@@ -30,7 +30,9 @@
       ],
       "coverage_estimate": 0.108,
       "total_weight": 10.492633,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Dysphagia Assessment & Rehabilitation",
+      "short_description": "Evaluation, diagnosis, and treatment of swallowing disorders across neurogenic and dysphagic populations."
     },
     {
       "id": "otolaryngology_voice_disorders_laryngology",
@@ -60,7 +62,9 @@
       ],
       "coverage_estimate": 0.108,
       "total_weight": 9.052337,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Voice Disorders & Laryngology",
+      "short_description": "Vocal fold lesions, phonosurgery outcomes, and voice rehabilitation including paralysis and gender-affirming modification."
     },
     {
       "id": "otolaryngology_ai_laryngoscopy_imaging",
@@ -83,7 +87,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 6.082144,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "AI & Imaging in Laryngoscopy",
+      "short_description": "Deep learning and advanced imaging for vocal fold classification, head and neck cancer diagnostics, and clinical decision support."
     },
     {
       "id": "otolaryngology_head_neck_cancer_oral_cavity",
@@ -106,7 +112,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 8.41133,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Oral Cavity & Oropharyngeal Cancer",
+      "short_description": "Epidemiology, molecular biology, staging, and surgical outcomes of oral and oropharyngeal squamous cell carcinomas."
     },
     {
       "id": "otolaryngology_thyroid_parathyroid_surgery",
@@ -125,7 +133,9 @@
       ],
       "coverage_estimate": 0.049,
       "total_weight": 5.474129,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Thyroid & Parathyroid Surgery",
+      "short_description": "Surgical management, complications, and prognosis of thyroid and parathyroid conditions including access to high-volume centers."
     },
     {
       "id": "otolaryngology_facial_fractures_trauma",
@@ -143,7 +153,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 3.62225,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Facial Fractures & Craniofacial Trauma",
+      "short_description": "Epidemiology, management, and cost burden of facial fractures including zygoma, mandible, and frontal sinus injuries."
     },
     {
       "id": "otolaryngology_rhinology_sinusitis",
@@ -161,7 +173,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 2.20631,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Rhinology & Sinonasal Conditions",
+      "short_description": "Diagnosis, management, and surgical treatment of rhinosinusitis including balloon sinuplasty and pediatric sinonasal microbiome."
     },
     {
       "id": "otolaryngology_hearing_loss_audiology",
@@ -181,7 +195,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 6.110674,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Hearing Loss & Audiology",
+      "short_description": "Audiologic outcomes, cochlear implantation, vestibular schwannoma management, and psychosocial impacts of hearing impairment."
     },
     {
       "id": "otolaryngology_laryngoscopy_simulation_training",
@@ -198,7 +214,9 @@
       ],
       "coverage_estimate": 0.038,
       "total_weight": 1.855819,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Simulation-Based Surgical Training",
+      "short_description": "3D-printed simulators, low-cost laryngoscope design, and procedural skills assessment in laryngology education."
     },
     {
       "id": "otolaryngology_cough_airway_assessment",
@@ -217,7 +235,9 @@
       ],
       "coverage_estimate": 0.049,
       "total_weight": 4.911977,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Cough Assessment & Airway Protection",
+      "short_description": "Objective and perceptual cough evaluation, respiratory muscle strength tools, and airway protective responses in neurological populations."
     },
     {
       "id": "otolaryngology_cartilage_tissue_engineering",
@@ -233,7 +253,9 @@
       ],
       "coverage_estimate": 0.032,
       "total_weight": 0.777203,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Cartilage Tissue Engineering & Reconstruction",
+      "short_description": "Bioengineered scaffolds, stem cell approaches, and 3D-printed implants for auricular and nasal cartilage reconstruction."
     },
     {
       "id": "otolaryngology_pediatric_airway_aerodigestive",
@@ -252,7 +274,9 @@
       ],
       "coverage_estimate": 0.049,
       "total_weight": 3.818147,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Pediatric Airway & Aerodigestive Disorders",
+      "short_description": "Chronic aspiration, ankyloglossia, pediatric sleep apnea, tympanostomy, and tracheostomy care in children."
     },
     {
       "id": "otolaryngology_healthcare_disparities_access",
@@ -271,7 +295,9 @@
       ],
       "coverage_estimate": 0.049,
       "total_weight": 5.124894,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Disparities & Access to Care",
+      "short_description": "Insurance status, telemedicine, and socioeconomic factors affecting outcomes and utilization across head and neck conditions."
     },
     {
       "id": "otolaryngology_salivary_gland_parotid",
@@ -286,7 +312,9 @@
       ],
       "coverage_estimate": 0.027,
       "total_weight": 3.140005,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Salivary Gland & Parotid Pathology",
+      "short_description": "Diagnosis and management of parotid tumors, adenoid cystic carcinoma, and sialendoscopy for chronic sialadenitis."
     },
     {
       "id": "otolaryngology_nerve_decompression_headache",
@@ -301,7 +329,9 @@
       ],
       "coverage_estimate": 0.11,
       "total_weight": 0.742766,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Peripheral Nerve Decompression for Headache",
+      "short_description": "Surgical decompression of occipital and trigeminal nerves for chronic migraines, headaches, and neuralgias."
     },
     {
       "id": "otolaryngology_skull_base_endoscopic_surgery",
@@ -315,7 +345,9 @@
       ],
       "coverage_estimate": 0.09,
       "total_weight": 2.604856,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Skull Base & Endoscopic Surgery",
+      "short_description": "Endonasal and open surgical approaches to the craniovertebral junction, cavernous sinus, and petrous apex."
     },
     {
       "id": "otolaryngology_anti_reflux_surgery_dysphagia",
@@ -329,7 +361,9 @@
       ],
       "coverage_estimate": 0.09,
       "total_weight": 1.56268,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Post-Anti-Reflux Surgery Dysphagia",
+      "short_description": "Esophageal motility disorders and dysphagia following hiatal hernia repair, Linx, and robotic anti-reflux procedures."
     },
     {
       "id": "otolaryngology_surgical_ergonomics_workforce",
@@ -342,7 +376,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 0.707124,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Surgical Ergonomics & Workforce Well-Being",
+      "short_description": "Musculoskeletal strain, burnout, and gender-specific ergonomic challenges among otolaryngology surgeons."
     },
     {
       "id": "otolaryngology_rhinoplasty_nasal_reconstruction",
@@ -355,7 +391,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 1.140434,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Rhinoplasty & Nasal Reconstruction",
+      "short_description": "Surgical techniques and biocompatible implant materials for nasal reconstruction and augmentation rhinoplasty."
     },
     {
       "id": "otolaryngology_chiari_craniocervical",
@@ -368,7 +406,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 0.305344,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Chiari Malformation & Craniocervical Disorders",
+      "short_description": "Surgical management of Chiari malformation and craniocervical junction pathology including revision predictors and fusion outcomes."
     },
     {
       "id": "otolaryngology_head_neck_nerve_imaging",
@@ -381,7 +421,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 0.732758,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Nerve Injury Imaging & Facial Nerve Palsy",
+      "short_description": "MR neurography for sensory nerve injuries and CSF proteomics in idiopathic facial nerve palsy diagnosis."
     },
     {
       "id": "otolaryngology_covid_pediatric_otolaryngology",
@@ -394,7 +436,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 3.686569,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "COVID-19 Impact on Practice & Pediatrics",
+      "short_description": "Pandemic effects on clinical practice, consultation patterns, and pediatric airway presentations including Omicron-related croup."
     },
     {
       "id": "otolaryngology_head_neck_reconstruction_microsurgery",
@@ -407,7 +451,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 1.249552,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Microsurgical Reconstruction in Complex Patients",
+      "short_description": "Reconstructive and microsurgical approaches for head and neck defects in immunocompromised and transplant populations."
     },
     {
       "id": "otolaryngology_sinonasal_papilloma_pathology",
@@ -420,7 +466,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 0.273134,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Sinonasal Papilloma & Benign Tumors",
+      "short_description": "Clinical behavior, histologic subtypes, and outcomes of inverted and exophytic sinonasal papillomas."
     },
     {
       "id": "otolaryngology_sleep_apnea_oral_appliance",
@@ -433,7 +481,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 0.074297,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Sleep Apnea Non-CPAP Therapies",
+      "short_description": "Efficacy and outcomes of mandibular advancement devices and oral appliance therapies for obstructive sleep apnea."
     }
   ],
   "uncovered_pmids": [

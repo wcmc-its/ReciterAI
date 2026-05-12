@@ -23,7 +23,9 @@
         37191655,
         32178839
       ],
-      "coverage_estimate": 0.058
+      "coverage_estimate": 0.058,
+      "display_name": "Traumatic Brain Injury Recovery",
+      "short_description": "Functional, cognitive, and neurological recovery after TBI, including neuroimaging biomarkers and deep brain stimulation."
     },
     {
       "id": "rehabilitation_stroke_recovery",
@@ -45,7 +47,9 @@
         40177744,
         34860246
       ],
-      "coverage_estimate": 0.054
+      "coverage_estimate": 0.054,
+      "display_name": "Post-Stroke Motor & Cognitive Recovery",
+      "short_description": "Motor recovery, functional connectivity reorganization, and predictive biomarkers following ischemic and hemorrhagic stroke."
     },
     {
       "id": "rehabilitation_disorders_of_consciousness",
@@ -65,7 +69,9 @@
         38217618,
         38390681
       ],
-      "coverage_estimate": 0.047
+      "coverage_estimate": 0.047,
+      "display_name": "Disorders of Consciousness & Severe Brain Injury",
+      "short_description": "Assessment, ethics, and intervention for patients with disorders of consciousness, including covert cognition detection via EEG."
     },
     {
       "id": "rehabilitation_dysphagia_swallowing",
@@ -91,7 +97,9 @@
         40781907,
         40167204
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Dysphagia & Swallowing Rehabilitation",
+      "short_description": "Evaluation and treatment of swallowing disorders, including FEES-based tools and dysphagia in neurological conditions."
     },
     {
       "id": "rehabilitation_cognitive_training_older_adults",
@@ -115,7 +123,9 @@
         40850371,
         40515617
       ],
-      "coverage_estimate": 0.062
+      "coverage_estimate": 0.062,
+      "display_name": "Cognitive Training in Older Adults",
+      "short_description": "Computerized cognitive training and technology-based interventions to improve everyday functioning in older adults."
     },
     {
       "id": "rehabilitation_covid19_post_acute",
@@ -137,7 +147,9 @@
         39870998,
         37650236
       ],
-      "coverage_estimate": 0.054
+      "coverage_estimate": 0.054,
+      "display_name": "Long COVID & Post-Acute Sequelae",
+      "short_description": "Neuropsychiatric, cognitive, and functional consequences of COVID-19, including long COVID brain fog and recovery interventions."
     },
     {
       "id": "rehabilitation_spinal_injury_lmic",
@@ -154,7 +166,9 @@
         40022757,
         40562560
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Spinal Cord Injury in Low-Income Settings",
+      "short_description": "Surgical management, neurological outcomes, and post-discharge follow-up for traumatic spinal injuries in East Africa and LMICs."
     },
     {
       "id": "rehabilitation_multiple_sclerosis_disability",
@@ -170,7 +184,9 @@
         36064841,
         37397885
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Multiple Sclerosis Disability & Neuroimaging",
+      "short_description": "Structural and functional connectivity biomarkers of disability in MS, including lesion-based disconnectivity and cognitive outcomes."
     },
     {
       "id": "rehabilitation_chronic_pain_management",
@@ -191,7 +207,9 @@
         31343692,
         37656675
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Chronic Pain & Psychosocial Interventions",
+      "short_description": "Biopsychosocial approaches to chronic pain, including CBT, digital self-management tools, and outcomes in diverse populations."
     },
     {
       "id": "rehabilitation_voice_swallowing_disorders",
@@ -209,7 +227,9 @@
         35723533,
         38366777
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Voice Disorders & Communication Rehabilitation",
+      "short_description": "Assessment and rehabilitation of voice disorders, including gender-affirming voice modification and telehealth delivery of voice care."
     },
     {
       "id": "rehabilitation_assistive_technology_disability",
@@ -224,7 +244,9 @@
         35592668,
         36445731
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Assistive Technology & Disability Access",
+      "short_description": "Access and usability of assistive technology for individuals with disabilities, including speech recognition for deaf and hard-of-hearing users."
     },
     {
       "id": "rehabilitation_disability_policy_ethics",
@@ -239,7 +261,9 @@
         35442779,
         32911290
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Rights Frameworks, Ethics & Health Equity",
+      "short_description": "Disability rights, bioethics, and health equity policy affecting people with functional impairments and developmental conditions."
     },
     {
       "id": "rehabilitation_osseointegration_prosthetics",
@@ -250,7 +274,9 @@
         38556655,
         40167082
       ],
-      "coverage_estimate": 0.012
+      "coverage_estimate": 0.012,
+      "display_name": "Osseointegrated Prostheses & Amputee Outcomes",
+      "short_description": "Osseointegrated prosthetic implants for lower limb amputees, including cost-benefit analysis and functional outcomes."
     },
     {
       "id": "rehabilitation_pediatric_brain_injury",
@@ -264,7 +290,9 @@
         39778788,
         35733619
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Pediatric Brain Injury & Neurorehabilitation",
+      "short_description": "Cognitive and functional recovery in children with TBI, including delirium screening and neuroimaging predictors during inpatient rehabilitation."
     },
     {
       "id": "rehabilitation_musculoskeletal_sports",
@@ -282,7 +310,9 @@
         35645647,
         38292755
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Musculoskeletal Rehabilitation & Sports Medicine",
+      "short_description": "Rehabilitation of musculoskeletal conditions including shoulder pain, osteoarthritis, sports concussion, and exercise-based interventions."
     },
     {
       "id": "rehabilitation_breast_reconstruction_sensation",
@@ -297,7 +327,9 @@
         40167088,
         40882602
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Sensory Recovery in Breast Reconstruction",
+      "short_description": "Sensory outcomes following mastectomy and breast reconstruction, including neurotized DIEP flap techniques and nerve coaptation strategies."
     },
     {
       "id": "rehabilitation_lumbar_spine_surgery",
@@ -311,7 +343,9 @@
         34929784,
         37093302
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Lumbar Spine Surgery & Functional Outcomes",
+      "short_description": "Surgical approaches for lumbar spine conditions including minimally invasive TLIF, lateral interbody fusion, and degenerative disc disease."
     },
     {
       "id": "rehabilitation_cervical_spine_surgery",
@@ -324,7 +358,9 @@
         38305349,
         31504912
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cervical & Thoracic Spine Surgery Outcomes",
+      "short_description": "Surgical management of cervical and cervicothoracic spine pathology, including fusion techniques and neurological outcomes after cord compression."
     },
     {
       "id": "rehabilitation_autism_social_skills",
@@ -337,7 +373,9 @@
         33709772,
         35596024
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Social Skills Interventions for Autism",
+      "short_description": "Behavioral and social skills programs for children with autism spectrum disorder, including caregiver-mediated naturalistic interventions."
     },
     {
       "id": "rehabilitation_older_adults_hiv_function",
@@ -348,7 +386,9 @@
         35980785,
         32697615
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Physical Function & Cognition in Older Adults with HIV",
+      "short_description": "Interrelationships among physical function, cognition, pain, and inflammation in older adults living with HIV."
     },
     {
       "id": "rehabilitation_orofacial_respiratory_strength",
@@ -359,7 +399,9 @@
         37837395,
         37249206
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Orofacial & Respiratory Muscle Strength",
+      "short_description": "Validation of portable tools for measuring tongue, lip, cheek, and respiratory muscle strength in clinical and research settings."
     },
     {
       "id": "rehabilitation_parkinson_sleep_wearables",
@@ -370,7 +412,9 @@
         40913446,
         37594791
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Sleep & Wearable Monitoring in Parkinson's Disease",
+      "short_description": "Non-pharmacological sleep interventions and wearable device monitoring of motor and non-motor symptoms in Parkinson's disease."
     },
     {
       "id": "rehabilitation_telehealth_remote_care",
@@ -382,7 +426,9 @@
         35596024,
         38677397
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Telehealth & Remote Care Delivery",
+      "short_description": "Feasibility and effectiveness of telehealth and tele-paramedicine for delivering rehabilitation and geriatric care remotely."
     },
     {
       "id": "rehabilitation_cancer_rehabilitation_neuro_oncology",
@@ -395,7 +441,9 @@
         39869261,
         40810248
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Cancer Rehabilitation & Neuro-Oncology Outcomes",
+      "short_description": "Rehabilitation outcomes in patients with brain tumors and cancer, including inpatient glioblastoma care and survivorship models."
     },
     {
       "id": "rehabilitation_intrathecal_neurostimulation",
@@ -406,7 +454,9 @@
         39622045,
         33219927
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Intrathecal Drug Delivery & Neurostimulation",
+      "short_description": "Implantable devices for spasticity and pain management, including intrathecal baclofen pumps and spinal cord stimulators."
     },
     {
       "id": "rehabilitation_fall_prevention_older_adults",
@@ -418,7 +468,9 @@
         38979847,
         39792470
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Fall Prevention & Risk Reduction",
+      "short_description": "Fall risk factors and prevention strategies in older adults, including polypharmacy, chronic kidney disease, and tele-paramedicine programs."
     },
     {
       "id": "rehabilitation_neuropsychology_neurosurgery",
@@ -430,7 +482,9 @@
         32873157,
         38922363
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Neuropsychological Assessment in Neurosurgical Contexts",
+      "short_description": "Cognitive evaluation before and after brain tumor resection and multicontext cognitive rehabilitation for acquired brain injury."
     },
     {
       "id": "rehabilitation_myofascial_pain_interventions",
@@ -441,7 +495,9 @@
         39239595,
         36189022
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Myofascial Pain & Interventional Treatments",
+      "short_description": "Diagnosis and treatment of myofascial pain syndromes, including ultrasound-guided trigger point injections and virtual reality adjunct therapy."
     },
     {
       "id": "rehabilitation_hearing_loss_communication",
@@ -452,7 +508,9 @@
         32440106,
         33143471
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Hearing Loss & Psychosocial Impact",
+      "short_description": "Functional and psychosocial consequences of hearing loss across populations, including cancer survivors and heart failure patients."
     },
     {
       "id": "rehabilitation_pm_r_training_workforce",
@@ -463,7 +521,9 @@
         37916613,
         34050054
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "PM&R Training, Workforce & Practice",
+      "short_description": "Residency training, clinical practice patterns, and workforce issues in physical medicine and rehabilitation."
     }
   ],
   "uncovered_pmids": [

@@ -25,7 +25,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 8.42577,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Traumatic Brain Injury Recovery",
+      "short_description": "Functional, cognitive, and neurological recovery after TBI, including neuroimaging biomarkers and deep brain stimulation."
     },
     {
       "id": "rehabilitation_stroke_recovery",
@@ -49,7 +51,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 5.436143,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Post-Stroke Motor & Cognitive Recovery",
+      "short_description": "Motor recovery, functional connectivity reorganization, and predictive biomarkers following ischemic and hemorrhagic stroke."
     },
     {
       "id": "rehabilitation_disorders_of_consciousness",
@@ -71,7 +75,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 2.503574,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Disorders of Consciousness & Severe Brain Injury",
+      "short_description": "Assessment, ethics, and intervention for patients with disorders of consciousness, including covert cognition detection via EEG."
     },
     {
       "id": "rehabilitation_dysphagia_swallowing",
@@ -99,7 +105,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 3.325116,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "Dysphagia & Swallowing Rehabilitation",
+      "short_description": "Evaluation and treatment of swallowing disorders, including FEES-based tools and dysphagia in neurological conditions."
     },
     {
       "id": "rehabilitation_cognitive_training_older_adults",
@@ -125,7 +133,9 @@
       ],
       "coverage_estimate": 0.062,
       "total_weight": 5.063128,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Cognitive Training in Older Adults",
+      "short_description": "Computerized cognitive training and technology-based interventions to improve everyday functioning in older adults."
     },
     {
       "id": "rehabilitation_covid19_post_acute",
@@ -149,7 +159,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 10.935942,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Long COVID & Post-Acute Sequelae",
+      "short_description": "Neuropsychiatric, cognitive, and functional consequences of COVID-19, including long COVID brain fog and recovery interventions."
     },
     {
       "id": "rehabilitation_spinal_injury_lmic",
@@ -168,7 +180,9 @@
       ],
       "coverage_estimate": 0.035,
       "total_weight": 1.90019,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Spinal Cord Injury in Low-Income Settings",
+      "short_description": "Surgical management, neurological outcomes, and post-discharge follow-up for traumatic spinal injuries in East Africa and LMICs."
     },
     {
       "id": "rehabilitation_multiple_sclerosis_disability",
@@ -186,7 +200,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 2.437577,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Multiple Sclerosis Disability & Neuroimaging",
+      "short_description": "Structural and functional connectivity biomarkers of disability in MS, including lesion-based disconnectivity and cognitive outcomes."
     },
     {
       "id": "rehabilitation_chronic_pain_management",
@@ -209,7 +225,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 3.463645,
-      "activity_count": 19
+      "activity_count": 19,
+      "display_name": "Chronic Pain & Psychosocial Interventions",
+      "short_description": "Biopsychosocial approaches to chronic pain, including CBT, digital self-management tools, and outcomes in diverse populations."
     },
     {
       "id": "rehabilitation_voice_swallowing_disorders",
@@ -229,7 +247,9 @@
       ],
       "coverage_estimate": 0.039,
       "total_weight": 0.950719,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Voice Disorders & Communication Rehabilitation",
+      "short_description": "Assessment and rehabilitation of voice disorders, including gender-affirming voice modification and telehealth delivery of voice care."
     },
     {
       "id": "rehabilitation_assistive_technology_disability",
@@ -246,7 +266,9 @@
       ],
       "coverage_estimate": 0.027,
       "total_weight": 2.525716,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Assistive Technology & Disability Access",
+      "short_description": "Access and usability of assistive technology for individuals with disabilities, including speech recognition for deaf and hard-of-hearing users."
     },
     {
       "id": "rehabilitation_disability_policy_ethics",
@@ -263,7 +285,9 @@
       ],
       "coverage_estimate": 0.027,
       "total_weight": 3.006378,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Rights Frameworks, Ethics & Health Equity",
+      "short_description": "Disability rights, bioethics, and health equity policy affecting people with functional impairments and developmental conditions."
     },
     {
       "id": "rehabilitation_osseointegration_prosthetics",
@@ -276,7 +300,9 @@
       ],
       "coverage_estimate": 0.012,
       "total_weight": 0.669836,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Osseointegrated Prostheses & Amputee Outcomes",
+      "short_description": "Osseointegrated prosthetic implants for lower limb amputees, including cost-benefit analysis and functional outcomes."
     },
     {
       "id": "rehabilitation_pediatric_brain_injury",
@@ -292,7 +318,9 @@
       ],
       "coverage_estimate": 0.023,
       "total_weight": 4.765421,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Pediatric Brain Injury & Neurorehabilitation",
+      "short_description": "Cognitive and functional recovery in children with TBI, including delirium screening and neuroimaging predictors during inpatient rehabilitation."
     },
     {
       "id": "rehabilitation_musculoskeletal_sports",
@@ -312,7 +340,9 @@
       ],
       "coverage_estimate": 0.039,
       "total_weight": 3.725157,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Musculoskeletal Rehabilitation & Sports Medicine",
+      "short_description": "Rehabilitation of musculoskeletal conditions including shoulder pain, osteoarthritis, sports concussion, and exercise-based interventions."
     },
     {
       "id": "rehabilitation_breast_reconstruction_sensation",
@@ -329,7 +359,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.500138,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Sensory Recovery in Breast Reconstruction",
+      "short_description": "Sensory outcomes following mastectomy and breast reconstruction, including neurotized DIEP flap techniques and nerve coaptation strategies."
     },
     {
       "id": "rehabilitation_lumbar_spine_surgery",
@@ -345,7 +377,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.837466,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Lumbar Spine Surgery & Functional Outcomes",
+      "short_description": "Surgical approaches for lumbar spine conditions including minimally invasive TLIF, lateral interbody fusion, and degenerative disc disease."
     },
     {
       "id": "rehabilitation_cervical_spine_surgery",
@@ -360,7 +394,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.531801,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Cervical & Thoracic Spine Surgery Outcomes",
+      "short_description": "Surgical management of cervical and cervicothoracic spine pathology, including fusion techniques and neurological outcomes after cord compression."
     },
     {
       "id": "rehabilitation_autism_social_skills",
@@ -375,7 +411,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.780474,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Social Skills Interventions for Autism",
+      "short_description": "Behavioral and social skills programs for children with autism spectrum disorder, including caregiver-mediated naturalistic interventions."
     },
     {
       "id": "rehabilitation_older_adults_hiv_function",
@@ -388,7 +426,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.725967,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Physical Function & Cognition in Older Adults with HIV",
+      "short_description": "Interrelationships among physical function, cognition, pain, and inflammation in older adults living with HIV."
     },
     {
       "id": "rehabilitation_orofacial_respiratory_strength",
@@ -401,7 +441,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 1.115122,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Orofacial & Respiratory Muscle Strength",
+      "short_description": "Validation of portable tools for measuring tongue, lip, cheek, and respiratory muscle strength in clinical and research settings."
     },
     {
       "id": "rehabilitation_parkinson_sleep_wearables",
@@ -414,7 +456,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.39643,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Sleep & Wearable Monitoring in Parkinson's Disease",
+      "short_description": "Non-pharmacological sleep interventions and wearable device monitoring of motor and non-motor symptoms in Parkinson's disease."
     },
     {
       "id": "rehabilitation_telehealth_remote_care",
@@ -428,7 +472,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.578706,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Telehealth & Remote Care Delivery",
+      "short_description": "Feasibility and effectiveness of telehealth and tele-paramedicine for delivering rehabilitation and geriatric care remotely."
     },
     {
       "id": "rehabilitation_cancer_rehabilitation_neuro_oncology",
@@ -443,7 +489,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.854434,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Cancer Rehabilitation & Neuro-Oncology Outcomes",
+      "short_description": "Rehabilitation outcomes in patients with brain tumors and cancer, including inpatient glioblastoma care and survivorship models."
     },
     {
       "id": "rehabilitation_intrathecal_neurostimulation",
@@ -456,7 +504,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.286112,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Intrathecal Drug Delivery & Neurostimulation",
+      "short_description": "Implantable devices for spasticity and pain management, including intrathecal baclofen pumps and spinal cord stimulators."
     },
     {
       "id": "rehabilitation_fall_prevention_older_adults",
@@ -470,7 +520,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.726372,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Fall Prevention & Risk Reduction",
+      "short_description": "Fall risk factors and prevention strategies in older adults, including polypharmacy, chronic kidney disease, and tele-paramedicine programs."
     },
     {
       "id": "rehabilitation_neuropsychology_neurosurgery",
@@ -484,7 +536,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.639339,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Neuropsychological Assessment in Neurosurgical Contexts",
+      "short_description": "Cognitive evaluation before and after brain tumor resection and multicontext cognitive rehabilitation for acquired brain injury."
     },
     {
       "id": "rehabilitation_myofascial_pain_interventions",
@@ -497,7 +551,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.661426,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Myofascial Pain & Interventional Treatments",
+      "short_description": "Diagnosis and treatment of myofascial pain syndromes, including ultrasound-guided trigger point injections and virtual reality adjunct therapy."
     },
     {
       "id": "rehabilitation_hearing_loss_communication",
@@ -510,7 +566,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.988308,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Hearing Loss & Psychosocial Impact",
+      "short_description": "Functional and psychosocial consequences of hearing loss across populations, including cancer survivors and heart failure patients."
     },
     {
       "id": "rehabilitation_pm_r_training_workforce",
@@ -523,7 +581,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.630774,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "PM&R Training, Workforce & Practice",
+      "short_description": "Residency training, clinical practice patterns, and workforce issues in physical medicine and rehabilitation."
     }
   ],
   "uncovered_pmids": [

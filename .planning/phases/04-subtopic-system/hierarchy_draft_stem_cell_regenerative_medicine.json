@@ -19,7 +19,9 @@
         31916656,
         33444739
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "iPSC Generation & Pluripotency",
+      "short_description": "Mechanisms of cellular reprogramming, pluripotency maintenance, and epigenetic regulation of stem cell identity."
     },
     {
       "id": "stem_organoid_disease_modeling",
@@ -42,7 +44,9 @@
         37534130,
         36206731
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Organoid Disease & Drug Screening Models",
+      "short_description": "Pluripotent and tissue-derived organoid systems for human disease modeling, pathogen study, and drug screening."
     },
     {
       "id": "stem_cardiac_differentiation_regeneration",
@@ -66,7 +70,9 @@
         40803325,
         40080060
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Cardiac Differentiation & Regeneration",
+      "short_description": "Cardiomyocyte differentiation from pluripotent stem cells, cardiac regeneration, and iPSC-derived models for disease and toxicity."
     },
     {
       "id": "stem_zebrafish_heart_regeneration",
@@ -82,7 +88,9 @@
         34622167,
         36282694
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Zebrafish Tissue Regeneration Models",
+      "short_description": "Zebrafish-based studies of heart regeneration, epicardial progenitor activation, and tissue repair signaling pathways."
     },
     {
       "id": "stem_hematopoietic_stem_cell_biology",
@@ -102,7 +110,9 @@
         32548608,
         39747433
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "Hematopoietic Stem Cells & Clonal Hematopoiesis",
+      "short_description": "Self-renewal, differentiation, epigenetic regulation, and aging-associated clonal dynamics of hematopoietic stem and progenitor cells."
     },
     {
       "id": "stem_hsc_transplantation_clinical",
@@ -118,7 +128,9 @@
         34156898,
         35484102
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "HSC Transplantation & Clinical Outcomes",
+      "short_description": "Translational research on cord blood, haplo-identical transplantation, engraftment, and shared care models for transplant access."
     },
     {
       "id": "stem_neural_stem_cell_brain_organoids",
@@ -136,7 +148,9 @@
         37845134,
         40307992
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Neural Stem Cells & Brain Organoids",
+      "short_description": "Neural stem cell differentiation and brain organoid models for neurodevelopmental disorders, neurodegeneration, and drug effects."
     },
     {
       "id": "stem_pancreatic_beta_cell_differentiation",
@@ -153,7 +167,9 @@
         40562034,
         40737125
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Pancreatic Beta Cell Differentiation & Regeneration",
+      "short_description": "iPSC-derived beta cell generation, identity maintenance, and regenerative strategies for diabetes therapy."
     },
     {
       "id": "stem_airway_epithelial_progenitors",
@@ -168,7 +184,9 @@
         32432483,
         33731767
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Airway Epithelial Progenitor Biology",
+      "short_description": "Airway basal stem cell differentiation, injury response, and organoid models of lung disease including COPD."
     },
     {
       "id": "stem_tissue_engineering_scaffolds",
@@ -188,7 +206,9 @@
         35513336,
         32541269
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "Biomaterial Scaffolds & Tissue Engineering",
+      "short_description": "Decellularized matrices, 3D-printed constructs, and scaffold-based approaches for cartilage, skin, and vascularized tissue reconstruction."
     },
     {
       "id": "stem_endothelial_vascular_progenitors",
@@ -204,12 +224,14 @@
         35640533,
         39879286
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Endothelial & Vascular Progenitor Biology",
+      "short_description": "Endothelial progenitor identity, angiogenesis, and vascular development for organoid vascularization and tissue regeneration."
     },
     {
       "id": "stem_osteoblast_skeletal_differentiation",
       "label": "Skeletal Stem Cells, Osteoblast Differentiation, and Bone Biology",
-      "description": "Studies on osteoblast and skeletal stem cell differentiation, signaling pathways regulating bone formation and mineralization (hedgehog, ERK MAPK, GSK3-\u03b2), and skeletal stem cell contributions to bone homeostasis and disease.",
+      "description": "Studies on osteoblast and skeletal stem cell differentiation, signaling pathways regulating bone formation and mineralization (hedgehog, ERK MAPK, GSK3-β), and skeletal stem cell contributions to bone homeostasis and disease.",
       "seed_pmids": [
         32807497,
         34326333,
@@ -219,7 +241,9 @@
         37704733,
         35309866
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Skeletal Stem Cells & Bone Biology",
+      "short_description": "Osteoblast and skeletal stem cell differentiation, bone formation signaling, and contributions to skeletal homeostasis and disease."
     },
     {
       "id": "stem_adipocyte_differentiation_metabolism",
@@ -236,7 +260,9 @@
         33314576,
         32991178
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Adipocyte Differentiation & Adipose Biology",
+      "short_description": "Adipogenesis regulation, epigenetic and circadian control, and adipose progenitor roles in metabolic disease."
     },
     {
       "id": "stem_lineage_plasticity_cancer_stem_cells",
@@ -257,7 +283,9 @@
         39492677,
         38678016
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Cancer Stem Cells & Lineage Plasticity",
+      "short_description": "Tumor cell identity transitions, epigenetic reprogramming, and stem cell transcription factors in cancer initiation and therapy resistance."
     },
     {
       "id": "stem_hepatocyte_liver_regeneration",
@@ -271,7 +299,9 @@
         38268979,
         32289375
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Hepatocyte Biology & Liver Regeneration",
+      "short_description": "Primary human hepatocyte expansion, chimeric mouse liver repopulation, disease modeling, and gene therapy in humanized liver systems."
     },
     {
       "id": "stem_glioblastoma_stem_microenvironment",
@@ -285,7 +315,9 @@
         33903225,
         38571415
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Glioblastoma Stem Cells & Microenvironment",
+      "short_description": "Tumor microenvironment factors including hypoxia and chromatin remodeling that sustain glioblastoma stem cell states and progression."
     },
     {
       "id": "stem_kras_oncogenic_cancer_models",
@@ -298,7 +330,9 @@
         32112097,
         36468984
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "KRAS Variants & Precision Cancer Modeling",
+      "short_description": "Phenotypic consequences of distinct oncogenic KRAS alleles in pancreatic and lung cancers using in vivo and base-editing models."
     },
     {
       "id": "stem_epigenetic_chromatin_cancer",
@@ -315,7 +349,9 @@
         38599260,
         53853000
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Epigenetic & Chromatin Regulation in Cancer",
+      "short_description": "Histone modifications, chromatin architecture, and epigenetic regulators governing cancer development, cell fate, and therapeutic targeting."
     },
     {
       "id": "stem_m6a_rna_modification",
@@ -326,18 +362,22 @@
         35853000,
         33440144
       ],
-      "coverage_estimate": 0.013
+      "coverage_estimate": 0.013,
+      "display_name": "m6A RNA Modification & Epitranscriptomics",
+      "short_description": "m6A mRNA methylation machinery and its role in mRNA stability, translation, and cell fate decisions."
     },
     {
       "id": "stem_intestinal_stem_cell_niche",
       "label": "Intestinal Stem Cell Niche and Signaling",
-      "description": "Research on Lgr5+ intestinal stem cell biology, including niche support from lymphatics and fibroblasts, Wnt/NF-\u03baB/PI3K signaling cross-talk, and lineage characterization methods.",
+      "description": "Research on Lgr5+ intestinal stem cell biology, including niche support from lymphatics and fibroblasts, Wnt/NF-κB/PI3K signaling cross-talk, and lineage characterization methods.",
       "seed_pmids": [
         35931033,
         35790295,
         39264806
       ],
-      "coverage_estimate": 0.013
+      "coverage_estimate": 0.013,
+      "display_name": "Intestinal Stem Cell Niche & Signaling",
+      "short_description": "Lgr5+ intestinal stem cell biology, niche support from lymphatics and fibroblasts, and Wnt/NF-κB/PI3K signaling cross-talk."
     },
     {
       "id": "stem_nerve_regeneration_neuropathy",
@@ -350,7 +390,9 @@
         36736299,
         35350148
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Peripheral Nerve Regeneration & Repair",
+      "short_description": "Nerve regeneration in diabetic neuropathy, spinal cord injury, and surgical repair, including cytokine signaling and axon sprouting."
     },
     {
       "id": "stem_wound_healing_regenerative_therapies",
@@ -364,7 +406,9 @@
         36480365,
         39238872
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Wound Healing & Regenerative Injection Therapies",
+      "short_description": "Regenerative approaches including PRP, alpha-gal nanoparticles, and bone marrow aspirate for wound healing and musculoskeletal conditions."
     },
     {
       "id": "stem_intervertebral_disc_regeneration",
@@ -375,7 +419,9 @@
         34376496,
         34929784
       ],
-      "coverage_estimate": 0.013
+      "coverage_estimate": 0.013,
+      "display_name": "Intervertebral Disc Degeneration & Repair",
+      "short_description": "Biology of disc degeneration and regenerative therapies targeting collagen production and disc biomechanics."
     },
     {
       "id": "stem_ovarian_follicle_theca_biology",
@@ -390,7 +436,9 @@
         36706828,
         40320458
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Ovarian Follicle & Reproductive Biology",
+      "short_description": "Human ovarian follicle biology, theca cell subtypes, AMH signaling, and gamete generation methods."
     },
     {
       "id": "stem_breast_stem_cell_markers_risk",
@@ -403,7 +451,9 @@
         40197284,
         38652503
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Breast Stem Cell Markers & Cancer Risk",
+      "short_description": "Epidemiological links between stem cell markers in benign breast tissue and breast cancer risk, mammographic density, and reproductive factors."
     },
     {
       "id": "stem_aml_leukemia_stem_cell_therapy",
@@ -416,7 +466,9 @@
         40377995,
         35981563
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "AML Stem Cell Biology & Therapy Resistance",
+      "short_description": "Leukemia stem cell maintenance, epigenetic heterogeneity, BCL6 survival signaling, and mutation cooperativity in acute myeloid leukemia."
     },
     {
       "id": "stem_crispr_genome_editing_models",
@@ -430,19 +482,23 @@
         37563300,
         32112097
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "CRISPR Genome Editing & Functional Genomics",
+      "short_description": "CRISPR/Cas9 and base-editing tools for precise cancer modeling, loss-of-function screens, and functional genomics in stem and cancer cells."
     },
     {
       "id": "stem_wnt_signaling_development",
       "label": "Wnt Signaling, Secretion, and Developmental Patterning",
-      "description": "Research on Wnt pathway components including WLS/Evi-mediated Wnt transport, Wnt/\u03b2-catenin cross-talk with other pathways, and OTX2-driven enhancer remodeling in definitive endoderm specification.",
+      "description": "Research on Wnt pathway components including WLS/Evi-mediated Wnt transport, Wnt/β-catenin cross-talk with other pathways, and OTX2-driven enhancer remodeling in definitive endoderm specification.",
       "seed_pmids": [
         33357447,
         35790295,
         40834858,
         34710357
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Wnt Signaling & Developmental Patterning",
+      "short_description": "Wnt pathway transport, β-catenin cross-talk, and OTX2-driven enhancer remodeling in endoderm specification and developmental patterning."
     },
     {
       "id": "stem_tau_neurodegeneration_microglia",
@@ -454,7 +510,9 @@
         40596721,
         34618622
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Neurodegeneration, Tau Biology & Microglia",
+      "short_description": "Tau interactions with synaptic and mitochondrial processes, microglial population dynamics, and progranulin-deficient FTD signaling."
     },
     {
       "id": "stem_patient_derived_xenograft_models",
@@ -466,7 +524,9 @@
         35230691,
         32042150
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Patient-Derived Xenograft Cancer Models",
+      "short_description": "PDX and in vivo cancer models for hepatocellular carcinoma, HIV immunotherapy evaluation, and preclinical cancer characterization."
     }
   ],
   "uncovered_pmids": [

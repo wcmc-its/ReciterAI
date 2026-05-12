@@ -26,7 +26,9 @@
         35167429,
         31978784
       ],
-      "coverage_estimate": 0.092
+      "coverage_estimate": 0.092,
+      "display_name": "Prolonged Grief Disorder Assessment & Treatment",
+      "short_description": "Measurement, prevalence, risk factors, and psychological or pharmacological treatment of Prolonged Grief Disorder across cultures."
     },
     {
       "id": "palliative_mental_health_integration",
@@ -48,7 +50,9 @@
         36103939,
         37703184
       ],
-      "coverage_estimate": 0.069
+      "coverage_estimate": 0.069,
+      "display_name": "Behavioral Health Integration in Hospice",
+      "short_description": "Models for embedding psychiatric and behavioral health services into hospice and palliative care settings to address unmet mental health needs."
     },
     {
       "id": "palliative_hospice_utilization_quality",
@@ -69,7 +73,9 @@
         84084826,
         40831402
       ],
-      "coverage_estimate": 0.062
+      "coverage_estimate": 0.062,
+      "display_name": "Hospice Utilization, Quality & Ownership",
+      "short_description": "Patterns of hospice use, quality-of-care measures, site of death, and effects of private equity acquisition on care delivery."
     },
     {
       "id": "palliative_goals_of_care_communication",
@@ -90,7 +96,9 @@
         37988650,
         40245276
       ],
-      "coverage_estimate": 0.067
+      "coverage_estimate": 0.067,
+      "display_name": "Goals-of-Care & Prognostic Communication",
+      "short_description": "Clinician-patient communication about prognosis and serious illness, including training programs and interventions across diverse populations."
     },
     {
       "id": "palliative_advance_care_planning",
@@ -111,7 +119,9 @@
         35442779,
         32609036
       ],
-      "coverage_estimate": 0.067
+      "coverage_estimate": 0.067,
+      "display_name": "Advance Care Planning & Decision-Making",
+      "short_description": "ACP practices, surrogate decision-making, DNR orders, and end-of-life care preferences with attention to racial and disability-related disparities."
     },
     {
       "id": "palliative_caregiver_burden_support",
@@ -133,7 +143,9 @@
         40738141,
         37656675
       ],
-      "coverage_estimate": 0.072
+      "coverage_estimate": 0.072,
+      "display_name": "Family Caregiver Burden & Support",
+      "short_description": "Physical, psychological, and social burden on family caregivers of seriously ill patients and interventions to reduce distress and improve well-being."
     },
     {
       "id": "palliative_pain_symptom_management",
@@ -154,7 +166,9 @@
         35062933,
         39680805
       ],
-      "coverage_estimate": 0.067
+      "coverage_estimate": 0.067,
+      "display_name": "Pain & Symptom Management in Serious Illness",
+      "short_description": "Assessment and treatment of pain, dyspnea, and fatigue in seriously ill patients, including opioid prescribing and non-pharmacological approaches."
     },
     {
       "id": "palliative_spiritual_integrative_care",
@@ -170,7 +184,9 @@
         34978911,
         35085468
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Spiritual & Integrative Care",
+      "short_description": "Role of spirituality, religion, and complementary therapies such as music and art in improving well-being and quality of death."
     },
     {
       "id": "palliative_palliative_care_education_training",
@@ -186,7 +202,9 @@
         39046032,
         34636287
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Workforce Training & Program Development",
+      "short_description": "Educational curricula, fellowship training, simulation, and telehealth-based workforce development in hospice and palliative medicine."
     },
     {
       "id": "palliative_telehealth_covid_delivery",
@@ -203,7 +221,9 @@
         35502860,
         39402964
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Telehealth & COVID-19 Care Delivery",
+      "short_description": "Adaptation of palliative care services during COVID-19, including telemedicine implementation and pandemic impacts on end-of-life practices."
     },
     {
       "id": "palliative_disparities_diverse_populations",
@@ -221,7 +241,9 @@
         37509284,
         37526150
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Disparities in Access & End-of-Life Outcomes",
+      "short_description": "Racial, ethnic, and socioeconomic disparities in hospice use, advance care planning, and quality of palliative care."
     },
     {
       "id": "palliative_disorders_of_consciousness_ethics",
@@ -237,7 +259,9 @@
         32753147,
         35678515
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Disorders of Consciousness & Ethics",
+      "short_description": "Ethical, clinical, and legal issues in caring for patients with disorders of consciousness, including covert awareness assessment and disability rights."
     },
     {
       "id": "palliative_psychiatric_comorbidities_serious_illness",
@@ -254,7 +278,9 @@
         34106738,
         40887038
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Psychiatric Comorbidities & Psychosocial Outcomes",
+      "short_description": "Prevalence and impact of depression, anxiety, and PTSD in seriously ill patients and caregivers, including screening and psychosocial interventions."
     },
     {
       "id": "palliative_hospice_caregiver_quality_measures",
@@ -271,7 +297,9 @@
         40831402,
         37582194
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Home Hospice Caregiver Experience & Quality",
+      "short_description": "Caregiver-reported quality measures in home hospice, preparedness challenges, and interventions to improve satisfaction with home-based end-of-life care."
     },
     {
       "id": "palliative_icu_critical_care_eol",
@@ -285,7 +313,9 @@
         33768500,
         35978752
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "ICU Utilization & Critical Care End-of-Life",
+      "short_description": "Intensive care utilization, mechanical ventilation triage, and palliative care's role in reducing aggressive interventions during terminal hospitalizations."
     },
     {
       "id": "palliative_interstitial_lung_disease_qol",
@@ -299,7 +329,9 @@
         39742153,
         39495032
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Quality of Life in Interstitial Lung Disease",
+      "short_description": "Health-related quality of life, symptom burden, and patient-centered outcomes in idiopathic pulmonary fibrosis and related interstitial lung diseases."
     },
     {
       "id": "palliative_cancer_survivorship_qol",
@@ -314,7 +346,9 @@
         40810248,
         39869261
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Cancer Survivorship & Patient-Reported Outcomes",
+      "short_description": "Long-term quality of life, symptom monitoring, and survivorship outcomes in cancer patients using patient-reported outcome measures."
     },
     {
       "id": "palliative_geriatric_serious_illness",
@@ -328,7 +362,9 @@
         40815522,
         33185686
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Geriatric Assessment in Serious Illness",
+      "short_description": "Geriatric assessment frameworks applied to older adults with cancer, heart failure, dementia, and HIV to improve functional outcomes and care quality."
     },
     {
       "id": "palliative_crisis_standards_resource_allocation",
@@ -340,7 +376,9 @@
         32576307,
         32274630
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Crisis Standards & Pandemic Resource Allocation",
+      "short_description": "Ethical and policy analysis of triage protocols, crisis standards of care, and equity concerns for vulnerable populations during public health emergencies."
     },
     {
       "id": "palliative_high_cost_medicare_spending",
@@ -352,7 +390,9 @@
         33136493,
         36303444
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "High-Cost Medicare & End-of-Life Spending",
+      "short_description": "Geographic variation, high-cost beneficiary profiles, and potentially preventable expenditures in Medicare end-of-life spending."
     },
     {
       "id": "palliative_caregiver_health_self_care",
@@ -364,7 +404,9 @@
         36661199,
         33280966
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Caregiver Health & Self-Care Behaviors",
+      "short_description": "Effects of caregiving roles on caregivers' own health behaviors, including medication misuse, chronic disease management, and physician engagement."
     },
     {
       "id": "palliative_digital_health_symptom_monitoring",
@@ -376,7 +418,9 @@
         38243739,
         30418319
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Digital Health & mHealth Symptom Monitoring",
+      "short_description": "Mobile apps, electronic patient-reported outcomes, and virtual platforms for symptom monitoring and self-management in serious illness."
     },
     {
       "id": "palliative_eol_aggressiveness_social_support",
@@ -388,7 +432,9 @@
         34538465,
         33308865
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Aggressiveness of Care & Social Determinants",
+      "short_description": "Influence of social support, financial burden, and racial background on care intensity and resource utilization at the end of life."
     },
     {
       "id": "palliative_ethics_consultation_clinical",
@@ -400,7 +446,9 @@
         32859941,
         32318959
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Clinical Ethics Consultation & Dilemmas",
+      "short_description": "Ethics consultation services in hospital settings, covering elder mistreatment, periviability counseling, and power dynamics in clinical decision-making."
     },
     {
       "id": "palliative_maid_deprescribing_eol_decisions",
@@ -411,7 +459,9 @@
         33978239,
         34670413
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Medical Aid in Dying & Deprescribing",
+      "short_description": "Physician participation in medical aid in dying, attitudes toward deprescribing, and decision-making around treatment intensity near end of life."
     }
   ],
   "uncovered_pmids": [

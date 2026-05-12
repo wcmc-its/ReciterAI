@@ -25,7 +25,9 @@
       ],
       "coverage_estimate": 0.086,
       "total_weight": 9.481406,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Active Surveillance & Focal Therapy",
+      "short_description": "Conservative management of localized disease via active surveillance protocols, partial gland ablation, and focal therapy outcomes."
     },
     {
       "id": "prostate_surgical_management_outcomes",
@@ -46,7 +48,9 @@
       ],
       "coverage_estimate": 0.063,
       "total_weight": 3.729063,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Radical Prostatectomy & Functional Outcomes",
+      "short_description": "Robot-assisted and fascia-sparing prostatectomy techniques with outcomes covering continence, oncologic control, and perioperative safety."
     },
     {
       "id": "prostate_psma_imaging_theranostics",
@@ -65,7 +69,9 @@
       ],
       "coverage_estimate": 0.051,
       "total_weight": 8.60652,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "PSMA Imaging & Radioligand Therapy",
+      "short_description": "PSMA-targeted PET imaging and lutetium-177 radioligand theranostics for staging, recurrence detection, and metastatic disease treatment."
     },
     {
       "id": "prostate_mri_biopsy_detection",
@@ -86,7 +92,9 @@
       ],
       "coverage_estimate": 0.063,
       "total_weight": 14.632289,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "MRI-Guided Biopsy & Cancer Detection",
+      "short_description": "Multiparametric MRI, PI-RADS classification, targeted biopsy techniques, and AI-based radiomics for clinically significant cancer detection."
     },
     {
       "id": "prostate_advanced_pca_systemic_therapy",
@@ -106,7 +114,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 8.555789,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Systemic Therapy for Metastatic Disease",
+      "short_description": "Androgen receptor inhibitors, combination regimens, and treatment sequencing in castration-sensitive and castration-resistant metastatic settings."
     },
     {
       "id": "prostate_molecular_biology_genomics",
@@ -134,7 +144,9 @@
       ],
       "coverage_estimate": 0.103,
       "total_weight": 34.641791,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Molecular Biology & Tumor Heterogeneity",
+      "short_description": "AR signaling variants, neuroendocrine differentiation, chromatin remodeling, and clonal evolution underlying prostate cancer progression."
     },
     {
       "id": "prostate_lipid_metabolism_preclinical",
@@ -150,7 +162,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 2.183867,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Lipid Metabolism & Metabolomic Vulnerabilities",
+      "short_description": "Fatty acid synthesis, de novo lipogenesis, and metabolomic profiling as therapeutic targets in castration-resistant disease."
     },
     {
       "id": "prostate_racial_disparities_screening",
@@ -172,7 +186,9 @@
       ],
       "coverage_estimate": 0.069,
       "total_weight": 6.92625,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Disparities in Screening & Treatment Access",
+      "short_description": "Racial, ethnic, and socioeconomic gaps in PSA screening, MRI access, active surveillance use, and treatment outcomes."
     },
     {
       "id": "prostate_bladder_cancer_urothelial_systemic",
@@ -195,7 +211,9 @@
       ],
       "coverage_estimate": 0.074,
       "total_weight": 8.349662,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Immunotherapy & ADCs for Urothelial Cancer",
+      "short_description": "Checkpoint inhibitors, antibody-drug conjugates, and FGFR inhibitors for locally advanced or metastatic urothelial carcinoma."
     },
     {
       "id": "prostate_bladder_cancer_surgery_pathology",
@@ -215,7 +233,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 7.035199,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Bladder Cancer Surgery & Pathology",
+      "short_description": "Radical cystectomy, TURBT, urothelial cytopathology, neoadjuvant chemotherapy outcomes, and demographic disparities in treatment access."
     },
     {
       "id": "prostate_upper_tract_urothelial_carcinoma",
@@ -233,7 +253,9 @@
       ],
       "coverage_estimate": 0.046,
       "total_weight": 5.87675,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Upper Tract Urothelial Carcinoma",
+      "short_description": "Molecular characterization, neoadjuvant chemotherapy, nephroureterectomy outcomes, and clonal evolution in upper tract urothelial cancer."
     },
     {
       "id": "prostate_renal_cell_carcinoma_biology_treatment",
@@ -261,7 +283,9 @@
       ],
       "coverage_estimate": 0.103,
       "total_weight": 15.52436,
-      "activity_count": 19
+      "activity_count": 19,
+      "display_name": "Renal Cell Carcinoma Biology & Treatment",
+      "short_description": "Molecular subtypes, liquid biopsy biomarkers, targeted therapy, and immunotherapy combinations for renal cell carcinoma."
     },
     {
       "id": "prostate_bladder_cancer_liquid_biopsy_genomics",
@@ -277,7 +301,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 14.693467,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Liquid Biopsy & Genomic Profiling in Bladder Cancer",
+      "short_description": "ctDNA, cell-free DNA methylation, and genomic profiling for monitoring progression and treatment response in urothelial cancers."
     },
     {
       "id": "prostate_pca_biomarkers_genomic_risk",
@@ -297,7 +323,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 11.495831,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Genomic Risk Scores & Molecular Diagnostics",
+      "short_description": "Tissue-based genomic tests, polygenic risk scores, and proteomic biomarkers predicting pathologic risk and treatment selection."
     },
     {
       "id": "prostate_cancer_comorbidity_survivorship",
@@ -311,7 +339,9 @@
       ],
       "coverage_estimate": 0.08,
       "total_weight": 0.780594,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Comorbidity Management in Cancer Survivors",
+      "short_description": "Management of diabetes, heart failure, and other comorbidities before and after cancer diagnosis, including racial disparities in care."
     },
     {
       "id": "prostate_patient_decision_support_literacy",
@@ -325,7 +355,9 @@
       ],
       "coverage_estimate": 0.08,
       "total_weight": 0.861281,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Health Literacy & Patient Decision Support",
+      "short_description": "Health literacy, fatalistic cancer beliefs, and decision-support interventions affecting screening, quality of life, and mortality in diverse populations."
     },
     {
       "id": "prostate_ai_precision_oncology_tools",
@@ -338,7 +370,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 1.079436,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "AI & Machine Learning in Oncology Decisions",
+      "short_description": "Machine learning tools for clinical decision support, therapeutic sequencing, and biologically constrained predictive modeling in precision oncology."
     },
     {
       "id": "prostate_racial_disparities_surgical_access",
@@ -351,7 +385,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 1.97812,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Disparities in Minimally Invasive Surgery Access",
+      "short_description": "Racial and ethnic gaps in access to robot-assisted and minimally invasive surgical procedures for urologic cancers."
     },
     {
       "id": "prostate_immunotherapy_toxicity_biomarkers",
@@ -364,7 +400,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.667963,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Immune-Related Adverse Events & Inflammatory Biomarkers",
+      "short_description": "Characterization of irAEs and inflammatory markers as prognostic factors in checkpoint inhibitor-treated renal and urothelial cancers."
     },
     {
       "id": "prostate_lncrna_epigenomics_regulation",
@@ -377,7 +415,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.689849,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "lncRNAs & Chromatin Regulation",
+      "short_description": "Long non-coding RNA functions and high-order chromatin conformations in gene regulation and therapeutic resistance in urologic cancers."
     },
     {
       "id": "prostate_bladder_cancer_preclinical_biology",
@@ -390,7 +430,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.330974,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Preclinical Biology & Novel Targets in Bladder Cancer",
+      "short_description": "Molecular targets and novel agents in bladder cancer, including fascin inhibitors and circulating tumor cell phenotyping."
     },
     {
       "id": "prostate_patient_experience_qol_survivorship",
@@ -403,7 +445,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 4.084644,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Quality of Life & Survivorship After Treatment",
+      "short_description": "Patient-reported functional outcomes, long-term treatment trade-offs, and lived experience following localized prostate cancer treatment."
     }
   ],
   "uncovered_pmids": [

@@ -41,7 +41,9 @@
         37945898,
         40189102
       ],
-      "coverage_estimate": 0.061
+      "coverage_estimate": 0.061,
+      "display_name": "Diabetes Pharmacotherapy & Glycemic Control",
+      "short_description": "Clinical management of type 1 and type 2 diabetes using insulin, GLP-1 agonists, SGLT2 inhibitors, and continuous glucose monitoring."
     },
     {
       "id": "metabolic_diabetic_neuropathy_corneal",
@@ -82,7 +84,9 @@
         35456342,
         34210657
       ],
-      "coverage_estimate": 0.061
+      "coverage_estimate": 0.061,
+      "display_name": "Diabetic Neuropathy & Corneal Imaging",
+      "short_description": "Corneal confocal microscopy and sensory testing for diagnosing and monitoring diabetic peripheral and autonomic neuropathy."
     },
     {
       "id": "metabolic_obesity_treatment_bariatric",
@@ -118,7 +122,9 @@
         32776501,
         40704113
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Bariatric & Endoscopic Obesity Surgery",
+      "short_description": "Surgical and endoscopic interventions for obesity, including gastric bypass, sleeve gastrectomy, and intragastric balloons."
     },
     {
       "id": "metabolic_obesity_pharmacotherapy_weight",
@@ -148,7 +154,9 @@
         36959392,
         35802662
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Anti-Obesity Medications & Weight Management",
+      "short_description": "GLP-1/GIP receptor agonists and other anti-obesity drugs for long-term weight loss and metabolic improvement."
     },
     {
       "id": "metabolic_thyroid_disease_surgery",
@@ -187,7 +195,9 @@
         32367594,
         33844978
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Thyroid Disease Diagnosis & Surgery",
+      "short_description": "Thyroid nodule evaluation, cancer management, thyroidectomy outcomes, and radioactive iodine and hormone replacement therapy."
     },
     {
       "id": "metabolic_adrenal_parathyroid_disorders",
@@ -215,7 +225,9 @@
         33522411,
         32174140
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Adrenal & Parathyroid Disorders",
+      "short_description": "Surgical management and molecular characterization of hyperaldosteronism, Cushing syndrome, pheochromocytoma, and hyperparathyroidism."
     },
     {
       "id": "metabolic_nafld_liver_metabolic",
@@ -245,12 +257,14 @@
         36935368,
         33153928
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Fatty Liver Disease & Hepatic Metabolism",
+      "short_description": "Pathogenesis, diagnosis, and clinical management of NAFLD/MASLD, liver fibrosis, and metabolic liver conditions."
     },
     {
       "id": "metabolic_adipocyte_biology_adipogenesis",
       "label": "Adipocyte Biology, Adipogenesis, and Adipose Tissue Function",
-      "description": "Research on molecular mechanisms of adipocyte differentiation, lipid metabolism, thermogenesis, and adipokine signaling, including studies on SIRT1, PGC1\u03b1, PPAR pathways, adipose tissue browning, and the role of adipose dysfunction in metabolic disease.",
+      "description": "Research on molecular mechanisms of adipocyte differentiation, lipid metabolism, thermogenesis, and adipokine signaling, including studies on SIRT1, PGC1α, PPAR pathways, adipose tissue browning, and the role of adipose dysfunction in metabolic disease.",
       "seed_pmids": [
         33854178,
         32694788,
@@ -275,7 +289,9 @@
         38126809,
         36473871
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Adipocyte Biology & Adipose Tissue Function",
+      "short_description": "Molecular mechanisms of adipogenesis, lipid metabolism, thermogenesis, and adipokine signaling in metabolic disease."
     },
     {
       "id": "metabolic_insulin_secretion_beta_cell",
@@ -299,7 +315,9 @@
         35950650,
         32084379
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Pancreatic Beta Cell & Insulin Secretion",
+      "short_description": "Beta cell differentiation, insulin secretion mechanisms, ER stress, and molecular targets for restoring beta cell function."
     },
     {
       "id": "metabolic_diabetes_cardiovascular_complications",
@@ -327,7 +345,9 @@
         38849833,
         39034653
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Cardiovascular Complications of Diabetes",
+      "short_description": "Heart failure, coronary artery disease, and arrhythmia outcomes in diabetes patients and the role of glycemic control."
     },
     {
       "id": "metabolic_diabetes_epidemiology_prevention",
@@ -354,7 +374,9 @@
         39050622,
         35288340
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Diabetes Epidemiology & Global Prevention",
+      "short_description": "Population-level burden, prevention programs, and community health interventions for type 2 diabetes and prediabetes."
     },
     {
       "id": "metabolic_sphingolipid_cholesterol_metabolism",
@@ -377,7 +399,9 @@
         39717487,
         33028018
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Sphingolipid & Cholesterol Metabolism",
+      "short_description": "Molecular mechanisms of ceramide, sphingosine-1-phosphate, and cholesterol homeostasis in cardiovascular and metabolic disease."
     },
     {
       "id": "metabolic_estrogen_hypothalamic_hormonal",
@@ -404,7 +428,9 @@
         39873665,
         37285059
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Sex Hormones & Reproductive Endocrinology",
+      "short_description": "Estrogen receptor signaling, hypothalamic regulation, neuroactive steroids, and ovarian function in reproductive endocrinology."
     },
     {
       "id": "metabolic_glut1_nad_energy_metabolism",
@@ -428,7 +454,9 @@
         32075912,
         34643091
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Glucose Transport & Cellular Energy Pathways",
+      "short_description": "GLUT1/GLUT4 transporter biology, NAD+ biosynthesis, and mitochondrial metabolism in obesity and glucose deficiency syndromes."
     },
     {
       "id": "metabolic_diabetes_cancer_comorbidity",
@@ -451,7 +479,9 @@
         37224753,
         32071117
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Diabetes & Cancer Co-Management",
+      "short_description": "Care coordination, racial disparities, and metabolic surveillance for patients managing both diabetes and cancer."
     },
     {
       "id": "metabolic_covid19_metabolic_outcomes",
@@ -475,7 +505,9 @@
         35999352,
         33826804
       ],
-      "coverage_estimate": 0.064
+      "coverage_estimate": 0.064,
+      "display_name": "COVID-19 & Metabolic Comorbidities",
+      "short_description": "Disease severity, outcomes, and pathophysiology of COVID-19 intersecting with diabetes, obesity, and hyperglycemia."
     },
     {
       "id": "metabolic_hiv_cardiometabolic",
@@ -494,7 +526,9 @@
         39745255,
         33019813
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "HIV-Associated Cardiometabolic Complications",
+      "short_description": "Cardiovascular risk, body composition changes, and metabolic dysregulation in people living with HIV on antiretroviral therapy."
     },
     {
       "id": "metabolic_obesity_comorbidities_clinical",
@@ -516,7 +550,9 @@
         36865816,
         35091100
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Obesity-Related Comorbidities & Clinical Outcomes",
+      "short_description": "Multi-organ consequences of obesity across the lifespan, including maternal morbidity, pediatric complications, and sleep apnea."
     },
     {
       "id": "metabolic_diabetes_wearable_digital",
@@ -529,7 +565,9 @@
         37299733,
         37387020
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Wearable & Digital Health Monitoring",
+      "short_description": "AI-driven wearables, continuous glucose monitors, and machine learning models for diabetes self-management and glucose prediction."
     },
     {
       "id": "metabolic_peer_support_diabetes_selfmanagement",
@@ -543,7 +581,9 @@
         35592441,
         37907014
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Peer Support & Behavioral Self-Management",
+      "short_description": "Community-based and peer-delivered interventions improving diabetes self-management, medication adherence, and psychosocial outcomes."
     },
     {
       "id": "metabolic_cardiovascular_risk_disparities",
@@ -566,7 +606,9 @@
         39921499,
         34851497
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Cardiovascular Risk & Health Disparities",
+      "short_description": "Racial and socioeconomic disparities in CVD prevention, hypertension management, and lipid-lowering therapy across populations."
     },
     {
       "id": "metabolic_diabetes_microvascular_complications",
@@ -582,7 +624,9 @@
         33944892,
         38029518
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Microvascular Complications & Retinopathy",
+      "short_description": "Screening and prevalence of diabetic retinopathy, nephropathy, and neuropathy across diverse populations."
     },
     {
       "id": "metabolic_gut_microbiome_metabolism",
@@ -597,7 +641,9 @@
         36432540,
         36827239
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Gut Microbiome & Host Metabolic Regulation",
+      "short_description": "Microbial communities, dietary patterns, and microbiota-derived metabolites regulating host metabolism and immune function."
     },
     {
       "id": "metabolic_alzheimers_metabolic_links",
@@ -614,7 +660,9 @@
         34166841,
         40180206
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Alzheimer's Disease & Brain Metabolism",
+      "short_description": "Brain metabolic alterations, mitochondrial bioenergetics, and lipidomic profiles linking metabolic syndrome to cognitive decline."
     },
     {
       "id": "metabolic_hyperlipidemia_rheumatoid_arthritis",
@@ -627,12 +675,14 @@
         39958153,
         33663620
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Hyperlipidemia in Inflammatory Arthritis",
+      "short_description": "Barriers and clinical practices for cardiovascular risk screening and lipid management in rheumatoid arthritis patients."
     },
     {
       "id": "metabolic_pregnancy_metabolic_outcomes",
       "label": "Metabolic Conditions and Pregnancy Outcomes",
-      "description": "Studies examining the impact of metabolic conditions\u2014including gestational diabetes, obesity, hypertension, and thyroid disorders\u2014on maternal and neonatal outcomes, as well as glucose challenge testing and postpartum cardiovascular risk.",
+      "description": "Studies examining the impact of metabolic conditions—including gestational diabetes, obesity, hypertension, and thyroid disorders—on maternal and neonatal outcomes, as well as glucose challenge testing and postpartum cardiovascular risk.",
       "seed_pmids": [
         33157064,
         34157439,
@@ -645,7 +695,9 @@
         40221610,
         35386496
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Gestational Metabolic Conditions & Outcomes",
+      "short_description": "Impact of gestational diabetes, obesity, and thyroid disorders on maternal, neonatal, and postpartum cardiovascular outcomes."
     },
     {
       "id": "metabolic_obesity_brain_neurological",
@@ -659,7 +711,9 @@
         40130450,
         38467624
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Adiposity & Brain Neurological Function",
+      "short_description": "Links between BMI, adiposity, and brain structure, white matter changes, hippocampal vasoreactivity, and cognitive outcomes."
     },
     {
       "id": "metabolic_glucagon_receptor_signaling",
@@ -670,7 +724,9 @@
         37001505,
         39565578
       ],
-      "coverage_estimate": 0.012
+      "coverage_estimate": 0.012,
+      "display_name": "Glucagon Receptor Structure & Signaling",
+      "short_description": "Cryo-EM characterization, allosteric modulation, and G protein activation mechanisms of glucagon and family B GPCR receptors."
     },
     {
       "id": "metabolic_diabetes_healthcare_utilization",
@@ -687,7 +743,9 @@
         38650519,
         33570745
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Healthcare Access & Quality of Care",
+      "short_description": "Utilization patterns, care fragmentation, insurance coverage, and quality improvement for diabetes in diverse healthcare settings."
     },
     {
       "id": "metabolic_fgf23_vitamin_d_mineral",
@@ -700,7 +758,9 @@
         38330015,
         37996757
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "FGF23, Vitamin D & Mineral Homeostasis",
+      "short_description": "Fibroblast growth factor 23, vitamin D metabolism, and mineral regulation in chronic kidney disease and renal tubular function."
     }
   ],
   "uncovered_pmids": [

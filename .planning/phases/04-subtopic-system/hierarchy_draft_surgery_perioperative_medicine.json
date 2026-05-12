@@ -76,7 +76,9 @@
         39966054,
         38037164
       ],
-      "coverage_estimate": 0.067
+      "coverage_estimate": 0.067,
+      "display_name": "Cardiac Surgery Outcomes & Techniques",
+      "short_description": "Operative techniques and perioperative outcomes in CABG, valve replacement, and aortic surgery."
     },
     {
       "id": "surgery_minimally_invasive_spine",
@@ -145,7 +147,9 @@
         39997319,
         40158805
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Minimally Invasive & Open Spine Surgery",
+      "short_description": "Surgical techniques, robotics, and image guidance for cervical, lumbar, and spinal deformity procedures."
     },
     {
       "id": "surgery_vascular_aortic",
@@ -206,7 +210,9 @@
         39643900,
         40566116
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Vascular & Aortic Surgery",
+      "short_description": "Endovascular and open repair of aortic aneurysms, dissection, and peripheral arterial disease."
     },
     {
       "id": "surgery_thoracic_lung_resection",
@@ -243,7 +249,9 @@
         36716650,
         37164718
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Thoracic Surgery & Lung Resection",
+      "short_description": "Surgical management of lung cancer and thoracic malignancies including lobectomy, esophagectomy, and thymectomy."
     },
     {
       "id": "surgery_bariatric_metabolic",
@@ -291,7 +299,9 @@
         35102431,
         32657927
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Bariatric & Metabolic Surgery",
+      "short_description": "Surgical and endoscopic interventions for obesity, weight loss outcomes, and metabolic comorbidity management."
     },
     {
       "id": "surgery_breast_reconstruction",
@@ -352,7 +362,9 @@
         38416973,
         38424856
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Breast Surgery & Reconstruction",
+      "short_description": "Mastectomy, implant-based and autologous reconstruction techniques, and oncologic outcomes in breast surgery."
     },
     {
       "id": "surgery_neurosurgery_cranial",
@@ -403,7 +415,9 @@
         36192862,
         40147440
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Cranial & Skull Base Neurosurgery",
+      "short_description": "Surgical management of brain tumors, skull base lesions, and neurovascular conditions with operative outcome analysis."
     },
     {
       "id": "surgery_postop_opioid_pain",
@@ -439,7 +453,9 @@
         40152852,
         40911471
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Postoperative Pain & Opioid Prescribing",
+      "short_description": "Opioid prescribing patterns, persistent use, and multimodal analgesia strategies in surgical patients."
     },
     {
       "id": "surgery_colorectal_gi_surgery",
@@ -487,7 +503,9 @@
         36650353,
         39804518
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Colorectal & Gastrointestinal Surgery",
+      "short_description": "Minimally invasive and open management of colorectal cancer, IBD, hernia, and enhanced recovery protocols."
     },
     {
       "id": "surgery_transcatheter_structural_heart",
@@ -539,7 +557,9 @@
         32661864,
         36381416
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Transcatheter Structural Heart Interventions",
+      "short_description": "TAVR, transcatheter mitral and tricuspid repair, and outcomes of percutaneous structural heart procedures."
     },
     {
       "id": "surgery_head_neck_thyroid",
@@ -593,7 +613,9 @@
         35765923,
         36355601
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "Head & Neck Surgery with Thyroid Procedures",
+      "short_description": "Surgical management of thyroid, parathyroid, head and neck cancers, and salivary gland tumors."
     },
     {
       "id": "surgery_urologic_prostate",
@@ -648,7 +670,9 @@
         32613266,
         37441341
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Urologic Surgery & Prostate Cancer Treatment",
+      "short_description": "Robotic and open surgical management of prostate, bladder, and kidney cancers with functional outcome analysis."
     },
     {
       "id": "surgery_obstetric_gynecologic",
@@ -692,7 +716,9 @@
         32652243,
         36194429
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Obstetric & Gynecologic Surgery",
+      "short_description": "Cesarean delivery, laparoscopic gynecology, hysterectomy, and pelvic organ prolapse repair outcomes."
     },
     {
       "id": "surgery_global_surgical_education",
@@ -740,7 +766,9 @@
         34028698,
         38833755
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Global Surgery, Education & Workforce",
+      "short_description": "Surgical training, simulation, global access in low-income settings, and workforce diversity and quality improvement."
     },
     {
       "id": "surgery_perioperative_anesthesia",
@@ -793,7 +821,9 @@
         34957333,
         32563759
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Anesthesia & Enhanced Recovery",
+      "short_description": "Risk stratification, anesthetic techniques, ERAS protocols, and postoperative complication management across surgical specialties."
     },
     {
       "id": "surgery_coronary_revascularization",
@@ -823,7 +853,9 @@
         36007713,
         33054678
       ],
-      "coverage_estimate": 0.054
+      "coverage_estimate": 0.054,
+      "display_name": "CABG & Coronary Revascularization Strategies",
+      "short_description": "Graft selection, multivessel disease management, and surgical versus percutaneous revascularization comparisons."
     },
     {
       "id": "surgery_heart_transplant_mechanical_support",
@@ -846,7 +878,9 @@
         38875452,
         40535596
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Heart Transplantation & Mechanical Circulatory Support",
+      "short_description": "Outcomes after heart transplantation, left ventricular assist devices, and VA-ECMO in cardiogenic shock."
     },
     {
       "id": "surgery_cardiac_valve_aortic_root",
@@ -867,7 +901,9 @@
         39132408,
         35501116
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Valve Surgery & Aortic Root Procedures",
+      "short_description": "Surgical aortic and mitral valve repair, aortic root replacement, and hypertrophic cardiomyopathy myectomy outcomes."
     },
     {
       "id": "surgery_aortic_arch_dissection",
@@ -880,7 +916,9 @@
         37164052,
         34294407
       ],
-      "coverage_estimate": 0.012
+      "coverage_estimate": 0.012,
+      "display_name": "Aortic Arch Surgery & Acute Dissection",
+      "short_description": "Open arch repair, acute type A aortic dissection management, and thoracoabdominal aneurysm repair outcomes."
     },
     {
       "id": "surgery_nerve_decompression_headache",
@@ -904,7 +942,9 @@
         33370063,
         38907793
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Peripheral Nerve Decompression for Headache",
+      "short_description": "Surgical decompression of occipital and trigeminal nerves for chronic headache, neuralgia, and nerve compression syndromes."
     },
     {
       "id": "surgery_breast_implant_innovation",
@@ -927,7 +967,9 @@
         35640533,
         38556675
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Breast Implant Safety & Tissue Engineering",
+      "short_description": "Implant surface properties, antifibrotic coatings, biocompatibility, and decellularized scaffold approaches in breast reconstruction."
     },
     {
       "id": "surgery_minimally_invasive_gi_pancreas",
@@ -947,7 +989,9 @@
         38006526,
         39872775
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Minimally Invasive Pancreatic & Hepatobiliary Surgery",
+      "short_description": "Robotic and laparoscopic pancreatectomy and liver resection for pancreatic neuroendocrine tumors and hepatobiliary malignancies."
     },
     {
       "id": "surgery_pediatric_otolaryngology",
@@ -964,7 +1008,9 @@
         37158266,
         34247264
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Pediatric Otolaryngology & Aerodigestive Procedures",
+      "short_description": "Pediatric ENT conditions including tympanostomy, ankyloglossia, sleep apnea, and tracheostomy in critically ill children."
     },
     {
       "id": "surgery_craniofacial_facial_fractures",
@@ -981,7 +1027,9 @@
         38838366,
         34388721
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Craniofacial Surgery & Facial Fracture Management",
+      "short_description": "Repair of frontal sinus, orbital, and mandibular fractures, orofacial clefts, and craniofacial syndrome reconstruction."
     },
     {
       "id": "surgery_deep_brain_stimulation_movement",
@@ -998,7 +1046,9 @@
         39622045,
         34826875
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Deep Brain Stimulation & Neuromodulation",
+      "short_description": "DBS for Parkinson's disease and neurological disorders, MR-guided focused ultrasound, and intrathecal baclofen therapy."
     },
     {
       "id": "surgery_intracerebral_hemorrhage_stroke",
@@ -1016,7 +1066,9 @@
         37410913,
         33236688
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Intracerebral Hemorrhage & Stroke Surgery",
+      "short_description": "Surgical and minimally invasive management of intracerebral hemorrhage, subarachnoid hemorrhage, and ischemic stroke."
     },
     {
       "id": "surgery_male_reproductive_urology",
@@ -1032,7 +1084,9 @@
         38983728,
         40797084
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Male Reproductive Surgery & Fertility",
+      "short_description": "Vasectomy reversal, varicocelectomy, and ejaculatory duct procedures and their effects on reproductive outcomes."
     },
     {
       "id": "surgery_surgical_oncology_adrenal_endocrine",
@@ -1048,7 +1102,9 @@
         39366850,
         38824259
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Adrenal & Endocrine Tumor Surgical Oncology",
+      "short_description": "Adrenalectomy, pancreatic neuroendocrine tumor resection, and genomic predictors of recurrence in endocrine malignancies."
     },
     {
       "id": "surgery_orthopedic_joint_reconstruction",
@@ -1065,7 +1121,9 @@
         33961990,
         37294199
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Orthopedic Joint Reconstruction & Arthroplasty",
+      "short_description": "Total hip and knee arthroplasty outcomes including revision rates, sex differences, and ankle replacement comparisons."
     },
     {
       "id": "surgery_ophthalmic_surgical_outcomes",
@@ -1082,7 +1140,9 @@
         34608029,
         38461944
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Ophthalmic Surgery Outcomes & Device Safety",
+      "short_description": "Cataract and glaucoma surgery outcomes, intraocular lens fixation, vitrectomy safety, and ocular gene therapy delivery."
     }
   ],
   "uncovered_pmids": [

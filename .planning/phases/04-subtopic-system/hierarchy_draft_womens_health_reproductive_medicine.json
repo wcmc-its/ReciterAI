@@ -61,7 +61,9 @@
         34223229,
         36484212
       ],
-      "coverage_estimate": 0.09
+      "coverage_estimate": 0.09,
+      "display_name": "IVF & Assisted Reproduction Outcomes",
+      "short_description": "Clinical outcomes of in vitro fertilization, embryo transfer protocols, ovarian stimulation, and factors affecting live birth rates."
     },
     {
       "id": "womens_breast_cancer_treatment",
@@ -101,7 +103,9 @@
         34068368,
         32707446
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Breast Cancer Treatment & Outcomes",
+      "short_description": "Systemic therapies, surgical interventions, and quality of life in breast cancer treatment and post-treatment care."
     },
     {
       "id": "womens_breast_cancer_risk_screening",
@@ -140,7 +144,9 @@
         34161138,
         36207653
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "Breast Cancer Risk & Screening",
+      "short_description": "Mammographic screening, breast density, polygenic risk scores, and disparities in breast cancer detection and prevention."
     },
     {
       "id": "womens_breast_reconstruction_surgery",
@@ -169,7 +175,9 @@
         38556657,
         34392462
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Post-Mastectomy Reconstruction & Surgery",
+      "short_description": "Implant-based and autologous breast reconstruction methods, complications, sensory outcomes, and access disparities."
     },
     {
       "id": "womens_gynecologic_oncology",
@@ -203,7 +211,9 @@
         40157522,
         36538387
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "Ovarian, Endometrial & Cervical Cancers",
+      "short_description": "Diagnosis, molecular characterization, treatment, and genetic risk assessment of gynecologic cancers."
     },
     {
       "id": "womens_perinatal_mental_health",
@@ -233,7 +243,9 @@
         38420692,
         36166728
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Perinatal Mental Health & Psychiatry",
+      "short_description": "Anxiety, depression, and psychiatric conditions during pregnancy and postpartum, including screening and treatment approaches."
     },
     {
       "id": "womens_obstetric_complications_outcomes",
@@ -275,7 +287,9 @@
         34446158,
         32512608
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Obstetric Complications & Maternal Outcomes",
+      "short_description": "Hypertensive disorders, placenta accreta, labor management, cesarean delivery, and maternal morbidity with attention to racial disparities."
     },
     {
       "id": "womens_fertility_male_infertility",
@@ -307,12 +321,14 @@
         40797084,
         32712020
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Male Infertility, Sperm Biology & Contraception",
+      "short_description": "Sperm function, genetic causes of azoospermia, and development of non-hormonal male contraceptives."
     },
     {
       "id": "womens_reproductive_endocrinology_ovarian",
       "label": "Reproductive Endocrinology, Ovarian Biology, and Folliculogenesis",
-      "description": "Research on ovarian physiology including follicle development, theca cell biology, anti-M\u00fcllerian hormone, ovarian xenograft models, and hormonal regulation of reproductive function including progesterone receptor signaling and meiosis.",
+      "description": "Research on ovarian physiology including follicle development, theca cell biology, anti-Müllerian hormone, ovarian xenograft models, and hormonal regulation of reproductive function including progesterone receptor signaling and meiosis.",
       "seed_pmids": [
         32783948,
         33137110,
@@ -329,7 +345,9 @@
         39378306,
         36201783
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Ovarian Biology & Folliculogenesis",
+      "short_description": "Follicle development, anti-Müllerian hormone, theca cell biology, and hormonal regulation of reproductive function."
     },
     {
       "id": "womens_uterine_pelvic_disorders",
@@ -362,7 +380,9 @@
         35610094,
         37865454
       ],
-      "coverage_estimate": 0.044
+      "coverage_estimate": 0.044,
+      "display_name": "Fibroids, Endometriosis & Pelvic Floor",
+      "short_description": "Benign uterine and pelvic conditions including fibroids, endometriosis, prolapse, and stress urinary incontinence."
     },
     {
       "id": "womens_cervical_hpv_screening",
@@ -384,7 +404,9 @@
         36601557,
         33408370
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Cervical Cancer Screening & HPV Prevention",
+      "short_description": "HPV testing, Papanicolaou practices, colposcopy, high-grade lesion management, and HPV vaccination uptake."
     },
     {
       "id": "womens_sex_differences_cardiovascular",
@@ -421,7 +443,9 @@
         39988035,
         40007886
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Sex Differences in Cardiovascular Disease",
+      "short_description": "Sex-based disparities in coronary artery disease, myocardial infarction, aortic disease, and cardiac intervention outcomes."
     },
     {
       "id": "womens_contraception_abortion_reproductive_rights",
@@ -453,7 +477,9 @@
         34092236,
         40620574
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Contraception, Abortion & Reproductive Access",
+      "short_description": "Contraceptive methods, abortion services, reproductive autonomy, and policy dimensions of family planning access."
     },
     {
       "id": "womens_menopause_hormonal_neuro",
@@ -482,7 +508,9 @@
         35842601,
         40074721
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Menopause & Female Hormonal Neurobiology",
+      "short_description": "Perimenopausal physiology, estrogen receptor signaling in the brain, and sex hormone effects on neurological and metabolic outcomes."
     },
     {
       "id": "womens_pregnancy_infectious_disease",
@@ -508,7 +536,9 @@
         35914684,
         32186485
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Infectious Disease in Pregnancy",
+      "short_description": "Screening, prevention, and outcomes for hepatitis, tuberculosis, COVID-19, and STIs during pregnancy."
     },
     {
       "id": "womens_hsv_sti_epidemiology",
@@ -525,7 +555,9 @@
         40708051,
         38654970
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Herpes Simplex Virus & STI Epidemiology",
+      "short_description": "Global prevalence, incidence trends, and regional burden of herpes simplex virus and other sexually transmitted infections."
     },
     {
       "id": "womens_maternal_cytomegalovirus",
@@ -538,7 +570,9 @@
         40143253,
         32493720
       ],
-      "coverage_estimate": 0.014
+      "coverage_estimate": 0.014,
+      "display_name": "Maternal CMV & Congenital Infection",
+      "short_description": "Maternal cytomegalovirus immune responses, congenital transmission risk, and vaccine development strategies."
     },
     {
       "id": "womens_pregnancy_penicillin_allergy",
@@ -551,7 +585,9 @@
         35691578,
         38423122
       ],
-      "coverage_estimate": 0.014
+      "coverage_estimate": 0.014,
+      "display_name": "Penicillin Allergy Management in Pregnancy",
+      "short_description": "Prevalence and clinical consequences of reported penicillin allergy in pregnant women, including GBS prophylaxis and allergy evaluation."
     },
     {
       "id": "womens_gestational_diabetes",
@@ -566,7 +602,9 @@
         39413845,
         35914684
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Gestational Diabetes Screening & Management",
+      "short_description": "Prevalence, screening methods, glucose monitoring, and community interventions for gestational diabetes mellitus."
     },
     {
       "id": "womens_sex_differences_neurobiology",
@@ -587,7 +625,9 @@
         39737915,
         32428984
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Sex Differences in Brain & Behavior",
+      "short_description": "Sex-based differences in brain structure, gene expression, mitochondrial activity, and behavioral outcomes including depression and stress."
     },
     {
       "id": "womens_sex_differences_surgical_vascular",
@@ -604,7 +644,9 @@
         39780826,
         40357669
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Sex Differences in Surgical & Vascular Outcomes",
+      "short_description": "Sex-based disparities in outcomes after vascular repair, endovascular interventions, arthroplasty, and cardiac surgery."
     },
     {
       "id": "womens_pregnancy_autoimmune_comorbidities",
@@ -625,7 +667,9 @@
         38626448,
         36935368
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Autoimmune & Chronic Disease in Pregnancy",
+      "short_description": "Managing lupus, antiphospholipid syndrome, inflammatory bowel disease, and other chronic conditions during pregnancy."
     },
     {
       "id": "womens_tnbc_racial_disparities",
@@ -641,7 +685,9 @@
         34225771,
         40443130
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Triple-Negative Breast Cancer & Racial Disparities",
+      "short_description": "Molecular biology, ancestry-associated gene expression, and racial disparities in triple-negative and inflammatory breast cancer."
     },
     {
       "id": "womens_breast_imaging_radiology",
@@ -657,7 +703,9 @@
         39295556,
         34218078
       ],
-      "coverage_estimate": 0.023
+      "coverage_estimate": 0.023,
+      "display_name": "Breast Imaging & Radiology Practice",
+      "short_description": "Breast imaging modalities, patient-reported outcomes, radiologic-pathologic correlations, and COVID-19 impacts on imaging practice."
     },
     {
       "id": "womens_pregnancy_substance_use",
@@ -670,7 +718,9 @@
         32095523,
         35531640
       ],
-      "coverage_estimate": 0.014
+      "coverage_estimate": 0.014,
+      "display_name": "Substance Use in Pregnancy & Policy",
+      "short_description": "Cannabis, alcohol, and tobacco use during pregnancy, periconceptional exposure, and drug treatment access policy."
     },
     {
       "id": "womens_pregnancy_covid_outcomes",
@@ -685,7 +735,9 @@
         40776062,
         38843526
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "COVID-19 in Pregnancy & Placental Pathology",
+      "short_description": "Maternal and neonatal outcomes, placental pathology, antibody responses, and vaccination during SARS-CoV-2 infection in pregnancy."
     },
     {
       "id": "womens_adolescent_reproductive_health",
@@ -699,7 +751,9 @@
         34351265,
         32337637
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Adolescent Gynecologic & Reproductive Health",
+      "short_description": "Reproductive health in adolescents including counseling, vulvar conditions, differences in sex development, and privacy considerations."
     },
     {
       "id": "womens_breast_cancer_survivorship_comorbidity",
@@ -716,7 +770,9 @@
         38951008,
         35152976
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "Breast Cancer Survivorship & Quality of Life",
+      "short_description": "Psychosocial well-being, endocrine therapy side effects, weight management, and survivorship challenges in breast cancer patients."
     }
   ],
   "uncovered_pmids": [

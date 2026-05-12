@@ -60,7 +60,9 @@
         34059287,
         33889664
       ],
-      "coverage_estimate": 0.084
+      "coverage_estimate": 0.084,
+      "display_name": "Membrane Protein Structure & Function",
+      "short_description": "Atomic-resolution studies of ion channels, transporters, and GPCRs using cryo-EM, NMR, and molecular dynamics."
     },
     {
       "id": "biochemistry_cryo_em_structural_biology",
@@ -97,7 +99,9 @@
         32696379,
         34709521
       ],
-      "coverage_estimate": 0.047
+      "coverage_estimate": 0.047,
+      "display_name": "Cryo-EM of Macromolecular Complexes",
+      "short_description": "Atomic-resolution cryo-EM structures of motor proteins, chromatin remodelers, and signaling complexes."
     },
     {
       "id": "biochemistry_lipid_biology_sphingolipids",
@@ -137,7 +141,9 @@
         34875117,
         33446867
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Sphingolipid & Membrane Lipid Dynamics",
+      "short_description": "Sphingolipid synthesis, cholesterol transport, and phospholipid metabolism in cardiovascular disease and cancer."
     },
     {
       "id": "biochemistry_rna_modifications_m6a",
@@ -167,7 +173,9 @@
         39625751,
         39191249
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "RNA Modifications & Epitranscriptomics",
+      "short_description": "m6A and related post-transcriptional RNA modifications governing mRNA stability, translation, and stress responses."
     },
     {
       "id": "biochemistry_nad_metabolism_bioenergetics",
@@ -200,7 +208,9 @@
         39710001,
         40892921
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "NAD+ Metabolism & Mitochondrial Bioenergetics",
+      "short_description": "Enzyme kinetics and metabolic flux of NAD+/NADH pathways and mitochondrial oxidative phosphorylation."
     },
     {
       "id": "biochemistry_protein_structure_aggregation_neurodegeneration",
@@ -232,7 +242,9 @@
         38079390,
         39439934
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Protein Aggregation & Neurodegeneration",
+      "short_description": "Structural and biophysical characterization of tau, alpha-synuclein, and amyloid-beta aggregation mechanisms."
     },
     {
       "id": "biochemistry_soluble_adenylyl_cyclase_camp_signaling",
@@ -257,7 +269,9 @@
         32065141,
         37440924
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Adenylyl Cyclase & cAMP Signaling",
+      "short_description": "Soluble adenylyl cyclase biochemistry, inhibitor development for male contraception, and cAMP microdomain signaling."
     },
     {
       "id": "biochemistry_small_molecule_drug_discovery",
@@ -290,7 +304,9 @@
         40367676,
         40774638
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Small-Molecule Discovery & Target Engagement",
+      "short_description": "High-throughput screening and structure-activity optimization of inhibitors targeting immune checkpoints and kinases."
     },
     {
       "id": "biochemistry_mycobacterium_tuberculosis_biochemistry",
@@ -327,7 +343,9 @@
         33950161,
         34234671
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "M. tuberculosis Enzymology & Drug Targets",
+      "short_description": "Structural and biochemical studies of TB metabolic pathways to identify and validate novel therapeutic targets."
     },
     {
       "id": "biochemistry_ion_channel_electrophysiology",
@@ -361,7 +379,9 @@
         37683886,
         37591734
       ],
-      "coverage_estimate": 0.042
+      "coverage_estimate": 0.042,
+      "display_name": "Ion Channel Biophysics & Electrophysiology",
+      "short_description": "Gating mechanisms, pharmacology, and disease roles of voltage-gated, ligand-gated, and mechanosensitive ion channels."
     },
     {
       "id": "biochemistry_metabolomics_metabolic_profiling",
@@ -394,7 +414,9 @@
         38559672,
         40195349
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Metabolomics & Disease Metabolic Profiling",
+      "short_description": "Mass spectrometry-based metabolic profiling to identify biomarkers and vulnerabilities in cancer, neurodegeneration, and diabetes."
     },
     {
       "id": "biochemistry_lipid_metabolism_cancer",
@@ -423,7 +445,9 @@
         35868533,
         40080571
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "De Novo Lipogenesis in Cancer",
+      "short_description": "Fatty acid synthesis and cholesterol biosynthesis enzymes as therapeutic targets in tumor progression and drug resistance."
     },
     {
       "id": "biochemistry_dna_replication_repair_telomeres",
@@ -448,7 +472,9 @@
         35567389,
         36991019
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "DNA Replication, Repair & Telomere Maintenance",
+      "short_description": "Biochemical and structural studies of replication machinery, double-strand break repair, and genome stability."
     },
     {
       "id": "biochemistry_gpcr_signaling_receptor_pharmacology",
@@ -473,7 +499,9 @@
         36473871,
         40833579
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "GPCR Signaling & Allosteric Pharmacology",
+      "short_description": "Activation mechanisms, G protein coupling, and allosteric modulation of adrenergic, glutamate, and glucagon receptors."
     },
     {
       "id": "biochemistry_synaptic_vesicle_neurotransmission",
@@ -494,7 +522,9 @@
         37014052,
         32042150
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Synaptic Vesicle Biology & Neurotransmission",
+      "short_description": "SNARE complex and Munc13-mediated vesicle docking, priming, and fusion underlying neurotransmitter release."
     },
     {
       "id": "biochemistry_chromatin_epigenetics_lymphoma",
@@ -519,7 +549,9 @@
         32632336,
         40803325
       ],
-      "coverage_estimate": 0.055
+      "coverage_estimate": 0.055,
+      "display_name": "Chromatin Regulation & Lymphomagenesis",
+      "short_description": "Epigenetic dysregulation by chromatin-modifying complexes driving B-cell lymphoma and germinal center biology."
     },
     {
       "id": "biochemistry_cell_cycle_cdk_regulation",
@@ -534,7 +566,9 @@
         38499565,
         37945898
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "CDK Activity & Cell Cycle Control",
+      "short_description": "CDK4/6 signaling, G1 phase commitment, and cyclin-dependent kinase mechanisms in normal and cancer cell proliferation."
     },
     {
       "id": "biochemistry_glucose_transporter_metabolism_disease",
@@ -553,7 +587,9 @@
         39420001,
         32084379
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Glucose Transport & Metabolic Disease",
+      "short_description": "GLUT1/GLUT4 biology, insulin signaling, and therapeutic strategies for transporter deficiency and type 2 diabetes."
     },
     {
       "id": "biochemistry_extracellular_vesicles_cancer",
@@ -566,7 +602,9 @@
         39045341,
         39627554
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Extracellular Vesicles in Cancer Biology",
+      "short_description": "Extracellular vesicles as cancer biomarkers and mediators of immune modulation, metabolic dysfunction, and metastasis."
     },
     {
       "id": "biochemistry_adipocyte_biology_lipid_metabolism",
@@ -583,7 +621,9 @@
         37010285,
         38789534
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Adipocyte Differentiation & Lipid Handling",
+      "short_description": "Adipogenesis, lipolysis, and proteomic characterization of lipid metabolism in adipose tissue biology."
     },
     {
       "id": "biochemistry_innate_immunity_inflammasome_signaling",
@@ -598,7 +638,9 @@
         40913147,
         33510167
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Inflammasome Activation & Innate Immunity",
+      "short_description": "NLRP3 inflammasome, necroptosis via RIPK3/MLKL, and macrophage innate immune responses to pathogens."
     },
     {
       "id": "biochemistry_hiv_antibody_vaccine_immunology",
@@ -612,7 +654,9 @@
         40862550,
         36149967
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "HIV-1 Broadly Neutralizing Antibodies & Vaccines",
+      "short_description": "Broadly neutralizing antibodies, SOSIP trimer immunogens, and vaccine strategies for protective humoral immunity against HIV-1."
     },
     {
       "id": "biochemistry_cytomegalovirus_antibody_vaccine",
@@ -625,7 +669,9 @@
         36662906,
         40338082
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "CMV Glycoprotein B Antibodies & Vaccines",
+      "short_description": "Antibody responses to cytomegalovirus glycoprotein B and vaccine strategies targeting gB epitopes."
     },
     {
       "id": "biochemistry_influenza_antibody_immunity",
@@ -638,7 +684,9 @@
         34126773,
         35767671
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Influenza Broadly Neutralizing Antibodies & Vaccines",
+      "short_description": "Conserved hemagglutinin epitope antibodies, preexisting immunity effects, and broadly protective influenza vaccine antigens."
     },
     {
       "id": "biochemistry_enac_kidney_sodium_transport",
@@ -652,7 +700,9 @@
         40794112,
         32628540
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "ENaC Regulation & Renal Sodium Transport",
+      "short_description": "Epithelial sodium channel subunit trafficking, aldosterone-dependent regulation, and renal sodium and potassium excretion."
     },
     {
       "id": "biochemistry_cell_migration_actin_cytoskeleton",
@@ -667,12 +717,14 @@
         32824026,
         37399784
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Actin Cytoskeleton & Cell Migration",
+      "short_description": "F-actin organization, membrane protrusion dynamics, and RhoC/ROCK signaling controlling directed cell motility."
     },
     {
       "id": "biochemistry_nanoparticle_theranostics_drug_delivery",
       "label": "Nanoparticle-Based Drug Delivery, Theranostics, and Targeted Cancer Therapy",
-      "description": "Studies on ultrasmall silica nanoparticles, peptide nanofibers, and targeted ligands (PSMA, FAP-\u03b1) for cancer drug delivery, imaging, and theranostic applications in prostate, lung, gastric, and other cancers.",
+      "description": "Studies on ultrasmall silica nanoparticles, peptide nanofibers, and targeted ligands (PSMA, FAP-α) for cancer drug delivery, imaging, and theranostic applications in prostate, lung, gastric, and other cancers.",
       "seed_pmids": [
         32723835,
         37007587,
@@ -681,7 +733,9 @@
         35597190,
         40792552
       ],
-      "coverage_estimate": 0.019
+      "coverage_estimate": 0.019,
+      "display_name": "Nanoparticle Drug Delivery & Theranostics",
+      "short_description": "Ultrasmall silica nanoparticles and targeted ligands for cancer imaging, drug delivery, and theranostic applications."
     },
     {
       "id": "biochemistry_malaria_parasite_epigenetics",
@@ -692,7 +746,9 @@
         37068249,
         37277533
       ],
-      "coverage_estimate": 0.01
+      "coverage_estimate": 0.01,
+      "display_name": "Malaria Parasite Epigenetics & Antigenic Variation",
+      "short_description": "Plasmodium falciparum var gene switching, histone methyltransferase roles, and epigenetic control of sexual differentiation."
     },
     {
       "id": "biochemistry_sars_cov2_antibody_antiviral",
@@ -708,7 +764,9 @@
         33914041,
         35341244
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "SARS-CoV-2 Antibodies & Antiviral Strategies",
+      "short_description": "Broadly neutralizing antibodies against SARS-CoV-2 variants, antiviral drug identification, and viral entry mechanisms."
     },
     {
       "id": "biochemistry_membrane_lipid_protein_biophysics",
@@ -725,7 +783,9 @@
         33631204,
         37973889
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "Lipid-Protein Interactions & Membrane Biophysics",
+      "short_description": "Clathrin mechanics, annexin-lipid binding, phospholipid scrambling, and sterol trafficking at biological membranes."
     }
   ],
   "uncovered_pmids": [

@@ -29,7 +29,9 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 14.624146,
-      "activity_count": 25
+      "activity_count": 25,
+      "display_name": "Fragmented Ambulatory Delivery & Outcomes",
+      "short_description": "How gaps in ambulatory care coordination drive hospitalizations, ED visits, and preventable adverse events across diverse populations."
     },
     {
       "id": "primary_telehealth_digital_care",
@@ -59,7 +61,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 7.582962,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Telehealth & Digital Care Delivery",
+      "short_description": "Implementation, effectiveness, and equity of telemedicine, video visits, and remote monitoring in ambulatory care settings."
     },
     {
       "id": "primary_caregiver_support_needs",
@@ -85,7 +89,9 @@
       ],
       "coverage_estimate": 0.037,
       "total_weight": 8.901371,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Family Caregiver Support & Assessment",
+      "short_description": "Identifying and addressing caregiver burden, distress, and support needs for families of older adults and dementia patients."
     },
     {
       "id": "primary_chronic_disease_management_diabetes",
@@ -114,7 +120,9 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 8.616203,
-      "activity_count": 32
+      "activity_count": 32,
+      "display_name": "Diabetes & Multimorbidity Management",
+      "short_description": "Diabetes prevention, self-management education, glycemic control, and co-management with hypertension, cancer, and chronic pain."
     },
     {
       "id": "primary_hypertension_cardiovascular_prevention",
@@ -142,7 +150,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 4.613045,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Hypertension & Cardiovascular Prevention",
+      "short_description": "Blood pressure control, cardiovascular risk assessment, and primary prevention strategies across diverse and high-risk populations."
     },
     {
       "id": "primary_heart_failure_care",
@@ -171,7 +181,9 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 7.025979,
-      "activity_count": 24
+      "activity_count": 24,
+      "display_name": "Heart Failure Management & Outcomes",
+      "short_description": "Ambulatory heart failure care including medication management, care transitions, patient education, and readmission reduction."
     },
     {
       "id": "primary_opioid_substance_use_treatment",
@@ -193,7 +205,9 @@
       ],
       "coverage_estimate": 0.028,
       "total_weight": 3.809795,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "Opioid Use Disorder & Harm Reduction",
+      "short_description": "Buprenorphine treatment, stigma reduction, and integration of addiction care into general medical practice."
     },
     {
       "id": "primary_hepatitis_infectious_disease_primary_care",
@@ -217,7 +231,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 3.355395,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Hepatitis C, HIV & Infectious Disease",
+      "short_description": "Low-threshold treatment models and care delivery for hepatitis C, HIV, and infectious disease in community settings."
     },
     {
       "id": "primary_cancer_screening_survivorship",
@@ -244,7 +260,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 10.261649,
-      "activity_count": 31
+      "activity_count": 31,
+      "display_name": "Cancer Screening & Survivorship Care",
+      "short_description": "Screening disparities, survivorship coordination, and chronic disease co-management for cancer survivors in primary care."
     },
     {
       "id": "primary_physician_payment_quality_measurement",
@@ -267,7 +285,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.961077,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Physician Payment & Quality Measurement",
+      "short_description": "Value-based payment models, quality measurement systems, and their effects on care quality and physician behavior."
     },
     {
       "id": "primary_social_determinants_disparities",
@@ -290,7 +310,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.54088,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "Social Determinants & Health Disparities",
+      "short_description": "Influence of race, socioeconomic status, and neighborhood conditions on health outcomes and care quality in ambulatory settings."
     },
     {
       "id": "primary_depression_mental_health_primary_care",
@@ -315,7 +337,9 @@
       ],
       "coverage_estimate": 0.035,
       "total_weight": 5.443686,
-      "activity_count": 24
+      "activity_count": 24,
+      "display_name": "Depression & Behavioral Health Integration",
+      "short_description": "Screening, treatment, and integration of mental health services for depression and behavioral health conditions in primary care."
     },
     {
       "id": "primary_obesity_weight_management",
@@ -336,7 +360,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 2.459284,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Obesity & Weight Management Interventions",
+      "short_description": "Pharmacological, behavioral, and telehealth-based obesity interventions and weight loss outcomes in diverse patient populations."
     },
     {
       "id": "primary_nursing_home_post_acute_care",
@@ -356,7 +382,9 @@
       ],
       "coverage_estimate": 0.023,
       "total_weight": 2.233486,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Nursing Home & Post-Acute Care",
+      "short_description": "Quality, continuity, and clinician roles in nursing home and post-acute settings for residents with dementia and chronic conditions."
     },
     {
       "id": "primary_long_covid_pandemic_care",
@@ -379,7 +407,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 4.489927,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Long COVID & Pandemic-Era Care",
+      "short_description": "Outpatient COVID-19 treatment, post-acute sequelae, and pandemic-driven changes in chronic disease management and access."
     },
     {
       "id": "primary_cardiovascular_risk_prediction",
@@ -402,7 +432,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 2.445175,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Cardiovascular Risk Prediction & Screening",
+      "short_description": "Risk models, screening tools, and primary prevention strategies for cardiovascular disease across diverse populations."
     },
     {
       "id": "primary_global_health_lmic_care",
@@ -426,7 +458,9 @@
       ],
       "coverage_estimate": 0.062,
       "total_weight": 7.064765,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Chronic Disease Care in Low-Income Countries",
+      "short_description": "Epidemiology and health system delivery of cardiovascular disease, diabetes, and hypertension in resource-limited settings."
     },
     {
       "id": "primary_smoking_cessation_tobacco",
@@ -441,7 +475,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.10702,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Smoking Cessation & Tobacco Interventions",
+      "short_description": "Cessation interventions, prescribing patterns, and tobacco treatment programs across clinical and community settings."
     },
     {
       "id": "primary_pain_management_chronic",
@@ -458,7 +494,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 3.118023,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Chronic Pain Assessment & Management",
+      "short_description": "Assessment tools, patient beliefs, and treatment strategies for chronic and neuropathic pain in diverse ambulatory populations."
     },
     {
       "id": "primary_medication_adherence_deprescribing",
@@ -475,7 +513,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 4.278731,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Medication Adherence & Deprescribing",
+      "short_description": "Nonadherence barriers, polypharmacy management, and healthcare utilization consequences of medication-related issues."
     },
     {
       "id": "primary_high_cost_preventable_utilization",
@@ -490,7 +530,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.104615,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "High-Cost Patients & Preventable Utilization",
+      "short_description": "Identifying high-cost Medicare patients and reducing unnecessary spending through risk stratification and patient taxonomy."
     },
     {
       "id": "primary_genetic_hereditary_cancer_risk",
@@ -505,7 +547,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.189816,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Hereditary Cancer Risk & Genetic Testing",
+      "short_description": "Cascade genetic testing, Lynch syndrome identification, and digital tools for hereditary cancer risk assessment."
     },
     {
       "id": "primary_patient_trust_clinician_relationship",
@@ -519,7 +563,9 @@
       ],
       "coverage_estimate": 0.018,
       "total_weight": 1.175068,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Patient Trust & Clinician Communication",
+      "short_description": "Determinants of patient trust, compassion, and organizational factors shaping therapeutic clinician-patient relationships."
     },
     {
       "id": "primary_medical_education_residency_training",
@@ -536,7 +582,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 1.420437,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Medical Education & Residency Training",
+      "short_description": "Graduate medical education, curriculum gaps, competency development, and career preferences among clinical trainees."
     },
     {
       "id": "primary_care_transitions_discharge_planning",
@@ -553,7 +601,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 0.953448,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Hospital-to-Home Transitions & Readmission",
+      "short_description": "Discharge planning interventions, medication barriers, navigator programs, and strategies to reduce preventable hospital readmissions."
     },
     {
       "id": "primary_palliative_care_older_adults",
@@ -568,7 +618,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.045509,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Palliative Care & Advance Care Planning",
+      "short_description": "Palliative care delivery, unmet needs, and advance care planning for older adults and those with cognitive impairment."
     },
     {
       "id": "primary_vaccine_hesitancy_uptake",
@@ -583,7 +635,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.113309,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Vaccine Hesitancy & Uptake Strategies",
+      "short_description": "Factors influencing vaccine acceptance, physician communication strategies, and community outreach to improve vaccination rates."
     },
     {
       "id": "primary_liver_disease_nafld_alcohol",
@@ -599,7 +653,9 @@
       ],
       "coverage_estimate": 0.027,
       "total_weight": 1.493235,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Fatty Liver Disease & Cirrhosis Management",
+      "short_description": "Risk stratification and management of NAFLD, metabolic steatohepatitis, alcohol-related liver disease, and cirrhosis."
     },
     {
       "id": "primary_community_health_workers_lay_health",
@@ -614,7 +670,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 1.33264,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Community Health Worker Programs",
+      "short_description": "Lay health worker interventions for diabetes, hypertension, and chronic disease management in underserved populations."
     },
     {
       "id": "primary_elder_abuse_mistreatment",
@@ -627,7 +685,9 @@
       ],
       "coverage_estimate": 0.013,
       "total_weight": 3.217208,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Elder Abuse & Mistreatment Screening",
+      "short_description": "Healthcare-based screening for elder abuse, caregiver neglect, and utilization patterns among mistreatment victims."
     }
   ],
   "uncovered_pmids": [

@@ -4,8 +4,8 @@
   "subtopics": [
     {
       "id": "neurodegenerative_amyloid_tau_pathology",
-      "label": "Amyloid-\u03b2 and Tau Pathology in Alzheimer's Disease",
-      "description": "Research investigating the molecular mechanisms of amyloid-\u03b2 production, aggregation, and clearance, tau phosphorylation, post-translational modifications, fibril formation, and the interplay between amyloid and tau pathologies in Alzheimer's disease and related tauopathies.",
+      "label": "Amyloid-β and Tau Pathology in Alzheimer's Disease",
+      "description": "Research investigating the molecular mechanisms of amyloid-β production, aggregation, and clearance, tau phosphorylation, post-translational modifications, fibril formation, and the interplay between amyloid and tau pathologies in Alzheimer's disease and related tauopathies.",
       "seed_pmids": [
         32341125,
         35258946,
@@ -31,12 +31,14 @@
         32787143,
         32738978
       ],
-      "coverage_estimate": 0.092
+      "coverage_estimate": 0.092,
+      "display_name": "Amyloid-β & Tau Pathology",
+      "short_description": "Molecular mechanisms of amyloid-β aggregation, tau phosphorylation, and their interplay in Alzheimer's disease and tauopathies."
     },
     {
       "id": "neurodegenerative_neuroinflammation_microglia",
       "label": "Neuroinflammation and Microglial Biology in Neurodegeneration",
-      "description": "Studies examining microglial activation, TREM2 signaling, NF-\u03baB pathways, progranulin deficiency, cannabinoid receptor modulation, and neuroinflammatory mechanisms including cGAS-STING and cytokine signaling in Alzheimer's disease, Parkinson's disease, and ALS.",
+      "description": "Studies examining microglial activation, TREM2 signaling, NF-κB pathways, progranulin deficiency, cannabinoid receptor modulation, and neuroinflammatory mechanisms including cGAS-STING and cytokine signaling in Alzheimer's disease, Parkinson's disease, and ALS.",
       "seed_pmids": [
         32552741,
         32944144,
@@ -59,7 +61,9 @@
         40750059,
         38106879
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Neuroinflammation & Microglial Biology",
+      "short_description": "Microglial activation, TREM2 signaling, and neuroinflammatory pathways in Alzheimer's, Parkinson's, and ALS."
     },
     {
       "id": "neurodegenerative_alpha_synuclein_lrrk2_pd",
@@ -83,7 +87,9 @@
         34535682,
         37883224
       ],
-      "coverage_estimate": 0.064
+      "coverage_estimate": 0.064,
+      "display_name": "Alpha-Synuclein & LRRK2 Mechanisms",
+      "short_description": "Alpha-synuclein aggregation, vesicle trafficking, and LRRK2 kinase biology relevant to Parkinson's disease therapeutics."
     },
     {
       "id": "neurodegenerative_bbb_neurovascular",
@@ -105,12 +111,14 @@
         33071729,
         40462860
       ],
-      "coverage_estimate": 0.056
+      "coverage_estimate": 0.056,
+      "display_name": "Blood-Brain Barrier & Neurovascular Dysfunction",
+      "short_description": "BBB permeability, neurovascular coupling, and endothelial dysfunction in aging and neurodegenerative diseases."
     },
     {
       "id": "neurodegenerative_glymphatic_csf_clearance",
       "label": "Glymphatic System, CSF Clearance, and Brain Fluid Dynamics",
-      "description": "Research on glymphatic clearance pathways, perivascular space dynamics, CSF flow, interstitial fluid transport, and their associations with amyloid-\u03b2 deposition, tau accumulation, and neurodegeneration measured via DTI-ALPS, MRI, and PET imaging.",
+      "description": "Research on glymphatic clearance pathways, perivascular space dynamics, CSF flow, interstitial fluid transport, and their associations with amyloid-β deposition, tau accumulation, and neurodegeneration measured via DTI-ALPS, MRI, and PET imaging.",
       "seed_pmids": [
         38405348,
         37907155,
@@ -123,7 +131,9 @@
         36871361,
         39947683
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Glymphatic System & Brain Fluid Clearance",
+      "short_description": "Perivascular clearance pathways, CSF flow dynamics, and their links to amyloid and tau accumulation."
     },
     {
       "id": "neurodegenerative_neuroimaging_biomarkers",
@@ -149,7 +159,9 @@
         35292734,
         40780879
       ],
-      "coverage_estimate": 0.072
+      "coverage_estimate": 0.072,
+      "display_name": "Quantitative MRI & PET Biomarkers",
+      "short_description": "Advanced neuroimaging techniques including amyloid/tau PET and quantitative MRI for diagnosing and monitoring neurodegeneration."
     },
     {
       "id": "neurodegenerative_corneal_confocal_ms",
@@ -169,7 +181,9 @@
         38107503,
         34601310
       ],
-      "coverage_estimate": 0.048
+      "coverage_estimate": 0.048,
+      "display_name": "Corneal Confocal Microscopy Biomarkers",
+      "short_description": "Corneal nerve loss as a peripheral biomarker of central neurodegeneration in MS, dementia, and Parkinson's disease."
     },
     {
       "id": "neurodegenerative_gene_therapy_cln2",
@@ -186,7 +200,9 @@
         34313725,
         32146219
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "AAV Gene Therapy for Neurological Disease",
+      "short_description": "AAV-mediated gene therapy for Batten disease, leukodystrophy, Friedreich's ataxia, and Alzheimer's disease."
     },
     {
       "id": "neurodegenerative_drug_repurposing_computational",
@@ -204,7 +220,9 @@
         38827071,
         34535682
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Computational Drug Repurposing & Knowledge Graphs",
+      "short_description": "Machine learning and knowledge graph frameworks to identify repurposed drug candidates for Alzheimer's, Parkinson's, and ALS."
     },
     {
       "id": "neurodegenerative_alzheimer_metabolism_bioenergetics",
@@ -222,7 +240,9 @@
         33074237,
         34166841
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Metabolic Dysregulation & Bioenergetics",
+      "short_description": "Lipid dysregulation, mitochondrial metabolism, and dietary interventions in Alzheimer's disease and mild cognitive impairment."
     },
     {
       "id": "neurodegenerative_parkinsons_dysphagia_clinical",
@@ -243,7 +263,9 @@
         37594791,
         37680305
       ],
-      "coverage_estimate": 0.052
+      "coverage_estimate": 0.052,
+      "display_name": "Parkinson's Clinical Management & DBS",
+      "short_description": "Clinical management of dysphagia, sleep disturbances, and deep brain stimulation programming in Parkinson's disease."
     },
     {
       "id": "neurodegenerative_als_tdp43_ftd",
@@ -258,7 +280,9 @@
         40753073,
         40596721
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "ALS, TDP-43 & Frontotemporal Dementia",
+      "short_description": "Molecular mechanisms of TDP-43 dysregulation, SOD1 toxicity, and splicing defects in ALS and frontotemporal dementia."
     },
     {
       "id": "neurodegenerative_alzheimer_subtyping_ml",
@@ -276,7 +300,9 @@
         40185767,
         38982243
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "ML-Based Disease Subtyping & Progression",
+      "short_description": "Machine learning and clustering approaches to identify subphenotypes and model cognitive decline trajectories in dementia."
     },
     {
       "id": "neurodegenerative_dementia_caregiving_palliative",
@@ -296,12 +322,14 @@
         39046736,
         38685877
       ],
-      "coverage_estimate": 0.048
+      "coverage_estimate": 0.048,
+      "display_name": "Dementia Caregiving & Palliative Care",
+      "short_description": "Caregiver burden, psychosocial interventions, and palliative care needs for individuals living with dementia."
     },
     {
       "id": "neurodegenerative_liver_fibrosis_vascular_risk",
       "label": "Systemic and Vascular Risk Factors for Cognitive Decline and Dementia",
-      "description": "Epidemiological and clinical studies examining associations between systemic conditions\u2014including liver fibrosis, cardiovascular disease, hypertension, intracranial hemorrhage, and metabolic syndrome\u2014and the risk or progression of dementia and cognitive decline.",
+      "description": "Epidemiological and clinical studies examining associations between systemic conditions—including liver fibrosis, cardiovascular disease, hypertension, intracranial hemorrhage, and metabolic syndrome—and the risk or progression of dementia and cognitive decline.",
       "seed_pmids": [
         35666174,
         37976909,
@@ -314,7 +342,9 @@
         39206730,
         36158536
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Systemic & Vascular Risk Factors for Dementia",
+      "short_description": "Associations between cardiovascular disease, metabolic syndrome, and liver fibrosis with dementia risk and cognitive decline."
     },
     {
       "id": "neurodegenerative_hiv_neurocognitive",
@@ -327,7 +357,9 @@
         35471420,
         37845134
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "HIV-Associated Neurocognitive Impairment",
+      "short_description": "Cognitive dysfunction, neuroinflammation, and brain pathology linked to HIV infection in treated older adults."
     },
     {
       "id": "neurodegenerative_cognitive_training_mci",
@@ -340,7 +372,9 @@
         40500103,
         40515617
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Cognitive Training in Mild Cognitive Impairment",
+      "short_description": "Computerized cognitive and functional skills training programs for older adults with mild cognitive impairment."
     },
     {
       "id": "neurodegenerative_mitochondrial_complex_disease",
@@ -352,7 +386,9 @@
         34972656,
         37691621
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Mitochondrial Complex I & Disease Mechanisms",
+      "short_description": "Mitochondrial complex I function, multi-omic analyses, and cardiac mitochondrial stress in frataxin deficiency models."
     },
     {
       "id": "neurodegenerative_niemann_pick_npc",
@@ -363,18 +399,22 @@
         40516874,
         36635085
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Niemann-Pick Type C: Cholesterol & Therapeutics",
+      "short_description": "HSP90 inhibitors, pharmacological chaperones, and cholesterol storage mechanisms in Niemann-Pick type C1 disease."
     },
     {
       "id": "neurodegenerative_choroid_plexus_neurodegeneration",
       "label": "Choroid Plexus Pathology and Calcification in Neurodegeneration",
-      "description": "Research examining choroid plexus volume, calcification, and their associations with cortical microglial activation, APOE \u03b54 status, and neurodegeneration biomarkers using multimodal PET, CT, and MRI approaches.",
+      "description": "Research examining choroid plexus volume, calcification, and their associations with cortical microglial activation, APOE ε4 status, and neurodegeneration biomarkers using multimodal PET, CT, and MRI approaches.",
       "seed_pmids": [
         37321857,
         40229453,
         40771196
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Choroid Plexus Pathology & Calcification",
+      "short_description": "Choroid plexus volume and calcification linked to microglial activation and neurodegeneration biomarkers via multimodal imaging."
     },
     {
       "id": "neurodegenerative_depression_cognitive_decline",
@@ -385,7 +425,9 @@
         33495545,
         31910916
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Depression, Brain Aging & Cognitive Decline",
+      "short_description": "Depressive symptoms, accelerated brain aging, and therapeutic interventions for comorbid depression and cognitive impairment."
     },
     {
       "id": "neurodegenerative_covid_neurological",
@@ -396,7 +438,9 @@
         34541022,
         39419469
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "COVID-19 Neurological Complications",
+      "short_description": "SARS-CoV-2 effects on dopaminergic neurons, Parkinson's disease outcomes, and implications for neurodegeneration progression."
     },
     {
       "id": "neurodegenerative_peripheral_immune_ad",
@@ -407,12 +451,14 @@
         34058741,
         36565112
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Peripheral Immune Dysregulation & Neurodegeneration",
+      "short_description": "Peripheral immune imbalances and systemic inflammation linked to amyloid deposition and cognitive decline in dementia."
     },
     {
       "id": "neurodegenerative_ad_molecular_targets",
       "label": "Novel Molecular Targets and Small Molecule Therapeutics for Alzheimer's Disease",
-      "description": "Research identifying and validating novel molecular targets for Alzheimer's disease treatment, including CK1\u03b32 activation to reduce amyloid, adenosine deficiency driving synaptic hyperexcitability, transposable element dysregulation, and sex-specific demyelination via Tlr7.",
+      "description": "Research identifying and validating novel molecular targets for Alzheimer's disease treatment, including CK1γ2 activation to reduce amyloid, adenosine deficiency driving synaptic hyperexcitability, transposable element dysregulation, and sex-specific demyelination via Tlr7.",
       "seed_pmids": [
         38079390,
         39850358,
@@ -420,7 +466,9 @@
         39607927,
         33833255
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Novel Molecular Targets for Alzheimer's Therapy",
+      "short_description": "Identification of therapeutic targets including CK1δ/γ, adenosine pathways, and transposable element dysregulation in Alzheimer's disease."
     },
     {
       "id": "neurodegenerative_pd_metabolism_synaptic",
@@ -431,7 +479,9 @@
         35417693,
         32042150
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Metabolic & Synaptic Biology in Parkinson's",
+      "short_description": "Neuronal ATP production, synuclein modulation, and synaptic protein aggregation mechanisms in Parkinson's disease."
     },
     {
       "id": "neurodegenerative_brain_mri_methods",
@@ -444,7 +494,9 @@
         39977323,
         33882336
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Advanced MRI Methods for Brain Characterization",
+      "short_description": "Quantitative susceptibility mapping, myelin volume fraction imaging, and longitudinal MRI analysis techniques for brain research."
     },
     {
       "id": "neurodegenerative_single_cell_genomics_brain",
@@ -455,7 +507,9 @@
         40696189,
         40128288
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Single-Cell & Multi-Omic Brain Genomics",
+      "short_description": "High-resolution single-cell transcriptomics and chromatin profiling across brain cell types in aging and neurological disease."
     },
     {
       "id": "neurodegenerative_tbi_tau_neurodegeneration",
@@ -466,7 +520,9 @@
         36876118,
         38310514
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Traumatic Brain Injury, Tau & CTE",
+      "short_description": "TBI consequences including altered fluid clearance, tau pathology, and neuroinflammatory mechanisms linked to CTE development."
     },
     {
       "id": "neurodegenerative_aging_computational_transcriptomics",
@@ -477,7 +533,9 @@
         39525051,
         34548772
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Transcriptomic Aging Signatures & Compound Discovery",
+      "short_description": "Computational frameworks using transcriptional age signatures to identify age-modulating compounds and analyze neuroimaging cohorts."
     }
   ],
   "uncovered_pmids": [

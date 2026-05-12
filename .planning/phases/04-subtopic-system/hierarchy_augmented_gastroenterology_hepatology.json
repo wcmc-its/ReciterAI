@@ -46,7 +46,9 @@
       ],
       "coverage_estimate": 0.077,
       "total_weight": 14.289947,
-      "activity_count": 35
+      "activity_count": 35,
+      "display_name": "Viral Hepatitis Treatment & Elimination",
+      "short_description": "Epidemiology, direct-acting antiviral treatment, and elimination strategies for hepatitis B, C, and D across diverse populations."
     },
     {
       "id": "gastroenterology_cirrhosis_liver_disease_management",
@@ -86,7 +88,9 @@
       ],
       "coverage_estimate": 0.064,
       "total_weight": 22.684278,
-      "activity_count": 23
+      "activity_count": 23,
+      "display_name": "Cirrhosis & End-Stage Liver Disease",
+      "short_description": "Clinical management and outcomes of cirrhosis complications including encephalopathy, portal hypertension, and kidney dysfunction."
     },
     {
       "id": "gastroenterology_liver_transplantation",
@@ -112,7 +116,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 7.847516,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "Liver Transplantation Access & Outcomes",
+      "short_description": "Waitlist equity, living donor practices, post-transplant outcomes, and racial and socioeconomic disparities in liver transplantation."
     },
     {
       "id": "gastroenterology_nafld_metabolic_liver",
@@ -143,7 +149,9 @@
       ],
       "coverage_estimate": 0.045,
       "total_weight": 21.519258,
-      "activity_count": 25
+      "activity_count": 25,
+      "display_name": "Fatty Liver Disease & Steatohepatitis",
+      "short_description": "Pathogenesis, fibrosis assessment, imaging biomarkers, and therapeutic interventions for NAFLD/MASLD and metabolic steatohepatitis."
     },
     {
       "id": "gastroenterology_inflammatory_bowel_disease",
@@ -180,7 +188,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 19.868413,
-      "activity_count": 27
+      "activity_count": 27,
+      "display_name": "Inflammatory Bowel Disease Management",
+      "short_description": "Medical and surgical therapies for Crohn's disease and ulcerative colitis, including biologics, small molecules, and comparative effectiveness."
     },
     {
       "id": "gastroenterology_gut_microbiome_immunity",
@@ -224,7 +234,9 @@
       ],
       "coverage_estimate": 0.073,
       "total_weight": 33.364521,
-      "activity_count": 30
+      "activity_count": 30,
+      "display_name": "Gut Microbiome & Mucosal Immunity",
+      "short_description": "Host-microbiota interactions governing immune tolerance, inflammation, and metabolic homeostasis in the gut."
     },
     {
       "id": "gastroenterology_pancreatic_cancer_biology",
@@ -261,7 +273,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 24.230457,
-      "activity_count": 33
+      "activity_count": 33,
+      "display_name": "PDAC Molecular Biology & Therapeutics",
+      "short_description": "Molecular mechanisms, tumor microenvironment, and targeted therapies in ductal adenocarcinoma and neuroendocrine tumors."
     },
     {
       "id": "gastroenterology_colorectal_cancer_screening",
@@ -300,7 +314,9 @@
       ],
       "coverage_estimate": 0.062,
       "total_weight": 14.679745,
-      "activity_count": 31
+      "activity_count": 31,
+      "display_name": "Colorectal Cancer Screening & Molecular Biology",
+      "short_description": "Screening disparities, molecular pathogenesis, surgical management, and health equity in colorectal cancer care."
     },
     {
       "id": "gastroenterology_endoscopy_interventional",
@@ -330,7 +346,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 8.864959,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Interventional Endoscopy & Biliary Procedures",
+      "short_description": "Diagnostic and therapeutic endoscopy including EUS, ERCP, endoscopic resection, and biliary interventions for GI and pancreatic conditions."
     },
     {
       "id": "gastroenterology_gerd_esophageal_motility",
@@ -361,7 +379,9 @@
       ],
       "coverage_estimate": 0.045,
       "total_weight": 19.362345,
-      "activity_count": 24
+      "activity_count": 24,
+      "display_name": "GERD, Esophageal Motility & Anti-Reflux Surgery",
+      "short_description": "Physiologic assessment and surgical or endoscopic management of gastroesophageal reflux and esophageal motility disorders."
     },
     {
       "id": "gastroenterology_obesity_bariatric_endoscopic",
@@ -385,7 +405,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 17.385873,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Bariatric Surgery & Endoscopic Obesity Treatment",
+      "short_description": "Surgical and endoscopic interventions for obesity including sleeve gastroplasty, gastric bypass, and metabolic outcomes."
     },
     {
       "id": "gastroenterology_hepatocellular_cholangiocarcinoma",
@@ -412,7 +434,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 11.697097,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "Hepatocellular Carcinoma & Biliary Tract Cancers",
+      "short_description": "Molecular pathogenesis, imaging diagnosis, locoregional therapies, and disparities in HCC and biliary tract malignancies."
     },
     {
       "id": "gastroenterology_pancreatitis_pancreatic_cysts",
@@ -435,7 +459,9 @@
       ],
       "coverage_estimate": 0.028,
       "total_weight": 2.82231,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Pancreatitis, Pancreatic Cysts & Biliary Disease",
+      "short_description": "Diagnosis and management of acute and chronic pancreatitis, pancreatic cystic lesions, and biliary tract disease."
     },
     {
       "id": "gastroenterology_gastric_esophageal_cancer",
@@ -460,7 +486,9 @@
       ],
       "coverage_estimate": 0.032,
       "total_weight": 4.234551,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Gastric & Esophageal Cancer Molecular Targets",
+      "short_description": "Biomarkers, targeted therapies, and clinical trial outcomes for gastric, GEJ, and esophageal adenocarcinoma."
     },
     {
       "id": "gastroenterology_celiac_eosinophilic_functional",
@@ -487,7 +515,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 4.867195,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Celiac Disease, Eosinophilic Esophagitis & IBS",
+      "short_description": "Epidemiology, diagnosis, and management of celiac disease, eosinophilic esophagitis, and functional gastrointestinal disorders."
     },
     {
       "id": "gastroenterology_colorectal_surgical_outcomes",
@@ -506,7 +536,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 3.80145,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Colorectal Surgery & Perioperative Outcomes",
+      "short_description": "Colectomy outcomes, ERAS protocols, minimally invasive techniques, and sociodemographic disparities in colorectal surgical care."
     },
     {
       "id": "gastroenterology_small_bowel_obstruction_appendicitis",
@@ -524,7 +556,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 2.953176,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Acute Abdominal Emergencies & Surgical Management",
+      "short_description": "Management, outcomes, and complications of small bowel obstruction, acute appendicitis, and related abdominal surgical emergencies."
     },
     {
       "id": "gastroenterology_covid19_gi_manifestations",
@@ -543,7 +577,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 10.438094,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "COVID-19 GI & Hepatic Manifestations",
+      "short_description": "Gastrointestinal and hepatic effects of SARS-CoV-2 infection, including organoid models and pandemic impacts on GI care delivery."
     },
     {
       "id": "gastroenterology_liver_in_pregnancy",
@@ -559,7 +595,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 3.127281,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Hepatic Conditions in Pregnancy",
+      "short_description": "Intrahepatic cholestasis, drug-induced liver injury, NAFLD, and hepatitis B management in pregnant women."
     },
     {
       "id": "gastroenterology_hepatocyte_models_gene_therapy",
@@ -575,7 +613,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 4.468739,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Hepatocyte Models & AAV Gene Therapy",
+      "short_description": "Primary hepatocyte culture systems, AAV vector gene delivery, and liver repopulation models for disease research and therapy."
     },
     {
       "id": "gastroenterology_gut_microbiome_transplant_infection",
@@ -592,7 +632,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 6.273764,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Microbiome Dysbiosis in Transplant Recipients",
+      "short_description": "Gut microbiota composition, dysbiosis, and infectious complications in hematopoietic and solid organ transplant recipients."
     },
     {
       "id": "gastroenterology_intestinal_stem_cells_epithelial_biology",
@@ -608,7 +650,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.718341,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Intestinal Stem Cells & Epithelial Homeostasis",
+      "short_description": "Stem cell biology, epithelial lineage specification, and molecular pathways regulating intestinal mucosal regeneration."
     },
     {
       "id": "gastroenterology_innate_lymphoid_cells_mucosal_immunity",
@@ -623,7 +667,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 17.812299,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Innate Lymphoid Cells & Intestinal Inflammation",
+      "short_description": "ILC2 and ILC3 roles in intestinal inflammation, dietary fiber effects on ILC responses, and mucosal immune regulation."
     },
     {
       "id": "gastroenterology_schistosomiasis_parasitic_gi",
@@ -637,7 +683,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 1.44869,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Parasitic GI Infections & Immune Modulation",
+      "short_description": "Gastrointestinal and immunological effects of schistosome and other parasitic infections, including microbiome disruption."
     },
     {
       "id": "gastroenterology_gut_microbiome_metabolic_neurological",
@@ -654,7 +702,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 6.334045,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Microbiome Links to Metabolic & Neurological Disease",
+      "short_description": "Gut microbiota composition and function linked to metabolic disorders, ischemic stroke risk, and gut-brain axis interactions."
     },
     {
       "id": "gastroenterology_neonatal_pediatric_gi",
@@ -671,7 +721,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 1.766947,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Neonatal & Pediatric GI Disorders",
+      "short_description": "Clinical and translational research on necrotizing enterocolitis, Hirschsprung disease, and other GI conditions in neonates and children."
     },
     {
       "id": "gastroenterology_advanced_endoscopy_novel_devices",
@@ -687,7 +739,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 1.694474,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Advanced Endoscopic Resection & Novel Devices",
+      "short_description": "Novel endoscopic platforms and techniques for submucosal dissection and full-thickness resection of gastrointestinal lesions."
     },
     {
       "id": "gastroenterology_cancer_immunotherapy_microenvironment",
@@ -705,7 +759,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 3.531707,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "GI Cancer Immunotherapy & Tumor Microenvironment",
+      "short_description": "Immune checkpoint blockade, tumor microenvironment modulation, and antibody-drug conjugates for GI and related cancers."
     },
     {
       "id": "gastroenterology_hepatic_metabolic_lipid",
@@ -721,7 +777,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.360846,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Hepatic Lipid Metabolism & Steatosis",
+      "short_description": "De novo lipogenesis, fatty acid trafficking, and metabolic dysfunction pathways underlying obesity-related liver disease."
     },
     {
       "id": "gastroenterology_fmt_ibd_microbiome_therapy",
@@ -737,7 +795,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.736752,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Fecal Transplantation & Microbiome-Targeted Therapies",
+      "short_description": "Therapeutic gut microbiome manipulation via fecal transplantation, synbiotics, and microbiome-guided interventions for IBD and IBS."
     }
   ],
   "uncovered_pmids": [

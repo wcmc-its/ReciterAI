@@ -29,7 +29,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 18.568635,
-      "activity_count": 29
+      "activity_count": 29,
+      "display_name": "NICU Management & Preterm Care",
+      "short_description": "Clinical management of neonates in the NICU, including preterm care, resuscitation, respiratory support, and quality improvement."
     },
     {
       "id": "pediatrics_picu_critical_care",
@@ -58,7 +60,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 14.833227,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "PICU Critical Illness Management",
+      "short_description": "Management of critically ill children, including sedation, delirium, early warning scores, and respiratory failure in the PICU."
     },
     {
       "id": "pediatrics_transfusion_hematology",
@@ -87,7 +91,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 7.389516,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Transfusion Medicine & Hemostasis",
+      "short_description": "Blood product use, anticoagulation, and hemostatic management in critically ill children including those on ECMO or undergoing cardiac surgery."
     },
     {
       "id": "pediatrics_epilepsy_neurology",
@@ -116,7 +122,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 7.75853,
-      "activity_count": 23
+      "activity_count": 23,
+      "display_name": "Epilepsy & Neurological Disorders",
+      "short_description": "Infantile spasms, status epilepticus, rare epilepsy syndromes, EEG diagnostics, and conditions such as Sturge-Weber syndrome and NMDA receptor encephalitis."
     },
     {
       "id": "pediatrics_brain_tumors_neurosurgery",
@@ -142,7 +150,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 7.091809,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Brain Tumors & Neurosurgical Interventions",
+      "short_description": "CNS tumors including DIPG, medulloblastoma, and low-grade gliomas, with focus on molecular diagnostics and novel therapeutic strategies."
     },
     {
       "id": "pediatrics_neurodevelopment_autism",
@@ -164,7 +174,9 @@
       ],
       "coverage_estimate": 0.025,
       "total_weight": 6.515876,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "Autism Spectrum & Neurodevelopmental Disorders",
+      "short_description": "Behavioral interventions, neurobiological mechanisms, and caregiver strategies for ASD, ADHD, and related neurodevelopmental conditions."
     },
     {
       "id": "pediatrics_adolescent_mental_health",
@@ -193,7 +205,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 7.676112,
-      "activity_count": 23
+      "activity_count": 23,
+      "display_name": "Adolescent Mental Health & Substance Use",
+      "short_description": "Depression, anxiety, suicidal ideation, eating disorders, and substance use in adolescents, including social media and COVID-19 impacts."
     },
     {
       "id": "pediatrics_covid_infectious_disease",
@@ -219,7 +233,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 17.455286,
-      "activity_count": 27
+      "activity_count": 27,
+      "display_name": "COVID-19 & Infectious Disease",
+      "short_description": "SARS-CoV-2 severity, MIS-C, vaccination, and management of RSV, pneumonia, and sepsis in children and adolescents."
     },
     {
       "id": "pediatrics_congenital_heart_disease",
@@ -239,7 +255,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 1.786056,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Congenital Heart Disease & Cardiology",
+      "short_description": "Management of structural heart defects including tetralogy of Fallot and Fontan surgery, cardiac outcomes, and perioperative care."
     },
     {
       "id": "pediatrics_kidney_disease_growth",
@@ -257,7 +275,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 3.274473,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Chronic Kidney Disease & Growth",
+      "short_description": "Growth impairment, mineral bone disorder, anemia, and pubertal development in children with chronic kidney disease."
     },
     {
       "id": "pediatrics_perinatal_maternal_outcomes",
@@ -283,7 +303,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 4.492996,
-      "activity_count": 22
+      "activity_count": 22,
+      "display_name": "Perinatal & Maternal-Neonatal Outcomes",
+      "short_description": "Pregnancy complications, labor management, and neonatal outcomes including hypertensive disorders and prenatal substance use."
     },
     {
       "id": "pediatrics_hiv_vertical_transmission",
@@ -307,7 +329,9 @@
       ],
       "coverage_estimate": 0.029,
       "total_weight": 8.188674,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "HIV Vertical Transmission & Immunization",
+      "short_description": "Mother-to-child HIV transmission, broadly neutralizing antibodies, vaccine development, and ART adherence in adolescents."
     },
     {
       "id": "pediatrics_congenital_cmv_vaccines",
@@ -329,7 +353,9 @@
       ],
       "coverage_estimate": 0.025,
       "total_weight": 3.718029,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Congenital CMV & Perinatal Vaccine Immunology",
+      "short_description": "Cytomegalovirus transmission, maternal immune correlates, placental antibody transfer, and vaccine strategies for perinatal pathogens."
     },
     {
       "id": "pediatrics_obesity_diabetes_metabolic",
@@ -353,7 +379,9 @@
       ],
       "coverage_estimate": 0.029,
       "total_weight": 6.461017,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Obesity, Diabetes & Metabolic Health",
+      "short_description": "Obesity, type 2 diabetes, and metabolic syndrome in children, including bariatric outcomes, dysglycemia screening, and dietary patterns."
     },
     {
       "id": "pediatrics_telemedicine_education_training",
@@ -379,7 +407,9 @@
       ],
       "coverage_estimate": 0.033,
       "total_weight": 11.143825,
-      "activity_count": 27
+      "activity_count": 27,
+      "display_name": "Telemedicine, Education & Workforce",
+      "short_description": "Telemedicine in pediatric care, simulation-based training for residents and fellows, and provider burnout and well-being."
     },
     {
       "id": "pediatrics_childhood_cancer_survivorship",
@@ -399,7 +429,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 1.684721,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Childhood Cancer Survivorship & Late Effects",
+      "short_description": "Long-term health outcomes, cardiotoxicity, hearing loss, quality of life, and survivorship programs for childhood cancer survivors."
     },
     {
       "id": "pediatrics_cln2_batten_gene_therapy",
@@ -415,7 +447,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 8.117815,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Batten Disease & CNS Gene Therapy",
+      "short_description": "CLN2 Batten disease, retinal degeneration, and AAV-based intracranial gene therapy safety, biodistribution, and long-term outcomes."
     },
     {
       "id": "pediatrics_pediatric_tbi_rehabilitation",
@@ -434,7 +468,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 7.285019,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Traumatic Brain Injury & Neurorehabilitation",
+      "short_description": "Cognitive and motor recovery, imaging predictors, assistive technology, and rehabilitation outcomes following pediatric brain injury."
     },
     {
       "id": "pediatrics_adolescent_sexual_reproductive_health",
@@ -453,7 +489,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 2.354355,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Adolescent Sexual & Reproductive Health",
+      "short_description": "Reproductive health education and counseling for adolescents, including HPV vaccination, pelvic exam practices, and privacy considerations."
     },
     {
       "id": "pediatrics_child_maltreatment_foster_care",
@@ -469,7 +507,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 2.030485,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Child Maltreatment, Foster Care & Family Violence",
+      "short_description": "Child abuse, neglect, and foster care outcomes, including impacts of Medicaid expansion, parental opioid use disorder, and child welfare policy."
     },
     {
       "id": "pediatrics_pediatric_gi_ibd",
@@ -488,7 +528,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 4.751937,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Gastrointestinal Disease & Inflammatory Bowel Disease",
+      "short_description": "IBD, eosinophilic esophagitis, celiac disease, and rare GI conditions in children, including VTE complications and synbiotic interventions."
     },
     {
       "id": "pediatrics_pediatric_oncology_hematology",
@@ -507,7 +549,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 6.163352,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Oncology & Hematologic Malignancies",
+      "short_description": "AML, lymphoma, neuroblastoma, and sarcomas in children, covering cytogenetics, treatment outcomes, and hematopoietic cell transplant."
     },
     {
       "id": "pediatrics_chiari_craniosynostosis_neurosurgery",
@@ -525,7 +569,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 4.073769,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Chiari Malformation & Craniosynostosis Surgery",
+      "short_description": "Chiari malformation classification, revision surgery, craniosynostosis repair outcomes, and related neurosurgical procedures in children."
     },
     {
       "id": "pediatrics_neonatal_brain_imaging",
@@ -542,7 +588,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 4.878023,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Fetal & Neonatal Brain Imaging",
+      "short_description": "Advanced MRI techniques for fetal and neonatal brain imaging, including diffusion atlases, cerebral blood flow, and preterm neurodevelopment."
     },
     {
       "id": "pediatrics_pediatric_pulmonology_asthma",
@@ -563,7 +611,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 6.085155,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Pulmonology, Asthma & Respiratory Disease",
+      "short_description": "Asthma risk factors, bronchopulmonary dysplasia, croup, obstructive sleep apnea, and aerodigestive evaluation in children."
     },
     {
       "id": "pediatrics_social_determinants_health_equity",
@@ -582,7 +632,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 5.647444,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "Health Equity & Social Determinants",
+      "short_description": "Racial disparities, socioeconomic factors, and care coordination gaps affecting child health outcomes and healthcare utilization."
     },
     {
       "id": "pediatrics_adolescent_substance_use_neurobiology",
@@ -601,7 +653,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 1.740183,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Substance Use Neurobiology & E-Cigarettes",
+      "short_description": "Neurobiological mechanisms of alcohol, cannabis, opioid, and e-cigarette use in adolescents, including policy impacts and behavioral interventions."
     },
     {
       "id": "pediatrics_pediatric_infectious_disease_global",
@@ -617,7 +671,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 3.650277,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Infectious Disease in Global Settings",
+      "short_description": "Tuberculosis, HIV, and febrile illness management in children in low-resource settings, including TB preventive therapy and TB/HIV integration."
     },
     {
       "id": "pediatrics_pregnancy_maternal_infections",
@@ -637,7 +693,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 2.565572,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Maternal Infections & Pregnancy Complications",
+      "short_description": "Hepatitis B, hepatitis C, SARS-CoV-2, and HSV in pregnancy, examining vertical transmission risk, neonatal outcomes, and placental pathology."
     },
     {
       "id": "pediatrics_child_mental_health_psychopathology",
@@ -658,7 +716,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 4.56817,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Child Psychopathology & COVID-19 Impact",
+      "short_description": "Depression, anxiety, psychiatric emergencies, digital media effects, and COVID-19 pandemic impacts on child and adolescent mental health."
     }
   ],
   "uncovered_pmids": [

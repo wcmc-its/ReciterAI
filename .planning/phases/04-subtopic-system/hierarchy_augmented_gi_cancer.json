@@ -32,7 +32,9 @@
       ],
       "coverage_estimate": 0.138,
       "total_weight": 23.869984,
-      "activity_count": 26
+      "activity_count": 26,
+      "display_name": "Pancreatic Cancer Biology & Therapy",
+      "short_description": "Molecular drivers, tumor microenvironment, and therapeutic strategies in pancreatic ductal adenocarcinoma and neuroendocrine tumors."
     },
     {
       "id": "gi_gastric_gastroesophageal_therapy",
@@ -56,7 +58,9 @@
       ],
       "coverage_estimate": 0.088,
       "total_weight": 9.121004,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Gastric & Esophageal Targeted Therapy",
+      "short_description": "Clinical trials and biomarker studies in gastric and gastroesophageal cancers, including HER2, CLDN18.2, and FGFR2-targeted agents."
     },
     {
       "id": "gi_esophageal_cancer_surgery_outcomes",
@@ -71,12 +75,14 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 5.02963,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Esophageal Cancer Surgery & Outcomes",
+      "short_description": "Surgical approaches, neoadjuvant chemoradiation, and survival outcomes in esophageal squamous cell carcinoma and adenocarcinoma."
     },
     {
       "id": "gi_colorectal_cancer_molecular_biology",
       "label": "Colorectal Cancer Molecular Biology and Tumor Microenvironment",
-      "description": "Research on molecular mechanisms driving colorectal cancer initiation and progression, including Wnt/APC signaling, PKC\u03bb/\u03b9, aPKC, SOX17, ILC3 dysregulation, immune evasion, lineage plasticity, and tumor microenvironment characterization.",
+      "description": "Research on molecular mechanisms driving colorectal cancer initiation and progression, including Wnt/APC signaling, PKCλ/ι, aPKC, SOX17, ILC3 dysregulation, immune evasion, lineage plasticity, and tumor microenvironment characterization.",
       "seed_pmids": [
         36457029,
         32546576,
@@ -94,7 +100,9 @@
       ],
       "coverage_estimate": 0.082,
       "total_weight": 12.671782,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Colorectal Cancer Molecular Biology",
+      "short_description": "Wnt signaling, immune evasion, lineage plasticity, and tumor microenvironment characterization in colorectal cancer."
     },
     {
       "id": "gi_colorectal_endoscopic_surgical_management",
@@ -114,12 +122,14 @@
       ],
       "coverage_estimate": 0.063,
       "total_weight": 2.405954,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Endoscopic & Surgical Colorectal Management",
+      "short_description": "Endoscopic resection techniques, robotic colorectal surgery, and perioperative outcomes for colorectal cancer and polyps."
     },
     {
       "id": "gi_hepatocellular_cholangiocarcinoma_biology_treatment",
       "label": "Hepatocellular Carcinoma and Cholangiocarcinoma Biology and Treatment",
-      "description": "Research on molecular pathogenesis, imaging, locoregional therapies (Y-90 radioembolization, TACE), surgical approaches, and biomarkers in hepatocellular carcinoma and intrahepatic cholangiocarcinoma, including PKC\u03bb/\u03b9, STING pathway, and IDH1/2 mutations.",
+      "description": "Research on molecular pathogenesis, imaging, locoregional therapies (Y-90 radioembolization, TACE), surgical approaches, and biomarkers in hepatocellular carcinoma and intrahepatic cholangiocarcinoma, including PKCλ/ι, STING pathway, and IDH1/2 mutations.",
       "seed_pmids": [
         32589943,
         39423823,
@@ -139,7 +149,9 @@
       ],
       "coverage_estimate": 0.094,
       "total_weight": 11.56011,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Liver Cancer Biology & Locoregional Therapy",
+      "short_description": "Molecular pathogenesis, imaging, and locoregional and surgical treatments for hepatocellular carcinoma and cholangiocarcinoma."
     },
     {
       "id": "gi_radioimmunotherapy_targeted_delivery",
@@ -155,7 +167,9 @@
       ],
       "coverage_estimate": 0.038,
       "total_weight": 3.067851,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Radioimmunotherapy & Targeted Drug Delivery",
+      "short_description": "Pretargeted radioimmunotherapy, antibody-drug conjugates, and nanoparticle delivery systems for GI cancers."
     },
     {
       "id": "gi_colorectal_cancer_screening_disparities",
@@ -173,7 +187,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 2.989698,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Screening Disparities & Lynch Syndrome",
+      "short_description": "Colorectal cancer screening uptake, racial and socioeconomic disparities, and Lynch syndrome surveillance and risk assessment."
     },
     {
       "id": "gi_pancreatic_cystic_biliary_pathology",
@@ -190,12 +206,14 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 2.792201,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Pancreatic Cysts & Biliary Neoplasms",
+      "short_description": "Diagnosis and pathology of pancreatic cystic lesions, biliary tract adenocarcinomas, and ampullary neoplasms."
     },
     {
       "id": "gi_tumor_microenvironment_immunotherapy",
       "label": "Tumor Microenvironment, Immunotherapy Resistance, and Immune Modulation in GI Cancers",
-      "description": "Research on immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers, including TGF\u03b2 inhibition, MEK inhibition with GITR costimulation, PKC\u03bb/\u03b9-mediated interferon response, and neutrophil-driven resistance.",
+      "description": "Research on immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers, including TGFβ inhibition, MEK inhibition with GITR costimulation, PKCλ/ι-mediated interferon response, and neutrophil-driven resistance.",
       "seed_pmids": [
         34789823,
         38885362,
@@ -209,7 +227,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 8.078339,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Immunotherapy Resistance & Immune Modulation",
+      "short_description": "Immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers."
     },
     {
       "id": "gi_liquid_biopsy_molecular_diagnostics",
@@ -228,7 +248,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 2.975337,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Liquid Biopsy & Molecular Diagnostics",
+      "short_description": "Circulating tumor DNA detection, next-generation sequencing, and methylation markers for GI cancer diagnosis and monitoring."
     },
     {
       "id": "gi_gastric_colorectal_neuroendocrine_tumors",
@@ -245,7 +267,9 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 3.928177,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Neuroendocrine & Stromal Tumors",
+      "short_description": "Clinical and molecular studies of GI neuroendocrine tumors and stromal tumors, including novel gene fusions and surgical timing."
     },
     {
       "id": "gi_rectal_cancer_treatment_outcomes",
@@ -262,7 +286,9 @@
       ],
       "coverage_estimate": 0.044,
       "total_weight": 6.531413,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Rectal Cancer Treatment & Staging",
+      "short_description": "Neoadjuvant chemoradiation, surgical outcomes, MRI-based response assessment, and care fragmentation in rectal cancer."
     },
     {
       "id": "gi_cancer_preclinical_models_epigenetics",
@@ -281,7 +307,9 @@
       ],
       "coverage_estimate": 0.057,
       "total_weight": 3.318294,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Preclinical Models & Epigenetic Mechanisms",
+      "short_description": "Mouse, organoid, and xenograft models and epigenetic studies of GI cancer initiation, chromatin remodeling, and lineage plasticity."
     },
     {
       "id": "gi_extracellular_vesicles_metastasis",
@@ -295,7 +323,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 8.734295,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Extracellular Vesicles & Metastatic Progression",
+      "short_description": "Tumor-derived extracellular vesicles driving metastasis, cancer-associated thrombosis, and antitumor immune priming."
     },
     {
       "id": "gi_cancer_disparities_access_outcomes",
@@ -309,7 +339,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 1.878034,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Care Disparities & Health Equity",
+      "short_description": "Racial, ethnic, and socioeconomic disparities in cancer screening, surgical access, and care utilization across cancer populations."
     },
     {
       "id": "gi_comorbidity_management_cancer_survivors",
@@ -322,7 +354,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 0.749067,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Comorbidity Management & Survivorship",
+      "short_description": "Chronic comorbidity care — including diabetes and cardiovascular disease — before and after cancer diagnosis, with attention to racial disparities."
     },
     {
       "id": "gi_liver_transplant_viral_hepatitis",
@@ -335,7 +369,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 0.282538,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Liver Transplantation & Viral Hepatitis",
+      "short_description": "Transplantation outcomes in the context of HCV, HBV, and HDV infection, and management challenges in obese transplant candidates."
     },
     {
       "id": "gi_cancer_genomics_structural_variation",
@@ -348,7 +384,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 1.479442,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Genomic Structural Variation & Clonal Hematopoiesis",
+      "short_description": "Pan-cancer genomic analyses of structural rearrangements and clonal hematopoiesis associations with solid tumor incidence and mortality."
     },
     {
       "id": "gi_cancer_treatment_delay_regionalization",
@@ -361,12 +399,14 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 1.627324,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Treatment Timing & Surgical Regionalization",
+      "short_description": "Impact of treatment delays on tumor control and evidence for regionalizing surgical oncology care to improve outcomes."
     },
     {
       "id": "gi_metabolic_immune_reprogramming_cancer",
       "label": "Metabolic Reprogramming and Immune Enhancement in Cancer",
-      "description": "Studies on pharmacologic and metabolic interventions\u2014including LDH inhibition and tumor extracellular vesicle signaling\u2014that redirect glucose metabolism and enhance antitumor T cell immunity in solid tumors.",
+      "description": "Studies on pharmacologic and metabolic interventions—including LDH inhibition and tumor extracellular vesicle signaling—that redirect glucose metabolism and enhance antitumor T cell immunity in solid tumors.",
       "seed_pmids": [
         39225102,
         37225988,
@@ -374,7 +414,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 0.868675,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Metabolic Reprogramming & T Cell Immunity",
+      "short_description": "Pharmacologic and metabolic interventions that redirect glucose metabolism and enhance antitumor T cell responses in solid tumors."
     },
     {
       "id": "gi_colorectal_gastric_systemic_therapy_resistance",
@@ -388,7 +430,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 2.425454,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Systemic Therapy Resistance & Novel Agents",
+      "short_description": "Resistance mechanisms and novel therapeutic strategies in colorectal and gastric cancers, including taxane and FOLFIRI-based regimens."
     }
   ],
   "uncovered_pmids": [

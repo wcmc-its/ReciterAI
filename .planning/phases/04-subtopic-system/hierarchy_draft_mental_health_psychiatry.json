@@ -33,7 +33,9 @@
         36586613,
         40855707
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Depression Neurobiology & Treatment",
+      "short_description": "Neurobiological mechanisms, pharmacological and psychotherapeutic treatments, and predictive models for major depressive disorder."
     },
     {
       "id": "mental_suicide_self_harm",
@@ -66,7 +68,9 @@
         39923931,
         33815203
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Suicide Risk & Prevention",
+      "short_description": "Epidemiological and computational research on suicidal ideation, self-harm, risk stratification, and prevention interventions across the lifespan."
     },
     {
       "id": "mental_perinatal_mental_health",
@@ -98,7 +102,9 @@
         40914942,
         38777289
       ],
-      "coverage_estimate": 0.049
+      "coverage_estimate": 0.049,
+      "display_name": "Perinatal & Reproductive Psychiatry",
+      "short_description": "Clinical and biological research on depression, anxiety, and neurosteroid mechanisms during pregnancy and the postpartum period."
     },
     {
       "id": "mental_schizophrenia_psychosis",
@@ -123,7 +129,9 @@
         36271342,
         33166337
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Schizophrenia & Psychotic Disorders",
+      "short_description": "Translational and clinical research on psychosis mechanisms, biomarkers, cognitive training, and early intervention for schizophrenia-spectrum conditions."
     },
     {
       "id": "mental_anxiety_ptsd_trauma",
@@ -156,7 +164,9 @@
         39402964,
         32629197
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Anxiety, PTSD & Trauma",
+      "short_description": "Neurobiological and psychosocial research on fear, trauma, and PTSD, including VR-based, MDMA-assisted, and pharmacological therapies."
     },
     {
       "id": "mental_late_life_depression_aging",
@@ -189,7 +199,9 @@
         32690123,
         32095947
       ],
-      "coverage_estimate": 0.051
+      "coverage_estimate": 0.051,
+      "display_name": "Late-Life Depression & Cognitive Aging",
+      "short_description": "Depression in older adults and its links to cognitive impairment, small vessel disease, and aging-related neurobiological changes."
     },
     {
       "id": "mental_autism_neurodevelopment",
@@ -212,7 +224,9 @@
         36446382,
         31988435
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Autism Spectrum & Pediatric Neurodevelopment",
+      "short_description": "Molecular, neuroimaging, and behavioral research on autism and related neurodevelopmental conditions in children."
     },
     {
       "id": "mental_digital_ai_mental_health",
@@ -241,7 +255,9 @@
         37104747,
         40200441
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "AI & Digital Health Technologies",
+      "short_description": "Machine learning, NLP, wearables, and mobile apps applied to detection, monitoring, and treatment of psychiatric conditions."
     },
     {
       "id": "mental_covid_pandemic_mental_health",
@@ -271,7 +287,9 @@
         36065578,
         34817403
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "COVID-19 Pandemic Psychological Impact",
+      "short_description": "Psychological distress, telehealth expansion, and psychiatric care adaptations across populations during the COVID-19 pandemic."
     },
     {
       "id": "mental_mental_health_services_policy",
@@ -299,7 +317,9 @@
         33657841,
         33267653
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Services Delivery, Policy & Health Systems",
+      "short_description": "Health services and policy research on care integration, parity enforcement, telehealth, and access across diverse populations."
     },
     {
       "id": "mental_prolonged_grief_bereavement",
@@ -325,7 +345,9 @@
         31978784,
         32629197
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Prolonged Grief & Bereavement",
+      "short_description": "Diagnostic validation, neurobiological correlates, risk factors, and treatment of prolonged grief disorder across cultures."
     },
     {
       "id": "mental_palliative_behavioral_health",
@@ -351,7 +373,9 @@
         36918470,
         40384456
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Behavioral Health in Palliative Care",
+      "short_description": "Integration of psychiatric services into palliative, hospice, and serious illness settings for patients and caregivers."
     },
     {
       "id": "mental_stress_neurobiology_circuits",
@@ -374,7 +398,9 @@
         37619817,
         35732627
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Stress Neurobiology & Brain Circuits",
+      "short_description": "Preclinical and translational research on frontostriatal, limbic, and thalamic circuits underlying stress, depression, and anxiety."
     },
     {
       "id": "mental_eating_disorders_body_image",
@@ -391,7 +417,9 @@
         33003117,
         32711754
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Eating Disorders & Body Image",
+      "short_description": "Clinical research on anorexia, binge eating, body dysmorphic disorder, and treatment predictors including CBT outcomes."
     },
     {
       "id": "mental_pediatric_delirium_icu",
@@ -407,7 +435,9 @@
         37565013,
         33789580
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Pediatric Delirium & Critical Care Psychiatry",
+      "short_description": "Delirium screening, prevention, and outcomes in pediatric intensive care, including parental and provider distress."
     },
     {
       "id": "mental_dementia_caregiver_support",
@@ -423,7 +453,9 @@
         40748954,
         36427169
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Dementia Caregiver Burden & Interventions",
+      "short_description": "Psychological burden, self-efficacy, and psychosocial interventions for family caregivers of persons with dementia."
     },
     {
       "id": "mental_cancer_psychosocial_survivorship",
@@ -441,7 +473,9 @@
         40715630,
         35226083
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Cancer Survivorship & Psychosocial Outcomes",
+      "short_description": "Psychological distress, quality of life, and disparities in psychosocial care among cancer survivors and patients."
     },
     {
       "id": "mental_substance_use_adolescent_young_adult",
@@ -459,7 +493,9 @@
         40857512,
         37957762
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Youth Substance Use & Neurodevelopment",
+      "short_description": "Neurobiological effects, risk factors, and interventions for alcohol, cannabis, and stimulant use in adolescents and young adults."
     },
     {
       "id": "mental_chronic_pain_psychosocial",
@@ -476,7 +512,9 @@
         33830245,
         37147587
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Chronic Pain & Behavioral Interventions",
+      "short_description": "Intersection of chronic pain with psychological distress, depression, and inflammation, including peer-delivered behavioral interventions."
     },
     {
       "id": "mental_post_covid_neuropsychiatric",
@@ -491,7 +529,9 @@
         36456834,
         34936536
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Post-COVID Neuropsychiatric Sequelae",
+      "short_description": "Cognitive deficits, neuropsychiatric symptoms, and rehabilitation approaches following COVID-19 infection and long COVID."
     },
     {
       "id": "mental_physician_trainee_burnout",
@@ -508,7 +548,9 @@
         38417005,
         40680405
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Clinician Burnout & Workforce Wellness",
+      "short_description": "Burnout, psychological distress, and wellness among physicians, trainees, and healthcare workers across specialties."
     },
     {
       "id": "mental_pediatric_behavioral_training",
@@ -521,7 +563,9 @@
         37524164,
         38782840
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Pediatric Behavioral Health Workforce Training",
+      "short_description": "Curriculum development and clinical training to build behavioral and mental health competencies among pediatric providers."
     },
     {
       "id": "mental_social_isolation_loneliness_aging",
@@ -534,7 +578,9 @@
         39906920,
         39749982
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Loneliness & Social Connectedness in Aging",
+      "short_description": "Health consequences of social isolation in older adults and technology-based or community interventions to improve connectedness."
     },
     {
       "id": "mental_hiv_mental_health_aging",
@@ -549,7 +595,9 @@
         39122904,
         33710596
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "HIV, Aging & Neuropsychiatric Comorbidities",
+      "short_description": "Psychiatric symptoms, cognitive decline, and psychosocial needs in older adults living with HIV, including palliative care."
     },
     {
       "id": "mental_adolescent_inpatient_partial_hospital",
@@ -563,19 +611,23 @@
         38261150,
         33609184
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Adolescent Acute Psychiatric Care",
+      "short_description": "Assessment, treatment, and outcomes in adolescent inpatient and partial hospitalization psychiatric programs."
     },
     {
       "id": "mental_bipolar_disorder_mechanisms_treatment",
       "label": "Bipolar Disorder: Neurobiological Mechanisms and Treatment Approaches",
-      "description": "Studies investigating the neurobiological underpinnings of bipolar disorder including oxidative stress, GSK-3\u03b2 signaling, and TRPV1 channels, as well as treatment approaches such as TMS, GLP-1 agonists, and stimulant use in comorbid conditions.",
+      "description": "Studies investigating the neurobiological underpinnings of bipolar disorder including oxidative stress, GSK-3β signaling, and TRPV1 channels, as well as treatment approaches such as TMS, GLP-1 agonists, and stimulant use in comorbid conditions.",
       "seed_pmids": [
         34304690,
         35133924,
         33169946,
         33003117
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Bipolar Disorder Mechanisms & Treatment",
+      "short_description": "Neurobiological underpinnings of bipolar disorder, including oxidative stress and GSK-3β signaling, and emerging treatment approaches."
     },
     {
       "id": "mental_telepsychiatry_consultation_liaison",
@@ -587,7 +639,9 @@
         40906009,
         33068850
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Telepsychiatry & Consultation-Liaison Services",
+      "short_description": "Implementation and effectiveness of telepsychiatry consultation models in hospital and emergency department settings."
     },
     {
       "id": "mental_racial_ethnic_disparities_mental_health",
@@ -603,7 +657,9 @@
         35475851,
         36403023
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Racial & Socioeconomic Disparities in Care",
+      "short_description": "Structural racism, ethnicity, and socioeconomic factors driving disparities in psychiatric outcomes and treatment access."
     }
   ],
   "uncovered_pmids": [

@@ -23,7 +23,9 @@
       ],
       "coverage_estimate": 0.009,
       "total_weight": 10.307548,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Cycle Progression & Proliferation Signaling",
+      "short_description": "CDK/cyclin complexes, checkpoint pathways, and G1/S transition control governing proliferation and quiescence decisions."
     },
     {
       "id": "cell_epigenetic_chromatin_regulation",
@@ -60,7 +62,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 97.477143,
-      "activity_count": 99
+      "activity_count": 99,
+      "display_name": "Epigenetic & Chromatin Regulation",
+      "short_description": "Histone modifications, DNA methylation, chromatin remodeling, and transcription factor-driven epigenetic control in development and disease."
     },
     {
       "id": "cell_membrane_protein_structure_function",
@@ -114,12 +118,14 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 51.525125,
-      "activity_count": 134
+      "activity_count": 134,
+      "display_name": "Membrane Protein Structure & Dynamics",
+      "short_description": "Structural and biophysical characterization of ion channels, transporters, and GPCRs using cryo-EM, NMR, and molecular dynamics."
     },
     {
       "id": "cell_intracellular_signaling_pathways",
       "label": "Intracellular Signaling Pathways and Second Messengers",
-      "description": "Research on intracellular signal transduction cascades including cAMP/PKA, PI3K/AKT/mTOR, MAPK/ERK, Wnt/\u03b2-catenin, NF-\u03baB, JAK/STAT, and calcium signaling. Encompasses studies of second messenger dynamics, kinase/phosphatase regulation, and pathway crosstalk in physiological and disease contexts.",
+      "description": "Research on intracellular signal transduction cascades including cAMP/PKA, PI3K/AKT/mTOR, MAPK/ERK, Wnt/β-catenin, NF-κB, JAK/STAT, and calcium signaling. Encompasses studies of second messenger dynamics, kinase/phosphatase regulation, and pathway crosstalk in physiological and disease contexts.",
       "seed_pmids": [
         32184256,
         34413957,
@@ -156,7 +162,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 139.765334,
-      "activity_count": 187
+      "activity_count": 187,
+      "display_name": "Intracellular Signaling & Second Messengers",
+      "short_description": "Signal transduction cascades including PI3K/AKT, MAPK/ERK, Wnt, and calcium signaling in physiological and disease contexts."
     },
     {
       "id": "cell_rna_biology_gene_expression",
@@ -191,7 +199,9 @@
       ],
       "coverage_estimate": 0.017,
       "total_weight": 64.236542,
-      "activity_count": 94
+      "activity_count": 94,
+      "display_name": "RNA Biology & Post-Transcriptional Regulation",
+      "short_description": "RNA splicing, non-coding RNAs, isoform diversity, and post-transcriptional mechanisms controlling gene expression."
     },
     {
       "id": "cell_metabolism_bioenergetics",
@@ -236,7 +246,9 @@
       ],
       "coverage_estimate": 0.024,
       "total_weight": 90.696496,
-      "activity_count": 122
+      "activity_count": 122,
+      "display_name": "Metabolism & Bioenergetics",
+      "short_description": "Metabolic pathways including mitochondrial function, lipid metabolism, and metabolic reprogramming in cancer, obesity, and disease."
     },
     {
       "id": "cell_stem_cell_differentiation",
@@ -282,7 +294,9 @@
       ],
       "coverage_estimate": 0.025,
       "total_weight": 88.543613,
-      "activity_count": 102
+      "activity_count": 102,
+      "display_name": "Stem Cell Biology & Differentiation",
+      "short_description": "Stem cell self-renewal, pluripotency, iPSC generation, organoid models, and transcription factor networks governing cell identity."
     },
     {
       "id": "cell_neuronal_synaptic_biology",
@@ -329,7 +343,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 40.666358,
-      "activity_count": 77
+      "activity_count": 77,
+      "display_name": "Neuronal & Synaptic Biology",
+      "short_description": "Synaptic transmission, neurotransmitter release, ion channel function, and molecular bases of neurological and psychiatric disease."
     },
     {
       "id": "cell_tumor_microenvironment_immunity",
@@ -376,7 +392,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 68.993439,
-      "activity_count": 110
+      "activity_count": 110,
+      "display_name": "Tumor Microenvironment & Cancer Immunology",
+      "short_description": "Immune cell interactions, checkpoint pathways, immune evasion, and immunotherapy response within the tumor microenvironment."
     },
     {
       "id": "cell_cancer_genomics_molecular_oncology",
@@ -422,7 +440,9 @@
       ],
       "coverage_estimate": 0.025,
       "total_weight": 137.16072,
-      "activity_count": 192
+      "activity_count": 192,
+      "display_name": "Cancer Genomics & Molecular Oncology",
+      "short_description": "Oncogenic mutations, tumor suppressor pathways, clonal evolution, and molecular drivers of cancer initiation and progression."
     },
     {
       "id": "cell_innate_lymphoid_mucosal_immunity",
@@ -453,7 +473,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 17.228038,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "Innate Lymphoid & Mucosal Immunity",
+      "short_description": "ILC biology, mucosal immune responses, gut immune homeostasis, and ILC dysregulation in inflammatory bowel disease and cancer."
     },
     {
       "id": "cell_gut_microbiome_host_interaction",
@@ -484,7 +506,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 27.063522,
-      "activity_count": 30
+      "activity_count": 30,
+      "display_name": "Gut Microbiome-Host Interactions",
+      "short_description": "Host-microbiome relationships including bacterial and fungal communities, microbiota-derived metabolites, and effects on immunity and disease."
     },
     {
       "id": "cell_dna_repair_genome_stability",
@@ -516,7 +540,9 @@
       ],
       "coverage_estimate": 0.015,
       "total_weight": 18.229354,
-      "activity_count": 25
+      "activity_count": 25,
+      "display_name": "DNA Repair & Genome Stability",
+      "short_description": "DNA damage response, homologous recombination, replication fidelity, and telomere maintenance in cancer and aging contexts."
     },
     {
       "id": "cell_lipid_sterol_membrane_biology",
@@ -550,7 +576,9 @@
       ],
       "coverage_estimate": 0.017,
       "total_weight": 29.866244,
-      "activity_count": 49
+      "activity_count": 49,
+      "display_name": "Lipid, Sterol & Membrane Biology",
+      "short_description": "Lipid metabolism, sterol transport, sphingolipid signaling, and membrane lipid composition in cellular function and disease."
     },
     {
       "id": "cell_gene_therapy_aav_vectors",
@@ -585,7 +613,9 @@
       ],
       "coverage_estimate": 0.017,
       "total_weight": 14.206807,
-      "activity_count": 41
+      "activity_count": 41,
+      "display_name": "Gene Therapy & Genome Editing",
+      "short_description": "AAV vector engineering, CRISPR-based genome editing, and therapeutic delivery strategies for genetic disease correction."
     }
   ],
   "uncovered_pmids": [

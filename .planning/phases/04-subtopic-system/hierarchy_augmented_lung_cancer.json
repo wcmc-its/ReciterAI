@@ -20,7 +20,9 @@
       ],
       "coverage_estimate": 0.116,
       "total_weight": 17.626806,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Lobectomy vs. Sublobar Resection",
+      "short_description": "Comparative oncologic outcomes of lobectomy, segmentectomy, and wedge resection for early-stage NSCLC."
     },
     {
       "id": "lung_neoadjuvant_immunotherapy",
@@ -36,7 +38,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 15.961253,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Neoadjuvant Immunotherapy & Chemoradiation",
+      "short_description": "Pathologic response rates and survival outcomes from neoadjuvant chemoimmunotherapy and SBRT in resectable NSCLC."
     },
     {
       "id": "lung_screening_disparities",
@@ -55,7 +59,9 @@
       ],
       "coverage_estimate": 0.105,
       "total_weight": 3.50901,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Screening Access & Racial Disparities",
+      "short_description": "Utilization gaps, guideline eligibility, and risk-model strategies to improve screening uptake across diverse populations."
     },
     {
       "id": "lung_molecular_drivers_targeted_therapy",
@@ -74,12 +80,14 @@
       ],
       "coverage_estimate": 0.105,
       "total_weight": 4.104627,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Oncogenic Drivers & Targeted Therapy",
+      "short_description": "EGFR, KRAS, ALK, and LKB1 driver mutations, resistance mechanisms, and targeted drug sensitivity in NSCLC."
     },
     {
       "id": "lung_tumor_microenvironment_immunity",
       "label": "Tumor Microenvironment and Immune Evasion in Lung Cancer",
-      "description": "Investigations into the lung cancer tumor microenvironment, including immune cell dynamics, immune evasion mechanisms (EMSY, IRE1\u03b1, PD-L1/EGFR interactions), and the evolution of immunity from preinvasive to invasive adenocarcinoma.",
+      "description": "Investigations into the lung cancer tumor microenvironment, including immune cell dynamics, immune evasion mechanisms (EMSY, IRE1α, PD-L1/EGFR interactions), and the evolution of immunity from preinvasive to invasive adenocarcinoma.",
       "seed_pmids": [
         34963055,
         36624093,
@@ -91,7 +99,9 @@
       ],
       "coverage_estimate": 0.081,
       "total_weight": 7.855868,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Tumor Microenvironment & Immune Evasion",
+      "short_description": "Immune cell dynamics, PD-L1/EGFR interactions, and evasion mechanisms from preinvasive to invasive adenocarcinoma."
     },
     {
       "id": "lung_second_primary_cancer_surveillance",
@@ -107,7 +117,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 3.075014,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Second Primary Tumors & Survivor Surveillance",
+      "short_description": "Incidence, risk prediction models, and surveillance recommendations for second primary cancers in lung cancer survivors."
     },
     {
       "id": "lung_genomic_profiling_liquid_biopsy",
@@ -123,7 +135,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 5.507706,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Liquid Biopsy & Molecular Diagnostics",
+      "short_description": "Cell-free DNA, circulating tumor DNA, and NGS-based fusion detection for diagnosis and treatment monitoring."
     },
     {
       "id": "lung_sclc_histological_transformation",
@@ -136,7 +150,9 @@
       ],
       "coverage_estimate": 0.035,
       "total_weight": 2.206622,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Small Cell Biology & Histological Transformation",
+      "short_description": "TP53/RB1 deficiency, MYC overexpression, lineage plasticity, and adenocarcinoma-to-SCLC transformation mechanisms."
     },
     {
       "id": "lung_metabolic_vulnerabilities",
@@ -150,7 +166,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 4.730971,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Metabolic Reprogramming & Therapeutic Targets",
+      "short_description": "Serine, one-carbon, and LKB1-dependent metabolic alterations in lung cancer cells as actionable vulnerabilities."
     },
     {
       "id": "lung_surgical_outcomes_perioperative",
@@ -165,7 +183,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 5.151959,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Perioperative Management & Surgical Outcomes",
+      "short_description": "Pulmonary function, opioid exposure, nodal staging quality, and COVID-19 impact on lung cancer surgery safety."
     },
     {
       "id": "lung_immunotherapy_biomarkers",
@@ -180,7 +200,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 2.877194,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Checkpoint Inhibitor Response Biomarkers",
+      "short_description": "PD-L1 expression, proliferation gene signatures, and tumor-immune features predicting checkpoint inhibitor response."
     },
     {
       "id": "lung_pulmonary_nodule_management",
@@ -194,7 +216,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 0.954751,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Pulmonary Nodule Detection & Management",
+      "short_description": "Imaging follow-up, incidental findings, CT-guided biopsy, and clinical management protocols for pulmonary nodules."
     },
     {
       "id": "lung_treatment_disparities_outcomes",
@@ -209,7 +233,9 @@
       ],
       "coverage_estimate": 0.058,
       "total_weight": 1.358872,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Treatment Disparities & Survival Outcomes",
+      "short_description": "Racial, ethnic, and socioeconomic gaps in guideline-concordant care, immunotherapy access, and survival in the U.S."
     },
     {
       "id": "lung_preclinical_models_drug_delivery",
@@ -222,7 +248,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.849985,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Preclinical Models & Nanoparticle Drug Delivery",
+      "short_description": "Patient-derived xenografts and engineered nanoparticle conjugates to identify pathways and improve therapeutic delivery."
     },
     {
       "id": "lung_combination_immunotherapy_strategies",
@@ -235,7 +263,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 2.664259,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Combination Immunotherapy & CAR T-Cell Strategies",
+      "short_description": "MEK inhibitor scheduling with checkpoint blockade and radiation-enhanced CAR T-cell therapy in solid tumor models."
     },
     {
       "id": "lung_cancer_screening_adherence_access",
@@ -248,7 +278,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.411823,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Screening Adherence, Literacy & Access Barriers",
+      "short_description": "Population-level adherence to guideline-recommended screening, health literacy as a mortality predictor, and imaging utilization."
     },
     {
       "id": "lung_pan_cancer_biomarkers_diagnostics",
@@ -261,7 +293,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.161479,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Pan-Cancer Biomarkers & Mutation Detection",
+      "short_description": "ERBB2/HER2 copy number gain, novel mutation assays, and circulating tumor macrophage-like cells as cross-cancer diagnostics."
     },
     {
       "id": "lung_treatment_delay_tumor_microbiome",
@@ -274,7 +308,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.526194,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Treatment Delay Modeling & Tumor Microbiome",
+      "short_description": "Quantifying delay-driven metastasis risk and pan-cancer mycobiome links to gastrointestinal and lung tumor progression."
     }
   ],
   "uncovered_pmids": [

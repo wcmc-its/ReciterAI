@@ -50,7 +50,9 @@
       ],
       "coverage_estimate": 0.046,
       "total_weight": 61.560509,
-      "activity_count": 52
+      "activity_count": 52,
+      "display_name": "Advanced MRI Physics & Quantitative Methods",
+      "short_description": "Novel MRI acquisition, reconstruction, and quantitative techniques including QSM, diffusion MRI, and MR spectroscopy for tissue characterization."
     },
     {
       "id": "radiology_pet_nuclear_medicine",
@@ -108,7 +110,9 @@
       ],
       "coverage_estimate": 0.055,
       "total_weight": 45.375813,
-      "activity_count": 54
+      "activity_count": 54,
+      "display_name": "PET Imaging & Radiopharmaceuticals",
+      "short_description": "PET scanner technology, radiopharmaceutical development, theranostics, and radiolabeled tracers for oncology and neurology."
     },
     {
       "id": "radiology_brain_mri_neuroimaging",
@@ -156,7 +160,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 57.919895,
-      "activity_count": 68
+      "activity_count": 68,
+      "display_name": "Brain MRI & Cerebrovascular Biomarkers",
+      "short_description": "Structural and functional MRI characterization of white matter disease, cerebral small vessel disease, and neurodegeneration biomarkers."
     },
     {
       "id": "radiology_functional_mri_connectome",
@@ -206,7 +212,9 @@
       ],
       "coverage_estimate": 0.046,
       "total_weight": 24.584109,
-      "activity_count": 48
+      "activity_count": 48,
+      "display_name": "Functional MRI & Brain Connectivity",
+      "short_description": "Resting-state and task-based fMRI and connectome mapping applied to psychiatric and neurological conditions."
     },
     {
       "id": "radiology_ai_deep_learning_imaging",
@@ -263,7 +271,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 31.763369,
-      "activity_count": 60
+      "activity_count": 60,
+      "display_name": "AI & Deep Learning for Image Analysis",
+      "short_description": "Machine learning and deep learning algorithms for image classification, segmentation, and report generation across clinical imaging modalities."
     },
     {
       "id": "radiology_breast_imaging",
@@ -315,7 +325,9 @@
       ],
       "coverage_estimate": 0.048,
       "total_weight": 26.121374,
-      "activity_count": 54
+      "activity_count": 54,
+      "display_name": "Breast Imaging, Screening & Risk Assessment",
+      "short_description": "Mammography, MRI, and tomosynthesis for breast cancer screening, density biomarkers, and interventional breast procedures."
     },
     {
       "id": "radiology_interventional_vascular",
@@ -357,7 +369,9 @@
       ],
       "coverage_estimate": 0.037,
       "total_weight": 16.768347,
-      "activity_count": 49
+      "activity_count": 49,
+      "display_name": "Interventional & Vascular Procedures",
+      "short_description": "Image-guided catheter-directed therapies, endovascular repair, embolization, and ablation with focus on outcomes and patient safety."
     },
     {
       "id": "radiology_ct_imaging_applications",
@@ -397,7 +411,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 16.293574,
-      "activity_count": 41
+      "activity_count": 41,
+      "display_name": "CT Techniques & Lung Disease Applications",
+      "short_description": "CT imaging for lung cancer screening, interstitial lung abnormalities, body composition analysis, and pulmonary nodule management."
     },
     {
       "id": "radiology_prostate_genitourinary",
@@ -432,7 +448,9 @@
       ],
       "coverage_estimate": 0.029,
       "total_weight": 21.744708,
-      "activity_count": 31
+      "activity_count": 31,
+      "display_name": "Prostate MRI & Genitourinary Imaging",
+      "short_description": "Multiparametric MRI and PSMA PET/MRI for prostate cancer detection, MRI-guided biopsy, and focal ablation therapies."
     },
     {
       "id": "radiology_cardiac_imaging",
@@ -474,7 +492,9 @@
       ],
       "coverage_estimate": 0.037,
       "total_weight": 47.226209,
-      "activity_count": 78
+      "activity_count": 78,
+      "display_name": "Cardiac Imaging & Structural Heart Disease",
+      "short_description": "Echocardiography, cardiac MRI, and imaging guidance for structural heart interventions including TAVR and valve repair."
     },
     {
       "id": "radiology_ophthalmology_retinal",
@@ -522,7 +542,9 @@
       ],
       "coverage_estimate": 0.043,
       "total_weight": 20.878582,
-      "activity_count": 59
+      "activity_count": 59,
+      "display_name": "Ophthalmic & Retinal Imaging",
+      "short_description": "OCT, ultra-widefield retinal imaging, corneal confocal microscopy, and AI-based analysis for glaucoma and macular degeneration."
     },
     {
       "id": "radiology_neuro_spine_imaging",
@@ -567,7 +589,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 26.18377,
-      "activity_count": 65
+      "activity_count": 65,
+      "display_name": "Brain Tumor & Spine Imaging",
+      "short_description": "Imaging for glioma, meningioma, and spinal disease, including radiomics, neurosurgical planning, and treatment response assessment."
     },
     {
       "id": "radiology_education_workforce",
@@ -608,7 +632,9 @@
       ],
       "coverage_estimate": 0.035,
       "total_weight": 12.858834,
-      "activity_count": 34
+      "activity_count": 34,
+      "display_name": "Education & Workforce Development",
+      "short_description": "Simulation-based learning, augmented reality training, curriculum development, and diversity initiatives in radiology education."
     },
     {
       "id": "radiology_alzheimer_neurodegeneration_pet_mri",
@@ -655,7 +681,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 41.257968,
-      "activity_count": 34
+      "activity_count": 34,
+      "display_name": "Alzheimer's Disease & Neurodegeneration Imaging",
+      "short_description": "Multimodal PET and MRI to characterize Alzheimer's pathology, track neurodegeneration, and evaluate brain fluid clearance."
     },
     {
       "id": "radiology_radiation_therapy_oncology",
@@ -697,7 +725,9 @@
       ],
       "coverage_estimate": 0.037,
       "total_weight": 10.55587,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Radiation Therapy Planning & Radiobiology",
+      "short_description": "Stereotactic and MRI-guided radiotherapy, dosimetry optimization, and radiation combined with immunotherapy in oncology."
     }
   ],
   "uncovered_pmids": [

@@ -26,7 +26,9 @@
       ],
       "coverage_estimate": 0.071,
       "total_weight": 21.831375,
-      "activity_count": 17
+      "activity_count": 17,
+      "display_name": "Allograft Rejection & Immune Monitoring",
+      "short_description": "T-cell and antibody-mediated rejection mechanisms, urinary biomarkers, and transcriptomic profiling of kidney allograft status."
     },
     {
       "id": "nephrology_kidney_transplant_outcomes",
@@ -53,7 +55,9 @@
       ],
       "coverage_estimate": 0.071,
       "total_weight": 11.103414,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "Transplant Outcomes & Complications",
+      "short_description": "Clinical outcomes of kidney transplantation including allograft failure, BK virus nephropathy, frailty, and post-transplant infection management."
     },
     {
       "id": "nephrology_adpkd_imaging",
@@ -78,12 +82,14 @@
       ],
       "coverage_estimate": 0.067,
       "total_weight": 8.647885,
-      "activity_count": 15
+      "activity_count": 15,
+      "display_name": "ADPKD Imaging & Disease Monitoring",
+      "short_description": "MRI-based kidney and liver volume measurement, deep learning segmentation, and systemic manifestations in polycystic kidney disease."
     },
     {
       "id": "nephrology_ckd_progression_mechanisms",
       "label": "CKD Progression: Molecular Mechanisms and Fibrosis",
-      "description": "Research into molecular and cellular mechanisms driving chronic kidney disease progression and fibrosis, including TGF-\u03b21 signaling, mitofusin-2 in macrophages, retinoic acid receptor activity in proximal tubules, iron therapy effects on macrophages, erythropoietin production, and profibrotic gene expression in interstitial cells.",
+      "description": "Research into molecular and cellular mechanisms driving chronic kidney disease progression and fibrosis, including TGF-β1 signaling, mitofusin-2 in macrophages, retinoic acid receptor activity in proximal tubules, iron therapy effects on macrophages, erythropoietin production, and profibrotic gene expression in interstitial cells.",
       "seed_pmids": [
         33705825,
         35227692,
@@ -98,7 +104,9 @@
       ],
       "coverage_estimate": 0.045,
       "total_weight": 8.260302,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "CKD Fibrosis & Molecular Mechanisms",
+      "short_description": "Cellular and molecular drivers of chronic kidney disease progression, including TGF-β1 signaling, macrophage biology, and profibrotic gene expression."
     },
     {
       "id": "nephrology_enac_electrolyte_transport",
@@ -117,7 +125,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 3.466373,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "ENaC & Renal Ion Transport",
+      "short_description": "Epithelial sodium channel regulation, aldosterone-dependent trafficking, and proximal tubule sodium and potassium handling."
     },
     {
       "id": "nephrology_ckd_mineral_bone",
@@ -136,7 +146,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 5.539187,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Mineral Metabolism & Bone Disease in CKD",
+      "short_description": "FGF23, phosphate management, vitamin D metabolism, and skeletal complications in chronic kidney disease."
     },
     {
       "id": "nephrology_aki_critical_care",
@@ -157,12 +169,14 @@
       ],
       "coverage_estimate": 0.049,
       "total_weight": 9.207861,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Acute Kidney Injury in Critical Care",
+      "short_description": "AKI incidence, risk stratification, machine learning prediction, and renal replacement therapy in critically ill patients."
     },
     {
       "id": "nephrology_ckd_pediatric",
       "label": "Pediatric Chronic Kidney Disease: Growth, Anemia, and Complications",
-      "description": "Studies on chronic kidney disease in children and adolescents, including growth impairment, delayed menarche, anemia management with iron therapy, TNF-\u03b1 and mineral bone disorder, pubertal LH levels and GFR decline, and longitudinal outcomes in the CKiD cohort.",
+      "description": "Studies on chronic kidney disease in children and adolescents, including growth impairment, delayed menarche, anemia management with iron therapy, TNF-α and mineral bone disorder, pubertal LH levels and GFR decline, and longitudinal outcomes in the CKiD cohort.",
       "seed_pmids": [
         32337637,
         33387018,
@@ -174,7 +188,9 @@
       ],
       "coverage_estimate": 0.031,
       "total_weight": 1.854498,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Pediatric CKD: Growth & Complications",
+      "short_description": "Growth impairment, anemia, pubertal development, and longitudinal outcomes in children with chronic kidney disease."
     },
     {
       "id": "nephrology_hemodialysis_management",
@@ -193,7 +209,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 4.125422,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Hemodialysis Access & Patient Management",
+      "short_description": "Arteriovenous fistula care, thrombectomy, pain management, infection screening, and phosphate control in hemodialysis patients."
     },
     {
       "id": "nephrology_renal_pathology_imaging_ai",
@@ -208,7 +226,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 0.546526,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "AI-Based Renal Pathology Analysis",
+      "short_description": "Deep learning segmentation, 3D glomerular reconstruction, and computational methods for kidney pathology image analysis."
     },
     {
       "id": "nephrology_ckd_cardiovascular",
@@ -227,7 +247,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 4.089369,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Cardiovascular Complications in CKD",
+      "short_description": "Pulmonary hypertension, FGF23-driven cardiac remodeling, and cardiovascular risk biomarkers in chronic kidney disease."
     },
     {
       "id": "nephrology_ckd_epidemiology_outcomes",
@@ -246,7 +268,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 5.113668,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "CKD Epidemiology & Health Disparities",
+      "short_description": "Population-level CKD prevalence, racial and geographic disparities, global awareness, and clinical outcomes across diverse populations."
     },
     {
       "id": "nephrology_kidney_stone_hyperparathyroid",
@@ -260,7 +284,9 @@
       ],
       "coverage_estimate": 0.018,
       "total_weight": 0.841322,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Kidney Stones & Hyperparathyroidism",
+      "short_description": "Stone recurrence prevention, 24-hour urine evaluation, parathyroidectomy outcomes, and atypical hemolytic uremic syndrome management."
     },
     {
       "id": "nephrology_renal_cell_carcinoma",
@@ -276,7 +302,9 @@
       ],
       "coverage_estimate": 0.027,
       "total_weight": 3.016515,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Clear Cell Carcinoma Molecular Biology",
+      "short_description": "Molecular mechanisms, metabolic remodeling, and biomarkers in renal cell carcinoma, including cfDNA methylome-based detection."
     },
     {
       "id": "nephrology_hyponatremia_electrolyte_disorders",
@@ -290,7 +318,9 @@
       ],
       "coverage_estimate": 0.018,
       "total_weight": 0.84476,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Hyponatremia & Electrolyte Disorders",
+      "short_description": "Inpatient management of hyponatremia, dysnatremia in COVID-19, hypophosphatemia after iron therapy, and thrombotic microangiopathies."
     },
     {
       "id": "nephrology_diabetes_cardiovascular_outcomes",
@@ -307,7 +337,9 @@
       ],
       "coverage_estimate": 0.07,
       "total_weight": 1.555356,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Diabetes & Cardiac Procedural Outcomes",
+      "short_description": "Impact of diabetes mellitus on mortality and morbidity in patients undergoing STEMI management, valve replacement, and aortic surgery."
     },
     {
       "id": "nephrology_covid19_clinical_outcomes",
@@ -326,7 +358,9 @@
       ],
       "coverage_estimate": 0.09,
       "total_weight": 8.451074,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "COVID-19 Complications & Subphenotypes",
+      "short_description": "Clinical presentations, thrombosis, ARDS, post-acute sequelae, and machine-learning-derived subphenotypes of COVID-19 infection."
     },
     {
       "id": "nephrology_hypertension_management_complications",
@@ -344,7 +378,9 @@
       ],
       "coverage_estimate": 0.08,
       "total_weight": 1.651726,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Hypertension Management & Special Populations",
+      "short_description": "Blood pressure targets, end-organ damage, and hypertension care in pregnancy, HIV patients, and emergency settings."
     },
     {
       "id": "nephrology_hiv_renal_cardiovascular",
@@ -359,7 +395,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 3.316399,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "HIV-Associated Renal & Metabolic Complications",
+      "short_description": "Albuminuria, diastolic dysfunction, body composition changes, and inflammatory biomarkers in people living with HIV."
     },
     {
       "id": "nephrology_diabetic_microvascular_complications",
@@ -374,7 +412,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 1.070815,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Diabetic Microvascular Complications",
+      "short_description": "Prevalence, risk factors, and prevention of neuropathy, retinopathy, and nephropathy through glycemic and blood pressure control."
     },
     {
       "id": "nephrology_ckd_liver_disease_interactions",
@@ -387,7 +427,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 2.263558,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Kidney Dysfunction in Liver Disease",
+      "short_description": "Renal outcomes, mortality, and kidney dysfunction types in hospitalized patients with cirrhosis and end-stage liver disease."
     },
     {
       "id": "nephrology_transplant_infectious_complications",
@@ -402,7 +444,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 3.08434,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Infectious Complications Post-Transplant",
+      "short_description": "BK virus nephropathy, urinary tract infections, gut microbiota, bacteriophage therapy, and donor-derived malignancies in transplant recipients."
     },
     {
       "id": "nephrology_transplant_pregnancy_outcomes",
@@ -415,7 +459,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.38693,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Pregnancy Outcomes in Transplant Recipients",
+      "short_description": "Renal function, pregnancy outcomes, and ethical considerations in solid organ transplant recipients including uterus transplant patients."
     },
     {
       "id": "nephrology_kidney_quality_payment",
@@ -429,7 +475,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.772288,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Quality Metrics & Payment Reform",
+      "short_description": "MIPS performance, value-based care pathways, capitated reimbursement models, and medical education innovations in nephrology practice."
     },
     {
       "id": "nephrology_ckd_drug_therapy",
@@ -443,7 +491,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 1.22136,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Pharmacological Therapies in CKD",
+      "short_description": "Intravenous iron formulations, sevelamer-associated injury, anti-TNF renal effects, and perioperative fluid management in renal patients."
     },
     {
       "id": "nephrology_apol1_novel_kidney_biomarkers",
@@ -456,7 +506,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 1.009083,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Novel Biomarkers & APOL1 Genetics",
+      "short_description": "Proenkephalin-A, IgA glycomics, and APOL1-mediated kidney disease mechanisms and therapeutic targeting."
     },
     {
       "id": "nephrology_peritoneal_dialysis_management",
@@ -469,7 +521,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 0.760745,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Peritoneal Dialysis Infection Management",
+      "short_description": "Cell-free DNA sequencing for pathogen detection in peritonitis and clinical management of peritoneal dialysis complications."
     },
     {
       "id": "nephrology_aortic_surgery_renal_outcomes",
@@ -482,7 +536,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 1.171537,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Aortic Surgery & Renal Outcomes",
+      "short_description": "Preoperative renal insufficiency effects and AI-assisted radiation reduction in patients undergoing proximal and complex aortic surgery."
     }
   ],
   "uncovered_pmids": [

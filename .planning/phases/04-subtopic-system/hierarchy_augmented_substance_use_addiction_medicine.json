@@ -35,7 +35,9 @@
       ],
       "coverage_estimate": 0.107,
       "total_weight": 11.818073,
-      "activity_count": 31
+      "activity_count": 31,
+      "display_name": "Opioid Prescribing Patterns & Policy",
+      "short_description": "Prescribing cap laws, monitoring programs, and regulatory interventions to reduce opioid overprescribing in surgical and chronic pain settings."
     },
     {
       "id": "substance_moud_treatment",
@@ -67,7 +69,9 @@
       ],
       "coverage_estimate": 0.094,
       "total_weight": 10.000254,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Medications for Opioid Use Disorder",
+      "short_description": "Buprenorphine, methadone, and naltrexone treatment access, retention, and cost-effectiveness across primary care, emergency, and justice settings."
     },
     {
       "id": "substance_naloxone_harm_reduction",
@@ -92,7 +96,9 @@
       ],
       "coverage_estimate": 0.064,
       "total_weight": 9.808627,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Naloxone Distribution & Overdose Prevention",
+      "short_description": "Harm reduction programs, syringe services, and overdose prevention centers with attention to racial disparities in naloxone access."
     },
     {
       "id": "substance_cannabis_policy_use",
@@ -119,7 +125,9 @@
       ],
       "coverage_estimate": 0.073,
       "total_weight": 4.822078,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Cannabis Legalization & Health Outcomes",
+      "short_description": "Effects of medical and recreational cannabis legalization on opioid use, chronic pain, adolescent use, and public health outcomes."
     },
     {
       "id": "substance_alcohol_neurobiology",
@@ -137,7 +145,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 2.612425,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Neurobiology of Alcohol Use Disorder",
+      "short_description": "Preclinical models, brain circuit mechanisms, sex differences, and neuroimaging findings in alcohol use disorder research."
     },
     {
       "id": "substance_alcohol_liver_disease",
@@ -156,7 +166,9 @@
       ],
       "coverage_estimate": 0.039,
       "total_weight": 3.910369,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Alcohol-Associated Liver Disease & Transplant",
+      "short_description": "Clinical outcomes, transplantation access, relapse predictors, and disparities in alcohol-associated liver disease treatment."
     },
     {
       "id": "substance_alcohol_molecular_pathology",
@@ -172,7 +184,9 @@
       ],
       "coverage_estimate": 0.026,
       "total_weight": 2.028201,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Molecular Pathology of Alcoholic Liver Disease",
+      "short_description": "Retinoid metabolism, retinoic acid receptor signaling, and intestinal barrier function in alcohol-associated hepatic injury."
     },
     {
       "id": "substance_hcv_pwid",
@@ -196,7 +210,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 5.72998,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Hepatitis C Care for People Who Inject Drugs",
+      "short_description": "HCV testing, treatment initiation, and low-threshold care delivery models for people who inject drugs, including Medicaid policy."
     },
     {
       "id": "substance_prenatal_substance_policy",
@@ -220,7 +236,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 5.870471,
-      "activity_count": 14
+      "activity_count": 14,
+      "display_name": "Prenatal Substance Use & Child Welfare Policy",
+      "short_description": "Punitive versus supportive legal frameworks and their effects on neonatal outcomes, child welfare involvement, and treatment-seeking."
     },
     {
       "id": "substance_opioid_economics",
@@ -242,7 +260,9 @@
       ],
       "coverage_estimate": 0.052,
       "total_weight": 8.941889,
-      "activity_count": 13
+      "activity_count": 13,
+      "display_name": "Economic Burden of Opioid Use Disorder",
+      "short_description": "Cost-of-illness estimates, cost-effectiveness of pharmacological and digital therapeutics, and economic losses from overdose deaths."
     },
     {
       "id": "substance_stigma_treatment_barriers",
@@ -263,7 +283,9 @@
       ],
       "coverage_estimate": 0.047,
       "total_weight": 4.691437,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Stigma & Barriers to Addiction Treatment",
+      "short_description": "Provider attitudes, structural barriers, and stigma measurement in healthcare settings for people with substance use disorders."
     },
     {
       "id": "substance_tobacco_cessation",
@@ -287,7 +309,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 6.78008,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Tobacco Cessation & E-Cigarette Trends",
+      "short_description": "Smoking cessation interventions, nicotine metabolism, adolescent vaping, and mental health comorbidities of electronic cigarette use."
     },
     {
       "id": "substance_opioid_neurobiology",
@@ -304,7 +328,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 2.87501,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Neurobiological Mechanisms of Opioid Reward",
+      "short_description": "Sex differences, stress effects, and receptor-level mechanisms underlying opioid reward and dependence in preclinical models."
     },
     {
       "id": "substance_covid_pandemic_impact",
@@ -323,7 +349,9 @@
       ],
       "coverage_estimate": 0.039,
       "total_weight": 5.04243,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "COVID-19 Impact on Addiction Services",
+      "short_description": "Pandemic-driven changes to harm reduction services, telehealth expansion, overdose rates, and treatment utilization among people who use drugs."
     },
     {
       "id": "substance_youth_substance_use",
@@ -341,7 +369,9 @@
       ],
       "coverage_estimate": 0.034,
       "total_weight": 1.888801,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Adolescent Substance Use & Interventions",
+      "short_description": "Risk factors, neurodevelopmental effects, and interventions for substance use initiation among adolescents and young adults."
     },
     {
       "id": "substance_opioid_cancer_pain",
@@ -356,7 +386,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.960583,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Pain Management & Opioids in Cancer Care",
+      "short_description": "Opioid prescription trends, access barriers, and coverage restrictions for pain management in oncology patients."
     },
     {
       "id": "substance_multimodal_analgesia",
@@ -371,7 +403,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 0.840055,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Non-Opioid & Multimodal Perioperative Analgesia",
+      "short_description": "Ketamine, complementary medicine, and multimodal analgesic strategies to reduce opioid consumption in surgical settings."
     },
     {
       "id": "substance_opioid_monitoring_behavior",
@@ -386,7 +420,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 2.349972,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Drug Monitoring Programs & Patient Behavior",
+      "short_description": "Prescription drug monitoring, patient behaviors during long-term opioid therapy, and EHR-based prescribing guidance tools."
     },
     {
       "id": "substance_safer_supply_policy",
@@ -399,7 +435,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 1.038913,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Safer Supply & Drug Decriminalization Policy",
+      "short_description": "Evaluation of safer opioid supply programs and decriminalization initiatives and their effects on overdose and hospitalization outcomes."
     },
     {
       "id": "substance_opioid_racial_disparities",
@@ -412,7 +450,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 1.591705,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Racial Disparities in Pain & Opioid Access",
+      "short_description": "Race, ethnicity, and socioeconomic factors shaping access to opioid analgesics and community-level disparities in pain treatment."
     },
     {
       "id": "substance_suicide_mental_health_comorbidity",
@@ -427,7 +467,9 @@
       ],
       "coverage_estimate": 0.06,
       "total_weight": 2.45805,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Suicide Risk & Behavioral Health Comorbidities",
+      "short_description": "Suicide rates, gambling disorder, and psychiatric comorbidities among people with substance use disorders, with prevention focus."
     },
     {
       "id": "substance_integrated_behavioral_health_policy",
@@ -441,7 +483,9 @@
       ],
       "coverage_estimate": 0.05,
       "total_weight": 0.913739,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Behavioral Health Integration & Policy",
+      "short_description": "Policy frameworks and implementation strategies for integrating addiction and mental health treatment into general medical care."
     },
     {
       "id": "substance_pwid_hiv_prep",
@@ -454,7 +498,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.622321,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "HIV Prevention & PrEP for People Who Use Drugs",
+      "short_description": "PrEP navigation, contingency management, and HIV prevention strategies for people who inject drugs and sexual minority populations."
     },
     {
       "id": "substance_sedative_benzodiazepine_prescribing",
@@ -467,7 +513,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.220037,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Benzodiazepine & Sedative Prescribing Risks",
+      "short_description": "Fall risk, critical illness sequelae, and prescribing harms associated with sedatives and benzodiazepines in older and vulnerable adults."
     },
     {
       "id": "substance_alcohol_fetal_comorbidity",
@@ -480,7 +528,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.179102,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Fetal Alcohol Spectrum & Related Comorbidities",
+      "short_description": "Physical and health consequences of prenatal alcohol exposure, including fetal alcohol spectrum disorder and alcohol-related tissue changes."
     },
     {
       "id": "substance_neuroimaging_ml",
@@ -493,7 +543,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.110808,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Neuroimaging & Machine Learning in Addiction",
+      "short_description": "Deep learning and interpretability tools applied to neuroimaging data for understanding psychiatric and substance use disorder brain changes."
     },
     {
       "id": "substance_medicaid_hcv_coverage",
@@ -506,7 +558,9 @@
       ],
       "coverage_estimate": 0.04,
       "total_weight": 0.965207,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Medicaid Coverage & Specialty Treatment Access",
+      "short_description": "Medicaid policy changes affecting hepatitis C and specialty care access, including removal of fee-for-service restrictions."
     }
   ],
   "uncovered_pmids": [

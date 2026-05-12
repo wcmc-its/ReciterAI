@@ -18,7 +18,9 @@
         34647433,
         36745014
       ],
-      "coverage_estimate": 0.21
+      "coverage_estimate": 0.21,
+      "display_name": "Checkpoint Inhibitor Clinical Outcomes",
+      "short_description": "Efficacy, survival, toxicity, and retreatment strategies for PD-1, CTLA-4, and combination checkpoint inhibitors in advanced melanoma."
     },
     {
       "id": "melanoma_braf_targeted_therapy",
@@ -29,7 +31,9 @@
         37930123,
         33084375
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "BRAF/MEK Targeted Therapy",
+      "short_description": "BRAF and MEK inhibitor outcomes, combination strategies, and resistance mechanisms in BRAF-mutant melanoma."
     },
     {
       "id": "melanoma_tumor_immunology_til",
@@ -42,7 +46,9 @@
         34566953,
         37001503
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Tumor-Infiltrating Lymphocytes & Immune Microenvironment",
+      "short_description": "TIL states, differentiation trajectories, and functional properties within the melanoma immune microenvironment."
     },
     {
       "id": "melanoma_car_t_immunotherapy",
@@ -53,7 +59,9 @@
         34566953,
         33440157
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "CAR T Cell & Adoptive Immunotherapy",
+      "short_description": "Preclinical and translational development of CAR T cell and adoptive T cell therapies targeting melanoma-specific antigens."
     },
     {
       "id": "melanoma_molecular_biology_metastasis",
@@ -65,7 +73,9 @@
         32941657,
         34183355
       ],
-      "coverage_estimate": 0.08
+      "coverage_estimate": 0.08,
+      "display_name": "Molecular Pathways & Metastatic Mechanisms",
+      "short_description": "Epigenetic regulators and cellular mechanisms driving melanoma progression, metastasis, and oxidative stress resistance."
     },
     {
       "id": "melanoma_cutaneous_lymphoma",
@@ -78,18 +88,22 @@
         32172217,
         33851477
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Cutaneous T-Cell Lymphoma & Lymphoproliferative Disorders",
+      "short_description": "Diagnosis, treatment, and outcomes for mycosis fungoides, lymphomatoid papulosis, and related cutaneous lymphomas."
     },
     {
       "id": "melanoma_cutaneous_scc_immunosuppression",
       "label": "Cutaneous Squamous Cell Carcinoma in Immunocompromised Patients",
-      "description": "Studies examining the impact of immunosuppression\u2014including solid organ transplantation and other immunomodulating conditions\u2014on the prognosis, metastasis, and management of cutaneous squamous cell carcinoma.",
+      "description": "Studies examining the impact of immunosuppression—including solid organ transplantation and other immunomodulating conditions—on the prognosis, metastasis, and management of cutaneous squamous cell carcinoma.",
       "seed_pmids": [
         33247523,
         36980651,
         34183355
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Squamous Cell Carcinoma in Immunocompromised Patients",
+      "short_description": "Impact of transplantation and immunosuppression on prognosis, metastasis, and management of cutaneous squamous cell carcinoma."
     },
     {
       "id": "melanoma_surgical_reconstruction",
@@ -100,7 +114,9 @@
         34898154,
         32529271
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Surgical Reconstruction of Skin Cancer Defects",
+      "short_description": "Techniques for reconstructing cutaneous defects after skin cancer resection, including dermal templates and advancement flaps."
     },
     {
       "id": "melanoma_epidemiology_disparities",
@@ -111,7 +127,9 @@
         32529271,
         36745014
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Epidemiology, Racial Disparities & Patient Outcomes",
+      "short_description": "Racial disparities in survival, staging accuracy in acral melanoma, and health-related quality of life in melanoma patients."
     },
     {
       "id": "melanoma_ai_early_detection",
@@ -122,7 +140,9 @@
         33005020,
         38877116
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "AI-Driven Skin Lesion Detection",
+      "short_description": "Deep learning and machine learning models for automated classification and early detection of melanoma and skin lesions."
     },
     {
       "id": "melanoma_liquid_biopsy_ctdna",
@@ -133,12 +153,14 @@
         40217113,
         40641046
       ],
-      "coverage_estimate": 0.06
+      "coverage_estimate": 0.06,
+      "display_name": "Liquid Biopsy & Circulating Tumor DNA",
+      "short_description": "ctDNA and cell-free DNA technologies for tumor burden monitoring, minimal residual disease detection, and treatment response assessment."
     },
     {
       "id": "melanoma_combination_immunotherapy_preclinical",
       "label": "Combination Immunotherapy Strategies and Preclinical Tumor Models",
-      "description": "Preclinical studies investigating combination approaches to enhance antitumor immunity, including TGF\u03b2 inhibition, LDH inhibition, phosphatidylserine targeting, GITR engagement, and cyclophosphamide-based regimens in melanoma and solid tumor models.",
+      "description": "Preclinical studies investigating combination approaches to enhance antitumor immunity, including TGFβ inhibition, LDH inhibition, phosphatidylserine targeting, GITR engagement, and cyclophosphamide-based regimens in melanoma and solid tumor models.",
       "seed_pmids": [
         34789823,
         39225102,
@@ -146,7 +168,9 @@
         34676831,
         37891002
       ],
-      "coverage_estimate": 0.1
+      "coverage_estimate": 0.1,
+      "display_name": "Combination Immunotherapy & Preclinical Tumor Models",
+      "short_description": "Preclinical combination strategies enhancing antitumor immunity, including TGFβ inhibition, GITR engagement, and phosphatidylserine targeting."
     }
   ],
   "uncovered_pmids": [

@@ -24,7 +24,9 @@
         38506708,
         39443795
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Innate Lymphoid Cells & Mucosal Immunity",
+      "short_description": "ILC biology and cytokine-driven regulation of gut barrier function, tissue homeostasis, and mucosal inflammation."
     },
     {
       "id": "immunology_tumor_immune_microenvironment",
@@ -56,7 +58,9 @@
         36624093,
         39364290
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Tumor Immune Microenvironment & Immunotherapy",
+      "short_description": "Immune cell composition, T cell exhaustion, and checkpoint blockade strategies within the tumor microenvironment."
     },
     {
       "id": "immunology_cytokine_interferon_signaling",
@@ -80,7 +84,9 @@
         33625952,
         36384110
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Cytokine & Interferon Signaling Pathways",
+      "short_description": "Interferon, interleukin, and TNF-alpha signaling in innate immune activation, inflammasome biology, and inflammatory regulation."
     },
     {
       "id": "immunology_t_cell_biology_checkpoints",
@@ -107,7 +113,9 @@
         32894020,
         33095579
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "T Cell Differentiation & Checkpoint Biology",
+      "short_description": "CD4+, CD8+, and regulatory T cell biology, exhaustion, memory formation, and checkpoint receptor modulation."
     },
     {
       "id": "immunology_b_cell_humoral_immunity",
@@ -130,7 +138,9 @@
         34022127,
         36243027
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "B Cell Biology & Humoral Immunity",
+      "short_description": "Germinal center reactions, antibody class switching, memory B cell formation, and broadly neutralizing antibody responses."
     },
     {
       "id": "immunology_macrophage_myeloid_cell_biology",
@@ -154,7 +164,9 @@
         40100622,
         39197317
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Macrophage & Myeloid Cell Biology",
+      "short_description": "Macrophage polarization, microglial function, and myeloid cell roles in infection, sterile inflammation, and tissue repair."
     },
     {
       "id": "immunology_gut_microbiome_immune_regulation",
@@ -178,7 +190,9 @@
         40239649,
         40608914
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Gut Microbiome & Immune Regulation",
+      "short_description": "Bacterial and fungal microbiota interactions with mucosal immunity, IgA responses, and systemic inflammatory regulation."
     },
     {
       "id": "immunology_sars_cov2_immune_response",
@@ -210,7 +224,9 @@
         35233546,
         36464607
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "SARS-CoV-2 Immunity & COVID-19 Immunopathology",
+      "short_description": "Antibody dynamics, T cell responses, cytokine storm, and mRNA vaccine immunogenicity in SARS-CoV-2 infection."
     },
     {
       "id": "immunology_neuroinflammation_neuroimmune",
@@ -234,7 +250,9 @@
         38237586,
         36206386
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Neuroinflammation & Neuroimmune Crosstalk",
+      "short_description": "Microglial activation, blood-brain barrier dysfunction, and neuroimmune signaling in neurological and psychiatric diseases."
     },
     {
       "id": "immunology_hiv_immune_dysfunction",
@@ -260,7 +278,9 @@
         38956017,
         39345793
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "HIV Immunology & Reservoir Biology",
+      "short_description": "HIV-specific T cell dysfunction, viral reservoir latency, broadly neutralizing antibodies, and immune recovery on antiretroviral therapy."
     },
     {
       "id": "immunology_transplant_alloimmunity",
@@ -283,7 +303,9 @@
         40423982,
         38052043
       ],
-      "coverage_estimate": 0.017
+      "coverage_estimate": 0.017,
+      "display_name": "Transplant Immunology & Alloimmune Responses",
+      "short_description": "Allograft rejection mechanisms, donor-specific antibodies, tolerance induction, and biomarker monitoring in transplantation."
     },
     {
       "id": "immunology_lymphoma_hematologic_immune",
@@ -307,7 +329,9 @@
         40147445,
         40487447
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Lymphoma Biology & Hematologic Malignancies",
+      "short_description": "Molecular and immunological drivers of B and T cell lymphomas, immune evasion, and CAR T cell therapeutic strategies."
     },
     {
       "id": "immunology_autoimmunity_autoreactivity",
@@ -329,7 +353,9 @@
         34905000,
         36808180
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Autoimmunity & Immune Tolerance Breakdown",
+      "short_description": "Self-reactive B and T cell responses, interferon-driven autoimmune pathology, and molecular triggers of tolerance failure."
     },
     {
       "id": "immunology_vaccine_immunogenicity",
@@ -355,12 +381,14 @@
         39213340,
         34972105
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Vaccine Immunogenicity & Protective Responses",
+      "short_description": "Antibody breadth, durability, and cellular immunity elicited by viral vaccines, adjuvants, and maternal vaccination strategies."
     },
     {
       "id": "immunology_inflammatory_signaling_senescence",
       "label": "Inflammatory Signaling, Cellular Senescence, and Sterile Inflammation",
-      "description": "Research on molecular mechanisms of sterile inflammation including NF-\u03baB, STING, cGAS, and inflammasome pathways, cellular senescence-associated inflammatory phenotypes (SASP), and oxidative stress-driven immune activation. Includes studies of complement activation, necroptosis, and inflammatory mediators in non-infectious tissue injury.",
+      "description": "Research on molecular mechanisms of sterile inflammation including NF-κB, STING, cGAS, and inflammasome pathways, cellular senescence-associated inflammatory phenotypes (SASP), and oxidative stress-driven immune activation. Includes studies of complement activation, necroptosis, and inflammatory mediators in non-infectious tissue injury.",
       "seed_pmids": [
         32299776,
         33058948,
@@ -379,7 +407,9 @@
         38056453,
         34290243
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Sterile Inflammation & Cellular Senescence",
+      "short_description": "NF-κB, STING, and inflammasome pathways driving senescence-associated inflammation and non-infectious tissue injury."
     }
   ],
   "uncovered_pmids": [

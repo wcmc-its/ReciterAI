@@ -38,12 +38,14 @@
       ],
       "coverage_estimate": 0.029,
       "total_weight": 64.95045,
-      "activity_count": 98
+      "activity_count": 98,
+      "display_name": "Racial & Ethnic Disparities in Outcomes",
+      "short_description": "Differences in clinical outcomes, treatment receipt, and healthcare utilization across racial and ethnic groups, including mechanisms like provider bias and hospital segregation."
     },
     {
       "id": "health_sdoh_cardiovascular_stroke",
       "label": "Social Determinants of Health and Cardiovascular/Stroke Outcomes",
-      "description": "Studies examining how social determinants of health\u2014including poverty, neighborhood disadvantage, race, and cumulative social vulnerabilities\u2014affect incidence, outcomes, and mortality from cardiovascular disease, heart failure, stroke, and coronary heart disease, primarily using large cohort studies such as REGARDS.",
+      "description": "Studies examining how social determinants of health—including poverty, neighborhood disadvantage, race, and cumulative social vulnerabilities—affect incidence, outcomes, and mortality from cardiovascular disease, heart failure, stroke, and coronary heart disease, primarily using large cohort studies such as REGARDS.",
       "seed_pmids": [
         32316807,
         32673521,
@@ -69,7 +71,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 46.430383,
-      "activity_count": 55
+      "activity_count": 55,
+      "display_name": "Poverty, Race & Cardiovascular Outcomes",
+      "short_description": "Effects of neighborhood disadvantage, poverty, and cumulative social vulnerability on cardiovascular disease, stroke, and heart failure incidence and mortality."
     },
     {
       "id": "health_medicaid_insurance_access",
@@ -98,7 +102,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 15.93512,
-      "activity_count": 35
+      "activity_count": 35,
+      "display_name": "Insurance Coverage & Healthcare Access",
+      "short_description": "Effects of Medicaid expansion and insurance policy on care access, treatment utilization, and outcomes across cancer, diabetes, maternal health, and other conditions."
     },
     {
       "id": "health_maternal_reproductive_disparities",
@@ -128,7 +134,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 28.692329,
-      "activity_count": 60
+      "activity_count": 60,
+      "display_name": "Maternal Health & Reproductive Equity",
+      "short_description": "Racial, ethnic, and socioeconomic disparities in maternal morbidity, obstetric outcomes, prenatal care, and reproductive justice policy."
     },
     {
       "id": "health_cancer_disparities_screening",
@@ -159,7 +167,9 @@
       ],
       "coverage_estimate": 0.022,
       "total_weight": 60.477446,
-      "activity_count": 96
+      "activity_count": 96,
+      "display_name": "Cancer Disparities & Screening Access",
+      "short_description": "Racial, ethnic, and socioeconomic gaps in cancer screening, diagnosis, treatment, and survival, including barriers and underrepresentation in clinical trials."
     },
     {
       "id": "health_workforce_diversity_equity",
@@ -192,7 +202,9 @@
       ],
       "coverage_estimate": 0.024,
       "total_weight": 21.269395,
-      "activity_count": 49
+      "activity_count": 49,
+      "display_name": "Workforce Diversity & Inclusion in Medicine",
+      "short_description": "Gender, racial, and ethnic representation across medical specialties, covering pipeline programs, promotion disparities, and DEI initiatives in academic medicine."
     },
     {
       "id": "health_telehealth_access_disparities",
@@ -217,7 +229,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 8.911062,
-      "activity_count": 24
+      "activity_count": 24,
+      "display_name": "Telehealth Access & Equity",
+      "short_description": "Disparities in telehealth adoption and outcomes by race, age, geography, and insurance status, including COVID-19 implementation and policy implications."
     },
     {
       "id": "health_opioid_substance_use_equity",
@@ -244,12 +258,14 @@
       ],
       "coverage_estimate": 0.018,
       "total_weight": 12.340848,
-      "activity_count": 43
+      "activity_count": 43,
+      "display_name": "Opioid Use Disorder & Equity",
+      "short_description": "Disparities in opioid use disorder treatment, harm reduction, and substance use policy across racial, socioeconomic, and geographic groups."
     },
     {
       "id": "health_neighborhood_built_environment",
       "label": "Neighborhood Disadvantage, Built Environment, and Health Outcomes",
-      "description": "Studies investigating how neighborhood-level factors\u2014including residential segregation, food environment, built environment, social deprivation, and environmental exposures\u2014affect health outcomes and healthcare utilization. Includes research on geographic variation in Medicare spending and neighborhood social conditions.",
+      "description": "Studies investigating how neighborhood-level factors—including residential segregation, food environment, built environment, social deprivation, and environmental exposures—affect health outcomes and healthcare utilization. Includes research on geographic variation in Medicare spending and neighborhood social conditions.",
       "seed_pmids": [
         32520834,
         34110394,
@@ -269,7 +285,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 18.807504,
-      "activity_count": 39
+      "activity_count": 39,
+      "display_name": "Neighborhood Disadvantage & Health Outcomes",
+      "short_description": "How residential segregation, food environment, social deprivation, and built environment factors shape health outcomes and healthcare utilization."
     },
     {
       "id": "health_global_lmic_disparities",
@@ -299,7 +317,9 @@
       ],
       "coverage_estimate": 0.021,
       "total_weight": 55.820747,
-      "activity_count": 143
+      "activity_count": 143,
+      "display_name": "Healthcare Access in Low-Income Countries",
+      "short_description": "Healthcare access, disease burden, and structural barriers to care in sub-Saharan Africa, Haiti, and other low- and middle-income settings."
     },
     {
       "id": "health_mental_health_disparities_policy",
@@ -327,7 +347,9 @@
       ],
       "coverage_estimate": 0.019,
       "total_weight": 13.745207,
-      "activity_count": 56
+      "activity_count": 56,
+      "display_name": "Mental Health Disparities & Policy",
+      "short_description": "Racial, ethnic, and socioeconomic gaps in mental health care access and treatment, including parity enforcement and behavioral health integration into primary care."
     },
     {
       "id": "health_covid_racial_socioeconomic_disparities",
@@ -352,7 +374,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 39.947533,
-      "activity_count": 75
+      "activity_count": 75,
+      "display_name": "COVID-19 Disparities by Race & Socioeconomics",
+      "short_description": "Racial, ethnic, and socioeconomic disparities in COVID-19 infection, severity, mortality, and vaccination, including structural and neighborhood-level drivers."
     },
     {
       "id": "health_sdoh_data_measurement",
@@ -377,7 +401,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 18.2667,
-      "activity_count": 30
+      "activity_count": 30,
+      "display_name": "Measurement & Data Infrastructure for SDOH",
+      "short_description": "Methods to extract and validate social determinants data from EHRs and surveys, including NLP, algorithmic fairness, and race/ethnicity data quality."
     },
     {
       "id": "health_sex_gender_disparities_cardiovascular",
@@ -403,7 +429,9 @@
       ],
       "coverage_estimate": 0.017,
       "total_weight": 23.574961,
-      "activity_count": 30
+      "activity_count": 30,
+      "display_name": "Sex & Gender Disparities in Cardiovascular Care",
+      "short_description": "Sex-based differences in cardiovascular and surgical treatment access and outcomes, including bypass grafting, valve surgery, and differential revascularization rates."
     }
   ],
   "uncovered_pmids": [

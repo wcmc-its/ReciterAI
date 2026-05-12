@@ -28,7 +28,9 @@
       ],
       "coverage_estimate": 0.054,
       "total_weight": 18.233775,
-      "activity_count": 32
+      "activity_count": 32,
+      "display_name": "Cost-Effectiveness Analysis of Interventions",
+      "short_description": "Formal cost-effectiveness and cost-benefit frameworks evaluating treatments, diagnostics, and interventions using ICER calculations and microsimulation models."
     },
     {
       "id": "health_pharmaceutical_pricing_biosimilars",
@@ -50,7 +52,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 4.730194,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Drug Pricing, Biosimilars & Coverage Policy",
+      "short_description": "Pharmaceutical pricing dynamics, biosimilar market entry, formulary restrictions, and the role of PBMs in shaping drug spending."
     },
     {
       "id": "health_opioid_economics",
@@ -84,7 +88,9 @@
       ],
       "coverage_estimate": 0.072,
       "total_weight": 15.973222,
-      "activity_count": 24
+      "activity_count": 24,
+      "display_name": "Opioid Use Disorder Economic Burden",
+      "short_description": "Costs of opioid use disorder and overdose deaths, cost-effectiveness of MOUD, and economic impact of prescribing regulations."
     },
     {
       "id": "health_private_equity_market_consolidation",
@@ -108,7 +114,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 10.133644,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Private Equity & Market Consolidation Effects",
+      "short_description": "Impact of private equity acquisitions and corporate consolidation on healthcare prices, utilization, and quality across clinical sectors."
     },
     {
       "id": "health_value_based_payment_mips",
@@ -132,7 +140,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 8.619106,
-      "activity_count": 16
+      "activity_count": 16,
+      "display_name": "Value-Based Payment & Physician Incentives",
+      "short_description": "Medicare value-based programs including MIPS, ACOs, and the Shared Savings Program, focusing on financial incentives and care quality."
     },
     {
       "id": "health_medicaid_expansion_coverage",
@@ -156,7 +166,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 4.168272,
-      "activity_count": 18
+      "activity_count": 18,
+      "display_name": "Medicaid Expansion & Insurance Coverage",
+      "short_description": "Effects of ACA Medicaid expansion on coverage, care access, treatment utilization, and outcomes among low-income and vulnerable populations."
     },
     {
       "id": "health_healthcare_spending_utilization",
@@ -181,7 +193,9 @@
       ],
       "coverage_estimate": 0.045,
       "total_weight": 14.567391,
-      "activity_count": 20
+      "activity_count": 20,
+      "display_name": "Spending Patterns, Utilization & Waste",
+      "short_description": "Geographic variation in Medicare costs, high-cost patient populations, low-value services, and interventions to reduce unnecessary resource use."
     },
     {
       "id": "health_telehealth_economics",
@@ -201,7 +215,9 @@
       ],
       "coverage_estimate": 0.03,
       "total_weight": 3.370156,
-      "activity_count": 10
+      "activity_count": 10,
+      "display_name": "Telehealth Adoption & Economic Impact",
+      "short_description": "Cost implications, utilization patterns, and quality outcomes of telehealth services, including policy changes following COVID-19."
     },
     {
       "id": "health_nursing_home_ltc_economics",
@@ -225,7 +241,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 3.285439,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Nursing Home & Long-Term Care Economics",
+      "short_description": "Financial structures, ownership models, staffing, and quality outcomes in nursing homes, including private equity and REIT involvement."
     },
     {
       "id": "health_economic_burden_disease",
@@ -249,7 +267,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 5.126125,
-      "activity_count": 9
+      "activity_count": 9,
+      "display_name": "Societal Cost of Disease & Mortality",
+      "short_description": "Quantifying economic costs of diseases, overdose deaths, and chronic conditions using human capital and productivity loss frameworks."
     },
     {
       "id": "health_surgical_procedural_costs",
@@ -273,7 +293,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 8.234091,
-      "activity_count": 21
+      "activity_count": 21,
+      "display_name": "Surgical Costs, Reimbursement & Value",
+      "short_description": "Costs and reimbursement trends for surgical interventions using activity-based costing and claims data across multiple specialties."
     },
     {
       "id": "health_infectious_disease_hcv_economics",
@@ -296,7 +318,9 @@
       ],
       "coverage_estimate": 0.039,
       "total_weight": 4.808451,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "Hepatitis C, HIV & Infectious Disease Economics",
+      "short_description": "Cost-effectiveness, financing, and policy barriers to treatment for HCV, HIV, and other infectious diseases including Medicaid restrictions."
     },
     {
       "id": "health_racial_socioeconomic_disparities",
@@ -322,7 +346,9 @@
       ],
       "coverage_estimate": 0.048,
       "total_weight": 6.303192,
-      "activity_count": 27
+      "activity_count": 27,
+      "display_name": "Racial & Socioeconomic Disparities in Care",
+      "short_description": "Disparities in access, treatment utilization, and outcomes by race, ethnicity, and socioeconomic status driven by insurance and social determinants."
     },
     {
       "id": "health_payment_model_innovation",
@@ -346,7 +372,9 @@
       ],
       "coverage_estimate": 0.042,
       "total_weight": 3.718821,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Payment Model Innovation & Financing Reform",
+      "short_description": "Novel financing models including bundled payments, capitation, and surprise billing legislation and their implications for providers and patients."
     },
     {
       "id": "health_epidemiological_modeling_economics",
@@ -368,7 +396,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 2.951658,
-      "activity_count": 11
+      "activity_count": 11,
+      "display_name": "Epidemiological & Economic Disease Modeling",
+      "short_description": "Simulation models projecting disease burden and estimating economic value of vaccination, screening, and prevention programs."
     },
     {
       "id": "health_mental_health_integration_policy",
@@ -385,7 +415,9 @@
       ],
       "coverage_estimate": 0.028,
       "total_weight": 1.83353,
-      "activity_count": 8
+      "activity_count": 8,
+      "display_name": "Behavioral Health Integration & Policy",
+      "short_description": "Integrating mental health and addiction treatment into general medical settings, including care models for serious mental illness and co-occurring disorders."
     },
     {
       "id": "health_cannabis_policy_outcomes",
@@ -399,7 +431,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 0.758328,
-      "activity_count": 4
+      "activity_count": 4,
+      "display_name": "Cannabis Legalization & Health Outcomes",
+      "short_description": "Effects of medical and recreational cannabis legalization on opioid use, chronic pain treatment, and drug market patterns."
     },
     {
       "id": "health_workforce_burnout_turnover",
@@ -416,7 +450,9 @@
       ],
       "coverage_estimate": 0.028,
       "total_weight": 1.67465,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Workforce Burnout, Turnover & Retention",
+      "short_description": "Physician and care worker burnout, financial stresses in training, and retention challenges across clinical and direct care roles."
     },
     {
       "id": "health_elder_abuse_financial_exploitation",
@@ -430,7 +466,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 3.733742,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Elder Abuse & Financial Exploitation",
+      "short_description": "Identification, prevention, and economic dimensions of elder abuse, mistreatment, and financial exploitation among older adults."
     },
     {
       "id": "health_cardiogenic_shock_mechanical_support",
@@ -444,7 +482,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 7.262717,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Cardiogenic Shock & Mechanical Circulatory Support",
+      "short_description": "Utilization of mechanical circulatory support devices, hospital transfer patterns, and outcomes in cardiogenic shock and acute MI patients."
     },
     {
       "id": "health_covid_pandemic_health_system_impact",
@@ -462,7 +502,9 @@
       ],
       "coverage_estimate": 0.032,
       "total_weight": 2.021798,
-      "activity_count": 12
+      "activity_count": 12,
+      "display_name": "COVID-19 Impact on Health Systems & Populations",
+      "short_description": "Effects of the COVID-19 pandemic on care delivery, ICU capacity, health disparities, and vulnerable populations including home care workers."
     },
     {
       "id": "health_global_lmic_health_systems",
@@ -479,12 +521,14 @@
       ],
       "coverage_estimate": 0.028,
       "total_weight": 1.182051,
-      "activity_count": 7
+      "activity_count": 7,
+      "display_name": "Global Health Systems in Low-Income Countries",
+      "short_description": "Surgical access, cost-effectiveness, and health system barriers in low- and middle-income countries, particularly sub-Saharan Africa."
     },
     {
       "id": "health_opioid_prescribing_policy",
       "label": "Opioid Prescribing Regulation and Policy Interventions",
-      "description": "Studies on the effects of regulatory and institutional policies\u2014including drug rescheduling, marketing restrictions, and emergency department MOUD initiation\u2014on opioid prescribing patterns and treatment access.",
+      "description": "Studies on the effects of regulatory and institutional policies—including drug rescheduling, marketing restrictions, and emergency department MOUD initiation—on opioid prescribing patterns and treatment access.",
       "seed_pmids": [
         32101973,
         32479218,
@@ -493,7 +537,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 1.125254,
-      "activity_count": 6
+      "activity_count": 6,
+      "display_name": "Opioid Prescribing Regulation & Policy",
+      "short_description": "Effects of drug rescheduling, marketing restrictions, and ED-based MOUD initiation on opioid prescribing patterns and treatment access."
     },
     {
       "id": "health_breast_cancer_reconstruction_disparities",
@@ -507,7 +553,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 0.306046,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Breast Reconstruction Access & Disparities",
+      "short_description": "Patterns and disparities in postmastectomy breast reconstruction by race, surgeon gender, legislation, and institutional factors."
     },
     {
       "id": "health_cardiovascular_testing_value",
@@ -522,7 +570,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.873649,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Cardiovascular Testing Value & Appropriateness",
+      "short_description": "Appropriateness and value of cardiovascular diagnostic procedures, including high- versus low-value testing variation by insurance type."
     },
     {
       "id": "health_hospice_palliative_end_of_life",
@@ -535,7 +585,9 @@
       ],
       "coverage_estimate": 0.012,
       "total_weight": 0.67755,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Hospice, Palliative Care & End-of-Life Costs",
+      "short_description": "Utilization, mortality, and cost considerations for patients in hospice or palliative care, including those with dementia and heart failure."
     },
     {
       "id": "health_health_disparities_access_geography",
@@ -554,7 +606,9 @@
       ],
       "coverage_estimate": 0.036,
       "total_weight": 0.065444,
-      "activity_count": 1
+      "activity_count": 1,
+      "display_name": "Geographic & Demographic Disparities in Access",
+      "short_description": "Disparities in screening, care access, and treatment by geography, race, and socioeconomic status across cancer, cardiovascular, and chronic conditions."
     },
     {
       "id": "health_neonatal_pediatric_care_policy",
@@ -568,7 +622,9 @@
       ],
       "coverage_estimate": 0.016,
       "total_weight": 1.189594,
-      "activity_count": 2
+      "activity_count": 2,
+      "display_name": "Neonatal & Pediatric Care Policy",
+      "short_description": "Policies and practices affecting neonatal and pediatric outcomes, including prenatal substance use policy, NICU resource use, and child mental health."
     },
     {
       "id": "health_health_information_technology_billing",
@@ -581,12 +637,14 @@
       ],
       "coverage_estimate": 0.012,
       "total_weight": 0.580229,
-      "activity_count": 3
+      "activity_count": 3,
+      "display_name": "Clinical IT, Billing & Data Systems",
+      "short_description": "Electronic medical records, billing automation, and data systems supporting clinical documentation and care quality."
     },
     {
       "id": "health_comorbidity_chronic_disease_utilization",
       "label": "Comorbidity, Chronic Disease Burden, and Healthcare Resource Utilization",
-      "description": "Research examining how comorbidities and multimorbidity\u2014including COPD, diabetes, sickle cell disease, and mental illness\u2014drive healthcare utilization, hospitalizations, and outcomes.",
+      "description": "Research examining how comorbidities and multimorbidity—including COPD, diabetes, sickle cell disease, and mental illness—drive healthcare utilization, hospitalizations, and outcomes.",
       "seed_pmids": [
         39133115,
         40037280,
@@ -598,7 +656,9 @@
       ],
       "coverage_estimate": 0.02,
       "total_weight": 0.70975,
-      "activity_count": 5
+      "activity_count": 5,
+      "display_name": "Comorbidity, Chronic Disease & Utilization",
+      "short_description": "How multimorbidity including COPD, diabetes, and sickle cell disease drives hospitalizations, resource use, and patient outcomes."
     }
   ],
   "uncovered_pmids": [

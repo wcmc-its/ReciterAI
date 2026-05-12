@@ -33,7 +33,9 @@
         34919294,
         38053538
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "NLP & Clinical Text Mining",
+      "short_description": "Extracting structured information from clinical notes, pathology reports, and EHR free text using NLP and large language models."
     },
     {
       "id": "biomedical_llm_generative_ai_clinical",
@@ -60,7 +62,9 @@
         39836952,
         39872195
       ],
-      "coverage_estimate": 0.035
+      "coverage_estimate": 0.035,
+      "display_name": "Generative AI in Clinical Applications",
+      "short_description": "Evaluating and deploying large language models for medical question answering, evidence summarization, and healthcare decision support."
     },
     {
       "id": "biomedical_ml_ehr_prediction",
@@ -93,7 +97,9 @@
         33083543,
         37029117
       ],
-      "coverage_estimate": 0.046
+      "coverage_estimate": 0.046,
+      "display_name": "EHR-Based Outcome Prediction Models",
+      "short_description": "Machine learning models using structured EHR data to predict mortality, readmission, disease progression, and risk stratification."
     },
     {
       "id": "biomedical_computable_phenotyping_ehr_infrastructure",
@@ -121,7 +127,9 @@
         33241548,
         35239414
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Computable Phenotyping & Data Warehouses",
+      "short_description": "Clinical data infrastructure, common data models, and computable phenotype algorithms supporting translational research."
     },
     {
       "id": "biomedical_deep_learning_medical_imaging",
@@ -160,7 +168,9 @@
         37350910,
         40185767
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Deep Learning for Medical Imaging",
+      "short_description": "Neural network methods applied to radiology, pathology, and ophthalmic images for detection, segmentation, and prognosis."
     },
     {
       "id": "biomedical_clinical_decision_support_ai",
@@ -186,7 +196,9 @@
         36820942,
         38826071
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "AI-Driven Clinical Decision Support",
+      "short_description": "AI tools, best practice alerts, and automated e-consults integrated into clinical workflows to improve outcomes and guideline adherence."
     },
     {
       "id": "biomedical_wearable_mhealth_digital_monitoring",
@@ -215,7 +227,9 @@
         40200441,
         39920205
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Wearables & Digital Health Monitoring",
+      "short_description": "Wearable sensors and mobile health apps for monitoring chronic disease, mental health, sleep, and diabetes management."
     },
     {
       "id": "biomedical_federated_learning_data_privacy",
@@ -233,7 +247,9 @@
         39283346,
         35909793
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Federated Learning & Data Privacy",
+      "short_description": "Privacy-preserving frameworks for training predictive models across distributed, multi-institutional healthcare datasets."
     },
     {
       "id": "biomedical_knowledge_graphs_drug_repurposing",
@@ -254,7 +270,9 @@
         38588311,
         39237774
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Knowledge Graphs & Drug Repurposing",
+      "short_description": "Graph-based machine learning on biomedical knowledge graphs for drug repurposing, target identification, and disease mechanism discovery."
     },
     {
       "id": "biomedical_subphenotyping_patient_stratification",
@@ -279,7 +297,9 @@
         40355420,
         36635438
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Patient Subphenotyping & Disease Stratification",
+      "short_description": "Unsupervised machine learning on clinical and omics data to identify meaningful patient subtypes across sepsis, COVID-19, and neurological conditions."
     },
     {
       "id": "biomedical_nlp_social_determinants_mental_health",
@@ -307,7 +327,9 @@
         36414624,
         34481472
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "NLP for Social Determinants & Mental Health",
+      "short_description": "Natural language processing and social media analysis to identify social determinants of health, mental health conditions, and behavioral risk factors."
     },
     {
       "id": "biomedical_telehealth_digital_patient_engagement",
@@ -332,7 +354,9 @@
         37062188,
         40845441
       ],
-      "coverage_estimate": 0.031
+      "coverage_estimate": 0.031,
+      "display_name": "Telehealth & Digital Patient Engagement",
+      "short_description": "Evaluation of telehealth platforms, patient portals, and digital tools for remote care delivery and patient-reported outcomes."
     },
     {
       "id": "biomedical_omics_computational_genomics",
@@ -360,7 +384,9 @@
         37034187,
         36316562
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Multi-Omics Integration & Bioinformatics",
+      "short_description": "Computational pipelines for genomic, transcriptomic, epigenomic, and multi-omics data analysis supporting biomedical discovery."
     },
     {
       "id": "biomedical_ai_fairness_bias_equity",
@@ -383,7 +409,9 @@
         38598551,
         34047194
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Algorithmic Fairness & Health Equity",
+      "short_description": "Identifying and mitigating bias in clinical AI models to improve equity and representation of underserved populations."
     },
     {
       "id": "biomedical_cancer_genomics_somatic_evolution",
@@ -405,7 +433,9 @@
         38877116,
         39317739
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Cancer Genomics & Somatic Evolution",
+      "short_description": "Computational characterization of somatic mutations, structural variants, and tumor evolutionary dynamics across cancer types."
     },
     {
       "id": "biomedical_liquid_biopsy_ctdna_cancer",
@@ -423,7 +453,9 @@
         33857204,
         36934200
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Liquid Biopsy & Circulating Tumor DNA",
+      "short_description": "Developing and validating ctDNA and cell-free DNA approaches for ultrasensitive cancer detection, monitoring, and prognosis."
     },
     {
       "id": "biomedical_neuroimaging_brain_connectivity",
@@ -451,7 +483,9 @@
         40771196,
         39644998
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Neuroimaging & Brain Connectivity Analysis",
+      "short_description": "Machine learning applied to fMRI and structural MRI data to model brain connectivity, aging, and neurological disorder classification."
     },
     {
       "id": "biomedical_computational_pathology_histology",
@@ -469,7 +503,9 @@
         39209814,
         40905789
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Computational Pathology & Histological AI",
+      "short_description": "Deep learning methods for whole-slide histopathology image analysis, cancer grading, biomarker prediction, and prognosis."
     },
     {
       "id": "biomedical_covid19_informatics_surveillance",
@@ -497,7 +533,9 @@
         35672574,
         32640418
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "COVID-19 Surveillance & Predictive Modeling",
+      "short_description": "Informatics and machine learning methods for pandemic surveillance, clinical outcome modeling, and public health response."
     },
     {
       "id": "biomedical_radiology_imaging_ml_diagnosis",
@@ -524,7 +562,9 @@
         32917665,
         40541533
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Radiological Imaging & ML Diagnosis",
+      "short_description": "Machine learning applied to chest X-ray, CT, MRI, and PET for disease detection, organ segmentation, and outcome prediction."
     },
     {
       "id": "biomedical_single_cell_spatial_omics",
@@ -542,7 +582,9 @@
         40905789,
         36044468
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Single-Cell & Spatial Omics Methods",
+      "short_description": "Computational tools for single-cell RNA sequencing, spatial transcriptomics, and multi-omics integration across tissue architectures."
     },
     {
       "id": "biomedical_ngs_sequencing_methods",
@@ -565,7 +607,9 @@
         37641111,
         34670649
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Next-Generation Sequencing & Bioinformatics Tools",
+      "short_description": "Benchmarking and developing NGS platforms and pipelines for long-read sequencing, structural variant detection, and metagenomics."
     },
     {
       "id": "biomedical_elder_mistreatment_informatics",
@@ -578,7 +622,9 @@
         32508284,
         33550264
       ],
-      "coverage_estimate": 0.008
+      "coverage_estimate": 0.008,
+      "display_name": "Elder Mistreatment Detection & Informatics",
+      "short_description": "Data linkage and machine learning methods using administrative and claims data to identify and study elder mistreatment."
     },
     {
       "id": "biomedical_ai_ophthalmology_retinal",
@@ -592,7 +638,9 @@
         38486010,
         40917265
       ],
-      "coverage_estimate": 0.01
+      "coverage_estimate": 0.01,
+      "display_name": "AI for Ophthalmology & Retinal Disease",
+      "short_description": "Deep learning applied to fundus photography and OCT imaging for retinal disease detection, progression prediction, and biomarker extraction."
     },
     {
       "id": "biomedical_ai_reproductive_medicine",
@@ -606,7 +654,9 @@
         40264925,
         40645954
       ],
-      "coverage_estimate": 0.01
+      "coverage_estimate": 0.01,
+      "display_name": "AI in Reproductive Medicine & IVF",
+      "short_description": "Deep learning for embryo ranking, ploidy prediction, and ovarian stimulation modeling in assisted reproductive technology."
     },
     {
       "id": "biomedical_ai_laryngology_voice",
@@ -621,7 +671,9 @@
         39976345,
         40277459
       ],
-      "coverage_estimate": 0.011
+      "coverage_estimate": 0.011,
+      "display_name": "AI for Laryngology & Voice Disorders",
+      "short_description": "Deep learning applied to laryngoscopic imaging, vocal fold pathology classification, and otolaryngology clinical decision support."
     },
     {
       "id": "biomedical_ml_surgical_outcomes",
@@ -635,7 +687,9 @@
         39884499,
         32193984
       ],
-      "coverage_estimate": 0.01
+      "coverage_estimate": 0.01,
+      "display_name": "Surgical Outcome Prediction & Perioperative AI",
+      "short_description": "Machine learning models predicting surgical complications, postoperative risk, and perioperative outcomes from clinical and imaging data."
     },
     {
       "id": "biomedical_health_informatics_infrastructure",
@@ -654,7 +708,9 @@
         37483367,
         38696462
       ],
-      "coverage_estimate": 0.018
+      "coverage_estimate": 0.018,
+      "display_name": "Data Governance & Research Infrastructure",
+      "short_description": "Enterprise data warehouses, health information exchange, EHR usability, and research data governance for real-world evidence generation."
     }
   ],
   "uncovered_pmids": [

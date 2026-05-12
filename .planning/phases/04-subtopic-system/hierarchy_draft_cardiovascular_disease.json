@@ -42,7 +42,9 @@
         40828315,
         40927852
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Coronary Revascularization & PCI vs. CABG",
+      "short_description": "Percutaneous and surgical coronary revascularization strategies, graft patency, multivessel disease management, and procedural outcomes."
     },
     {
       "id": "cardiovascular_cardiac_surgery_outcomes",
@@ -81,7 +83,9 @@
         40669800,
         40834795
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Cardiac Surgery Outcomes & Techniques",
+      "short_description": "Outcomes of valve, aortic, and complex cardiac surgery including sex and racial disparities, technique comparisons, and perioperative complications."
     },
     {
       "id": "cardiovascular_valvular_tavr",
@@ -116,7 +120,9 @@
         40608040,
         40614565
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "Valvular Disease & Transcatheter Interventions",
+      "short_description": "TAVR, surgical valve replacement, mitral and tricuspid interventions, device outcomes, and antithrombotic management in structural heart disease."
     },
     {
       "id": "cardiovascular_arrhythmia_electrophysiology",
@@ -156,7 +162,9 @@
         38069971,
         40643240
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Arrhythmia & Cardiac Electrophysiology",
+      "short_description": "Atrial fibrillation, ventricular arrhythmias, catheter ablation, implantable devices, and antiarrhythmic therapy outcomes."
     },
     {
       "id": "cardiovascular_heart_failure_management",
@@ -196,7 +204,9 @@
         39132559,
         39929310
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "Heart Failure Management & Outcomes",
+      "short_description": "Pharmacological therapy, mechanical circulatory support, cardiogenic shock, and readmission outcomes across HFpEF and HFrEF populations."
     },
     {
       "id": "cardiovascular_cardiac_imaging_diagnostics",
@@ -234,7 +244,9 @@
         39163376,
         40229312
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Cardiac Imaging & Diagnostic Technologies",
+      "short_description": "Echocardiography, cardiac MRI, CT, and nuclear imaging for structural assessment, ventricular function, and intraoperative guidance."
     },
     {
       "id": "cardiovascular_stroke_cerebrovascular",
@@ -272,7 +284,9 @@
         32549942,
         34649036
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Stroke & Cerebrovascular Disease",
+      "short_description": "Ischemic and hemorrhagic stroke mechanisms, anticoagulation strategies, AF-related stroke, disparities, and secondary prevention."
     },
     {
       "id": "cardiovascular_hypertension_management",
@@ -308,7 +322,9 @@
         39966863,
         34022044
       ],
-      "coverage_estimate": 0.033
+      "coverage_estimate": 0.033,
+      "display_name": "Hypertension Epidemiology & Management",
+      "short_description": "Blood pressure control, antihypertensive therapy, renal denervation, and hypertension in pregnancy, HIV, and low-income populations."
     },
     {
       "id": "cardiovascular_pulmonary_embolism_vascular",
@@ -337,7 +353,9 @@
         36606508,
         37865454
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "Pulmonary Embolism & Venous Thromboembolism",
+      "short_description": "PE risk stratification, catheter-directed thrombolysis, mechanical thrombectomy, anticoagulation strategies, and chronic thromboembolic outcomes."
     },
     {
       "id": "cardiovascular_aortic_vascular_surgery",
@@ -370,7 +388,9 @@
         40401916,
         40904694
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Aortic & Peripheral Vascular Surgery",
+      "short_description": "Open and endovascular aortic repair, aortic dissection, TEVAR, peripheral arterial revascularization, and limb ischemia management."
     },
     {
       "id": "cardiovascular_heart_failure_home_care",
@@ -398,7 +418,9 @@
         37495948,
         39836740
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Heart Failure Home Care & Self-Management",
+      "short_description": "Home-based care models, transitions of care, patient self-management, shared decision-making, and readmission prevention in heart failure."
     },
     {
       "id": "cardiovascular_social_determinants_disparities",
@@ -426,7 +448,9 @@
         32901370,
         35657680
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Social Determinants & Health Disparities",
+      "short_description": "Racial, ethnic, and socioeconomic disparities in heart failure, stroke, and coronary disease outcomes, and community-based interventions."
     },
     {
       "id": "cardiovascular_basic_cardiac_biology",
@@ -458,7 +482,9 @@
         36692963,
         38692338
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Cardiac Biology & Regeneration",
+      "short_description": "Cardiomyocyte regeneration, iPSC models, endothelial biology, sphingolipid signaling, and molecular mechanisms of cardiac disease."
     },
     {
       "id": "cardiovascular_cardio_oncology",
@@ -486,7 +512,9 @@
         34036237,
         37905350
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Cardio-Oncology & Treatment Cardiotoxicity",
+      "short_description": "Chemotherapy and radiation-induced cardiotoxicity, checkpoint inhibitor myocarditis, cancer-associated thromboembolism, and cardiac tumor management."
     },
     {
       "id": "cardiovascular_takotsubo_syndrome",
@@ -509,7 +537,9 @@
         34441995,
         33908405
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Takotsubo Syndrome & Stress Cardiomyopathy",
+      "short_description": "Clinical features, imaging, recurrence, beta-blocker therapy, and short- and long-term outcomes of stress cardiomyopathy."
     },
     {
       "id": "cardiovascular_cabg_techniques_outcomes",
@@ -534,7 +564,9 @@
         33933109,
         38535104
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "CABG Techniques, Grafts & Outcomes",
+      "short_description": "Arterial and venous grafting strategies, graft patency, operative outcomes by sex and comorbidity, and quality of life after bypass surgery."
     },
     {
       "id": "cardiovascular_stemi_pci_outcomes",
@@ -561,7 +593,9 @@
         39230545,
         40272347
       ],
-      "coverage_estimate": 0.038
+      "coverage_estimate": 0.038,
+      "display_name": "STEMI & Primary PCI Outcomes",
+      "short_description": "Primary PCI timing, infarct size, microvascular obstruction, antiplatelet strategies, and temporal trends in myocardial infarction outcomes."
     },
     {
       "id": "cardiovascular_heart_transplant_outcomes",
@@ -584,7 +618,9 @@
         36528125,
         38690432
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Heart Transplantation Outcomes & Complications",
+      "short_description": "Graft dysfunction, allograft vasculopathy, rejection, donor and recipient factors, and long-term survival after heart transplantation."
     },
     {
       "id": "cardiovascular_hiv_cardiovascular",
@@ -609,7 +645,9 @@
         34366381,
         31809363
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "HIV-Associated Cardiovascular Risk",
+      "short_description": "Hypertension, arterial stiffness, diastolic dysfunction, and antiretroviral therapy effects on cardiovascular risk in people living with HIV."
     },
     {
       "id": "cardiovascular_covid19_cardiovascular",
@@ -632,7 +670,9 @@
         33775324,
         35689935
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "COVID-19 Cardiovascular Complications",
+      "short_description": "Myocardial injury, arrhythmias, thrombotic events, right ventricular dysfunction, and myocarditis in hospitalized COVID-19 patients."
     },
     {
       "id": "cardiovascular_long_covid_pasc",
@@ -650,7 +690,9 @@
         35999352,
         34995147
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Long COVID & Post-Acute Sequelae",
+      "short_description": "Risk factors, subphenotypes, and cardiorespiratory burden of post-acute SARS-CoV-2 sequelae using EHR-based cohort studies."
     },
     {
       "id": "cardiovascular_ckd_cardiorenal",
@@ -672,7 +714,9 @@
         35207400,
         36647997
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Cardiorenal Syndrome & CKD Interactions",
+      "short_description": "FGF23, klotho, iron status, pulmonary hypertension, and cardiac biomarkers at the intersection of chronic kidney and cardiovascular disease."
     },
     {
       "id": "cardiovascular_diabetes_cardiometabolic",
@@ -695,7 +739,9 @@
         33623893,
         40390975
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "Diabetes & Cardiometabolic Risk",
+      "short_description": "Glycemic control, prediabetes subclassification, autonomic neuropathy, lipid dysregulation, and obesity in cardiovascular risk management."
     },
     {
       "id": "cardiovascular_stroke_risk_factors_secondary_prevention",
@@ -718,7 +764,9 @@
         39321946,
         35755227
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "Stroke Risk Factors & Secondary Prevention",
+      "short_description": "Smoking cessation, antiplatelet and anticoagulation therapy, and secondary prevention strategies after ischemic stroke and TIA."
     },
     {
       "id": "cardiovascular_hypothalamic_hypertension_neurobiology",
@@ -736,7 +784,9 @@
         39452127,
         39545900
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Hypothalamic Neurobiology & Neurogenic Hypertension",
+      "short_description": "Paraventricular nucleus signaling via angiotensin II, TNF-alpha, and glutamate receptors in the neurogenic regulation of blood pressure."
     },
     {
       "id": "cardiovascular_rheumatoid_arthritis_cvd",
@@ -752,7 +802,9 @@
         33411607,
         37410623
       ],
-      "coverage_estimate": 0.016
+      "coverage_estimate": 0.016,
+      "display_name": "Rheumatoid Arthritis & Cardiovascular Risk",
+      "short_description": "CVD risk prediction, hyperlipidemia screening, dementia risk, and behavioral interventions in patients with inflammatory arthritis."
     },
     {
       "id": "cardiovascular_sex_disparities_outcomes",
@@ -772,7 +824,9 @@
         35944732,
         39069380
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Sex & Gender Disparities in Outcomes",
+      "short_description": "Sex-based differences in cardiovascular disease presentation, revascularization, cardiac surgery, and patient-physician concordance."
     },
     {
       "id": "cardiovascular_mitochondrial_ischemia_cardioprotection",
@@ -792,7 +846,9 @@
         37166361,
         34389654
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Mitochondrial Biology & Cardioprotection",
+      "short_description": "Mitochondrial function, reactive oxygen species, ischemic preconditioning, and metabolic remodeling in ischemia-reperfusion injury."
     }
   ],
   "uncovered_pmids": [

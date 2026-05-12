@@ -33,7 +33,9 @@
         35075531,
         34936536
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "COVID-19 Severity & Clinical Outcomes",
+      "short_description": "Risk factors, comorbidity effects, and mortality stratification in hospitalized COVID-19 patients."
     },
     {
       "id": "infectious_sars_cov2_immunology_vaccines",
@@ -71,7 +73,9 @@
         34499052,
         36992418
       ],
-      "coverage_estimate": 0.032
+      "coverage_estimate": 0.032,
+      "display_name": "SARS-CoV-2 Immunity & Vaccine Effectiveness",
+      "short_description": "Antibody kinetics, neutralizing responses, variant-specific vaccine effectiveness, and waning or hybrid immunity."
     },
     {
       "id": "infectious_sars_cov2_variants_epidemiology",
@@ -106,7 +110,9 @@
         34173194,
         35576147
       ],
-      "coverage_estimate": 0.029
+      "coverage_estimate": 0.029,
+      "display_name": "SARS-CoV-2 Variants & Transmission Dynamics",
+      "short_description": "Variant emergence, seroprevalence, reinfection rates, and mathematical modeling of epidemic trajectories."
     },
     {
       "id": "infectious_hiv_biology_treatment",
@@ -140,7 +146,9 @@
         34388205,
         34861767
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "HIV Biology, Reservoirs & Cure Strategies",
+      "short_description": "Viral latency, reservoir dynamics, antiretroviral immune reconstitution, and HIV-specific T cell and antibody responses."
     },
     {
       "id": "infectious_hiv_clinical_comorbidities",
@@ -174,7 +182,9 @@
         35194053,
         33597552
       ],
-      "coverage_estimate": 0.028
+      "coverage_estimate": 0.028,
+      "display_name": "HIV Comorbidities & Aging",
+      "short_description": "Cardiovascular, renal, neurocognitive, and metabolic complications in people aging with HIV."
     },
     {
       "id": "infectious_hiv_prevention_testing",
@@ -205,7 +215,9 @@
         33346582,
         36631809
       ],
-      "coverage_estimate": 0.025
+      "coverage_estimate": 0.025,
+      "display_name": "HIV Prevention, PrEP & Community Testing",
+      "short_description": "PrEP uptake, HIV testing programs, stigma reduction, and community-based care cascade interventions."
     },
     {
       "id": "infectious_hepatitis_treatment_epidemiology",
@@ -244,7 +256,9 @@
         36776773,
         35643203
       ],
-      "coverage_estimate": 0.034
+      "coverage_estimate": 0.034,
+      "display_name": "Hepatitis B, C & D Elimination",
+      "short_description": "Epidemiology, treatment access, elimination strategies, and outcomes in special populations including pregnant women."
     },
     {
       "id": "infectious_tuberculosis_mycobacterium",
@@ -286,7 +300,9 @@
         35686302,
         39758562
       ],
-      "coverage_estimate": 0.037
+      "coverage_estimate": 0.037,
+      "display_name": "Tuberculosis Biology & Drug Development",
+      "short_description": "Mycobacterium tuberculosis drug targets, resistance mechanisms, latent TB, and clinical management of drug-resistant strains."
     },
     {
       "id": "infectious_malaria_parasitology",
@@ -313,7 +329,9 @@
         35895423,
         37289272
       ],
-      "coverage_estimate": 0.021
+      "coverage_estimate": 0.021,
+      "display_name": "Malaria Parasite Biology & Antimalarials",
+      "short_description": "Plasmodium biology, drug resistance mechanisms, and novel antimalarial compound development targeting key pathways."
     },
     {
       "id": "infectious_sexually_transmitted_infections",
@@ -345,7 +363,9 @@
         35522019,
         37347188
       ],
-      "coverage_estimate": 0.026
+      "coverage_estimate": 0.026,
+      "display_name": "STI Epidemiology, Prevention & Vaccines",
+      "short_description": "Global burden, transmission modeling, and vaccine or prevention strategies for HSV, gonorrhea, syphilis, and HPV."
     },
     {
       "id": "infectious_antimicrobial_resistance_diagnostics",
@@ -375,7 +395,9 @@
         36700925,
         38123798
       ],
-      "coverage_estimate": 0.024
+      "coverage_estimate": 0.024,
+      "display_name": "Antimicrobial Resistance & Stewardship",
+      "short_description": "Resistance mechanisms, rapid molecular diagnostics, stewardship programs, and outcomes of drug-resistant infections."
     },
     {
       "id": "infectious_covid19_pathophysiology_organoids",
@@ -411,7 +433,9 @@
         36703108,
         36121875
       ],
-      "coverage_estimate": 0.03
+      "coverage_estimate": 0.03,
+      "display_name": "SARS-CoV-2 Pathophysiology & Experimental Models",
+      "short_description": "Viral entry, host cell tropism, organoid models, and molecular mechanisms of COVID-19 organ damage."
     },
     {
       "id": "infectious_long_covid_post_acute",
@@ -444,7 +468,9 @@
         37650236,
         35075531
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "Long COVID & Post-Acute Sequelae",
+      "short_description": "Prevalence, risk factors, neurological manifestations, and emerging treatments for post-acute SARS-CoV-2 sequelae."
     },
     {
       "id": "infectious_fungal_gut_microbiome",
@@ -466,7 +492,9 @@
         34875117,
         40914251
       ],
-      "coverage_estimate": 0.015
+      "coverage_estimate": 0.015,
+      "display_name": "Fungal Infections & Gut Mycobiome",
+      "short_description": "Candida and fungal pathogen biology, mycobiota-IgA interactions, and fungal roles in mucosal immunity and IBD."
     },
     {
       "id": "infectious_cytomegalovirus_vaccines",
@@ -494,7 +522,9 @@
         33892135,
         40143922
       ],
-      "coverage_estimate": 0.022
+      "coverage_estimate": 0.022,
+      "display_name": "Cytomegalovirus Immunity & Vaccine Development",
+      "short_description": "CMV immune correlates, congenital transmission, and mRNA or subunit vaccine candidate evaluation."
     }
   ],
   "uncovered_pmids": [

@@ -45,7 +45,9 @@
         38963263,
         40390631
       ],
-      "coverage_estimate": 0.084
+      "coverage_estimate": 0.084,
+      "display_name": "Residency & Fellowship Curriculum Design",
+      "short_description": "Design, implementation, and evaluation of competency-based curricula across residency and fellowship programs."
     },
     {
       "id": "medical_simulation_procedural_training",
@@ -78,7 +80,9 @@
         35100790,
         34567395
       ],
-      "coverage_estimate": 0.057
+      "coverage_estimate": 0.057,
+      "display_name": "Simulation & Procedural Skills Training",
+      "short_description": "High-fidelity simulators, 3D-printed models, and virtual reality tools for clinical and procedural skills training."
     },
     {
       "id": "medical_diversity_equity_inclusion",
@@ -115,7 +119,9 @@
         33129623,
         40796186
       ],
-      "coverage_estimate": 0.066
+      "coverage_estimate": 0.066,
+      "display_name": "Diversity, Equity & Inclusion in Medicine",
+      "short_description": "Gender, racial, and ethnic representation in academic medicine, faculty promotion, and recruitment of underrepresented minorities."
     },
     {
       "id": "medical_faculty_development_leadership",
@@ -145,7 +151,9 @@
         38401980,
         38889270
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Faculty Development & Academic Leadership",
+      "short_description": "Leadership curricula, mentorship, academic promotion, and faculty development programs in academic medicine."
     },
     {
       "id": "medical_physician_burnout_wellbeing",
@@ -179,7 +187,9 @@
         36634250,
         39088933
       ],
-      "coverage_estimate": 0.059
+      "coverage_estimate": 0.059,
+      "display_name": "Clinician Burnout & Workforce Well-Being",
+      "short_description": "Burnout prevalence, moral distress, and wellness interventions among physicians, residents, and healthcare professionals."
     },
     {
       "id": "medical_medical_student_education",
@@ -207,7 +217,9 @@
         40200441,
         32958003
       ],
-      "coverage_estimate": 0.045
+      "coverage_estimate": 0.045,
+      "display_name": "Undergraduate Medical Education & Clerkships",
+      "short_description": "Clerkship curricula, assessment methods, and virtual learning innovations across preclinical and clinical training."
     },
     {
       "id": "medical_telehealth_virtual_education",
@@ -234,7 +246,9 @@
         40167384,
         36849931
       ],
-      "coverage_estimate": 0.043
+      "coverage_estimate": 0.043,
+      "display_name": "Telehealth & Digital Education Technologies",
+      "short_description": "E-learning platforms, virtual classrooms, and digital tools for remote clinical training and healthcare delivery."
     },
     {
       "id": "medical_surgical_training_learning_curve",
@@ -259,7 +273,9 @@
         33427109,
         37382500
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Surgical Skill Acquisition & Operative Training",
+      "short_description": "Learning curves, operative autonomy, and the impact of surgical experience on trainee outcomes."
     },
     {
       "id": "medical_home_health_direct_care_workforce",
@@ -284,7 +300,9 @@
         39884660,
         35429453
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Home Health & Direct Care Workforce",
+      "short_description": "Training, working conditions, and job satisfaction of home health aides supporting patients with chronic conditions."
     },
     {
       "id": "medical_palliative_care_education_training",
@@ -310,7 +328,9 @@
         37788757,
         39289141
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "Palliative Care Clinician Training",
+      "short_description": "Competency development and educational interventions for palliative care and hospice medicine clinicians."
     },
     {
       "id": "medical_global_health_lmic_training",
@@ -334,7 +354,9 @@
         33361169,
         40359911
       ],
-      "coverage_estimate": 0.036
+      "coverage_estimate": 0.036,
+      "display_name": "Global Health Education & Capacity Building",
+      "short_description": "Surgical training, telementoring, and healthcare education initiatives in low- and middle-income countries."
     },
     {
       "id": "medical_covid_healthcare_workforce_impact",
@@ -360,7 +382,9 @@
         37864866,
         34817403
       ],
-      "coverage_estimate": 0.041
+      "coverage_estimate": 0.041,
+      "display_name": "COVID-19 Impact on Training & Workforce",
+      "short_description": "Pandemic effects on healthcare worker well-being, clinical training disruptions, and residency program adaptations."
     },
     {
       "id": "medical_communication_skills_training",
@@ -385,7 +409,9 @@
         40384456,
         38250303
       ],
-      "coverage_estimate": 0.039
+      "coverage_estimate": 0.039,
+      "display_name": "Communication Skills & Patient-Provider Interaction",
+      "short_description": "Curricula and assessment tools to improve clinician communication, including prognostic and bad-news delivery skills."
     },
     {
       "id": "medical_icustaffing_workforce_models",
@@ -405,7 +431,9 @@
         36797510,
         32808212
       ],
-      "coverage_estimate": 0.027
+      "coverage_estimate": 0.027,
+      "display_name": "ICU Staffing Models & Clinical Outcomes",
+      "short_description": "Intensivist staffing ratios, advanced practice provider roles, and their relationship to critical care patient outcomes."
     },
     {
       "id": "medical_radiology_imaging_education",
@@ -425,7 +453,9 @@
         38086182,
         40780879
       ],
-      "coverage_estimate": 0.07
+      "coverage_estimate": 0.07,
+      "display_name": "Radiology & Imaging Education",
+      "short_description": "Curriculum development, simulation tools, and competency assessment in diagnostic radiology and breast imaging training."
     },
     {
       "id": "medical_pediatric_behavioral_mental_health_training",
@@ -439,7 +469,9 @@
         36731651,
         37565013
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Pediatric Behavioral Health Competency Training",
+      "short_description": "How pediatric trainees acquire competency in behavioral and mental health care, including preparedness and training resources."
     },
     {
       "id": "medical_opioid_substance_use_clinician_attitudes",
@@ -453,7 +485,9 @@
         38994443,
         32479218
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Clinician Attitudes & Opioid Use Disorder Treatment",
+      "short_description": "Stigma, training, and institutional policies shaping clinician prescribing and harm reduction for opioid use disorder."
     },
     {
       "id": "medical_cpr_emergency_response_community_training",
@@ -467,7 +501,9 @@
         32659538,
         36721088
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "CPR & Community Emergency Response Training",
+      "short_description": "Bystander training programs in CPR, hemorrhage control, and emergency response skills, including adoption barriers."
     },
     {
       "id": "medical_elder_mistreatment_detection_response",
@@ -479,7 +515,9 @@
         39212368,
         38602348
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Elder Mistreatment Detection & Clinical Response",
+      "short_description": "Identifying and responding to elder mistreatment across clinical settings, including tool development and interdisciplinary models."
     },
     {
       "id": "medical_interprofessional_peer_coach_training",
@@ -493,7 +531,9 @@
         37476984,
         39033284
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Interprofessional Collaboration & Team-Based Training",
+      "short_description": "Training peer coaches and interprofessional teams in collaborative care models and motivational interviewing."
     },
     {
       "id": "medical_nursing_home_workforce_burnout_turnover",
@@ -504,7 +544,9 @@
         39116274,
         36759906
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Long-Term Care Workforce Burnout & Turnover",
+      "short_description": "Resident aggression, burnout, and leadership factors driving staff turnover in nursing homes and long-term care facilities."
     },
     {
       "id": "medical_diagnostic_error_clinical_practice_gaps",
@@ -520,7 +562,9 @@
         35477148,
         40922679
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Diagnostic Error & Quality Improvement",
+      "short_description": "Gaps in clinical diagnosis, screening adherence, and quality improvement initiatives to address care deficiencies across specialties."
     },
     {
       "id": "medical_student_mental_health_wellbeing",
@@ -532,7 +576,9 @@
         36626507,
         33557594
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Student Mental Health & Well-Being",
+      "short_description": "Stress, mental health, and well-being among medical and university students, including interventions across diverse populations."
     },
     {
       "id": "medical_specialty_training_competency_assessment",
@@ -548,7 +594,9 @@
         39918145,
         32546386
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Specialty-Specific Competency Assessment",
+      "short_description": "Competency tools and training curricula across pharmacy, genetic counseling, speech-language pathology, and emergency medicine."
     },
     {
       "id": "medical_healthcare_system_policy_workforce",
@@ -563,7 +611,9 @@
         33802934,
         40884510
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "System Policy & Practice Patterns",
+      "short_description": "How system structures, policies, and physician practice patterns shape care delivery, integration models, and compensation."
     },
     {
       "id": "medical_arts_humanities_reflective_practice",
@@ -575,7 +625,9 @@
         39758848,
         38088597
       ],
-      "coverage_estimate": 0.02
+      "coverage_estimate": 0.02,
+      "display_name": "Arts, Humanities & Reflective Practice",
+      "short_description": "Creative arts, poetry, and humanities-based approaches supporting clinician well-being and professional identity formation."
     },
     {
       "id": "medical_patient_provider_trust_engagement",
@@ -589,7 +641,9 @@
         39026124,
         36661199
       ],
-      "coverage_estimate": 0.04
+      "coverage_estimate": 0.04,
+      "display_name": "Patient-Provider Trust & Shared Decision-Making",
+      "short_description": "Factors shaping patient trust, race concordance effects, and clinician strategies for building therapeutic relationships."
     },
     {
       "id": "medical_health_equity_disparities_screening",
@@ -605,7 +659,9 @@
         40878901,
         39119159
       ],
-      "coverage_estimate": 0.05
+      "coverage_estimate": 0.05,
+      "display_name": "Health Equity, Disparities & Community Screening",
+      "short_description": "Racial, ethnic, and socioeconomic health disparities addressed through community screening and social determinants of health integration."
     }
   ],
   "uncovered_pmids": [
