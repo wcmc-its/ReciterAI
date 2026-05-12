@@ -1,0 +1,62 @@
+{
+  "$schema_note": "AWS EventBridge rule + target definitions for ReciterAI Phase 10 (D-10). Single-file IaC; promoted to CDK only when the migration threshold in infra/README.md fires.",
+  "region": "us-east-1",
+
+  "rules": [
+    {
+      "name": "reciterai-hot-weekly",
+      "description": "Hot path: weekly Step Functions execution covering score -> assign -> rollup over delta PMIDs. Cron locked 2026-05-12 per Open Q 10.1 (ReciterDB daily refresh confirmed).",
+      "schedule_expression": "cron(0 12 ? * MON *)",
+      "schedule_comment": "Mondays 12:00 UTC = 08:00 EDT. Lands after typical overnight ReciterDB refresh; inside US business hours for pager response. Override: edit this rule + redeploy via scripts/deploy_cron.sh.",
+      "state": "ENABLED",
+      "target": {
+        "id": "hot-state-machine",
+        "kind": "step_functions",
+        "arn_template": "arn:aws:states:{region}:{account_id}:stateMachine:reciterai-hot-path",
+        "role_arn_template": "arn:aws:iam::{account_id}:role/reciterai-eventbridge-invoke-states",
+        "input": {
+          "initiated_by": "scheduled",
+          "trigger": "eventbridge:reciterai-hot-weekly"
+        }
+      }
+    },
+    {
+      "name": "reciterai-spotlight-monthly",
+      "description": "Spotlight refresh: monthly Lambda invocation that runs the dirty-check gate (D-03) and, if thresholds tripped, regenerates the spotlight via backfill_spotlight.py --publish.",
+      "schedule_expression": "cron(0 13 1 * ? *)",
+      "schedule_comment": "1st of each month, 13:00 UTC = 09:00 EDT. One hour after the hot path so the dirty-check sees STAGE# rows from the most recent hot run.",
+      "state": "ENABLED",
+      "target": {
+        "id": "spotlight-orchestrator",
+        "kind": "lambda",
+        "arn_template": "arn:aws:lambda:{region}:{account_id}:function:reciterai-spotlight-orchestrator",
+        "input": {
+          "initiated_by": "scheduled",
+          "trigger": "eventbridge:reciterai-spotlight-monthly"
+        }
+      }
+    },
+    {
+      "name": "reciterai-drift-daily",
+      "description": "Drift evaluator: daily Lambda invocation. Reads UNCOVERED_PMID#, LOW_CONFIDENCE_ASSIGNMENT#, and STAGE#...failed rows over drift_window_days; writes DRIFT#evaluation; dispatches severity-tagged alerts via pipeline_common.alert (T11).",
+      "schedule_expression": "cron(0 14 * * ? *)",
+      "schedule_comment": "Daily 14:00 UTC = 10:00 EDT. Two hours after the hot path, one hour after the spotlight rule, so all upstream STAGE# rows for the most recent run are in place before the rolling 14-day window is evaluated.",
+      "state": "ENABLED",
+      "target": {
+        "id": "drift-evaluator",
+        "kind": "lambda",
+        "arn_template": "arn:aws:lambda:{region}:{account_id}:function:reciterai-drift-evaluator",
+        "input": {
+          "initiated_by": "scheduled",
+          "trigger": "eventbridge:reciterai-drift-daily"
+        }
+      }
+    }
+  ],
+
+  "deploy_notes": {
+    "templating": "{account_id} is read from $AWS_ACCOUNT_ID at deploy time. {region} resolves from the top-level region field. scripts/deploy_cron.sh handles substitution before passing to aws CLI.",
+    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, and the Lambda execution role attached to the named function for the two Lambda targets. Minimum policies are documented in infra/lambda_iam_policy.json.",
+    "override_cadence": "All cron expressions are tunable here without code changes. Change the schedule_expression, re-run scripts/deploy_cron.sh, and EventBridge picks up the new schedule within ~1 minute."
+  }
+}

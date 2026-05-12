@@ -1,0 +1,93 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for ReciterAI Phase 10 Lambda functions (hot-path handlers, spotlight orchestrator, drift evaluator). Single policy document; attach to the execution role of each function. Documented per D-10; this file is the source of truth until CDK adoption.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBChatbotTableReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai-chatbot",
+        "arn:aws:dynamodb:*:*:table/reciterai-chatbot/index/*"
+      ]
+    },
+    {
+      "Sid": "S3ReciterAIBucketsReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-hierarchy",
+        "arn:aws:s3:::wcmc-reciterai-hierarchy/*",
+        "arn:aws:s3:::wcmc-reciterai-artifacts",
+        "arn:aws:s3:::wcmc-reciterai-artifacts/*"
+      ]
+    },
+    {
+      "Sid": "BedrockInvokeAndBatch",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:CreateModelInvocationJob",
+        "bedrock:GetModelInvocationJob",
+        "bedrock:ListModelInvocationJobs"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "StepFunctionsStartExecutionForHotPath",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution",
+        "states:ListExecutions"
+      ],
+      "Resource": [
+        "arn:aws:states:*:*:stateMachine:reciterai-hot-path",
+        "arn:aws:states:*:*:execution:reciterai-hot-path:*"
+      ]
+    },
+    {
+      "Sid": "EventBridgePutEvents",
+      "Effect": "Allow",
+      "Action": [
+        "events:PutEvents"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/reciterai-*"
+    },
+    {
+      "Sid": "SecretsManagerSlackWebhook",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:reciterai/slack-webhook-*"
+    }
+  ]
+}
