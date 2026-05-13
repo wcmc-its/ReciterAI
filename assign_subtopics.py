@@ -92,11 +92,44 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 # --- Constants ---
 TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
 # Phase 12 G-18: tunables lifted to config/thresholds.json. CLI --confidence-floor still overrides per D-23.
+# WR-02: lazy-load to avoid an import-time crash if config/thresholds.json is
+# absent or malformed. The constants SCORE_FLOOR, DEFAULT_CONFIDENCE_FLOOR, and
+# TIE_EPSILON are exposed via module __getattr__ (PEP 562) and resolved on first
+# read. This lets unrelated tests import this module without a thresholds.json
+# present, and turns any schema regression into a clear runtime error rather
+# than an opaque import failure.
 from utils.env_check import load_thresholds as _load_thresholds_cfg
-_CFG = _load_thresholds_cfg()
-SCORE_FLOOR = float(_CFG["score_floor"])                   # Minimum relevance score to qualify as an "activity"
-DEFAULT_CONFIDENCE_FLOOR = float(_CFG["confidence_floor"]) # Below this, assignments are dropped (D-02)
-TIE_EPSILON = float(_CFG["tie_epsilon"])                   # Confidences within this are considered tied
+
+_CFG: dict | None = None
+_CACHED_THRESHOLDS: dict[str, float] = {}
+
+
+def _get_threshold(key: str) -> float:
+    """Lazy-resolve a single threshold value, caching after first read."""
+    if key in _CACHED_THRESHOLDS:
+        return _CACHED_THRESHOLDS[key]
+    global _CFG
+    if _CFG is None:
+        _CFG = _load_thresholds_cfg()
+    val = float(_CFG[key])
+    _CACHED_THRESHOLDS[key] = val
+    return val
+
+
+_LAZY_THRESHOLD_ATTRS = {
+    "SCORE_FLOOR": "score_floor",                     # Minimum relevance score to qualify as an "activity"
+    "DEFAULT_CONFIDENCE_FLOOR": "confidence_floor",   # Below this, assignments are dropped (D-02)
+    "TIE_EPSILON": "tie_epsilon",                     # Confidences within this are considered tied
+}
+
+
+def __getattr__(name: str):  # PEP 562 — module-level __getattr__
+    """Defer threshold lookup until the attribute is actually read (WR-02)."""
+    if name in _LAZY_THRESHOLD_ATTRS:
+        return _get_threshold(_LAZY_THRESHOLD_ATTRS[name])
+    raise AttributeError(f"module 'assign_subtopics' has no attribute {name!r}")
+
+
 DEFAULT_CONCURRENCY = 15           # Phase 1 precedent (score_publications)
 DEFAULT_DRAFT_DIR = Path(".planning/phases/04-subtopic-system")
 
