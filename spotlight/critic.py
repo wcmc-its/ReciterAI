@@ -34,6 +34,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -203,6 +204,25 @@ class LLMVerdict:
     passed: bool
     failed_constraint: str
     reason: str
+
+
+class CritReasonCode(StrEnum):
+    """Closed vocabulary for CRITIC_REJECT#.reason_code (Phase 12 D-31).
+
+    Values match the LLM critic prompt's ``failed_constraint`` output verbatim
+    so SPOTLIGHT_REVIEW# rows (carrying critic_verdict.failed_constraint)
+    and CRITIC_REJECT# rows (carrying reason_code) speak the same vocabulary.
+
+    PRE_LLM_GATE is reserved for deterministic-gate failures that never
+    reached the LLM; the specific deterministic code is preserved separately
+    in the row's ``pre_llm_constraint`` field.
+    """
+
+    ACTIVE_VERB = "active_verb"
+    ANCHORED_IN_SYNOPSES = "anchored_in_synopses"
+    NO_FACULTY_NAMED = "no_faculty_named"
+    INSTITUTIONAL_VOICE = "institutional_voice"
+    PRE_LLM_GATE = "pre_llm_gate"
 
 
 @dataclass(frozen=True)
@@ -448,6 +468,7 @@ def run_critic_loop(
     critic_client: BedrockClient | None = None,
     dynamo_client=None,
     excluded_openers: tuple[str, ...] = (),
+    stage_table=None,
 ) -> ValidatedLede:
     """Generate-and-critic outer loop.
 
@@ -465,12 +486,18 @@ def run_critic_loop(
     SPOTLIGHT_REVIEW# entry via ``review_queue.write_review_entry`` with
     ``flag_reason='critic'`` and ``regen_count=MAX_RETRIES``. Return a
     ValidatedLede with status="needs_review".
+
+    ``stage_table`` (Phase 12 D-08): optional DynamoDB resource table for the
+    additive CRITIC_REJECT# write. When None the CRITIC_REJECT# write is
+    skipped (dry-run / no AWS creds). Follows the ``stage_table`` pattern
+    established by ``score_publications.py`` and ``assign_subtopics.py``.
     """
     attempts: list[dict] = []
     last_failure_reason: str | None = None
     last_lede: str = ""
     last_papers: list[Paper] = []
     last_llm_verdict: LLMVerdict | None = None
+    last_deterministic_verdict: DeterministicVerdict | None = None
 
     for attempt_idx in range(MAX_RETRIES + 1):
         lede_text, selected_papers = generate_lede(
@@ -497,6 +524,7 @@ def run_critic_loop(
                     word_count=det.word_count,
                 )
         if not det.passed:
+            last_deterministic_verdict = det
             attempts.append({
                 "attempt": attempt_idx,
                 "lede": lede_text,
@@ -568,7 +596,70 @@ def run_critic_loop(
             "reason": last_llm_verdict.reason,
         }
 
-    write_review_entry(dynamo_client, review_entry)
+    write_review_entry(dynamo_client, review_entry)   # EXISTING — UNCHANGED
+
+    # Phase 12 D-08: additive CRITIC_REJECT# write for per-(publish,subtopic,pmid_set) aggregation.
+    # Keying is per-(publish_id, subtopic_id, pmid_set_hash) — NOT per-cwid (D-08 re-framing).
+    # publish_id and meta.subtopic_id are already in scope; no cwid threading is required.
+    if stage_table is not None:
+        from pipeline_common.alert import dispatch as _alert_dispatch
+        from utils.event_records import write_critic_reject
+
+        if last_llm_verdict is not None:
+            raw = last_llm_verdict.failed_constraint
+            try:
+                reason_code = CritReasonCode(raw).value
+                extra: dict[str, str] = {}
+            except ValueError:
+                reason_code = "unknown"
+                extra = {"raw_failed_constraint": raw}
+                _alert_dispatch(
+                    "WARN",
+                    (
+                        f"CRITIC_REJECT# vocabulary drift: LLM returned '{raw}' "
+                        f"which is not in CritReasonCode. "
+                        f"Row written with reason_code='unknown'."
+                    ),
+                    {"subtopic_id": meta.subtopic_id, "publish_id": publish_id},
+                )
+        else:
+            # Deterministic-only failure — never reached the LLM (PRE_LLM_GATE)
+            pre_llm = "unknown"
+            if (
+                last_deterministic_verdict is not None
+                and last_deterministic_verdict.failed_constraints
+            ):
+                pre_llm = last_deterministic_verdict.failed_constraints[0]
+            reason_code = CritReasonCode.PRE_LLM_GATE.value
+            extra = {"pre_llm_constraint": pre_llm}
+
+        # author_cwids derivation (D-08 + D-32): distinct first/last-author
+        # person_identifiers across last_papers (the rejected pmid_set's source).
+        # See spotlight/types.py:39-57 for Paper/Author shape.
+        author_cwids = sorted(
+            {
+                p.first_author.person_identifier
+                for p in last_papers
+                if p.first_author and p.first_author.person_identifier
+            }
+            | {
+                p.last_author.person_identifier
+                for p in last_papers
+                if p.last_author and p.last_author.person_identifier
+            }
+        )
+
+        write_critic_reject(
+            stage_table,
+            publish_id=publish_id,
+            subtopic_id=meta.subtopic_id,
+            pmids=[p.pmid for p in last_papers],
+            author_cwids=author_cwids,
+            reason_code=reason_code,
+            regen_count=MAX_RETRIES,
+            reason=(last_llm_verdict.reason if last_llm_verdict is not None else ""),
+            **extra,
+        )
 
     logger.info(
         "Critic exhausted: subtopic_id=%s regen_count=%d -> review queue",
