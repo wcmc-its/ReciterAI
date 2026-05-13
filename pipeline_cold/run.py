@@ -119,6 +119,18 @@ def default_cold_stages() -> list[ColdStage]:
             description="Full per-CWID rollup",
         ),
         ColdStage(
+            name="feedback_sweep",
+            command=[sys.executable, "-m", "pipeline_feedback", "sweep",
+                     "--triggered-by", "cold_run"],
+            description=(
+                "Non-gating Sonnet sweep over UNCOVERED_PMID# + "
+                "LOW_CONFIDENCE_ASSIGNMENT# (via DRIFT# materialized counts) "
+                "+ CRITIC_REJECT# events → three typed finding records "
+                "(Phase 12 D-04, D-08 per-subtopic diagnostic). Returns 0 "
+                "even with findings (D-02 non-gating)."
+            ),
+        ),
+        ColdStage(
             name="backfill_spotlight",
             command=[sys.executable, "backfill_spotlight.py", "--publish"],
             description="Generate spotlight ledes for ranked subtopic pool",
