@@ -5,5 +5,13 @@
   "drift_low_confidence_topic_max": 50,
   "drift_window_days": 14,
   "spotlight_dirty_subtopic_min": 3,
-  "spotlight_dirty_pubs_per_subtopic_min": 5
+  "spotlight_dirty_pubs_per_subtopic_min": 5,
+  "tie_epsilon": 0.001,
+  "confidence_floor": 0.3,
+  "score_floor": 0.3,
+  "feedback_sweep_max_pmids": 200,
+  "recluster_persistence_days": 7,
+  "critic_reject_persistence_days": 90,
+  "critic_reject_subtopic_max": 2,
+  "feedback_diagnostic_max_underlying": 20
 }
