@@ -126,9 +126,13 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="relabel",
-            # No-op placeholder; mirror rationale of `discover` above.
-            command=[sys.executable, "-c",
-                     "print('cold-stage relabel: subsumed by assign (no-op).')"],
+            # relabel_subtopics.py walks every hierarchy_draft_*.json on disk,
+            # populates display_name/short_description for subtopics missing
+            # them via Sonnet, and is a no-op for already-relabeled topics.
+            # publish_hierarchy refuses to ship a hierarchy that has any
+            # subtopic missing display_name/short_description, so this stage
+            # MUST run after assign discovers new subtopics for a new topic.
+            command=[sys.executable, "relabel_subtopics.py"],
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
