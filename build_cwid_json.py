@@ -1,7 +1,43 @@
-"""Build per-CWID nested JSON of topic + subtopic counts."""
+"""Build per-CWID nested JSON of topic + subtopic counts.
+
+Phase 12 D-13: reads faculty_subtopic_counts_exclusive.csv (canonical);
+falls back to legacy cwid_subtopic_counts.csv with a deprecation warning
+if the new name is absent (one-cycle deprecation window per D-13).
+"""
 import csv
 import json
+import logging
+import warnings
 from collections import defaultdict
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Phase 12 D-13 CSV name constants (mirrors rollup_by_cwid.py).
+_NEW_EXCLUSIVE_CSV = Path("faculty_subtopic_counts_exclusive.csv")
+_LEGACY_CSV = Path("cwid_subtopic_counts.csv")
+
+
+def _resolve_subtopic_csv(provided: Path | None = None) -> Path:
+    """Prefer the Phase 12 D-13 canonical name; fall back to legacy with a deprecation warning.
+
+    Phase 12 D-13: producers write both names for one cycle. This fallback will
+    be removed in a later phase once all readers have migrated to the new name.
+    """
+    if provided is not None:
+        return provided
+    if _NEW_EXCLUSIVE_CSV.exists():
+        return _NEW_EXCLUSIVE_CSV
+    if _LEGACY_CSV.exists():
+        logger.warning(
+            "Reading legacy CSV name '%s'. Phase 12 D-13 renamed this to '%s'. "
+            "Update producers to write the new name; this fallback will be removed in a later phase.",
+            _LEGACY_CSV,
+            _NEW_EXCLUSIVE_CSV,
+        )
+        return _LEGACY_CSV
+    return _NEW_EXCLUSIVE_CSV  # will fail downstream with a clear "file not found"
+
 
 per_cwid = defaultdict(lambda: {"topics": {}, "subtopics": {}})
 
@@ -9,7 +45,8 @@ with open("cwid_topic_counts.csv") as f:
     for row in csv.DictReader(f):
         per_cwid[row["personIdentifier"]]["topics"][row["topic_id"]] = int(row["n_activities"])
 
-with open("cwid_subtopic_counts.csv") as f:
+subtopic_csv = _resolve_subtopic_csv()
+with open(subtopic_csv) as f:
     for row in csv.DictReader(f):
         per_cwid[row["personIdentifier"]]["subtopics"][row["primary_subtopic_id"]] = int(row["n_activities"])
 
