@@ -38,8 +38,11 @@ logger = logging.getLogger(__name__)
 # Prompt file for Sonnet uncovered-PMID sweep
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "uncovered_pmid_sonnet_v0.md"
 
-# Model ID for Sonnet (Bedrock)
-_SONNET_MODEL_ID = "anthropic.claude-sonnet-4-5"
+# Model ID for Sonnet (Bedrock). Import the canonical constant from
+# utils.bedrock_client so this stage stays in lock-step with every other
+# Sonnet caller; hardcoding a divergent string here caused UAT-3 v5 to
+# fail with "The provided model identifier is invalid."
+from utils.bedrock_client import SONNET_MODEL as _SONNET_MODEL_ID
 
 
 def _now_iso() -> str:
