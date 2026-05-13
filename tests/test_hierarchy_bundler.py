@@ -10,7 +10,7 @@ Two layers of coverage:
 2. Live structural: run the bundler in non-strict mode against the real
    `.planning/.../hierarchy_augmented_*.json` files and assert it produces the
    same topic set / subtopic IDs / total count as today's hierarchy_full.json
-   (1526 subtopics across 65 topics) — issue #4 DoD item 5.
+   (1541 subtopics across 66 topics) — issue #4 DoD item 5.
 """
 
 from __future__ import annotations
@@ -259,11 +259,11 @@ def test_live_bundler_matches_current_hierarchy_structure():
     )
 
     assert set(rebuilt["topics"].keys()) == set(current["topics"].keys())
-    assert len(rebuilt["topics"]) == 65
+    assert len(rebuilt["topics"]) == 66
 
     total_rebuilt = sum(len(t["subtopics"]) for t in rebuilt["topics"].values())
     total_current = sum(len(t["subtopics"]) for t in current["topics"].values())
-    assert total_rebuilt == total_current == 1526
+    assert total_rebuilt == total_current == 1541
 
     for tid, topic in rebuilt["topics"].items():
         rebuilt_ids = {s["id"] for s in topic["subtopics"]}
@@ -279,9 +279,9 @@ def test_live_bundler_strict_mode_succeeds_after_relabel():
     rebuilt = bundle(
         augmented_dir=DEFAULT_AUGMENTED_DIR,
     )
-    assert len(rebuilt["topics"]) == 65
+    assert len(rebuilt["topics"]) == 66
     total = sum(len(t["subtopics"]) for t in rebuilt["topics"].values())
-    assert total == 1526
+    assert total == 1541
     # Every subtopic carries both D-19 fields.
     for topic in rebuilt["topics"].values():
         for sub in topic["subtopics"]:

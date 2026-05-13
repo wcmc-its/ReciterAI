@@ -114,11 +114,15 @@ _LAZY_THRESHOLD_ATTRS = {
 def _get_threshold(key: str) -> float:
     """Lazy-resolve a single threshold value, caching after first read.
 
-    Also writes the resolved value into module globals() so that bare-name
-    in-module references (e.g. `SCORE_FLOOR` from inside this module) work
-    once the threshold has been primed. Module-level __getattr__ below only
-    fires for external access (`assign_subtopics.SCORE_FLOOR`); bare-name
-    lookups go straight to globals() and would otherwise NameError.
+    Pure-functional: does NOT mutate module globals() — that broke the
+    test_env_check_thresholds.py reload+patch flow, because importlib.reload
+    does not clear dynamically-set globals, so once a value was primed
+    every subsequent reload kept seeing the stale cached attribute.
+
+    In-module code MUST call `_get_threshold("score_floor")` etc. directly
+    rather than reading bare-name constants. The module-level __getattr__
+    handles external `assign_subtopics.SCORE_FLOOR` access; bare names
+    inside this module bypass __getattr__ entirely (PEP 562).
     """
     if key in _CACHED_THRESHOLDS:
         return _CACHED_THRESHOLDS[key]
@@ -127,17 +131,7 @@ def _get_threshold(key: str) -> float:
         _CFG = _load_thresholds_cfg()
     val = float(_CFG[key])
     _CACHED_THRESHOLDS[key] = val
-    for attr_name, cfg_key in _LAZY_THRESHOLD_ATTRS.items():
-        if cfg_key == key:
-            globals()[attr_name] = val
     return val
-
-
-def _prime_thresholds() -> None:
-    """Eagerly resolve every lazy threshold into globals(). Call from entry
-    points so subsequent in-module bare-name references find the values."""
-    for cfg_key in _LAZY_THRESHOLD_ATTRS.values():
-        _get_threshold(cfg_key)
 
 
 def __getattr__(name: str):  # PEP 562 — module-level __getattr__
@@ -326,14 +320,15 @@ def _resolve_primary_on_tie(
         return top_id
 
     second_id, second_conf = sorted_items[1]
-    if abs(top_conf - second_conf) > TIE_EPSILON:
+    tie_epsilon = _get_threshold("tie_epsilon")
+    if abs(top_conf - second_conf) > tie_epsilon:
         # Clear winner
         return top_id
 
-    # Collect all contenders within TIE_EPSILON of the top
+    # Collect all contenders within tie_epsilon of the top
     contenders = [
         sid for sid, conf in sorted_items
-        if abs(conf - top_conf) <= TIE_EPSILON
+        if abs(conf - top_conf) <= tie_epsilon
     ]
 
     # Build a weight proxy map from Pass 1 seed_pmid counts (D-02 note:
@@ -440,16 +435,17 @@ def _query_topic_activity_rows(topic_id: str) -> list:
 
     logger.info(f"Fetched {len(rows)} raw SCORE# rows for {topic_id}")
 
+    score_floor = _get_threshold("score_floor")
     qualified = []
     for row in rows:
         sk = row.get("SK", "")
         score = _parse_score_from_sk(sk)
-        if score < SCORE_FLOOR:
+        if score < score_floor:
             continue
         qualified.append(row)
 
     logger.info(
-        f"After score floor ({SCORE_FLOOR}): {len(qualified)} qualified rows"
+        f"After score floor ({score_floor}): {len(qualified)} qualified rows"
     )
     return qualified
 
@@ -673,7 +669,7 @@ def _process_pmid(
     top_id, top_conf = sorted_pairs[0]
     if (
         len(sorted_pairs) >= 2
-        and abs(top_conf - sorted_pairs[1][1]) <= TIE_EPSILON
+        and abs(top_conf - sorted_pairs[1][1]) <= _get_threshold("tie_epsilon")
     ):
         primary = _resolve_primary_on_tie(
             confidences, subtopic_defs, hierarchy_draft
@@ -745,10 +741,6 @@ def run(
     delta_pmids: list[str] | None = None,
     emit_envelope: bool = False,
 ) -> dict:
-    # Prime lazy thresholds so in-module bare-name references (SCORE_FLOOR,
-    # TIE_EPSILON) resolve via globals() regardless of entry point.
-    _prime_thresholds()
-
     # Phase 11 D-01: resolve hierarchy_version from env before any work.
     # pipeline_cold.run.main() sets this env var for all subprocess stages.
     # Raise early with an actionable message if absent (prevents silent
@@ -1053,9 +1045,7 @@ def run(
 # ---------------------------------------------------------------------------
 
 def _parse_args():
-    # Prime lazy thresholds into globals() so the argparse `default=…`
-    # bare-name references below (DEFAULT_CONFIDENCE_FLOOR) resolve.
-    _prime_thresholds()
+    default_confidence_floor = _get_threshold("confidence_floor")
     parser = argparse.ArgumentParser(
         description=(
             "Pass 2: per-activity Haiku subtopic assignment. "
@@ -1079,11 +1069,11 @@ def _parse_args():
         help=f"Max concurrent Haiku calls (default {DEFAULT_CONCURRENCY})",
     )
     parser.add_argument(
-        "--confidence-floor", type=float, default=DEFAULT_CONFIDENCE_FLOOR,
+        "--confidence-floor", type=float, default=default_confidence_floor,
         metavar="FLOOR",
         help=(
             f"Drop assignments below this confidence "
-            f"(default {DEFAULT_CONFIDENCE_FLOOR}; D-02)"
+            f"(default {default_confidence_floor}; D-02)"
         ),
     )
     parser.add_argument(
