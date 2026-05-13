@@ -91,11 +91,14 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 
 # --- Constants ---
 TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
-SCORE_FLOOR = 0.3                  # Minimum relevance score to qualify as an "activity"
-DEFAULT_CONFIDENCE_FLOOR = 0.3     # Below this, assignments are dropped (D-02)
+# Phase 12 G-18: tunables lifted to config/thresholds.json. CLI --confidence-floor still overrides per D-23.
+from utils.env_check import load_thresholds as _load_thresholds_cfg
+_CFG = _load_thresholds_cfg()
+SCORE_FLOOR = float(_CFG["score_floor"])                   # Minimum relevance score to qualify as an "activity"
+DEFAULT_CONFIDENCE_FLOOR = float(_CFG["confidence_floor"]) # Below this, assignments are dropped (D-02)
+TIE_EPSILON = float(_CFG["tie_epsilon"])                   # Confidences within this are considered tied
 DEFAULT_CONCURRENCY = 15           # Phase 1 precedent (score_publications)
 DEFAULT_DRAFT_DIR = Path(".planning/phases/04-subtopic-system")
-TIE_EPSILON = 0.001                # Confidences within this are considered tied
 
 # Phase 10 STAGE# substrate (D-07). Run-level memoization is keyed on
 # topic_id because this script runs per-topic. Per-PMID failure rows use

@@ -1,8 +1,9 @@
 """
-Environment pre-check script for ReCiter AI Chatbot integration pipeline.
+Environment pre-check script for ReCiter AI pipeline.
 
 Runs DESCRIBE queries against ReciterDB to resolve RESEARCH.md Open Questions 2-4
-BEFORE any pipeline SQL executes.
+BEFORE any pipeline SQL executes. Also validates config/thresholds.json against its
+schema at startup (Phase 12 D-27).
 
 Usage:
     python3 utils/env_check.py
@@ -11,11 +12,70 @@ Usage:
     run_env_checks()
 """
 
+import json
 import os
 import sys
 import logging
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Repo root: two levels up from this file (utils/env_check.py -> utils/ -> root).
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# --- G-1: Data-driven column expectations ---
+# Replace inline string literals with a single data structure so adding or
+# renaming a column is a one-line change here, not a grep-and-replace across
+# the whole module. Each Check-N block iterates over its table's list.
+EXPECTED_COLUMNS: dict[str, list[str]] = {
+    "reciterai_synopsis": [
+        "external_id",
+        "synopsis",
+    ],
+    "analysis_summary_person": [
+        "nameFirst",
+        "nameLast",
+        "department",
+        "hindexNIH",
+        "personIdentifier",
+    ],
+    "reciterai_keyword_relevance": [
+        "keyword",
+        "relevanceScore",
+        "external_id",
+        "entity_type",
+    ],
+}
+
+# --- D-27: thresholds.json schema validation paths ---
+THRESHOLDS_FILE = REPO_ROOT / "config/thresholds.json"
+THRESHOLDS_SCHEMA = REPO_ROOT / "config/thresholds.schema.json"
+
+
+def load_thresholds(path: Path | None = None) -> dict[str, Any]:
+    """Load config/thresholds.json and return as a dict.
+
+    Phase 12 D-27: exported helper so stages can read tunables without
+    importing the full env-check module (which has DB dependencies).
+
+    Args:
+        path: Override path for testing. Defaults to THRESHOLDS_FILE.
+
+    Returns:
+        Parsed dict from the JSON file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist. Message includes
+            "thresholds.json" and a hint to run from the repo root.
+    """
+    target = path if path is not None else THRESHOLDS_FILE
+    if not target.exists():
+        raise FileNotFoundError(
+            f"config/thresholds.json not found at {target}. "
+            "Run from repo root or check config/thresholds.json exists."
+        )
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def run_env_checks():
@@ -24,9 +84,10 @@ def run_env_checks():
 
     Checks:
     1. DB_USERNAME environment variable is set (Open Question 1)
-    2. reciterai_synopsis.external_id column exists (Open Question 3 / A6 correction)
+    2. reciterai_synopsis columns — external_id, synopsis (Open Question 3 / A6 correction)
     3. analysis_summary_person column names (Open Question 2)
     4. reciterai_keyword_relevance schema and data presence (Open Question 4)
+    5. config/thresholds.json schema validation (Phase 12 D-27)
 
     Exits with code 1 if any critical check fails.
     """
@@ -61,23 +122,15 @@ def run_env_checks():
         synopsis_col_names = [c['Field'] for c in synopsis_cols]
         print(f"  Columns: {synopsis_col_names}")
 
-        if 'external_id' not in synopsis_col_names:
-            errors.append(
-                "CRITICAL: reciterai_synopsis.external_id NOT FOUND. "
-                "The pipeline uses external_id as the PMID-equivalent join column (per A6 correction). "
-                f"Actual columns: {synopsis_col_names}"
-            )
-        else:
-            results['reciterai_synopsis.external_id'] = 'EXISTS (join column confirmed)'
-            print("  [OK] external_id column confirmed (PMID join column)")
-
-        if 'synopsis' not in synopsis_col_names:
-            errors.append(
-                f"CRITICAL: reciterai_synopsis.synopsis NOT FOUND. "
-                f"Actual columns: {synopsis_col_names}"
-            )
-        else:
-            print("  [OK] synopsis column confirmed")
+        for col in EXPECTED_COLUMNS['reciterai_synopsis']:
+            if col not in synopsis_col_names:
+                errors.append(
+                    f"CRITICAL: reciterai_synopsis.{col} NOT FOUND. "
+                    f"Actual columns: {synopsis_col_names}"
+                )
+            else:
+                results[f'reciterai_synopsis.{col}'] = 'EXISTS'
+                print(f"  [OK] {col} column confirmed")
 
         # --- Check 3: analysis_summary_person columns (Open Question 2) ---
         print("\n[CHECK] analysis_summary_person schema:")
@@ -85,11 +138,9 @@ def run_env_checks():
         asp_col_names = [c['Field'] for c in asp_cols]
         print(f"  Columns: {asp_col_names}")
 
-        # Check for the specific columns the SQL queries use
-        expected_asp_cols = ['nameFirst', 'nameLast', 'department', 'hindexNIH', 'personIdentifier']
         found_asp_cols = []
         missing_asp_cols = []
-        for col in expected_asp_cols:
+        for col in EXPECTED_COLUMNS['analysis_summary_person']:
             if col in asp_col_names:
                 found_asp_cols.append(col)
             else:
@@ -106,7 +157,7 @@ def run_env_checks():
             )
             print(f"  [WARNING] Missing expected columns: {missing_asp_cols}")
         else:
-            print("  [OK] All expected columns present: nameFirst, nameLast, department, hindexNIH, personIdentifier")
+            print("  [OK] All expected columns present")
 
         # --- Check 4: reciterai_keyword_relevance schema (Open Question 4) ---
         print("\n[CHECK] reciterai_keyword_relevance schema:")
@@ -114,8 +165,7 @@ def run_env_checks():
         kw_col_names = [c['Field'] for c in kw_cols]
         print(f"  Columns: {kw_col_names}")
 
-        expected_kw_cols = ['keyword', 'relevanceScore', 'external_id', 'entity_type']
-        for col in expected_kw_cols:
+        for col in EXPECTED_COLUMNS['reciterai_keyword_relevance']:
             if col not in kw_col_names:
                 errors.append(
                     f"CRITICAL: reciterai_keyword_relevance.{col} NOT FOUND. "
@@ -162,6 +212,25 @@ def run_env_checks():
 
     finally:
         conn.close()
+
+    # --- Check 5: thresholds.json schema validation (Phase 12 D-27) ---
+    print("\n[CHECK] config/thresholds.json schema validation:")
+    try:
+        import jsonschema
+        cfg = json.loads(THRESHOLDS_FILE.read_text(encoding="utf-8"))
+        schema = json.loads(THRESHOLDS_SCHEMA.read_text(encoding="utf-8"))
+        try:
+            jsonschema.validate(instance=cfg, schema=schema)
+            results['thresholds.json'] = 'schema-valid'
+            print("  [OK] config/thresholds.json is schema-valid")
+        except jsonschema.ValidationError as err:
+            errors.append(
+                f"CRITICAL: thresholds.json invalid at {list(err.absolute_path)}: {err.message}"
+            )
+            print(f"  [ERROR] thresholds.json invalid: {err.message}")
+    except FileNotFoundError as e:
+        errors.append(f"CRITICAL: thresholds.json or thresholds.schema.json not found: {e}")
+        print(f"  [ERROR] {e}")
 
     # --- Print summary ---
     _print_results(results, errors)

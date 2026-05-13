@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wcmc-reciterai.s3.amazonaws.com/config/thresholds.schema.json",
+  "title": "ReCiter AI Thresholds Configuration",
+  "description": "JSON Schema Draft 2020-12 for config/thresholds.json. All operationally-tunable numbers for the ReciterAI pipeline. Added Phase 12 G-18 per D-23/D-26/D-27.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "uncovered_score_floor",
+    "low_confidence_floor",
+    "drift_uncovered_rate_alert",
+    "drift_low_confidence_topic_max",
+    "drift_window_days",
+    "spotlight_dirty_subtopic_min",
+    "spotlight_dirty_pubs_per_subtopic_min",
+    "tie_epsilon",
+    "confidence_floor",
+    "score_floor",
+    "feedback_sweep_max_pmids",
+    "recluster_persistence_days",
+    "critic_reject_persistence_days",
+    "critic_reject_subtopic_max",
+    "feedback_diagnostic_max_underlying"
+  ],
+  "properties": {
+    "uncovered_score_floor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "A publication's top topic score below this floor produces an UNCOVERED_PMID# event."
+    },
+    "low_confidence_floor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Subtopic-assignment confidence below this floor produces a LOW_CONFIDENCE_ASSIGNMENT# event (event-emission threshold; distinct from confidence_floor per D-25)."
+    },
+    "drift_uncovered_rate_alert": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "When the uncovered-PMID rate in the drift window exceeds this fraction, the drift evaluator raises an alert."
+    },
+    "drift_low_confidence_topic_max": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "When LOW_CONFIDENCE_ASSIGNMENT# counts under a single topic exceed this value within the drift window, it contributes to a recluster recommendation trigger."
+    },
+    "drift_window_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rolling window in days over which drift evaluations are computed."
+    },
+    "spotlight_dirty_subtopic_min": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Minimum number of dirty subtopics required before a spotlight run is triggered."
+    },
+    "spotlight_dirty_pubs_per_subtopic_min": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Minimum number of dirty publications per subtopic required before that subtopic is included in a spotlight run."
+    },
+    "tie_epsilon": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence values within this epsilon are considered tied when selecting the primary subtopic assignment (lifted from assign_subtopics.py:98 per G-18)."
+    },
+    "confidence_floor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Assignment-time floor: subtopics whose assignment confidence is below this value are excluded from a publication's subtopic_ids[] list. Distinct from low_confidence_floor (event-emission) per D-25. Lifted from assign_subtopics.py:95 DEFAULT_CONFIDENCE_FLOOR per G-18."
+    },
+    "score_floor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Minimum relevance score for a publication to qualify as an activity row in assign_subtopics.py. Lifted from assign_subtopics.py:94 SCORE_FLOOR per G-18."
+    },
+    "feedback_sweep_max_pmids": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of UNCOVERED_PMID# rows the feedback sweep processes per run. When the cap is hit, the sweep emits truncated=true plus total_unprocessed_remaining per D-06."
+    },
+    "recluster_persistence_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of consecutive days LOW_CONFIDENCE_ASSIGNMENT# counts under a single topic must exceed drift_low_confidence_topic_max before a RECLUSTER_RECOMMENDATION# is written per D-07."
+    },
+    "critic_reject_persistence_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rolling window in days over which CRITIC_REJECT# rows are aggregated per subtopic for the SPOTLIGHT_DIAGNOSTIC# trigger. 90 days covers approximately 3 monthly spotlight cycles per D-11."
+    },
+    "critic_reject_subtopic_max": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum distinct (publish_id, pmid_set_hash) pairs within the critic_reject_persistence_days window before a SPOTLIGHT_DIAGNOSTIC# is written for that subtopic per D-11 (renamed from critic_reject_cwid_max per D-08 re-keying)."
+    },
+    "feedback_diagnostic_max_underlying": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of underlying CRITIC_REJECT# PK suffixes stored in a SPOTLIGHT_DIAGNOSTIC# row's underlying_rejects list per D-32."
+    }
+  }
+}

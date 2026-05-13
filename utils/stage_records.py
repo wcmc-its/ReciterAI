@@ -180,6 +180,7 @@ def build_complete_record(
     model_ids_snapshot: list[str] | None = None,
     force_reason: str | None = None,
     run_id: str | None = None,
+    tunable_inputs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# complete row dict. No I/O.
@@ -195,6 +196,13 @@ def build_complete_record(
     `run_id` (Phase 11 D-13): optional cold-run identifier used by diff.json
     producers to correlate assign-stage STAGE# rows with the current cold-run.
     Backwards-compatible — omitted when None so existing consumers see no change.
+
+    Phase 12 D-28: `tunable_inputs` is an optional input-audit dict carrying
+    tunable values read from `config/thresholds.json` and CLI overrides.
+    Convention: keys are tunable names (e.g., 'confidence_floor'), plus a
+    parallel `<key>_source` discriminator with one of {'config','cli','default'}.
+    Same backwards-compatible additive pattern as `run_id` (Phase 11 D-13) —
+    omitted when None.
     """
     item = _base_item(
         stage=stage,
@@ -216,6 +224,8 @@ def build_complete_record(
         item["force_reason"] = force_reason
     if run_id is not None:
         item["run_id"] = run_id
+    if tunable_inputs is not None:
+        item["tunable_inputs"] = dict(tunable_inputs)
     return item
 
 
@@ -230,6 +240,7 @@ def build_skipped_record(
     duration_ms: int,
     model_ids_snapshot: list[str] | None = None,
     run_id: str | None = None,
+    tunable_inputs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# skip row dict. No I/O.
@@ -239,6 +250,13 @@ def build_skipped_record(
     work performed); the DDB GetItem lookup cost is not modeled per row.
 
     `run_id` (Phase 11 D-13): optional cold-run identifier. Backwards-compatible.
+
+    Phase 12 D-28: `tunable_inputs` is an optional input-audit dict carrying
+    tunable values read from `config/thresholds.json` and CLI overrides.
+    Convention: keys are tunable names (e.g., 'confidence_floor'), plus a
+    parallel `<key>_source` discriminator with one of {'config','cli','default'}.
+    Same backwards-compatible additive pattern as `run_id` (Phase 11 D-13) —
+    omitted when None.
     """
     item = _base_item(
         stage=stage,
@@ -255,6 +273,8 @@ def build_skipped_record(
         item["model_ids_snapshot"] = list(model_ids_snapshot)
     if run_id is not None:
         item["run_id"] = run_id
+    if tunable_inputs is not None:
+        item["tunable_inputs"] = dict(tunable_inputs)
     return item
 
 
@@ -272,6 +292,7 @@ def build_failed_record(
     failure_details: dict | None = None,
     model_ids_snapshot: list[str] | None = None,
     run_id: str | None = None,
+    tunable_inputs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# failure row dict. No I/O.
@@ -282,6 +303,13 @@ def build_failed_record(
     DynamoDB's 400KB item limit.
 
     `run_id` (Phase 11 D-13): optional cold-run identifier. Backwards-compatible.
+
+    Phase 12 D-28: `tunable_inputs` is an optional input-audit dict carrying
+    tunable values read from `config/thresholds.json` and CLI overrides.
+    Convention: keys are tunable names (e.g., 'confidence_floor'), plus a
+    parallel `<key>_source` discriminator with one of {'config','cli','default'}.
+    Same backwards-compatible additive pattern as `run_id` (Phase 11 D-13) —
+    omitted when None.
     """
     item = _base_item(
         stage=stage,
@@ -301,6 +329,8 @@ def build_failed_record(
         item["model_ids_snapshot"] = list(model_ids_snapshot)
     if run_id is not None:
         item["run_id"] = run_id
+    if tunable_inputs is not None:
+        item["tunable_inputs"] = dict(tunable_inputs)
     return item
 
 
