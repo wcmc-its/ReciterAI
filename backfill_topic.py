@@ -233,7 +233,10 @@ def _check_review_status(topic_id: str, skip_review: bool) -> dict:
 
     If --skip-review, returns the draft dict with review_status forced to
     "auto_approved" and writes an audit-trail row to SKIP_REVIEW_LOG.
-    Otherwise, exits with code 2 if review_status != "approved".
+    Otherwise, exits with code 2 if review_status is neither "approved"
+    nor "auto_approved" (matches the Pass-1 resume gate; required so the
+    scheduled cold-run can re-enter Pass 2 on previously-auto-approved
+    drafts without --skip-review gymnastics).
     """
     path = _draft_path(topic_id)
     if not path.exists():
@@ -260,7 +263,7 @@ def _check_review_status(topic_id: str, skip_review: bool) -> dict:
         )
         return draft
 
-    if review_status != "approved":
+    if review_status not in ("approved", "auto_approved"):
         print(
             f"\n=== HUMAN REVIEW REQUIRED ===\n"
             f"Topic:       {topic_id}\n"
@@ -276,7 +279,7 @@ def _check_review_status(topic_id: str, skip_review: bool) -> dict:
         )
         sys.exit(2)
 
-    logger.info(f"Review gate passed: review_status=approved for {topic_id}")
+    logger.info(f"Review gate passed: review_status={review_status} for {topic_id}")
     return draft
 
 
