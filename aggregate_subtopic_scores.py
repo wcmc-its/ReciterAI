@@ -409,7 +409,14 @@ def _assert_d33_reconciliation(
         subtopic_score_partition_data: {person_identifier: {subtopic_id: score}} from SUBTOPIC_SCORE# partition
     """
     FLOAT_EPS = 1e-9
-    violations: list[str] = []
+    SAMPLE_CAP = 50
+
+    # WR-08: count ALL violations across the union of pids/sids, but cap only the
+    # reported sample. Previously the early break exited after 50 violations,
+    # making the reported count a floor rather than the true total — operators
+    # triaging a divergence couldn't tell 51 from 5000.
+    total_violations = 0
+    sample: list[str] = []
 
     all_pids = set(faculty_map.keys()) | set(subtopic_score_partition_data.keys())
     for pid in sorted(all_pids):
@@ -420,21 +427,20 @@ def _assert_d33_reconciliation(
             fm_val = float(fm_scores.get(sid, 0.0))
             sp_val = float(sp_scores.get(sid, 0.0))
             if abs(fm_val - sp_val) > FLOAT_EPS:
-                violations.append(
-                    f"cwid={pid} subtopic={sid} faculty_map={fm_val} partition={sp_val} "
-                    f"delta={fm_val - sp_val}"
-                )
-            if len(violations) >= 50:
-                break
-        if len(violations) >= 50:
-            break
+                total_violations += 1
+                if len(sample) < SAMPLE_CAP:
+                    sample.append(
+                        f"cwid={pid} subtopic={sid} faculty_map={fm_val} partition={sp_val} "
+                        f"delta={fm_val - sp_val}"
+                    )
 
-    if violations:
+    if total_violations:
         raise RuntimeError(
-            f"D-33 reconciliation invariant violated: {len(violations)} (cwid, subtopic) "
-            f"pairs disagree between faculty-map and SUBTOPIC_SCORE# partition. "
+            f"D-33 reconciliation invariant violated: {total_violations} (cwid, subtopic) "
+            f"pairs disagree between faculty-map and SUBTOPIC_SCORE# partition "
+            f"(showing first {len(sample)}). "
             f"Stage aborts; faculty-map and SUBTOPIC_SCORE# partition disagree. "
-            f"First: {violations[0]}"
+            f"First: {sample[0]}"
         )
 
 
