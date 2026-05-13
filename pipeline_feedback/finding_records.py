@@ -18,12 +18,10 @@ pipeline_feedback.sweep for the aggregation logic that feeds these builders.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
+from utils.iso_clock import now_iso
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +59,7 @@ def build_candidate_topic_record(
         "source_sweep_run_id": str(source_sweep_run_id),
         "triggered_by": str(triggered_by),
         "truncated": bool(truncated),
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "feedback.sweep",
     }
     if total_unprocessed_remaining is not None:
@@ -106,7 +104,7 @@ def build_recluster_recommendation_record(
         ],
         "source_sweep_run_id": str(source_sweep_run_id),
         "triggered_by": str(triggered_by),
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "feedback.sweep",
     }
 
@@ -175,7 +173,7 @@ def build_spotlight_diagnostic_record(
         "window_days": int(window_days),
         "source_sweep_run_id": str(source_sweep_run_id),
         "triggered_by": str(triggered_by),
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "feedback.sweep",
     }
     if total > max_underlying:

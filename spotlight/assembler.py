@@ -34,12 +34,12 @@ the artifact through a bad caller.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Iterable
 
 from spotlight.critic import ValidatedLede
 from spotlight.sensitive_gate import SubtopicMeta
 from spotlight.types import Author, Paper, PoolEntry
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -48,25 +48,6 @@ SPOTLIGHT_VERSION = "spotlight_v1"
 DEFAULT_TAXONOMY_VERSION = "taxonomy_v2"
 
 
-# ---------------------------------------------------------------------------
-# Time helper (mirrors spotlight.history_writer._now_iso_z; duplicated to
-# keep assembler import surface minimal and avoid a cycle through
-# history_writer's DynamoDB client lazies).
-# ---------------------------------------------------------------------------
-
-
-def _now_iso_z() -> str:
-    """Return current UTC timestamp as ISO 8601 with Z suffix.
-
-    Second-precision, ``Z`` rather than ``+00:00``, no microseconds. The
-    matching regex used by tests is
-    ``^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$``.
-    """
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="seconds")
-        .replace("+00:00", "Z")
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +181,7 @@ def build_artifact(
 
     artifact = {
         "version": SPOTLIGHT_VERSION,
-        "generated_at": _now_iso_z(),
+        "generated_at": now_iso(),
         "taxonomy_version": taxonomy_version,
         "spotlights": spotlight_entries,
         "pool_snapshot": pool_snapshot_entries,

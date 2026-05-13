@@ -46,7 +46,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 
 from botocore.exceptions import NoCredentialsError
 from jsonschema import Draft202012Validator
@@ -54,6 +54,7 @@ from jsonschema import Draft202012Validator
 from spotlight.history_writer import update_history
 from spotlight.rotation_selector import Selection
 from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -71,18 +72,6 @@ SPOTLIGHT_VERSION = "spotlight_v1"
 # ---------------------------------------------------------------------------
 
 
-def _now_iso_z() -> str:
-    """Return current UTC timestamp as ISO 8601 with Z suffix.
-
-    Mirrors the Phase 5 convention exactly (second-precision, ``Z`` rather
-    than ``+00:00``). Duplicated here to avoid an import cycle through
-    history_writer's lazy DynamoDB client default.
-    """
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="seconds")
-        .replace("+00:00", "Z")
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +149,7 @@ def publish_artifact(
         "spotlight_version": SPOTLIGHT_VERSION,
         "taxonomy_version": artifact.get("taxonomy_version", "unknown"),
         "version":          version,
-        "generated_at":     _now_iso_z(),
+        "generated_at":     now_iso(),
         "sha256":           sha256,
         "artifact_bytes":   len(artifact_bytes),
     }

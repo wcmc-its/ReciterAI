@@ -38,7 +38,6 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -65,6 +64,7 @@ from utils.csv_paths import (
     pick_subtopic_id_column as _pick_subtopic_id_column,
     resolve_subtopic_csv as _resolve_subtopic_csv,
 )
+from utils.iso_clock import now_iso
 
 
 # --- Constants -------------------------------------------------------------
@@ -88,8 +88,6 @@ ROLLUP_COST_USD = Decimal("0")  # rollup is local CSV aggregation, no Bedrock
 logger = logging.getLogger(__name__)
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # --- Aggregation -----------------------------------------------------------
@@ -323,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    stage_started_at = _now_iso()
+    stage_started_at = now_iso()
     t_stage_start = time.monotonic()
 
     dirty_cwids = _parse_cwid_list_arg(args.cwids)
@@ -360,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"{prior.get('started_at', '?')}"
                 ),
                 started_at=stage_started_at,
-                completed_at=_now_iso(),
+                completed_at=now_iso(),
                 duration_ms=duration_ms,
             )
             if args.emit_envelope:
@@ -393,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- STAGE# complete row ---
     if stage_table is not None:
-        completed_at = _now_iso()
+        completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)
         complete_kwargs = dict(
             stage=STAGE_NAME,

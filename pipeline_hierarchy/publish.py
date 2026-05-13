@@ -74,6 +74,7 @@ from utils.stage_records import (
     write_failed,
     write_skipped,
 )
+from utils.iso_clock import now_iso
 
 STAGE_NAME = "publish_hierarchy"
 STAGE_SCOPE = "GLOBAL"
@@ -83,9 +84,6 @@ PUBLISH_COST_USD = Decimal("0")  # the publish stage makes no Bedrock calls
 # ---------- pure helpers ----------
 
 
-def _now_iso() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _sha256_bytes(b: bytes) -> str:
@@ -343,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
 
     run_id: Optional[str] = args.run_id
 
-    started_at = _now_iso()
+    started_at = now_iso()
     t_start = time.monotonic()
 
     # 1. Bundle augmented files into the in-memory hierarchy.
@@ -365,7 +363,7 @@ def main(argv: list[str] | None = None) -> int:
             input_hash=input_hash,
         )
         if skip:
-            completed_at = _now_iso()
+            completed_at = now_iso()
             duration_ms = int((time.monotonic() - t_start) * 1000)
             write_skipped(
                 table,
@@ -398,7 +396,7 @@ def main(argv: list[str] | None = None) -> int:
     blocked = any_blocked(gate_results)
 
     if blocked and not args.force:
-        completed_at = _now_iso()
+        completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_start) * 1000)
         failing = [r for r in gate_results if r.blocked]
         failure_details = {
@@ -541,12 +539,12 @@ def main(argv: list[str] | None = None) -> int:
             "hierarchy_version_at_cutover": version,
             "run_id": run_id,
             "started_at": started_at,
-            "completed_at": _now_iso(),
+            "completed_at": now_iso(),
         }
         table.put_item(Item=cutover_item)
 
     # 9. Write STAGE# complete row (D-13: include run_id).
-    completed_at = _now_iso()
+    completed_at = now_iso()
     duration_ms = int((time.monotonic() - t_start) * 1000)
     write_complete(
         table,

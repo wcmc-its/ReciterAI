@@ -43,10 +43,9 @@ _PROMPT_PATH = Path(__file__).parent / "prompts" / "uncovered_pmid_sonnet_v0.md"
 # Sonnet caller; hardcoding a divergent string here caused UAT-3 v5 to
 # fail with "The provided model identifier is invalid."
 from utils.bedrock_client import SONNET_MODEL as _SONNET_MODEL_ID
+from utils.iso_clock import now_iso
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _parse_iso(s: str) -> datetime:
@@ -145,7 +144,7 @@ def run_sweep(
     cfg = thresholds if thresholds is not None else load_thresholds()
     max_pmids_eff = max_pmids if max_pmids is not None else int(cfg["feedback_sweep_max_pmids"])
     run_id = run_id or str(uuid.uuid4())
-    started_at = _now_iso()
+    started_at = now_iso()
 
     # WR-10: reset timestamp-parse-failure counters at the start of each
     # invocation so the per-run summary reflects only this sweep.

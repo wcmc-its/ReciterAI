@@ -52,7 +52,6 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from threading import Lock
@@ -99,6 +98,7 @@ TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
 # present, and turns any schema regression into a clear runtime error rather
 # than an opaque import failure.
 from utils.env_check import load_thresholds as _load_thresholds_cfg
+from utils.iso_clock import now_iso
 
 _CFG: dict | None = None
 _CACHED_THRESHOLDS: dict[str, float] = {}
@@ -155,8 +155,6 @@ STAGE_MODEL_IDS = [MODEL_IDS_BY_STAGE["subtopic_assignment"]]
 ASSIGN_COST_USD = Decimal("0")
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _topic_scope(topic_id: str) -> str:
@@ -601,7 +599,7 @@ def _process_pmid(
     }
 
     t_pmid_start = time.monotonic()
-    pmid_started_at = _now_iso()
+    pmid_started_at = now_iso()
     try:
         raw_assignments, usage = _classify_activity(
             client=client,
@@ -623,7 +621,7 @@ def _process_pmid(
                     error_code=type(exc).__name__,
                     error_message=str(exc)[:1000],
                     started_at=pmid_started_at,
-                    completed_at=_now_iso(),
+                    completed_at=now_iso(),
                     duration_ms=int((time.monotonic() - t_pmid_start) * 1000),
                     cost_observed_usd=ASSIGN_COST_USD,
                     model_ids_snapshot=STAGE_MODEL_IDS,
@@ -755,7 +753,7 @@ def run(
         )
 
     t0 = time.time()
-    stage_started_at = _now_iso()
+    stage_started_at = now_iso()
     t_stage_start = time.monotonic()
     # --dry-run keeps STAGE# writes off too — symmetric with publish.py.
     stage_table = None if dry_run else get_table(TABLE_NAME)
@@ -851,7 +849,7 @@ def run(
             input_hash=input_hash,
         )
         if skip:
-            completed_at = _now_iso()
+            completed_at = now_iso()
             duration_ms = int((time.monotonic() - t_stage_start) * 1000)
             skip_reason = (
                 f"input_hash unchanged since prior complete run at "
@@ -1019,7 +1017,7 @@ def run(
 
     # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
     if stage_table is not None:
-        completed_at = _now_iso()
+        completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)
         complete_kwargs = dict(
             stage=STAGE_NAME,

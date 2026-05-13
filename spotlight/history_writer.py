@@ -31,11 +31,11 @@ value, not user input).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 
 import boto3
 
 from spotlight.rotation_selector import Selection
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -79,19 +79,6 @@ def _get_default_client():
 # ---------------------------------------------------------------------------
 
 
-def _now_iso_z() -> str:
-    """Return current UTC timestamp as ISO 8601 with Z suffix.
-
-    Mirrors the Phase 5 convention exactly (RESEARCH §"ISO 8601 UTC
-    timestamps with Z suffix"): second-precision, ``Z`` rather than
-    ``+00:00``, no microseconds. The matching regex used by tests is
-    ``^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$``.
-    """
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="seconds")
-        .replace("+00:00", "Z")
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +113,7 @@ def update_history(
             "v2026-06-01"). Operator/code-controlled; flows via PK key string.
     """
     client = client or _get_default_client()
-    now_iso = _now_iso_z()
+    now_iso = now_iso()
 
     for s in selections:
         client.update_item(

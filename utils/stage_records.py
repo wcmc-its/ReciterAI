@@ -32,9 +32,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
+from utils.iso_clock import now_iso
 
 # Skip observed cost (Phase 10 D-09). Skipped stages did no work — the
 # observed cost is zero. The DDB GetItem cost (~$0.0000003) is below
@@ -50,8 +50,6 @@ STATUS_SKIPPED = "skipped"
 STATUS_FAILED = "failed"
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def compute_input_hash(stage: str, inputs: dict[str, Any]) -> str:
@@ -210,7 +208,7 @@ def build_complete_record(
         input_hash=input_hash,
         status=STATUS_COMPLETE,
         started_at=started_at,
-        completed_at=completed_at or _now_iso(),
+        completed_at=completed_at or now_iso(),
         duration_ms=duration_ms,
         cost_observed_usd=cost_observed_usd,
     )
@@ -264,7 +262,7 @@ def build_skipped_record(
         input_hash=input_hash,
         status=STATUS_SKIPPED,
         started_at=started_at,
-        completed_at=completed_at or _now_iso(),
+        completed_at=completed_at or now_iso(),
         duration_ms=duration_ms,
         cost_observed_usd=SKIP_COST_OBSERVED_USD,
     )
@@ -317,7 +315,7 @@ def build_failed_record(
         input_hash=input_hash,
         status=STATUS_FAILED,
         started_at=started_at,
-        completed_at=completed_at or _now_iso(),
+        completed_at=completed_at or now_iso(),
         duration_ms=duration_ms,
         cost_observed_usd=cost_observed_usd,
     )

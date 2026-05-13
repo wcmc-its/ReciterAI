@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -41,14 +40,13 @@ DEFAULT_THRESHOLDS_PATH = (
 )
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # WR-01: load_thresholds is canonical in utils.env_check. Re-exported here so
 # existing importers (`from utils.event_records import load_thresholds`) keep
 # working while the implementation lives in one place.
 from utils.env_check import load_thresholds  # noqa: E402, F401
+from utils.iso_clock import now_iso
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +82,7 @@ def build_uncovered_pmid_record(
             {"topic_id": tid, "score": Decimal(str(score))}
             for tid, score in top_sorted
         ],
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "score_publications",
     }
 
@@ -130,7 +128,7 @@ def build_low_confidence_assignment_record(
         "topic_id": topic_id,
         "max_confidence": max_confidence,
         "candidate_confidences": confidences_decimal,
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "assign_subtopics",
     }
 
@@ -212,7 +210,7 @@ def build_critic_reject_record(
         "reason_code": str(reason_code),
         "regen_count": int(regen_count),
         "reason": str(reason),
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
         "source_stage": "spotlight.critic",
     }
     if raw_failed_constraint is not None:

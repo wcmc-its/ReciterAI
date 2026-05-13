@@ -49,7 +49,6 @@ import logging
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -61,6 +60,7 @@ from utils.dynamodb_subtopic_migration import (
     update_faculty_subtopic_scores,
     clear_faculty_subtopic_scores_for_topic,
 )
+from utils.iso_clock import now_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -121,9 +121,6 @@ def _strip_faculty_prefix(faculty_uid: str) -> str:
     return faculty_uid
 
 
-def _now_iso() -> str:
-    """ISO 8601 UTC timestamp helper — Pattern E."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _aggregate_exclusive(rows: list) -> tuple[dict, dict]:
@@ -291,7 +288,7 @@ def _build_subtopic_score_record(
         "faculty_scores": {pid: Decimal(str(score)) for pid, score in faculty_scores.items()},
         "run_id": run_id,
         "source_stage": "aggregate_subtopic_scores",
-        "created_at": created_at or _now_iso(),
+        "created_at": created_at or now_iso(),
     }
 
 
@@ -551,7 +548,7 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
 
     if not dry_run:
         # 2. Write SUBTOPIC_SCORE# and SUBTOPIC_SCORE_INCLUSIVE# partitions (Phase 12 §8)
-        run_id = os.environ.get("RECITERAI_COLD_RUN_ID") or _now_iso()
+        run_id = os.environ.get("RECITERAI_COLD_RUN_ID") or now_iso()
         table = get_table(TABLE_NAME)
         items_written = _write_subtopic_score_partitions(
             table,
