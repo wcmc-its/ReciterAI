@@ -1,0 +1,61 @@
+{
+  "taxonomy_version": "taxonomy_v_e2e_fixture",
+  "topics": [
+    {
+      "id": "test_topic_alpha",
+      "label": "Test Topic Alpha",
+      "description": "Synthetic test topic alpha for G-37 E2E fixture. Covers alpha-domain research including alpha-cell biology, alpha-signal transduction, and alpha-protein interactions.",
+      "subtopics": [
+        {
+          "id": "test_topic_alpha_subtopic_one",
+          "label": "Alpha Subtopic One",
+          "description": "Alpha-cell biology and membrane dynamics within the alpha domain.",
+          "display_name": "Alpha Cell Biology",
+          "short_description": "Research on alpha-cell biology and membrane dynamics."
+        },
+        {
+          "id": "test_topic_alpha_subtopic_two",
+          "label": "Alpha Subtopic Two",
+          "description": "Alpha-signal transduction pathways and receptor binding kinetics.",
+          "display_name": "Alpha Signal Pathways",
+          "short_description": "Alpha signal transduction and receptor kinetics."
+        },
+        {
+          "id": "test_topic_alpha_subtopic_three",
+          "label": "Alpha Subtopic Three",
+          "description": "Alpha-protein structure, folding, and interaction networks.",
+          "display_name": "Alpha Protein Structure",
+          "short_description": "Alpha protein folding and interaction networks."
+        }
+      ]
+    },
+    {
+      "id": "test_topic_beta",
+      "label": "Test Topic Beta",
+      "description": "Synthetic test topic beta for G-37 E2E fixture. Covers beta-domain research including beta-cell metabolism, beta-receptor pharmacology, and beta-gene expression.",
+      "subtopics": [
+        {
+          "id": "test_topic_beta_subtopic_one",
+          "label": "Beta Subtopic One",
+          "description": "Beta-cell metabolism, insulin secretion, and glucose homeostasis.",
+          "display_name": "Beta Cell Metabolism",
+          "short_description": "Beta-cell metabolism and insulin secretion research."
+        },
+        {
+          "id": "test_topic_beta_subtopic_two",
+          "label": "Beta Subtopic Two",
+          "description": "Beta-receptor pharmacology, agonist selectivity, and downstream effectors.",
+          "display_name": "Beta Receptor Pharmacology",
+          "short_description": "Beta receptor pharmacology and agonist selectivity."
+        },
+        {
+          "id": "test_topic_beta_subtopic_three",
+          "label": "Beta Subtopic Three",
+          "description": "Beta-gene expression regulation, transcription factor binding, and epigenetic control.",
+          "display_name": "Beta Gene Expression",
+          "short_description": "Beta gene expression and epigenetic regulation."
+        }
+      ]
+    }
+  ]
+}
