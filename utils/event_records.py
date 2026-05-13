@@ -25,6 +25,7 @@ design (PK/SK schema).
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -140,5 +141,92 @@ def build_low_confidence_assignment_record(
 def write_low_confidence_assignment(table: Any, **kwargs: Any) -> dict[str, Any]:
     """Build a LOW_CONFIDENCE_ASSIGNMENT# row and persist via table.put_item."""
     item = build_low_confidence_assignment_record(**kwargs)
+    table.put_item(Item=item)
+    return item
+
+
+# ---------------------------------------------------------------------------
+# CRITIC_REJECT#{publish_id}#{subtopic_id}#{pmid_set_hash}
+# ---------------------------------------------------------------------------
+
+
+def _compute_pmid_set_hash(pmids: list[str]) -> str:
+    """Stable, order-invariant hash for a PMID set.
+
+    Sort first, comma-join, sha256, take 16 hex chars. Same set → same hash
+    regardless of input ordering, giving the CRITIC_REJECT# producer natural
+    dedup across critic retries within a single spotlight regen run (D-09).
+    """
+    joined = ",".join(sorted(str(p) for p in pmids))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+
+
+def build_critic_reject_record(
+    *,
+    publish_id: str,
+    subtopic_id: str,
+    pmids: list[str],
+    author_cwids: list[str],
+    reason_code: str,
+    regen_count: int,
+    reason: str = "",
+    raw_failed_constraint: str | None = None,
+    pre_llm_constraint: str | None = None,
+    created_at: str | None = None,
+) -> dict[str, Any]:
+    """Pure builder for a CRITIC_REJECT# row.
+
+    Phase 12 D-08 (CR-2026-05-12 re-framing): keying is per-(publish_id,
+    subtopic_id, pmid_set), NOT per-cwid. Spotlight artifacts have
+    authorship spanning many CWIDs; there is no single 'spotlight cwid'.
+    Per-faculty drill-down is preserved via the author_cwids body field
+    (distinct first/last-author person_identifiers across the rejected
+    pmid_set), allowing the wave-2 consumer to surface affected faculty
+    without forcing per-CWID aggregation.
+
+    Idempotent via pmid_set_hash → same (publish_id, subtopic_id,
+    pmid_set) overwrites within a regen run (D-09).
+
+    PII boundary (Pattern H): carries reason_code, pmid_set, author_cwids,
+    regen_count, reason only. SPOTLIGHT_REVIEW# is the artifact for human
+    reviewers and is the only place the generated text lives.
+
+    reason_code is one of CritReasonCode (defined in spotlight/critic.py):
+    - "active_verb" | "anchored_in_synopses" | "no_faculty_named"
+    - "institutional_voice"     (post-LLM rejections, verbatim from LLM)
+    - "pre_llm_gate"            (deterministic gate failed; pre_llm_constraint
+                                 carries the specific code)
+    - "unknown"                 (vocabulary drift; raw_failed_constraint
+                                 preserves the raw LLM string)
+    """
+    sorted_pmids = sorted(str(p) for p in pmids)
+    pmid_set_hash = _compute_pmid_set_hash(sorted_pmids)
+    # author_cwids: sort+dedup at the builder boundary so callers can pass raw lists
+    sorted_cwids = sorted({str(c) for c in (author_cwids or []) if c})
+    item: dict[str, Any] = {
+        "PK": f"CRITIC_REJECT#{publish_id}#{subtopic_id}#{pmid_set_hash}",
+        "SK": "GLOBAL",
+        "record_type": "CRITIC_REJECT",
+        "publish_id": str(publish_id),
+        "subtopic_id": str(subtopic_id),
+        "pmid_set": sorted_pmids,
+        "pmid_set_hash": pmid_set_hash,
+        "author_cwids": sorted_cwids,
+        "reason_code": str(reason_code),
+        "regen_count": int(regen_count),
+        "reason": str(reason),
+        "created_at": created_at or _now_iso(),
+        "source_stage": "spotlight.critic",
+    }
+    if raw_failed_constraint is not None:
+        item["raw_failed_constraint"] = str(raw_failed_constraint)
+    if pre_llm_constraint is not None:
+        item["pre_llm_constraint"] = str(pre_llm_constraint)
+    return item
+
+
+def write_critic_reject(table: Any, **kwargs: Any) -> dict[str, Any]:
+    """Build a CRITIC_REJECT# row and persist via table.put_item."""
+    item = build_critic_reject_record(**kwargs)
     table.put_item(Item=item)
     return item
