@@ -416,6 +416,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {o.name:>22}: {o.status} ({o.duration_ms} ms)")
 
     if table is not None:
+        # WR-11: do NOT set records_written for the cold_run umbrella row.
+        # Every other STAGE# row uses records_written to mean "rows the stage
+        # wrote to its data store" (see stage_records.py and rollup_by_cwid).
+        # The umbrella row has no data store of its own — its cardinality is
+        # "number of stages executed", which is published via stage_names.
+        # Setting records_written=len(outcomes) here would poison a dashboard
+        # that SUMs records_written across stages with stage-count noise.
         item = build_complete_record(
             stage=COLD_RUN_STAGE,
             scope=COLD_RUN_SCOPE,
@@ -424,7 +431,7 @@ def main(argv: list[str] | None = None) -> int:
             completed_at=completed_at,
             duration_ms=duration_ms,
             cost_observed_usd=COLD_RUN_COST_USD,
-            records_written=len(outcomes),
+            records_written=None,
         )
         # initiated_by is cold-path-specific metadata, not in the builder
         # contract — attach as a top-level attribute.
