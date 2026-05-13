@@ -34,6 +34,7 @@ import argparse
 import csv
 import hashlib
 import json
+import logging
 import sys
 import time
 from collections import defaultdict
@@ -58,7 +59,11 @@ from utils.stage_records import (
 # --- Constants -------------------------------------------------------------
 
 DEFAULT_TOPIC_CSV = Path("cwid_topic_counts.csv")
-DEFAULT_SUBTOPIC_CSV = Path("cwid_subtopic_counts.csv")
+# Phase 12 D-13: canonical subtopic CSV name after rename.
+DEFAULT_SUBTOPIC_CSV = Path("faculty_subtopic_counts_exclusive.csv")
+# Phase 12 D-13 dual-write: legacy name kept for one deprecation window;
+# producers now write BOTH names. This fallback will be removed in a later phase.
+LEGACY_SUBTOPIC_CSV = Path("cwid_subtopic_counts.csv")
 DEFAULT_OUT_CSV = Path("cwid_rollup.csv")
 
 ROLLUP_HEADER = [
@@ -74,8 +79,39 @@ STAGE_SCOPE_GLOBAL = "GLOBAL"
 ROLLUP_COST_USD = Decimal("0")  # rollup is local CSV aggregation, no Bedrock
 
 
+logger = logging.getLogger(__name__)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _resolve_subtopic_csv(provided: Path | None = None) -> Path:
+    """Prefer the Phase 12 D-13 canonical name; fall back to legacy with a deprecation warning.
+
+    Resolution order:
+    1. `provided` argument (explicit caller override) — returned as-is.
+    2. DEFAULT_SUBTOPIC_CSV (faculty_subtopic_counts_exclusive.csv) if it exists on disk.
+    3. LEGACY_SUBTOPIC_CSV (cwid_subtopic_counts.csv) if it exists — emits a deprecation warning.
+    4. DEFAULT_SUBTOPIC_CSV returned anyway (will raise FileNotFoundError downstream).
+
+    Phase 12 D-13 note: producers write both names for one cycle; this fallback will
+    be removed in a later phase once SPS and all readers have migrated to the new name.
+    """
+    if provided is not None:
+        return provided
+    if DEFAULT_SUBTOPIC_CSV.exists():
+        return DEFAULT_SUBTOPIC_CSV
+    if LEGACY_SUBTOPIC_CSV.exists():
+        logger.warning(
+            "Reading legacy CSV name '%s'. Phase 12 D-13 renamed this to '%s'. "
+            "Update producers to write the new name; this fallback will be removed in a later phase.",
+            LEGACY_SUBTOPIC_CSV,
+            DEFAULT_SUBTOPIC_CSV,
+        )
+        return LEGACY_SUBTOPIC_CSV
+    # Neither exists; return the canonical name so downstream raises a clear FileNotFoundError.
+    return DEFAULT_SUBTOPIC_CSV
 
 
 # --- Aggregation -----------------------------------------------------------
@@ -271,8 +307,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to cwid_topic_counts.csv (default: cwid_topic_counts.csv)",
     )
     parser.add_argument(
-        "--subtopic-csv", type=Path, default=DEFAULT_SUBTOPIC_CSV,
-        help="Path to cwid_subtopic_counts.csv (default: cwid_subtopic_counts.csv)",
+        "--subtopic-csv", type=Path, default=None,
+        help=(
+            "Path to the exclusive subtopic counts CSV "
+            "(default: faculty_subtopic_counts_exclusive.csv; "
+            "falls back to legacy cwid_subtopic_counts.csv with a deprecation warning "
+            "if the new name is absent — Phase 12 D-13 dual-write deprecation window)."
+        ),
     )
     parser.add_argument(
         "--out", type=Path, default=DEFAULT_OUT_CSV,
@@ -307,13 +348,16 @@ def main(argv: list[str] | None = None) -> int:
 
     dirty_cwids = _parse_cwid_list_arg(args.cwids)
 
+    # Phase 12 D-13: resolve canonical subtopic CSV name (with legacy fallback).
+    subtopic_csv = _resolve_subtopic_csv(args.subtopic_csv)
+
     stage_table = None
     if not args.skip_stage_write:
         stage_table = get_table(TABLE_NAME)
 
     input_hash = compute_rollup_input_hash(
         topic_csv=args.topic_csv,
-        subtopic_csv=args.subtopic_csv,
+        subtopic_csv=subtopic_csv,
         cwids=dirty_cwids,
     )
 
@@ -351,13 +395,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- Compute rollup ---
     if dirty_cwids is None:
-        rollup = full_rollup(args.topic_csv, args.subtopic_csv)
+        rollup = full_rollup(args.topic_csv, subtopic_csv)
         mode_label = "full"
     else:
         prior = read_rollup_csv(args.out)
         rollup = incremental_rollup(
             args.topic_csv,
-            args.subtopic_csv,
+            subtopic_csv,
             dirty_cwids=set(dirty_cwids),
             prior_rollup=prior,
         )
