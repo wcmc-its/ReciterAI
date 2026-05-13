@@ -113,7 +113,16 @@ class DriftEvaluation:
 def _filter_in_window(
     items: Iterable[dict], *, since: datetime, until: datetime, ts_field: str
 ) -> list[dict]:
-    out = []
+    """Filter items by timestamp window.
+
+    WR-10: counts timestamp parse failures and logs a single WARNING per call
+    if any rows had unparseable timestamps. Previously the failure was silent —
+    a bulk producer regression writing slightly-off timestamps would drop every
+    row from drift evaluation with no signal beyond "zero rows".
+    """
+    out: list[dict] = []
+    parse_failures = 0
+    parse_sample: list[str] = []
     for item in items:
         raw = item.get(ts_field)
         if not raw:
@@ -121,9 +130,21 @@ def _filter_in_window(
         try:
             ts = _parse_iso(str(raw))
         except ValueError:
+            parse_failures += 1
+            if len(parse_sample) < 5:
+                parse_sample.append(repr(raw))
             continue
         if since <= ts <= until:
             out.append(item)
+    if parse_failures:
+        logger.warning(
+            "drift evaluator: %d timestamp(s) failed to parse for ts_field=%r; "
+            "first %d sample(s): %s",
+            parse_failures,
+            ts_field,
+            len(parse_sample),
+            parse_sample,
+        )
     return out
 
 

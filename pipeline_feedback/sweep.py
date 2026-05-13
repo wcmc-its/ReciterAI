@@ -52,11 +52,30 @@ def _parse_iso(s: str) -> datetime:
     return datetime.fromisoformat(s)
 
 
+# WR-10: track timestamp parse failures so a malformed-timestamp regression
+# surfaces as a structured signal rather than silently dropping every row.
+# Counter is reset by run_sweep at the start of each invocation.
+_in_window_parse_failures: int = 0
+_in_window_parse_sample: list[str] = []
+_IN_WINDOW_SAMPLE_CAP = 5
+
+
 def _in_window(ts_str: str, *, since: datetime, until: datetime) -> bool:
-    """Return True if ts_str (ISO 8601) falls within [since, until]."""
+    """Return True if ts_str (ISO 8601) falls within [since, until].
+
+    On parse failure increments _in_window_parse_failures and records the first
+    few offending values in _in_window_parse_sample (WR-10). The caller
+    (run_sweep) emits a summary WARNING when the counter is non-zero so an
+    operator can grep logs for the offending value rather than seeing a silent
+    'zero rows in window' that's observationally identical to a healthy quiet day.
+    """
+    global _in_window_parse_failures
     try:
         ts = _parse_iso(str(ts_str))
     except (ValueError, AttributeError):
+        _in_window_parse_failures += 1
+        if len(_in_window_parse_sample) < _IN_WINDOW_SAMPLE_CAP:
+            _in_window_parse_sample.append(repr(ts_str))
         return False
     return since <= ts <= until
 
@@ -125,6 +144,12 @@ def run_sweep(
     run_id = run_id or str(uuid.uuid4())
     started_at = _now_iso()
 
+    # WR-10: reset timestamp-parse-failure counters at the start of each
+    # invocation so the per-run summary reflects only this sweep.
+    global _in_window_parse_failures, _in_window_parse_sample
+    _in_window_parse_failures = 0
+    _in_window_parse_sample = []
+
     result = FeedbackSweepRun(
         source_sweep_run_id=run_id,
         triggered_by=triggered_by,
@@ -175,6 +200,17 @@ def run_sweep(
         len(result.spotlight_diagnostics),
         result.sonnet_parse_status,
     )
+    # WR-10: surface timestamp parse failures so a malformed-timestamp regression
+    # is grep-able rather than observationally identical to a quiet day.
+    if _in_window_parse_failures:
+        logger.warning(
+            "feedback_sweep: %d timestamp(s) failed to parse during in-window "
+            "filtering for run_id=%s; first %d sample(s): %s",
+            _in_window_parse_failures,
+            run_id,
+            len(_in_window_parse_sample),
+            _in_window_parse_sample,
+        )
     return result
 
 
