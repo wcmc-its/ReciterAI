@@ -85,7 +85,7 @@ Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* �
 
 **Estimate:** 4–6 days.
 
-**Plans:** 5/8 plans executed
+**Plans:** 7/8 plans executed
 
 Wave 1 (parallel):
 - [x] `12-thresholds-substrate-PLAN.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
@@ -95,8 +95,8 @@ Wave 1 (parallel):
 - [x] `12-residual-docs-PLAN.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
 
 Wave 2 (parallel, depend on wave 1):
-- [ ] `12-feedback-consumer-PLAN.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
-- [ ] `12-g36-reproducibility-PLAN.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
+- [x] `12-feedback-consumer-PLAN.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
+- [x] `12-g36-reproducibility-PLAN.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
 
 Wave 3 (depends on every other wave-1 + wave-2 plan, gated per D-20):
 - [ ] `12-g37-e2e-PLAN.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
