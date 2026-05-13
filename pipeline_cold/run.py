@@ -103,20 +103,23 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="assign",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy"],
+            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--skip-all-reviews"],
             description=(
                 "Per-topic discover + assign + relabel via backfill_all.py "
-                "(iteration owned by the wrapper)"
+                "(iteration owned by the wrapper). --skip-all-reviews because "
+                "the cold-run is non-interactive; the operator-facing review "
+                "gate is the DDB REVIEW# row (Phase 11), not the per-topic "
+                "hierarchy_draft review_status field."
             ),
         ),
         ColdStage(
             name="discover",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-discover"],
+            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-discover", "--skip-all-reviews"],
             description="Subtopic clustering pass (subsumed by assign on first run)",
         ),
         ColdStage(
             name="relabel",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-relabel"],
+            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-relabel", "--skip-all-reviews"],
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
