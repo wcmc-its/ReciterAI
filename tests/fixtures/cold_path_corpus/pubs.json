@@ -1,0 +1,212 @@
+[
+  {
+    "pmid": "TEST_PMID_001",
+    "title": "Alpha-cell membrane dynamics during calcium influx",
+    "abstract": "We investigated alpha-cell membrane remodeling in response to calcium-mediated signals. Our data demonstrate that alpha-cell plasma membrane reorganization occurs within seconds of extracellular calcium elevation, driven by cytoskeletal rearrangement and lipid raft coalescence. These findings clarify mechanisms of alpha-cell biology under physiological stress.",
+    "mesh_terms": ["Alpha Cells", "Calcium Signaling", "Cell Membrane", "Cytoskeleton", "Lipid Rafts"],
+    "intended_subtopic": "test_topic_alpha_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_002",
+    "title": "Membrane lipid asymmetry in alpha-cell vesicle trafficking",
+    "abstract": "Alpha-cell vesicle trafficking depends critically on phospholipid asymmetry across the bilayer. This study demonstrates that flippase activity maintains the lipid asymmetry required for correct vesicle budding from the alpha-cell Golgi. Disruption of flippase function impairs alpha-cell exocytosis without affecting membrane integrity.",
+    "mesh_terms": ["Alpha Cells", "Phospholipids", "Membrane Asymmetry", "Vesicle Trafficking", "Golgi Apparatus"],
+    "intended_subtopic": "test_topic_alpha_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_003",
+    "title": "Cytoskeletal reorganization underlies alpha-cell polarity",
+    "abstract": "Alpha-cell polarity is established by actin cytoskeleton reorganization downstream of membrane tension sensing. Using live-cell imaging we show that alpha-cells rapidly redistribute actin filaments in response to substrate stiffness, thereby polarizing secretory machinery. This alpha-cell biology mechanism is distinct from classical cell-polarity pathways.",
+    "mesh_terms": ["Alpha Cells", "Cell Polarity", "Actin Cytoskeleton", "Membrane Tension", "Secretory Machinery"],
+    "intended_subtopic": "test_topic_alpha_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_004",
+    "title": "Calcium-dependent alpha-cell membrane fusion kinetics",
+    "abstract": "Exocytic membrane fusion in alpha-cells is gated by submillimolar calcium concentrations acting on the SNARE complex. We report that calcium binding to synaptotagmin accelerates alpha-cell membrane fusion 10-fold. This alpha-cell biology finding has implications for glucagon secretion kinetics under hypoglycemia.",
+    "mesh_terms": ["Alpha Cells", "Calcium", "SNARE Proteins", "Membrane Fusion", "Exocytosis"],
+    "intended_subtopic": "test_topic_alpha_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_005",
+    "title": "Alpha-cell membrane channel regulation by second messengers",
+    "abstract": "Second messengers including cAMP and DAG modulate alpha-cell plasma membrane ion channel activity. Pharmacological elevation of cAMP potentiates voltage-gated calcium channel opening in alpha-cells, amplifying calcium-dependent exocytosis. These alpha-cell membrane dynamics integrate multiple signaling inputs to set secretory threshold.",
+    "mesh_terms": ["Alpha Cells", "Ion Channels", "Cyclic AMP", "Diacylglycerol", "Calcium Channels"],
+    "intended_subtopic": "test_topic_alpha_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_006",
+    "title": "Alpha-receptor kinase cascades in signal transduction",
+    "abstract": "Alpha-signal transduction is mediated by a hierarchical kinase cascade initiated at alpha-receptor binding. We map the phosphorylation sequence from receptor activation through MAP kinase to transcriptional effectors. This alpha signal pathway is disrupted by a subset of clinically relevant mutations that cause aberrant alpha-receptor signaling.",
+    "mesh_terms": ["Alpha Receptors", "Signal Transduction", "Protein Kinases", "MAP Kinase Signaling", "Phosphorylation"],
+    "intended_subtopic": "test_topic_alpha_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_007",
+    "title": "Receptor binding kinetics determine alpha-signal duration",
+    "abstract": "The dwell time of ligand on the alpha-receptor governs signal transduction duration through biased kinase recruitment. Slow-dissociating alpha-receptor ligands sustain downstream signaling for hours whereas fast-dissociating ligands produce transient pulses. This receptor binding kinetics insight could guide design of duration-selective alpha-signal modulators.",
+    "mesh_terms": ["Alpha Receptors", "Receptor Binding", "Signal Duration", "Kinase Recruitment", "Ligand Dissociation"],
+    "intended_subtopic": "test_topic_alpha_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_008",
+    "title": "G-protein coupling efficiency determines alpha-signal amplitude",
+    "abstract": "Alpha-signal transduction amplitude is set by coupling efficiency between the alpha-receptor and heterotrimeric G-proteins. We identify a receptor-proximal region that determines Gs versus Gi coupling selectivity, thereby controlling whether alpha-signal transduction activates or suppresses adenylyl cyclase.",
+    "mesh_terms": ["Alpha Receptors", "G-Proteins", "Signal Amplitude", "Adenylyl Cyclase", "Receptor Coupling"],
+    "intended_subtopic": "test_topic_alpha_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_009",
+    "title": "Beta-arrestin scaffolding redirects alpha-receptor signal transduction",
+    "abstract": "Beta-arrestin recruitment to the phosphorylated alpha-receptor redirects signal transduction from G-protein-dependent to G-protein-independent pathways. This alpha-signal switch enables receptor desensitization while maintaining ERK activation. Biased ligands that favor beta-arrestin over G-protein coupling can selectively engage one arm of alpha-signal transduction.",
+    "mesh_terms": ["Alpha Receptors", "Beta-Arrestin", "Signal Transduction", "ERK Activation", "Receptor Desensitization"],
+    "intended_subtopic": "test_topic_alpha_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_010",
+    "title": "Spatial compartmentalization of alpha-signal transduction at the synapse",
+    "abstract": "Alpha-receptor signal transduction is spatially compartmentalized by scaffold proteins at synaptic membranes. AKAP anchoring proteins concentrate PKA near alpha-receptor clusters, creating microdomains of high alpha-signal transduction efficiency. Disrupting scaffold binding disperses the signaling complex and blunts synaptic alpha-signal amplitude.",
+    "mesh_terms": ["Alpha Receptors", "Signal Compartmentalization", "AKAP", "Protein Kinase A", "Synaptic Signaling"],
+    "intended_subtopic": "test_topic_alpha_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_011",
+    "title": "Cryo-EM structure of the alpha-protein chaperone complex",
+    "abstract": "We report a 2.8-angstrom cryo-EM structure of the alpha-protein bound to its obligate chaperone Hsp70. The alpha-protein fold is stabilized by three hydrophobic contacts at the chaperone binding groove. This alpha-protein structure reveals why disease-associated mutations in the chaperone-binding region cause aggregation.",
+    "mesh_terms": ["Alpha Proteins", "Protein Structure", "Cryo-EM", "Chaperone Proteins", "Hsp70"],
+    "intended_subtopic": "test_topic_alpha_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_012",
+    "title": "Alpha-protein interaction network in the nucleus",
+    "abstract": "The alpha-protein participates in a 47-member nuclear interaction network mapped by proximity labeling mass spectrometry. Hub interactions with transcription factors NF-kB and AP-1 place the alpha-protein at the convergence of inflammatory signaling. Disrupting these alpha-protein interactions reduces target gene induction without affecting nuclear localization.",
+    "mesh_terms": ["Alpha Proteins", "Protein Interactions", "Nuclear Proteins", "Transcription Factors", "Inflammatory Signaling"],
+    "intended_subtopic": "test_topic_alpha_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_013",
+    "title": "Amyloid fibril formation by misfolded alpha-protein",
+    "abstract": "The alpha-protein misfolds under oxidative stress and nucleates amyloid fibril formation in vitro and in cellulo. Thioflavin T kinetic assays reveal a concentration-dependent lag phase preceding rapid alpha-protein fibril elongation. Small molecule inhibitors targeting the alpha-protein misfolding intermediate reduce fibril burden in cell culture models.",
+    "mesh_terms": ["Alpha Proteins", "Protein Misfolding", "Amyloid Fibrils", "Oxidative Stress", "Protein Aggregation"],
+    "intended_subtopic": "test_topic_alpha_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_014",
+    "title": "Post-translational modifications tune alpha-protein interaction specificity",
+    "abstract": "Phosphorylation and acetylation of the alpha-protein modulate its interaction network in a context-dependent manner. Serine phosphorylation disrupts binding to partner A while enabling binding to partner B, creating a binary alpha-protein interaction switch. Mass spectrometry profiling of alpha-protein modifications across cell cycle stages reveals sequential rewiring of the interaction network.",
+    "mesh_terms": ["Alpha Proteins", "Phosphorylation", "Acetylation", "Protein Interactions", "Post-translational Modifications"],
+    "intended_subtopic": "test_topic_alpha_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_015",
+    "title": "Allosteric regulation of alpha-protein enzymatic activity by domain-domain contacts",
+    "abstract": "The alpha-protein exhibits allosteric regulation where substrate binding in the C-terminal domain enhances catalytic activity in the N-terminal domain. Hydrogen-deuterium exchange mass spectrometry identifies alpha-protein interdomain contacts that transmit the allosteric signal. Disrupting these contacts abolishes allostery without affecting substrate binding.",
+    "mesh_terms": ["Alpha Proteins", "Allostery", "Enzyme Regulation", "Domain Interactions", "Catalytic Activity"],
+    "intended_subtopic": "test_topic_alpha_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_016",
+    "title": "Beta-cell mitochondrial metabolism governs insulin secretion capacity",
+    "abstract": "Beta-cell insulin secretion capacity is determined by mitochondrial oxidative phosphorylation efficiency. Fatty acid oxidation in beta-cell mitochondria generates NADH that drives ATP synthesis and closes K-ATP channels, triggering secretion. Impaired beta-cell metabolism due to mitochondrial dysfunction reduces first-phase insulin secretion.",
+    "mesh_terms": ["Beta Cells", "Insulin Secretion", "Mitochondria", "Oxidative Phosphorylation", "Glucose Metabolism"],
+    "intended_subtopic": "test_topic_beta_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_017",
+    "title": "Glucose sensing in beta-cells requires glucokinase as the metabolic gatekeeper",
+    "abstract": "Beta-cell glucose metabolism is initiated by glucokinase, whose sigmoidal kinetics create a threshold for glucose-stimulated insulin secretion. We show that glucokinase Vmax in beta-cells is rate-limiting for metabolic flux to ATP and downstream secretory response. Glucokinase activators amplify beta-cell glucose metabolism at physiological glucose concentrations.",
+    "mesh_terms": ["Beta Cells", "Glucokinase", "Glucose Sensing", "ATP Production", "Insulin Secretion"],
+    "intended_subtopic": "test_topic_beta_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_018",
+    "title": "Lipotoxicity impairs beta-cell glucose homeostasis via ceramide accumulation",
+    "abstract": "Prolonged fatty acid exposure impairs beta-cell glucose homeostasis through ceramide accumulation. Ceramide activates protein phosphatase 2A in beta-cells, dephosphorylating and inactivating PDX1, a transcription factor required for glucose-responsive gene expression. Ceramide synthesis inhibition restores beta-cell glucose metabolism in lipotoxic conditions.",
+    "mesh_terms": ["Beta Cells", "Lipotoxicity", "Ceramide", "Glucose Homeostasis", "PDX1"],
+    "intended_subtopic": "test_topic_beta_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_019",
+    "title": "mTORC1 couples nutrient sensing to beta-cell insulin translation",
+    "abstract": "Beta-cell insulin translation is coupled to nutrient abundance through mTORC1 signaling. Amino acid-activated mTORC1 phosphorylates 4E-BP1 in beta-cells, derepressing cap-dependent translation of preproinsulin mRNA. Inhibiting mTORC1 in beta-cells blunts postprandial insulin secretion by reducing proinsulin biosynthesis.",
+    "mesh_terms": ["Beta Cells", "mTORC1", "Insulin Biosynthesis", "Nutrient Sensing", "Translation Regulation"],
+    "intended_subtopic": "test_topic_beta_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_020",
+    "title": "ER stress couples beta-cell metabolic overload to insulin secretory failure",
+    "abstract": "Chronic glucose overload causes ER stress in beta-cells by overwhelming the unfolded protein response. PERK-mediated eIF2alpha phosphorylation reduces global translation in stressed beta-cells, paradoxically sparing ATF4 which drives adaptive and apoptotic gene programs. Modulating beta-cell ER stress responses is a potential target for preserving glucose homeostasis.",
+    "mesh_terms": ["Beta Cells", "ER Stress", "Unfolded Protein Response", "PERK", "Insulin Secretion"],
+    "intended_subtopic": "test_topic_beta_subtopic_one"
+  },
+  {
+    "pmid": "TEST_PMID_021",
+    "title": "Beta-1 versus beta-2 receptor selectivity profile of novel agonist scaffold",
+    "abstract": "We characterized a novel beta-receptor agonist scaffold exhibiting 40-fold selectivity for beta-2 over beta-1 receptors by radioligand competition binding. Functional assays confirm that the scaffold activates beta-2 receptor-mediated bronchodilation while sparing beta-1 receptor-mediated cardiac chronotropy. This beta-receptor pharmacology selectivity is driven by a single methyl group at the receptor binding interface.",
+    "mesh_terms": ["Beta Receptors", "Receptor Selectivity", "Beta-2 Agonists", "Bronchodilation", "Pharmacology"],
+    "intended_subtopic": "test_topic_beta_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_022",
+    "title": "Allosteric modulation of beta-receptor pharmacology by membrane cholesterol",
+    "abstract": "Membrane cholesterol modulates beta-receptor pharmacology by altering receptor conformation at the agonist binding pocket. Cholesterol depletion reduces beta-receptor agonist potency 5-fold and shifts the receptor toward inactive conformations. These beta-receptor pharmacology findings explain why lipid raft integrity influences bronchodilator efficacy.",
+    "mesh_terms": ["Beta Receptors", "Cholesterol", "Allosteric Modulation", "Receptor Conformation", "Lipid Rafts"],
+    "intended_subtopic": "test_topic_beta_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_023",
+    "title": "Inverse agonism at constitutively active beta-receptor mutants",
+    "abstract": "Gain-of-function mutations render beta-receptors constitutively active, providing a model for evaluating inverse agonist pharmacology. We screened 200 compounds for inverse agonism at constitutively active beta-receptors and identified scaffolds that suppress basal receptor activity below baseline. These beta-receptor pharmacology agents are candidates for conditions driven by ectopic receptor activation.",
+    "mesh_terms": ["Beta Receptors", "Inverse Agonists", "Constitutive Activity", "Receptor Pharmacology", "Drug Screening"],
+    "intended_subtopic": "test_topic_beta_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_024",
+    "title": "Downstream effector bias in beta-receptor pharmacology: cAMP versus beta-arrestin",
+    "abstract": "Beta-receptor pharmacology depends on the ratio of cAMP production to beta-arrestin recruitment driven by different ligand chemotypes. We characterize ten beta-receptor ligands spanning the full spectrum from G-protein-biased to arrestin-biased, and show that cAMP-biased beta-receptor agonists produce sustained bronchodilation while arrestin-biased ligands cause rapid receptor internalization.",
+    "mesh_terms": ["Beta Receptors", "Biased Agonism", "cAMP", "Beta-Arrestin", "Bronchodilation"],
+    "intended_subtopic": "test_topic_beta_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_025",
+    "title": "Structure-activity relationships governing beta-receptor subtype selectivity",
+    "abstract": "We systematically varied substituents on a beta-receptor pharmacophore to map structural determinants of beta-1 versus beta-2 subtype selectivity. The para-hydroxyl group drives beta-2 selectivity through a hydrogen bond to Ser203, whereas branched alkyl groups at the nitrogen favor beta-1 receptor binding. These SAR insights from beta-receptor pharmacology guide optimization of subtype-selective candidates.",
+    "mesh_terms": ["Beta Receptors", "Structure-Activity Relationships", "Subtype Selectivity", "Receptor Binding", "Drug Design"],
+    "intended_subtopic": "test_topic_beta_subtopic_two"
+  },
+  {
+    "pmid": "TEST_PMID_026",
+    "title": "Beta-gene promoter architecture integrates NF-kB and CREB inputs",
+    "abstract": "Beta-gene expression is controlled by a bipartite promoter that integrates NF-kB and CREB signals at adjacent binding elements. Simultaneous NF-kB activation and CREB phosphorylation produce synergistic beta-gene transcription that exceeds additive effects by 4-fold. Epigenetic mapping shows that this beta-gene promoter region carries active histone marks in expressing cell types.",
+    "mesh_terms": ["Beta Gene Expression", "Promoter Architecture", "NF-kB", "CREB", "Transcription Factors"],
+    "intended_subtopic": "test_topic_beta_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_027",
+    "title": "DNA methylation at CpG islands silences beta-gene expression in non-expressing lineages",
+    "abstract": "CpG island methylation at the beta-gene promoter is the primary epigenetic mechanism restricting beta-gene expression to appropriate cell lineages. Bisulfite sequencing across 24 cell types reveals that beta-gene CpG methylation anticorrelates perfectly with beta-gene transcript levels. Demethylation by TET enzyme overexpression reactivates beta-gene expression in silenced lineages.",
+    "mesh_terms": ["Beta Gene Expression", "DNA Methylation", "CpG Islands", "Epigenetics", "Cell Lineage"],
+    "intended_subtopic": "test_topic_beta_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_028",
+    "title": "H3K27ac histone acetylation marks active beta-gene enhancers",
+    "abstract": "Beta-gene expression is associated with H3K27ac-marked enhancers located up to 200 kb upstream of the transcription start site. ChIP-seq in beta-gene-expressing cells reveals three super-enhancers that loop to the beta-gene promoter via cohesin-mediated chromatin organization. Deletion of the most distal super-enhancer reduces beta-gene expression by 80%.",
+    "mesh_terms": ["Beta Gene Expression", "Histone Acetylation", "Enhancers", "Chromatin Organization", "Cohesin"],
+    "intended_subtopic": "test_topic_beta_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_029",
+    "title": "RNA-binding proteins post-transcriptionally regulate beta-gene expression",
+    "abstract": "Beta-gene mRNA stability is controlled by a set of RNA-binding proteins that bind AU-rich elements in the 3-prime UTR. HuR stabilizes beta-gene transcripts while TTP promotes deadenylation and decay. The ratio of HuR to TTP in a given cell type predicts beta-gene expression level better than transcription factor occupancy alone.",
+    "mesh_terms": ["Beta Gene Expression", "RNA-Binding Proteins", "mRNA Stability", "3-prime UTR", "Post-transcriptional Regulation"],
+    "intended_subtopic": "test_topic_beta_subtopic_three"
+  },
+  {
+    "pmid": "TEST_PMID_030",
+    "title": "CRISPR interference screen identifies regulators of beta-gene expression",
+    "abstract": "A genome-wide CRISPRi screen identifies 38 regulators of beta-gene expression in a relevant cell model. Hits cluster into three functional modules: chromatin remodeling, RNA processing, and signal-responsive transcription. Validation of top hits confirms that SWI/SNF complex subunit BRG1 is required for beta-gene expression by maintaining promoter chromatin accessibility.",
+    "mesh_terms": ["Beta Gene Expression", "CRISPRi Screen", "Gene Regulation", "Chromatin Remodeling", "SWI/SNF"],
+    "intended_subtopic": "test_topic_beta_subtopic_three"
+  }
+]
