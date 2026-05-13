@@ -90,6 +90,33 @@ def _load_hierarchy_schema() -> dict:
     return json.loads(SCHEMA_PATH.read_text())
 
 
+def _validate_fixture(taxonomy: dict, pubs: list[dict]) -> None:
+    """Cross-validate the corpus fixture: every ``intended_subtopic`` in
+    ``pubs.json`` must appear as a subtopic id in ``taxonomy.json``
+    (IN-06).
+
+    Without this guard, a typo or hand-edit drift in the fixture (e.g. a
+    pub mapped to ``intended_subtopic="genom1cs"``) would silently flow
+    through ``_aggregate_exclusive`` — which does not validate ids
+    against the taxonomy — and the E2E assertions would still pass
+    against a malformed downstream shape. Surfacing fixture drift here
+    as an explicit AssertionError makes the failure mode "fixture drift"
+    rather than "mysterious downstream null shape".
+    """
+    valid_ids = {
+        s["id"]
+        for t in taxonomy.get("topics", [])
+        for s in t.get("subtopics", [])
+    }
+    for pub in pubs:
+        intended = pub.get("intended_subtopic", "")
+        assert intended in valid_ids, (
+            f"Fixture drift: pub {pub.get('pmid')!r} -> "
+            f"intended_subtopic={intended!r} not in taxonomy.json subtopics "
+            f"(valid: {sorted(valid_ids)})"
+        )
+
+
 def _make_score_row(
     *,
     faculty_uid: str,
@@ -126,6 +153,11 @@ def _build_corpus_score_rows(taxonomy: dict) -> list[dict]:
     and _aggregate_inclusive.
     """
     pubs = _load_fixture_pubs()
+    # IN-06: assert fixture self-consistency before building rows. Catches
+    # pubs.json / taxonomy.json drift (e.g. a renamed subtopic id that was
+    # only updated in one file) as a clear AssertionError instead of letting
+    # the malformed row flow through the aggregator unvalidated.
+    _validate_fixture(taxonomy, pubs)
     rows: list[dict] = []
 
     for i, pub in enumerate(pubs):
