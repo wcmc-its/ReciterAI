@@ -13,7 +13,7 @@ pipeline stage that integrates with the substrate:
 4. If run: writes a `complete` row on success or a `failed` row with
    structured error context.
 
-Records live in the existing single `reciterai-chatbot` table:
+Records live in the existing single `reciterai` table:
 
     PK: STAGE#{stage_name}#{scope}    e.g. STAGE#publish_hierarchy#GLOBAL
     SK: RUN#{started_at}              ISO8601, lex order = chronological

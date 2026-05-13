@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # Module constants
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 POOL_SIZE = 50
 WINDOW_MONTHS = 24
@@ -187,7 +187,7 @@ def rank_pool(
     Args:
         client: optional boto3 DynamoDB client (test seam). If None, uses
             the lazy default-credential client.
-        table_name: DynamoDB table name; defaults to ``reciterai-chatbot``.
+        table_name: DynamoDB table name; defaults to ``reciterai``.
         window_months: recency window. Cutoff = today.year - (window // 12).
         pool_size: maximum number of PoolEntry to return.
         parent_lookup: optional dict mapping ``subtopic_id -> parent_topic``,

@@ -59,7 +59,7 @@ aws stepfunctions start-execution \
 
 ```bash
 aws dynamodb query \
-  --table-name reciterai-chatbot \
+  --table-name reciterai \
   --key-condition-expression "PK = :pk" \
   --expression-attribute-values '{":pk":{"S":"STAGE#hot_run#GLOBAL"}}' \
   --no-scan-index-forward --limit 5
@@ -185,7 +185,7 @@ or commented on:
 1. **Read the DRIFT# row.** Pull the most recent `DRIFT#evaluation`:
 
    ```bash
-   aws dynamodb query --table-name reciterai-chatbot \
+   aws dynamodb query --table-name reciterai \
      --key-condition-expression "PK = :pk" \
      --expression-attribute-values '{":pk":{"S":"DRIFT#evaluation"}}' \
      --no-scan-index-forward --limit 1
@@ -198,7 +198,7 @@ or commented on:
    look at the UNCOVERED_PMID# rows over the window:
 
    ```bash
-   aws dynamodb scan --table-name reciterai-chatbot \
+   aws dynamodb scan --table-name reciterai \
      --filter-expression "begins_with(PK, :p) AND created_at >= :since" \
      --expression-attribute-values \
        '{":p":{"S":"UNCOVERED_PMID#"},":since":{"S":"2026-04-28T00:00:00Z"}}' \

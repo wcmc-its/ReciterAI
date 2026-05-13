@@ -63,7 +63,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
-        "TableName": "reciterai-chatbot",
+        "TableName": "reciterai",
         "Item.$": "$.score_envelope"
       },
       "ResultPath": null,
@@ -100,7 +100,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
-        "TableName": "reciterai-chatbot",
+        "TableName": "reciterai",
         "Item.$": "$.assign_envelope"
       },
       "ResultPath": null,
@@ -136,7 +136,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
-        "TableName": "reciterai-chatbot",
+        "TableName": "reciterai",
         "Item.$": "$.rollup_envelope"
       },
       "ResultPath": null,
@@ -147,7 +147,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
-        "TableName": "reciterai-chatbot",
+        "TableName": "reciterai",
         "Item": {
           "PK": {"S": "STAGE#hot_run#GLOBAL"},
           "SK.$": "States.Format('RUN#{}', $.orchestrate.input.started_at)",
@@ -170,7 +170,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Parameters": {
-        "TableName": "reciterai-chatbot",
+        "TableName": "reciterai",
         "Item": {
           "PK": {"S": "STAGE#hot_run#GLOBAL"},
           "SK.$": "States.Format('RUN#FAILED#{}', $$.Execution.StartTime)",

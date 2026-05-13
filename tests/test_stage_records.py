@@ -324,7 +324,7 @@ def test_build_complete_record_does_no_io():
         completed_at="2026-05-12T00:01:00Z",
         duration_ms=60_000,
         cost_observed_usd=Decimal("1.23"),
-        output_pointer="ddb://reciterai-chatbot",
+        output_pointer="ddb://reciterai",
         records_written=10_000,
         model_ids_snapshot=["haiku-4-5", "sonnet-4-6"],
     )

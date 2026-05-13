@@ -131,7 +131,7 @@ def test_dynamodb_writes_target_reciterai_chatbot_table(asl):
     """All inline DynamoDB:PutItem states write to the production table."""
     for name, state in asl["States"].items():
         if state.get("Resource") == "arn:aws:states:::dynamodb:putItem":
-            assert state["Parameters"]["TableName"] == "reciterai-chatbot", (
+            assert state["Parameters"]["TableName"] == "reciterai", (
                 f"{name} writes to a non-canonical table"
             )
 

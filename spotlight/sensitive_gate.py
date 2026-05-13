@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 # Module constants
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 CONFIG_PK = "SPOTLIGHT_CONFIG#sensitive_tags"
 CONFIG_SK = "CONFIG"

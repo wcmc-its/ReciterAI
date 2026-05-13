@@ -1,6 +1,6 @@
 # Data Model & Query Architecture
 
-## DynamoDB Table: `reciterai-chatbot`
+## DynamoDB Table: `reciterai`
 
 ### Record Types
 
@@ -156,13 +156,13 @@ A GSI keyed on `input_hash` is deferred to Phase 10 — at one consumer (`publis
 
 ### Why a separate item type instead of a separate table
 
-Single-table design is the existing convention in `reciterai-chatbot` (see Record Types table above). Adding a new table introduces a second connection, a second IAM policy slice, and a second cost line for no benefit — `STAGE#` items share zero schema with the others and live under their own PK namespace anyway.
+Single-table design is the existing convention in `reciterai` (see Record Types table above). Adding a new table introduces a second connection, a second IAM policy slice, and a second cost line for no benefit — `STAGE#` items share zero schema with the others and live under their own PK namespace anyway.
 
 ---
 
 ## Phase 10 Records
 
-Four new record types land in Phase 10 (hot/cold path split). Each uses the existing `reciterai-chatbot` table; no new table or GSI was needed.
+Four new record types land in Phase 10 (hot/cold path split). Each uses the existing `reciterai` table; no new table or GSI was needed.
 
 ### `STAGE#hot_run#GLOBAL` — hot-path orchestrator audit row
 

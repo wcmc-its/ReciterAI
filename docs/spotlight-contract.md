@@ -148,7 +148,7 @@ This decision is annual and operator-driven. The cross-bucket migration in `docs
 
 The published artifact contains ONLY auto-publishable spotlights — entries that passed BOTH the deterministic + LLM critic gate AND the sensitive-tag gate. Spotlights flagged on either gate are routed to the DynamoDB review queue and do NOT appear in `spotlight.json`. Consumers see nothing about them.
 
-**Review queue partition:** `SPOTLIGHT_REVIEW#{publish_id}` + `SK=SUBTOPIC#{subtopic_id}` on the `reciterai-chatbot` table. Schema is documented in `docs/spotlight-dynamodb-schema.md` (read that for the full attribute list, status state machine, and v2 forward-compat GSI proposal).
+**Review queue partition:** `SPOTLIGHT_REVIEW#{publish_id}` + `SK=SUBTOPIC#{subtopic_id}` on the `reciterai` table. Schema is documented in `docs/spotlight-dynamodb-schema.md` (read that for the full attribute list, status state machine, and v2 forward-compat GSI proposal).
 
 **Review surface (v1):** CLI only. `python backfill_spotlight.py --review-queue [--publish-id <id>]` lists pending entries; `--approve <subtopic_id>` and `--reject <subtopic_id>` resolve them. A subsequent `--publish` reads only `status = approved` rows when joining the review queue with the assembler step.
 

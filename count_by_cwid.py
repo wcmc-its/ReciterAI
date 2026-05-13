@@ -1,4 +1,4 @@
-"""Scan reciterai-chatbot TOPIC# records and produce per-CWID activity counts
+"""Scan reciterai TOPIC# records and produce per-CWID activity counts
 broken down by topic and primary_subtopic_id.
 
 Phase 12 D-13 note: as of Phase 12, this script writes THREE subtopic CSVs:
@@ -23,7 +23,7 @@ NEW_EXCLUSIVE_CSV = "faculty_subtopic_counts_exclusive.csv"
 NEW_INCLUSIVE_CSV = "faculty_subtopic_counts_inclusive.csv"
 LEGACY_CSV = "cwid_subtopic_counts.csv"   # Phase 12 D-13 dual-write; remove in a later phase
 
-TABLE = "reciterai-chatbot"
+TABLE = "reciterai"
 
 
 def write_subtopic_csvs(

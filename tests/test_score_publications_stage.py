@@ -156,7 +156,7 @@ def test_per_pmid_failed_stage_row_written_on_bedrock_exception(monkeypatch):
         _FakeBedrockExploding(),
         taxonomy,
         fake_dynamo_client,
-        "reciterai-chatbot",
+        "reciterai",
         int_to_id,
         id_to_int,
         stage_table=fake_stage_table,

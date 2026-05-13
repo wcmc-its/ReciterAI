@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 DECAY_TAU_WEEKS = 12  # CONTEXT decision Q1.3
 SELECTION_SIZE = 10  # CONTEXT decision Q1.1 (FLOOR; not a ceiling)
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 BATCH_GET_LIMIT = 25  # DynamoDB BatchGetItem safe per-call default
 

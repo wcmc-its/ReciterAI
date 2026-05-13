@@ -30,7 +30,7 @@ from utils.dynamodb_helpers import get_table
 # Parses as valid pre-release semver; sorts before every real v{ISO-date} version.
 LEGACY_SENTINEL = "v0.0.0-pre-phase-11"
 
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 introduces three new partitions on the existing `reciterai-chatbot`
+Phase 6 introduces three new partitions on the existing `reciterai`
 DynamoDB table. All three use the same low-level `boto3.client("dynamodb")`
 shape established in Phase 1 (no DocumentClient wrapper, raw AttributeValue
 maps). Storage cost is negligible: roughly 10K rows max combined across the
@@ -52,7 +52,7 @@ selector in Plan 06-03 can apply the recency-decay multiplier.
 # boto3 BatchGetItem read shape (Plan 06-03)
 client.batch_get_item(
     RequestItems={
-        "reciterai-chatbot": {
+        "reciterai": {
             "Keys": [
                 {"PK": {"S": f"SPOTLIGHT_HISTORY#{sid}"}, "SK": {"S": "STATE"}}
                 for sid in top_50_ids[:25]
@@ -241,7 +241,7 @@ list uses, not the active tag values themselves. To inspect the live list:
 
 ```bash
 aws dynamodb get-item \
-  --table-name reciterai-chatbot \
+  --table-name reciterai \
   --key '{"PK":{"S":"SPOTLIGHT_CONFIG#sensitive_tags"},"SK":{"S":"CONFIG"}}'
 ```
 
