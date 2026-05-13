@@ -497,3 +497,116 @@ def test_builders_are_idempotent():
     a = sr.build_complete_record(**kwargs)
     b = sr.build_complete_record(**kwargs)
     assert a == b
+
+
+# ---------- Phase 12 D-28: tunable_inputs audit field ----------
+
+
+def test_build_complete_record_omits_tunable_inputs_when_none():
+    """D-28: tunable_inputs absent when not passed (backwards-compat)."""
+    item = sr.build_complete_record(
+        stage="assign_subtopics",
+        scope="topic:aging_geroscience",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_observed_usd=Decimal("0"),
+    )
+    assert "tunable_inputs" not in item, (
+        "tunable_inputs must be absent when not passed — backwards-compatible"
+    )
+
+
+def test_build_complete_record_includes_tunable_inputs_when_set():
+    """D-28: tunable_inputs present and correct when passed."""
+    inputs = {"confidence_floor": 0.3, "confidence_floor_source": "config"}
+    item = sr.build_complete_record(
+        stage="assign_subtopics",
+        scope="topic:aging_geroscience",
+        input_hash="abc",
+        started_at="2026-05-12T00:00:00Z",
+        completed_at="2026-05-12T00:01:00Z",
+        duration_ms=60_000,
+        cost_observed_usd=Decimal("0"),
+        tunable_inputs=inputs,
+    )
+    assert "tunable_inputs" in item
+    assert item["tunable_inputs"] == inputs
+
+
+def test_build_skipped_record_supports_tunable_inputs():
+    """D-28: build_skipped_record carries tunable_inputs when set; absent when not."""
+    # Absent case.
+    item_no = sr.build_skipped_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        skip_reason="unchanged",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=42,
+    )
+    assert "tunable_inputs" not in item_no
+
+    # Present case.
+    inputs = {"score_floor": 0.3, "score_floor_source": "config"}
+    item_yes = sr.build_skipped_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        skip_reason="unchanged",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=42,
+        tunable_inputs=inputs,
+    )
+    assert item_yes["tunable_inputs"] == inputs
+
+
+def test_build_failed_record_supports_tunable_inputs():
+    """D-28: build_failed_record carries tunable_inputs when set; absent when not."""
+    # Absent case.
+    item_no = sr.build_failed_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        error_code="SOME_ERROR",
+        error_message="something failed",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=5_000,
+        cost_observed_usd=Decimal("0"),
+    )
+    assert "tunable_inputs" not in item_no
+
+    # Present case.
+    inputs = {"tie_epsilon": 0.001, "tie_epsilon_source": "config"}
+    item_yes = sr.build_failed_record(
+        stage="assign_subtopics",
+        scope="GLOBAL",
+        input_hash="abc",
+        error_code="SOME_ERROR",
+        error_message="something failed",
+        started_at="2026-05-12T00:00:00Z",
+        duration_ms=5_000,
+        cost_observed_usd=Decimal("0"),
+        tunable_inputs=inputs,
+    )
+    assert item_yes["tunable_inputs"] == inputs
+
+
+def test_tunable_inputs_source_discriminator_values():
+    """D-28: the three source discriminator strings are all accepted by the builder."""
+    for source in ("config", "cli", "default"):
+        inputs = {"confidence_floor": 0.3, "confidence_floor_source": source}
+        item = sr.build_complete_record(
+            stage="assign_subtopics",
+            scope="GLOBAL",
+            input_hash="abc",
+            started_at="2026-05-12T00:00:00Z",
+            completed_at="2026-05-12T00:01:00Z",
+            duration_ms=60_000,
+            cost_observed_usd=Decimal("0"),
+            tunable_inputs=inputs,
+        )
+        assert item["tunable_inputs"]["confidence_floor_source"] == source, (
+            f"Source discriminator '{source}' not preserved in tunable_inputs"
+        )
