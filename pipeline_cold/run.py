@@ -72,7 +72,7 @@ def _now_iso() -> str:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ColdStage:
     """A cold-path stage. `command` is what gets handed to subprocess.run.
 
@@ -80,6 +80,12 @@ class ColdStage:
     at the existing `backfill_*.py` wrappers, which already encode the
     iteration logic and per-topic STAGE# writes. This keeps the cold
     orchestrator a thin walker.
+
+    IN-02: frozen=True. Stages are constructed once by ``default_cold_stages``
+    and never mutated thereafter; freezing documents that contract and
+    catches accidental mutation. (``command`` remains a list — frozen only
+    blocks attribute rebind; list-element mutation is still possible if a
+    caller really wants it.)
     """
 
     name: str
@@ -148,8 +154,15 @@ def default_cold_stages() -> list[ColdStage]:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class StageOutcome:
+    """Outcome of a single stage invocation.
+
+    IN-02: frozen=True. Outcomes are produced once by ``run_stage`` and
+    only ever read by the walker loop and STAGE# row builders; freezing
+    documents that contract.
+    """
+
     name: str
     status: str  # "complete" | "skipped" | "failed"
     duration_ms: int
