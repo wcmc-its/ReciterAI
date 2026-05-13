@@ -37,7 +37,7 @@ These phases were executed before the 2026-05-11 restructure, when ReciterAI wor
   - Move `generated_at` out of `hierarchy.json` (G-29 fix)
   - Estimate: 8–12 days
 
-- [ ] **Phase 12: Feedback Loops, Both Aggregations, Residual Hygiene** — Implements spec §8 (both aggregations), §9 (feedback-event *consumption* — critic-reject events, uncovered-PMID Sonnet sweeps), and §11 residual maintenance items (G-1, G-18, G-24, G-34, G-36, G-37).
+- [x] **Phase 12: Feedback Loops, Both Aggregations, Residual Hygiene** — Implements spec §8 (both aggregations), §9 (feedback-event *consumption* — critic-reject events, uncovered-PMID Sonnet sweeps), and §11 residual maintenance items (G-1, G-18, G-24, G-34, G-36, G-37). (completed 2026-05-13)
   - Estimate: 4–6 days
   - Plans: 8 (waves: 6 parallel in wave 1, 2 in wave 2, 1 in wave 3 — see Phase details)
 
@@ -85,7 +85,7 @@ Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* �
 
 **Estimate:** 4–6 days.
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 Wave 1 (parallel):
 - [x] `12-thresholds-substrate-PLAN.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
@@ -99,7 +99,7 @@ Wave 2 (parallel, depend on wave 1):
 - [x] `12-g36-reproducibility-PLAN.md` — G-36: extend `tests/test_hierarchy_reproducibility.py` to cover `publish()` end-to-end
 
 Wave 3 (depends on every other wave-1 + wave-2 plan, gated per D-20):
-- [ ] `12-g37-e2e-PLAN.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
+- [x] `12-g37-e2e-PLAN.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
 
 ### Phase 8: Tools / Axis 2 Pipeline
 
