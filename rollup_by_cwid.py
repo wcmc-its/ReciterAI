@@ -64,6 +64,14 @@ DEFAULT_SUBTOPIC_CSV = Path("faculty_subtopic_counts_exclusive.csv")
 # Phase 12 D-13 dual-write: legacy name kept for one deprecation window;
 # producers now write BOTH names. This fallback will be removed in a later phase.
 LEGACY_SUBTOPIC_CSV = Path("cwid_subtopic_counts.csv")
+# Phase 12 D-13 inclusive CSV name (for explicit-rejection messaging).
+INCLUSIVE_SUBTOPIC_CSV = Path("faculty_subtopic_counts_inclusive.csv")
+# Acceptable column names for the subtopic identifier in a subtopic CSV.
+# Exclusive CSV uses "primary_subtopic_id"; inclusive CSV uses "subtopic_id".
+# rollup_by_cwid operates against the exclusive CSV by contract, but the column
+# pick is done defensively so an operator who passes the inclusive CSV via
+# --subtopic-csv gets a clear error rather than a KeyError on the first row.
+SUBTOPIC_ID_COLUMNS = ("primary_subtopic_id", "subtopic_id")
 DEFAULT_OUT_CSV = Path("cwid_rollup.csv")
 
 ROLLUP_HEADER = [
@@ -93,7 +101,10 @@ def _resolve_subtopic_csv(provided: Path | None = None) -> Path:
     1. `provided` argument (explicit caller override) — returned as-is.
     2. DEFAULT_SUBTOPIC_CSV (faculty_subtopic_counts_exclusive.csv) if it exists on disk.
     3. LEGACY_SUBTOPIC_CSV (cwid_subtopic_counts.csv) if it exists — emits a deprecation warning.
-    4. DEFAULT_SUBTOPIC_CSV returned anyway (will raise FileNotFoundError downstream).
+    4. WR-07 / Phase 12 D-13: when neither candidate exists, raise FileNotFoundError
+       naming both candidates rather than blaming a single path. This avoids the
+       "exclusive.csv not found" confusion for operators whose legacy file lives
+       under a different name (or who haven't run count_by_cwid.py yet).
 
     Phase 12 D-13 note: producers write both names for one cycle; this fallback will
     be removed in a later phase once SPS and all readers have migrated to the new name.
@@ -110,8 +121,35 @@ def _resolve_subtopic_csv(provided: Path | None = None) -> Path:
             DEFAULT_SUBTOPIC_CSV,
         )
         return LEGACY_SUBTOPIC_CSV
-    # Neither exists; return the canonical name so downstream raises a clear FileNotFoundError.
-    return DEFAULT_SUBTOPIC_CSV
+    raise FileNotFoundError(
+        f"Subtopic CSV not found. Checked: {DEFAULT_SUBTOPIC_CSV} (canonical, "
+        f"Phase 12 D-13) and {LEGACY_SUBTOPIC_CSV} (legacy). "
+        "Generate via count_by_cwid.py."
+    )
+
+
+def _pick_subtopic_id_column(fieldnames: list[str] | None, source: Path) -> str:
+    """Return the subtopic-id column name from a subtopic CSV header.
+
+    Accepts either of the Phase 12 D-13 schemas:
+    - exclusive CSV header: ``primary_subtopic_id``
+    - inclusive CSV header: ``subtopic_id``
+
+    Raises a clear KeyError-equivalent message if neither column is present
+    (CR-02: defends against an operator pointing --subtopic-csv at an
+    inclusive CSV by mistake, or against a future schema regression).
+    """
+    cols = set(fieldnames or [])
+    for candidate in SUBTOPIC_ID_COLUMNS:
+        if candidate in cols:
+            return candidate
+    raise ValueError(
+        f"Subtopic CSV {source!r} is missing both expected columns "
+        f"({SUBTOPIC_ID_COLUMNS}). Found columns: {sorted(cols)}. "
+        "The exclusive CSV uses 'primary_subtopic_id'; the inclusive CSV uses "
+        "'subtopic_id'. Check the producer (count_by_cwid.py) or pass an explicit "
+        "--subtopic-csv path."
+    )
 
 
 # --- Aggregation -----------------------------------------------------------
@@ -144,12 +182,14 @@ def aggregate_from_breakdowns(
             n_topics[cwid].add(row["topic_id"])
 
     with open(subtopic_csv) as f:
-        for row in csv.DictReader(f):
+        reader = csv.DictReader(f)
+        sub_id_key = _pick_subtopic_id_column(reader.fieldnames, subtopic_csv)
+        for row in reader:
             cwid = row["personIdentifier"]
             if cwid_filter is not None and cwid not in cwid_filter:
                 continue
             n_subtopic_activities[cwid] += int(row["n_activities"])
-            n_subtopics[cwid].add(row["primary_subtopic_id"])
+            n_subtopics[cwid].add(row[sub_id_key])
 
     all_cwids = set(n_activities) | set(n_subtopics)
     return {
