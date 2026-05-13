@@ -119,7 +119,17 @@ def _fetch_rows_by_run_id(table, run_id: str) -> list[dict]:
 # Argument parser + entry point
 # ---------------------------------------------------------------------------
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None, *, get_table=None) -> int:
+    """CLI entry point.
+
+    Args:
+        argv: argv list for argparse (None → sys.argv[1:]).
+        get_table: WR-04 seam — overrides the default DDB table factory.
+            Threaded through to both subcommand handlers so tests can
+            inject a fake table without wrapping the handler functions
+            themselves (which would skip the actual main → handler call
+            path).
+    """
     parser = argparse.ArgumentParser(
         prog="pipeline_feedback",
         description="Phase 12 feedback CLI — operator diagnosis and cold-path sweep.",
@@ -148,6 +158,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                           help="Write markdown to this path instead of stdout.")
 
     args = parser.parse_args(argv)
+    handler_kwargs = {"get_table": get_table} if get_table is not None else {}
     if args.command == "sweep":
-        return _run_sweep(args)
-    return _run_render(args)
+        return _run_sweep(args, **handler_kwargs)
+    return _run_render(args, **handler_kwargs)
