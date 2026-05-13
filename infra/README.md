@@ -55,7 +55,7 @@ binding on future operators:
 > - **(c)** a fifth managed AWS resource (Lambdas + Step Functions +
 >   tables + buckets, excluding shared infra like CloudWatch log groups).
 >
-> Today ReciterAI manages: `reciterai-chatbot` (DynamoDB),
+> Today ReciterAI manages: `reciterai` (DynamoDB),
 > `wcmc-reciterai-hierarchy` (S3), `wcmc-reciterai-artifacts` (S3),
 > `reciterai-hot-path` (Step Functions), plus Lambda functions per
 > handler. The Lambda count alone will likely cross the threshold first.

@@ -3,7 +3,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "DynamoDBChatbotTableReadWrite",
+      "Sid": "DynamoDBReciterAITableReadWrite",
       "Effect": "Allow",
       "Action": [
         "dynamodb:GetItem",
@@ -17,8 +17,8 @@
         "dynamodb:DescribeTable"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/reciterai-chatbot",
-        "arn:aws:dynamodb:*:*:table/reciterai-chatbot/index/*"
+        "arn:aws:dynamodb:*:*:table/reciterai",
+        "arn:aws:dynamodb:*:*:table/reciterai/index/*"
       ]
     },
     {

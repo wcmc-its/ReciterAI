@@ -36,7 +36,7 @@ from boto3.dynamodb.conditions import Attr
 
 from utils.dynamodb_helpers import get_table
 
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 _SPOTLIGHT_PREFIX = "SPOTLIGHT_HISTORY#"
 
 # Valid publish_id pattern: v{YYYY}-{MM}-{DD}
@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     # Confirm-and-commit gate (backfill_spotlight.py:687-693 pattern)
     confirm = input(
         "WARNING: this will rewrite every SPOTLIGHT_HISTORY# row's PK in the "
-        "reciterai-chatbot DynamoDB table. Type 'yes' to confirm: "
+        "reciterai DynamoDB table. Type 'yes' to confirm: "
     )
     if confirm.strip().lower() != "yes":
         print("Aborted.")

@@ -26,7 +26,7 @@ import boto3
 from sqlalchemy import create_engine, text
 
 
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
 

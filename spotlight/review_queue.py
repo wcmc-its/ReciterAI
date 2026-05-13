@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 # Module constants
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 VALID_FLAG_REASONS = {"critic", "sensitive_tag", "both"}
 VALID_TARGET_STATUSES = {"approved", "rejected"}

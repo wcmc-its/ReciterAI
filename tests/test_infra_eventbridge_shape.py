@@ -12,7 +12,7 @@ We also verify:
   placeholders so the deploy script's substitution is the only place
   account/region are bound.
 - The IAM policy doc has the actions called out in PLAN T12: DynamoDB
-  RW on reciterai-chatbot, S3 RW on wcmc-reciterai-*, bedrock invoke +
+  RW on reciterai, S3 RW on wcmc-reciterai-*, bedrock invoke +
   batch, states:StartExecution, events:PutEvents.
 """
 
@@ -154,8 +154,8 @@ def test_iam_policy_scopes_dynamodb_to_reciterai_table(iam_policy):
     assert ddb_stmts, "expected at least one DynamoDB statement"
     for stmt in ddb_stmts:
         resources = stmt["Resource"] if isinstance(stmt["Resource"], list) else [stmt["Resource"]]
-        assert all("reciterai-chatbot" in r for r in resources), (
-            f"DynamoDB statement leaks beyond reciterai-chatbot: {resources}"
+        assert all("reciterai" in r for r in resources), (
+            f"DynamoDB statement leaks beyond reciterai: {resources}"
         )
 
 

@@ -36,7 +36,7 @@ from typing import Mapping
 
 from utils.dynamodb_helpers import to_decimal, get_table
 
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 
 
 def update_activity_subtopics(

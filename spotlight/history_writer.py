@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # Module constants
 # ---------------------------------------------------------------------------
 
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 
 # Literal UpdateExpression — must remain a constant (T-06-03-01: no

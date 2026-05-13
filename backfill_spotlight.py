@@ -695,14 +695,14 @@ def _run_reset_history() -> int:
 
     confirm = input(
         "WARNING: this will delete every SPOTLIGHT_HISTORY# row in the "
-        "reciterai-chatbot DynamoDB table. Type 'yes' to confirm: "
+        "reciterai DynamoDB table. Type 'yes' to confirm: "
     )
     if confirm.strip().lower() != "yes":
         print("Aborted.")
         return 1
 
     client = boto3.client("dynamodb", region_name="us-east-1")
-    table = "reciterai-chatbot"
+    table = "reciterai"
     deleted = 0
 
     paginator = client.get_paginator("scan")

@@ -19,7 +19,7 @@ than appending duplicates. The `created_at` attribute carries the
 timestamp the drift evaluator (T10) uses to bucket events into its
 rolling 14-day window.
 
-The substrate table is the existing `reciterai-chatbot` single-table
+The substrate table is the existing `reciterai` single-table
 design (PK/SK schema).
 """
 

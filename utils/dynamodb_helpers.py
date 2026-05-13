@@ -23,7 +23,7 @@ import boto3
 logger = logging.getLogger(__name__)
 
 # DynamoDB table name (DB-01)
-TABLE_NAME = "reciterai-chatbot"
+TABLE_NAME = "reciterai"
 
 
 def get_dynamo_client(region: str = None):
@@ -65,7 +65,7 @@ def get_table(table_name: str = TABLE_NAME, region: str = None):
 
 def create_chatbot_table(client, table_name: str = TABLE_NAME):
     """
-    Create the reciterai-chatbot DynamoDB table with both GSIs if it doesn't exist.
+    Create the reciterai DynamoDB table with both GSIs if it doesn't exist.
 
     Table design:
     - Primary key: PK (HASH, String) + SK (RANGE, String)

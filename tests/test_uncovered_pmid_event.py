@@ -80,7 +80,7 @@ def test_uncovered_event_written_when_no_topics_pass_screening(
     pub = {"pmid": "12345", "synopsis": "s", "abstract": "a"}
 
     result = sp.score_one_publication(
-        pub, bedrock, TAXONOMY, MagicMock(), "reciterai-chatbot",
+        pub, bedrock, TAXONOMY, MagicMock(), "reciterai",
         int_to_id, id_to_int,
         stage_table=table,
         thresholds={"uncovered_score_floor": 0.4},
@@ -114,7 +114,7 @@ def test_uncovered_event_written_when_dense_top_below_floor(
     )
     pub = {"pmid": "77777", "synopsis": "s", "abstract": "a"}
     result = sp.score_one_publication(
-        pub, bedrock, TAXONOMY, MagicMock(), "reciterai-chatbot",
+        pub, bedrock, TAXONOMY, MagicMock(), "reciterai",
         int_to_id, id_to_int,
         stage_table=table,
         thresholds={"uncovered_score_floor": 0.4},
@@ -142,7 +142,7 @@ def test_no_event_when_dense_top_above_floor(stage_table_capture, monkeypatch):
     )
     pub = {"pmid": "88888", "synopsis": "s", "abstract": "a"}
     sp.score_one_publication(
-        pub, bedrock, TAXONOMY, MagicMock(), "reciterai-chatbot",
+        pub, bedrock, TAXONOMY, MagicMock(), "reciterai",
         int_to_id, id_to_int,
         stage_table=table,
         thresholds={"uncovered_score_floor": 0.4},
@@ -158,7 +158,7 @@ def test_no_event_when_thresholds_none(stage_table_capture, monkeypatch):
     bedrock = _FakeBedrock(screening={"0": 0.05, "1": 0.05, "2": 0.05})
     pub = {"pmid": "00000", "synopsis": "s", "abstract": "a"}
     sp.score_one_publication(
-        pub, bedrock, TAXONOMY, MagicMock(), "reciterai-chatbot",
+        pub, bedrock, TAXONOMY, MagicMock(), "reciterai",
         int_to_id, id_to_int,
         stage_table=table,
         thresholds=None,
@@ -173,7 +173,7 @@ def test_no_event_when_stage_table_none(monkeypatch):
     bedrock = _FakeBedrock(screening={"0": 0.05, "1": 0.05, "2": 0.05})
     pub = {"pmid": "00001", "synopsis": "s", "abstract": "a"}
     sp.score_one_publication(
-        pub, bedrock, TAXONOMY, MagicMock(), "reciterai-chatbot",
+        pub, bedrock, TAXONOMY, MagicMock(), "reciterai",
         int_to_id, id_to_int,
         stage_table=None,
         thresholds={"uncovered_score_floor": 0.4},
