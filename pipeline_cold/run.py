@@ -114,12 +114,21 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="discover",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-discover", "--skip-all-reviews"],
+            # No-op placeholder. backfill_all.py never grew --only-discover; the
+            # work is fully subsumed by `assign`. Keeping the named stage slot
+            # so STAGE# auditing and resume-from-stage semantics stay stable,
+            # but the command itself is a 0-exit print so the cold-run can
+            # continue cleanly. A real --only-discover (incremental clustering
+            # on a stable taxonomy) can replace this when needed.
+            command=[sys.executable, "-c",
+                     "print('cold-stage discover: subsumed by assign (no-op).')"],
             description="Subtopic clustering pass (subsumed by assign on first run)",
         ),
         ColdStage(
             name="relabel",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--only-relabel", "--skip-all-reviews"],
+            # No-op placeholder; mirror rationale of `discover` above.
+            command=[sys.executable, "-c",
+                     "print('cold-stage relabel: subsumed by assign (no-op).')"],
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
