@@ -70,13 +70,19 @@ class DriftEvaluation:
     cold_run_recommended: bool = False
     severity: str = "OK"  # OK | WARN | ERROR
 
+    # Phase 12 D-34: per-topic LOW_CONFIDENCE# counts for this window.
+    # Sparse-by-default: only topics with non-zero count appear as keys.
+    # Absence == zero. Consumers MUST use .get(key, 0) to distinguish
+    # "key absent" from "row predates field" (treat both as zero).
+    per_topic_low_confidence: dict[str, int] = field(default_factory=dict)
+
     def to_dynamodb_item(self) -> dict[str, Any]:
         """Render as the DynamoDB item the evaluator persists.
 
         SK is the window end date so a daily cron produces one row per
         evaluation day. Floats are coerced to Decimal per the DDB rule.
         """
-        return {
+        item: dict[str, Any] = {
             "PK": DRIFT_PK,
             "SK": f"DAY#{self.window_end[:10]}",
             "record_type": "DRIFT_EVALUATION",
@@ -94,6 +100,14 @@ class DriftEvaluation:
             "cold_run_recommended": self.cold_run_recommended,
             "severity": self.severity,
         }
+        # Phase 12 D-34: sparse — emit only when populated. Same Phase 11
+        # D-13 run_id precedent (utils/stage_records.py:217-219). Counts are
+        # int; no Decimal coercion needed (counts are not floats).
+        if self.per_topic_low_confidence:
+            item["per_topic_low_confidence"] = {
+                str(k): int(v) for k, v in self.per_topic_low_confidence.items()
+            }
+        return item
 
 
 def _filter_in_window(
@@ -188,6 +202,14 @@ def evaluate(
         if severity == "OK":
             severity = "WARN"
 
+    # Phase 12 D-34: surface the per-topic dict computed above (previously
+    # computed to derive max_topic/max_count and then discarded). Sparse:
+    # filter out zero-count entries (any key with count > 0 is kept; the
+    # per_topic dict only accumulates positive counts from the loop above,
+    # so this filter is `v > 0`, but all entries in `per_topic` are already
+    # >= 1 by construction — the filter is defensive).
+    per_topic_low_confidence = {k: v for k, v in per_topic.items() if v > 0}
+
     return DriftEvaluation(
         window_start=since.isoformat(timespec="seconds").replace("+00:00", "Z"),
         window_end=now.isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -202,6 +224,7 @@ def evaluate(
         triggered_thresholds=triggered,
         cold_run_recommended=severity == "ERROR",
         severity=severity,
+        per_topic_low_confidence=per_topic_low_confidence,
     )
 
 
