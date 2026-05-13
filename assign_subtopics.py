@@ -104,8 +104,22 @@ _CFG: dict | None = None
 _CACHED_THRESHOLDS: dict[str, float] = {}
 
 
+_LAZY_THRESHOLD_ATTRS = {
+    "SCORE_FLOOR": "score_floor",                     # Minimum relevance score to qualify as an "activity"
+    "DEFAULT_CONFIDENCE_FLOOR": "confidence_floor",   # Below this, assignments are dropped (D-02)
+    "TIE_EPSILON": "tie_epsilon",                     # Confidences within this are considered tied
+}
+
+
 def _get_threshold(key: str) -> float:
-    """Lazy-resolve a single threshold value, caching after first read."""
+    """Lazy-resolve a single threshold value, caching after first read.
+
+    Also writes the resolved value into module globals() so that bare-name
+    in-module references (e.g. `SCORE_FLOOR` from inside this module) work
+    once the threshold has been primed. Module-level __getattr__ below only
+    fires for external access (`assign_subtopics.SCORE_FLOOR`); bare-name
+    lookups go straight to globals() and would otherwise NameError.
+    """
     if key in _CACHED_THRESHOLDS:
         return _CACHED_THRESHOLDS[key]
     global _CFG
@@ -113,14 +127,17 @@ def _get_threshold(key: str) -> float:
         _CFG = _load_thresholds_cfg()
     val = float(_CFG[key])
     _CACHED_THRESHOLDS[key] = val
+    for attr_name, cfg_key in _LAZY_THRESHOLD_ATTRS.items():
+        if cfg_key == key:
+            globals()[attr_name] = val
     return val
 
 
-_LAZY_THRESHOLD_ATTRS = {
-    "SCORE_FLOOR": "score_floor",                     # Minimum relevance score to qualify as an "activity"
-    "DEFAULT_CONFIDENCE_FLOOR": "confidence_floor",   # Below this, assignments are dropped (D-02)
-    "TIE_EPSILON": "tie_epsilon",                     # Confidences within this are considered tied
-}
+def _prime_thresholds() -> None:
+    """Eagerly resolve every lazy threshold into globals(). Call from entry
+    points so subsequent in-module bare-name references find the values."""
+    for cfg_key in _LAZY_THRESHOLD_ATTRS.values():
+        _get_threshold(cfg_key)
 
 
 def __getattr__(name: str):  # PEP 562 — module-level __getattr__
@@ -728,6 +745,10 @@ def run(
     delta_pmids: list[str] | None = None,
     emit_envelope: bool = False,
 ) -> dict:
+    # Prime lazy thresholds so in-module bare-name references (SCORE_FLOOR,
+    # TIE_EPSILON) resolve via globals() regardless of entry point.
+    _prime_thresholds()
+
     # Phase 11 D-01: resolve hierarchy_version from env before any work.
     # pipeline_cold.run.main() sets this env var for all subprocess stages.
     # Raise early with an actionable message if absent (prevents silent
@@ -1032,6 +1053,9 @@ def run(
 # ---------------------------------------------------------------------------
 
 def _parse_args():
+    # Prime lazy thresholds into globals() so the argparse `default=…`
+    # bare-name references below (DEFAULT_CONFIDENCE_FLOOR) resolve.
+    _prime_thresholds()
     parser = argparse.ArgumentParser(
         description=(
             "Pass 2: per-activity Haiku subtopic assignment. "
