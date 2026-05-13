@@ -54,24 +54,22 @@ from utils.stage_records import (
     write_complete,
     write_skipped,
 )
+# IN-05: subtopic-CSV path/header helpers live in utils/csv_paths.py so
+# build_cwid_json.py shares the same logic. Re-exported below for any
+# external caller that imported the names from this module.
+from utils.csv_paths import (
+    DEFAULT_SUBTOPIC_CSV,
+    INCLUSIVE_SUBTOPIC_CSV,
+    LEGACY_SUBTOPIC_CSV,
+    SUBTOPIC_ID_COLUMNS,
+    pick_subtopic_id_column as _pick_subtopic_id_column,
+    resolve_subtopic_csv as _resolve_subtopic_csv,
+)
 
 
 # --- Constants -------------------------------------------------------------
 
 DEFAULT_TOPIC_CSV = Path("cwid_topic_counts.csv")
-# Phase 12 D-13: canonical subtopic CSV name after rename.
-DEFAULT_SUBTOPIC_CSV = Path("faculty_subtopic_counts_exclusive.csv")
-# Phase 12 D-13 dual-write: legacy name kept for one deprecation window;
-# producers now write BOTH names. This fallback will be removed in a later phase.
-LEGACY_SUBTOPIC_CSV = Path("cwid_subtopic_counts.csv")
-# Phase 12 D-13 inclusive CSV name (for explicit-rejection messaging).
-INCLUSIVE_SUBTOPIC_CSV = Path("faculty_subtopic_counts_inclusive.csv")
-# Acceptable column names for the subtopic identifier in a subtopic CSV.
-# Exclusive CSV uses "primary_subtopic_id"; inclusive CSV uses "subtopic_id".
-# rollup_by_cwid operates against the exclusive CSV by contract, but the column
-# pick is done defensively so an operator who passes the inclusive CSV via
-# --subtopic-csv gets a clear error rather than a KeyError on the first row.
-SUBTOPIC_ID_COLUMNS = ("primary_subtopic_id", "subtopic_id")
 DEFAULT_OUT_CSV = Path("cwid_rollup.csv")
 
 ROLLUP_HEADER = [
@@ -92,64 +90,6 @@ logger = logging.getLogger(__name__)
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def _resolve_subtopic_csv(provided: Path | None = None) -> Path:
-    """Prefer the Phase 12 D-13 canonical name; fall back to legacy with a deprecation warning.
-
-    Resolution order:
-    1. `provided` argument (explicit caller override) — returned as-is.
-    2. DEFAULT_SUBTOPIC_CSV (faculty_subtopic_counts_exclusive.csv) if it exists on disk.
-    3. LEGACY_SUBTOPIC_CSV (cwid_subtopic_counts.csv) if it exists — emits a deprecation warning.
-    4. WR-07 / Phase 12 D-13: when neither candidate exists, raise FileNotFoundError
-       naming both candidates rather than blaming a single path. This avoids the
-       "exclusive.csv not found" confusion for operators whose legacy file lives
-       under a different name (or who haven't run count_by_cwid.py yet).
-
-    Phase 12 D-13 note: producers write both names for one cycle; this fallback will
-    be removed in a later phase once SPS and all readers have migrated to the new name.
-    """
-    if provided is not None:
-        return provided
-    if DEFAULT_SUBTOPIC_CSV.exists():
-        return DEFAULT_SUBTOPIC_CSV
-    if LEGACY_SUBTOPIC_CSV.exists():
-        logger.warning(
-            "Reading legacy CSV name '%s'. Phase 12 D-13 renamed this to '%s'. "
-            "Update producers to write the new name; this fallback will be removed in a later phase.",
-            LEGACY_SUBTOPIC_CSV,
-            DEFAULT_SUBTOPIC_CSV,
-        )
-        return LEGACY_SUBTOPIC_CSV
-    raise FileNotFoundError(
-        f"Subtopic CSV not found. Checked: {DEFAULT_SUBTOPIC_CSV} (canonical, "
-        f"Phase 12 D-13) and {LEGACY_SUBTOPIC_CSV} (legacy). "
-        "Generate via count_by_cwid.py."
-    )
-
-
-def _pick_subtopic_id_column(fieldnames: list[str] | None, source: Path) -> str:
-    """Return the subtopic-id column name from a subtopic CSV header.
-
-    Accepts either of the Phase 12 D-13 schemas:
-    - exclusive CSV header: ``primary_subtopic_id``
-    - inclusive CSV header: ``subtopic_id``
-
-    Raises a clear KeyError-equivalent message if neither column is present
-    (CR-02: defends against an operator pointing --subtopic-csv at an
-    inclusive CSV by mistake, or against a future schema regression).
-    """
-    cols = set(fieldnames or [])
-    for candidate in SUBTOPIC_ID_COLUMNS:
-        if candidate in cols:
-            return candidate
-    raise ValueError(
-        f"Subtopic CSV {source!r} is missing both expected columns "
-        f"({SUBTOPIC_ID_COLUMNS}). Found columns: {sorted(cols)}. "
-        "The exclusive CSV uses 'primary_subtopic_id'; the inclusive CSV uses "
-        "'subtopic_id'. Check the producer (count_by_cwid.py) or pass an explicit "
-        "--subtopic-csv path."
-    )
 
 
 # --- Aggregation -----------------------------------------------------------
