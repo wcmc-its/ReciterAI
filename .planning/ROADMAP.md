@@ -85,14 +85,14 @@ Implements spec §8 (both aggregations) and §9 (feedback-event *consumption* �
 
 **Estimate:** 4–6 days.
 
-**Plans:** 0/8 plans complete (waves: 6 parallel in wave 1, 2 in wave 2, 1 in wave 3)
+**Plans:** 5/8 plans executed
 
 Wave 1 (parallel):
-- [ ] `12-thresholds-substrate-PLAN.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
-- [ ] `12-feedback-producer-PLAN.md` — D-08, D-30, D-31: `CritReasonCode` StrEnum + `CRITIC_REJECT#{cwid}#{pmid_set_hash}` additive write at `spotlight/critic.py:571` alongside existing SPOTLIGHT_REVIEW#
-- [ ] `12-drift-extension-PLAN.md` — D-34: additive sparse `per_topic_low_confidence` on `DriftEvaluation.to_dynamodb_item()`; behavior contract preserved
-- [ ] `12-aggregations-PLAN.md` — D-12..D-18, D-33: `_aggregate_exclusive` + `_aggregate_inclusive` + parallel DDB partitions + CSV rename with dual-write deprecation + reconciliation gate + D-33 in-stream invariant
-- [ ] `12-residual-docs-PLAN.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
+- [x] `12-thresholds-substrate-PLAN.md` — G-1, G-18, D-23..D-28: lift constants to `config/thresholds.json` + schema + sibling docs + STAGE# tunable_inputs audit field + file G-37 tracking issue (D-22)
+- [x] `12-feedback-producer-PLAN.md` — D-08, D-30, D-31: `CritReasonCode` StrEnum + `CRITIC_REJECT#{cwid}#{pmid_set_hash}` additive write at `spotlight/critic.py:571` alongside existing SPOTLIGHT_REVIEW#
+- [x] `12-drift-extension-PLAN.md` — D-34: additive sparse `per_topic_low_confidence` on `DriftEvaluation.to_dynamodb_item()`; behavior contract preserved
+- [x] `12-aggregations-PLAN.md` — D-12..D-18, D-33: `_aggregate_exclusive` + `_aggregate_inclusive` + parallel DDB partitions + CSV rename with dual-write deprecation + reconciliation gate + D-33 in-stream invariant
+- [x] `12-residual-docs-PLAN.md` — G-24, G-34: `docs/sensitive-topic-exclusion.md` + IAM Policy section in `GETTING_STARTED.md`
 
 Wave 2 (parallel, depend on wave 1):
 - [ ] `12-feedback-consumer-PLAN.md` — D-01..D-07, D-09, D-11, D-32: `pipeline_feedback/` package — sweep + three finding records + Sonnet uncovered-PMID pass + recluster trigger + SPOTLIGHT_DIAGNOSTIC# aggregation + deterministic markdown render + `python -m pipeline_feedback` CLI + cold-stage registration
