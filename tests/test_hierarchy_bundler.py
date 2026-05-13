@@ -7,10 +7,10 @@ Two layers of coverage:
 1. Fixture-based: hand-crafted minimal augmented files exercise the strict
    contract (required UI fields, schema-shape output, excluded_topics
    propagation, end-to-end pass through generator.validate).
-2. Live structural: run the bundler in non-strict mode against the real
-   `.planning/.../hierarchy_augmented_*.json` files and assert it produces the
-   same topic set / subtopic IDs / total count as today's hierarchy_full.json
-   (1541 subtopics across 66 topics) — issue #4 DoD item 5.
+2. Live structural: run the bundler against the real
+   `.planning/.../hierarchy_augmented_*.json` files and assert it produces
+   the expected topic / subtopic counts (1541 subtopics across 66 topics)
+   with the D-19 UI fields populated on every subtopic.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pipeline_hierarchy.bundler import (
     bundle,
     write_bundle,
 )
-from pipeline_hierarchy.generator import SCHEMA_PATH, SOURCE_HIERARCHY, build_hierarchy, validate
+from pipeline_hierarchy.generator import SCHEMA_PATH, build_hierarchy, validate
 
 
 # ---------- fixture helpers ----------
@@ -246,29 +246,7 @@ def test_write_bundle_raises_typeerror_if_generated_at_kwarg_passed(tmp_path):
         )
 
 
-# ---------- live structural test (DoD #5) ----------
-
-def test_live_bundler_matches_current_hierarchy_structure():
-    """Non-strict bundle of live augmented dir matches today's hierarchy_full.json
-    topic set and subtopic IDs. Strict mode currently fails because the augmented
-    files haven't been relabel-populated yet (see issue #2)."""
-    current = json.loads(SOURCE_HIERARCHY.read_text(encoding="utf-8"))
-    rebuilt = bundle(
-        augmented_dir=DEFAULT_AUGMENTED_DIR,
-        strict=False,
-    )
-
-    assert set(rebuilt["topics"].keys()) == set(current["topics"].keys())
-    assert len(rebuilt["topics"]) == 66
-
-    total_rebuilt = sum(len(t["subtopics"]) for t in rebuilt["topics"].values())
-    total_current = sum(len(t["subtopics"]) for t in current["topics"].values())
-    assert total_rebuilt == total_current == 1541
-
-    for tid, topic in rebuilt["topics"].items():
-        rebuilt_ids = {s["id"] for s in topic["subtopics"]}
-        current_ids = {s["id"] for s in current["topics"][tid]["subtopics"]}
-        assert rebuilt_ids == current_ids, f"subtopic id mismatch in {tid}"
+# ---------- live structural tests ----------
 
 
 def test_live_bundler_strict_mode_succeeds_after_relabel():

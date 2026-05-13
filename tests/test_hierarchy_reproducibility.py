@@ -23,7 +23,6 @@ from pipeline_hierarchy.bundler import (
     bundle,
 )
 from pipeline_hierarchy.generator import (
-    SOURCE_HIERARCHY,
     build_hierarchy,
     generate,
 )
@@ -124,11 +123,12 @@ def test_build_hierarchy_is_byte_stable_across_two_passes(tmp_path):
 
 def test_generate_is_byte_stable_with_pinned_generated_at():
     """D-14 / G-36: generate() with the same generated_at produces byte-identical
-    hierarchy bytes. Uses the live source hierarchy."""
+    hierarchy bytes. Uses the live bundler output."""
     pinned = "2026-06-01T00:00:00Z"
+    bundled = bundle()
 
-    h_bytes1, _, manifest1 = generate(generated_at=pinned, version="v2026-06-01")
-    h_bytes2, _, manifest2 = generate(generated_at=pinned, version="v2026-06-01")
+    h_bytes1, _, manifest1 = generate(hierarchy=bundled, generated_at=pinned, version="v2026-06-01")
+    h_bytes2, _, manifest2 = generate(hierarchy=bundled, generated_at=pinned, version="v2026-06-01")
 
     assert h_bytes1 == h_bytes2, (
         "generate() must produce byte-identical hierarchy bytes with the same generated_at"

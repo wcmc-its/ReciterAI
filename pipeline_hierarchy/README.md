@@ -4,7 +4,7 @@ Bundles + publishes the canonical research-domain hierarchy artifact consumed by
 
 ## What it does
 
-Reads the pre-bundled hierarchy from `.planning/phases/04-subtopic-system/hierarchy_full.json`, re-stamps `generated_at`, validates against `docs/hierarchy.schema.json`, computes sha256 with stable topic-key ordering, and:
+Bundles the 65 per-topic `hierarchy_augmented_*.json` files (via `pipeline_hierarchy.bundler.bundle`) into an in-memory hierarchy, re-stamps `generated_at` on the manifest, validates against `docs/hierarchy.schema.json`, computes sha256 with stable topic-key ordering, and:
 
 - writes `out/hierarchy/v{ISO-date}/{hierarchy,hierarchy.schema,manifest}.json` locally
 - uploads version-pinned objects then `latest/manifest.json` to `s3://wcmc-reciterai-hierarchy/`
