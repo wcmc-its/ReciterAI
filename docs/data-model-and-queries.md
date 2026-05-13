@@ -6,7 +6,7 @@
 
 | Type | PK Pattern | SK Pattern | Count | Source |
 |------|-----------|------------|-------|--------|
-| TOPIC# | `TOPIC#{topic_id}` | `SCORE#NNNN#ACTIVITY#pmid_{pmid}#cwid_{cwid}` | ~78K | LLM-scored (Haiku screen + Sonnet dense) |
+| TOPIC# | `TOPIC#{topic_id}` | `SCORE#NNNN#ACTIVITY#pmid_{pmid}#cwid_{cwid}` | ~78K | LLM-scored (Haiku screen + Sonnet dense). Carries `hierarchy_version` (Phase 11 D-01). Rows produced before the Phase 11 writer rollout were backfilled with the sentinel `v0-legacy` on 2026-05-13 (issue #16). |
 | TOOL# | `TOOL#{tool_name}` | `SCORE#NNNN#ACTIVITY#pmid_{pmid}#cwid_{cwid}` | ~15K | reciterai_tools (LLM-extracted) |
 | FACULTY# | `FACULTY#cwid_{cwid}` | `PROFILE` | ~1.5K | ReciterDB analysis_summary_person |
 | IMPACT# | `IMPACT#pmid_{pmid}` | `SCORE` | ~7K | reciterai_impact (GPT-5.1 scored) |

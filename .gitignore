@@ -51,5 +51,6 @@ out/
 /cwid_*.json
 /faculty_subtopic_counts_*.csv
 
-# Phase 11 migration diff logs (operator-generated; not for source control)
+# Migration diff logs (operator-generated; not for source control)
 spotlight_history_migration_*.log
+topic_hierarchy_version_backfill_*.log
