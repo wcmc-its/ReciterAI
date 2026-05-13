@@ -396,7 +396,17 @@ def main(argv: list[str] | None = None) -> int:
                         "initiated_by": args.initiated_by,
                     },
                 )
-            return outcome.returncode or 1
+            # WR-03: subprocess.run sets returncode as int; on POSIX, signal
+            # terminations yield negative values (e.g. -9 for SIGKILL). Negative
+            # ints are truthy, so a bare `or 1` would propagate the negative
+            # signal exit which most shells mask to 256+rc and which callers
+            # check `rc == 0` against. Map signal exits + None to a stable
+            # generic-failure code so the CLI exit code is always a clean
+            # positive int.
+            rc = outcome.returncode
+            if rc is None or rc < 0:
+                return 1
+            return rc or 1
 
     # All stages green.
     duration_ms = int((time.monotonic() - t_run) * 1000)
