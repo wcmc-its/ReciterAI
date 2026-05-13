@@ -28,10 +28,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from boto3.dynamodb.conditions import Attr
-
 from pipeline_feedback.sweep import run_sweep
 from pipeline_feedback.markdown_render import render_sweep_markdown
+
+# IN-03: `boto3.dynamodb.conditions.Attr` is lazy-imported inside
+# `_fetch_rows_by_run_id` (the only caller) to keep the module import path
+# free of boto3 — consistent with `pipeline_feedback.sweep` and
+# `pipeline_drift.evaluator`, which lazy-import boto3 inside their
+# DDB-touching helpers. This simplifies test fixtures that monkeypatch boto3.
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +108,8 @@ def _fetch_rows_by_run_id(table, run_id: str) -> list[dict]:
     in one sweep (3 partitions × ≤ N findings each), so scan is acceptable.
     A GSI keyed by source_sweep_run_id is a deferred optimization.
     """
+    from boto3.dynamodb.conditions import Attr  # IN-03: lazy import
+
     rows: list[dict] = []
     scan_kwargs: dict = {"FilterExpression": Attr("source_sweep_run_id").eq(run_id)}
     while True:
