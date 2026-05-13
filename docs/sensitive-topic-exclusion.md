@@ -16,6 +16,22 @@ redundant: the lede generator is constrained to anchor content in
 synopses, and topic-level exclusion is where topical sensitivity is
 determined, not at the prose layer.
 
+## Criteria for inclusion
+
+A pattern belongs on the list when at least one of the following holds. The categories are deliberately *broad* — operators should err toward inclusion when in doubt, because the cost of a false negative (a sensitive lede gets published) is institutional reputation, while the cost of a false positive (a benign subtopic gets routed to manual review) is editorial overhead.
+
+1. **Active litigation, regulatory enforcement, or congressional inquiry.** Topics where the institution faces or could plausibly face legal exposure if a faculty member's research is foregrounded in marketing language.
+2. **Federally regulated or restricted research areas.** Areas with current or recently-shifting federal funding restrictions (e.g. fetal tissue research, some categories of stem cell work, dual-use biology) where institutional positioning is sensitive.
+3. **Politically contested biomedical topics.** Areas where the underlying science is sound but public framing is highly polarized — abortion access, gender-affirming care, vaccine policy, gun violence as public health, climate-and-health.
+4. **Dean-flagged or communications-flagged.** Anything the Dean's office or Communications has explicitly asked be kept out of public-facing summaries, regardless of category.
+5. **Patient-identifiable or PII risk.** Subtopics whose label, description, or parent-topic context could surface identifiable patient data when paired with a spotlighted faculty member.
+
+Categories that do **NOT** belong on the list:
+
+- Voice / tone concerns (handled by `spotlight/critic.py`).
+- "Low-quality subtopic" concerns (handled by hierarchy gates pre-publish).
+- General research-fit questions (handled by editorial review of the `SPOTLIGHT_REVIEW#` queue).
+
 ## Where patterns live
 
 DynamoDB row: `PK = SPOTLIGHT_CONFIG#sensitive_tags`, `SK = CONFIG`.
@@ -90,18 +106,43 @@ diverges from this doc, update both.
 - Not a lede-text filter. Match targets are subtopic metadata
   (label + description + parent topic label), not the generated prose.
 
+## Inspecting the current list
+
+The active list is not committed anywhere in this repo. To read it:
+
+```bash
+aws dynamodb get-item \
+  --table-name reciterai \
+  --region us-east-1 \
+  --key '{"PK":{"S":"SPOTLIGHT_CONFIG#sensitive_tags"},"SK":{"S":"CONFIG"}}'
+```
+
+Each entry in the returned `tags` list carries a `reason` field — that's the per-entry rationale and is the source of truth for why a pattern is on the list. The schema for these entries is documented in `docs/spotlight-dynamodb-schema.md` under `SPOTLIGHT_CONFIG#sensitive_tags`.
+
+For *historical context* on what the v1 list looked like at first launch (categories, not full per-pattern entries), see the "First-pass tag list" subsection in `docs/spotlight-dynamodb-schema.md`. Those are operator notes, not authoritative — the live row supersedes them.
+
 ## Updating the patterns
 
-Operators update the DDB row directly (typically via the DDB console
-or a privileged CLI using `aws dynamodb put-item`). The seeding
-instructions and the exact DynamoDB item shape are documented in
-`docs/spotlight-dynamodb-schema.md` under `SPOTLIGHT_CONFIG#sensitive_tags`.
+There is intentionally no source-tree path for adding patterns — the design point is keeping them off the repo. Operators update the DDB row directly.
 
-There is intentionally no source-tree path for adding patterns — the
-design point is keeping them off the repo. The `--publish` stage will
-fail with a descriptive error if the config row is missing, so an
-operator who forgets to seed it discovers the gap before any content
-is published, not after.
+### Process
+
+1. **Proposing a change.** Anyone with editorial or compliance context may propose adding, removing, or modifying a pattern. There is currently no formal proposal form — the lightweight path is filing a GitHub issue against this repo (labelled `compliance-adjacent`) or emailing the editorial owner.
+2. **Approval.** Today the gate is a one-person-judgment system: the operator who owns the ReciterAI pipeline (currently Paul Albert) approves and applies changes after consulting with Communications and/or the Dean's office for categories 1, 2, 3, and 4 above. Category 5 changes can be applied unilaterally as a safety measure. A more formal review board is out of scope until volume warrants it (see "Future work").
+3. **Applying the change.** Use `aws dynamodb update-item` or `put-item` to mutate the `tags` attribute. The row carries two audit fields per the schema doc:
+   - `last_updated_at` (ISO 8601 UTC) — REQUIRED on every update
+   - `last_updated_by` (operator login) — optional but should be filled when known
+4. **Audit trail.** The DynamoDB row's `last_updated_at` + `last_updated_by` is the in-band audit trail. Out-of-band, the operator should leave a one-line note in the GitHub issue (if one was filed) summarizing what changed and why, so the rationale survives outside the row's history.
+
+### Failure mode
+
+The `--publish` stage fails fast with a descriptive error if the config row is missing or unreadable (SPOT-08 fail-closed invariant). An operator who forgets to seed or accidentally deletes the row discovers the gap before any content is published, not after.
+
+### Future work (out of scope for this doc)
+
+- Move `last_updated_by` from optional to required, and validate it server-side via IAM (only specific principals may write the row).
+- Introduce a formal compliance review board for additions in categories 1–4.
+- Add a `proposed_by` / `approved_by` pair so the row carries its own approval lineage.
 
 ## Related
 

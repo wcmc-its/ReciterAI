@@ -6,9 +6,13 @@ hard security invariant). The pipeline aborts rather than publishing
 potentially sensitive content under a silent fail-open.
 
 Tag patterns live in DynamoDB ONLY -- they are operationally sensitive
-and never appear in source. See ``docs/spotlight-dynamodb-schema.md``
-SPOTLIGHT_CONFIG#sensitive_tags for the partition shape and operator
-seeding instructions.
+and never appear in source.
+
+User-facing documentation:
+- ``docs/sensitive-topic-exclusion.md`` -- criteria for inclusion,
+  inspection / update process, audit-trail conventions
+- ``docs/spotlight-dynamodb-schema.md`` (SPOTLIGHT_CONFIG#sensitive_tags
+  section) -- partition shape and operator seeding instructions
 
 Match strategy (v1): case-insensitive substring against the concatenation
 ``subtopic.label + " " + subtopic.description + " " + parent_topic_label``
