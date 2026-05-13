@@ -80,21 +80,28 @@ if __name__ == "__main__":
     client = session.client("dynamodb")
 
     topic_counts: dict[tuple[str, str], int] = defaultdict(int)   # (cwid, topic_id) -> n
-    subtopic_counts: dict[tuple[str, str], int] = defaultdict(int)  # (cwid, subtopic_id) -> n
-
-    projection = "PK, faculty_uid, primary_subtopic_id"
-    expr_names = {"#PK": "PK"}
+    # CR-03: split into two distinct dicts so the inclusive CSV actually reflects
+    # the inclusive contract (counts every above-floor subtopic_id, not just
+    # primary_subtopic_id). Previously both dicts were the same data, making
+    # faculty_subtopic_counts_inclusive.csv byte-identical to
+    # faculty_subtopic_counts_exclusive.csv.
+    subtopic_counts: dict[tuple[str, str], int] = defaultdict(int)            # (cwid, primary_subtopic_id) -> n
+    inclusive_subtopic_counts: dict[tuple[str, str], int] = defaultdict(int)  # (cwid, subtopic_id) -> n
 
     paginator = client.get_paginator("scan")
+    # CR-03: project subtopic_ids as well so the inclusive aggregation can see
+    # every above-floor subtopic per activity row (D-13/D-15 contract). The
+    # projection cost is a single string-set attribute per row.
     pages = paginator.paginate(
         TableName=TABLE,
-        ProjectionExpression="#PK, faculty_uid, primary_subtopic_id",
-        ExpressionAttributeNames=expr_names,
+        ProjectionExpression="#PK, faculty_uid, primary_subtopic_id, subtopic_ids",
+        ExpressionAttributeNames={"#PK": "PK"},
     )
 
     scanned = 0
     topic_rows = 0
     subtopic_rows = 0
+    inclusive_rows = 0
     for page in pages:
         for item in page.get("Items", []):
             scanned += 1
@@ -112,14 +119,34 @@ if __name__ == "__main__":
             if sub:
                 subtopic_counts[(cwid, sub)] += 1
                 subtopic_rows += 1
+            # CR-03: inclusive aggregation — scan subtopic_ids list (D-15 uniform full
+            # weight per above-floor subtopic). assign_subtopics already filters
+            # subtopic_ids[] to above-floor (D-16), so no extra confidence check here.
+            # subtopic_ids may arrive as either a DynamoDB list (L of S) or string-set
+            # (SS) depending on the producer; handle both shapes defensively.
+            sids_attr = item.get("subtopic_ids", {})
+            sid_list_raw = sids_attr.get("L") or sids_attr.get("SS") or []
+            for sid_entry in sid_list_raw:
+                if isinstance(sid_entry, dict):
+                    sid_val = sid_entry.get("S")
+                else:
+                    sid_val = sid_entry
+                if sid_val:
+                    inclusive_subtopic_counts[(cwid, sid_val)] += 1
+                    inclusive_rows += 1
         if scanned % 20000 < 1000:
-            print(f"  scanned={scanned:,} topic_rows={topic_rows:,} subtopic_rows={subtopic_rows:,}")
+            print(
+                f"  scanned={scanned:,} topic_rows={topic_rows:,} "
+                f"subtopic_rows={subtopic_rows:,} inclusive_rows={inclusive_rows:,}"
+            )
 
     print(f"\nTotal scanned: {scanned:,}")
     print(f"TOPIC# activity rows: {topic_rows:,}")
     print(f"Activity rows with primary_subtopic_id: {subtopic_rows:,}")
-    print(f"Distinct (cwid, topic) pairs:    {len(topic_counts):,}")
-    print(f"Distinct (cwid, subtopic) pairs: {len(subtopic_counts):,}")
+    print(f"Inclusive (cwid, subtopic) increments: {inclusive_rows:,}")
+    print(f"Distinct (cwid, topic) pairs:              {len(topic_counts):,}")
+    print(f"Distinct (cwid, primary_subtopic) pairs:   {len(subtopic_counts):,}")
+    print(f"Distinct (cwid, subtopic) pairs inclusive: {len(inclusive_subtopic_counts):,}")
 
     with open("cwid_topic_counts.csv", "w", newline="") as f:
         w = csv.writer(f)
@@ -128,12 +155,10 @@ if __name__ == "__main__":
             w.writerow([cwid, t, n])
 
     # Write the three subtopic CSVs (exclusive + inclusive + legacy dual-write).
-    # NOTE: inclusive_counts is the same as exclusive_counts for this script because
-    # count_by_cwid scans primary_subtopic_id only. For genuine inclusive counts,
-    # aggregate_subtopic_scores._aggregate_inclusive should be used against the full
-    # activity rows. This script keeps the same exclusive data in both to maintain
-    # backward compatibility until the inclusive pipeline is wired end-to-end.
-    write_subtopic_csvs(dict(subtopic_counts), dict(subtopic_counts))
+    # CR-03: inclusive_subtopic_counts is a TRUE inclusive aggregation derived from
+    # subtopic_ids[] on each activity row (not a copy of exclusive). The legacy
+    # CSV remains byte-identical to exclusive per D-13 dual-write contract.
+    write_subtopic_csvs(dict(subtopic_counts), dict(inclusive_subtopic_counts))
 
     print(
         f"\nWrote cwid_topic_counts.csv, {NEW_EXCLUSIVE_CSV}, {NEW_INCLUSIVE_CSV}, "
