@@ -71,7 +71,15 @@ def _make_meta(subtopic_id: str = "aging_geroscience") -> Any:
     )
 
 
-def _make_lede_client(lede: str = "WCM scholars are advancing aging research.") -> MagicMock:
+_DETERMINISTIC_PASSING_LEDE = (
+    "WCM scholars are advancing our understanding of aging and longevity "
+    "across diverse research domains that span cellular metabolism, lifespan regulation, "
+    "and the biological mechanisms underlying healthy aging in human populations."
+)
+"""A lede that passes all deterministic checks (correct length 22-38, WCM tic, no forbidden patterns)."""
+
+
+def _make_lede_client(lede: str = _DETERMINISTIC_PASSING_LEDE) -> MagicMock:
     """Fake BedrockClient that always returns a fixed lede."""
     client = MagicMock()
     client.call.return_value = lede
@@ -171,9 +179,11 @@ def test_review_queue_write_unchanged():
     fields into the SPOTLIGHT_REVIEW# review_entry dict.
     """
     meta = _make_meta(subtopic_id="aging_geroscience")
-    papers = [_make_paper("111", first_cwid="cwid1", last_cwid="cwid2")]
-    lede = "WCM scholars are advancing aging research."
-    lede_client = _make_lede_client(lede)
+    # Need at least 2 papers (lede generator MIN_PAPERS requirement)
+    papers = [_make_paper("111", first_cwid="cwid1", last_cwid="cwid2"),
+              _make_paper("222", first_cwid="cwid3", last_cwid="cwid4")]
+    # Use a lede that passes deterministic but fails LLM (to reach review queue)
+    lede_client = _make_lede_client()  # default passes deterministic
     critic_client = _make_failing_llm_client("active_verb")
 
     captured_entries: list[dict] = []
@@ -223,7 +233,7 @@ def test_pk_uses_publish_id_and_subtopic_id_in_scope():
     expected_publish_id = "2026-05-12-MYPUB"
     expected_subtopic_id = "cardio_afib"
     meta = _make_meta(subtopic_id=expected_subtopic_id)
-    papers = [_make_paper("999")]
+    papers = [_make_paper("999"), _make_paper("998")]
     lede_client = _make_lede_client()
     critic_client = _make_failing_llm_client("active_verb")
 
@@ -293,7 +303,7 @@ def test_author_cwids_derived_from_selected_papers():
 def test_post_llm_known_constraint_passes_through():
     """LLM failed_constraint='institutional_voice' → reason_code='institutional_voice', no raw_failed_constraint."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
+    papers = [_make_paper("1"), _make_paper("2")]
     lede_client = _make_lede_client()
     critic_client = _make_failing_llm_client("institutional_voice")
 
@@ -328,7 +338,7 @@ def test_post_llm_known_constraint_passes_through():
 def test_post_llm_unknown_constraint_emits_warning_and_unknown_bucket():
     """LLM returns an unknown code → reason_code='unknown', raw_failed_constraint set, alert dispatched."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
+    papers = [_make_paper("1"), _make_paper("2")]
     lede_client = _make_lede_client()
     critic_client = _make_failing_llm_client("some_new_code_we_havent_seen")
 
@@ -367,9 +377,13 @@ def test_post_llm_unknown_constraint_emits_warning_and_unknown_bucket():
 def test_pre_llm_gate_path():
     """When LLM never reached (all failures are deterministic), emit PRE_LLM_GATE."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
-    # Use a lede that fails deterministically (contains an em dash)
-    lede_client = _make_lede_client("WCM scholars are advancing — aging research today.")
+    papers = [_make_paper("1"), _make_paper("2")]
+    # Use a lede that fails deterministically (contains an em dash — always det-fail)
+    det_fail_lede = (
+        "WCM scholars are advancing — aging research and longevity science "
+        "across diverse domains spanning cellular metabolism and lifespan."
+    )
+    lede_client = _make_lede_client(det_fail_lede)
     critic_client = _make_passing_llm_client()  # LLM would pass, but deterministic blocks
 
     stage_table = MagicMock()
@@ -403,11 +417,11 @@ def test_pre_llm_gate_path():
 def test_pre_llm_gate_no_deterministic_detail():
     """Pre-LLM path with empty failed_constraints → pre_llm_constraint='unknown'."""
     # This tests the fallback when failed_constraints is empty (shouldn't happen in
-    # production, but the code must not crash).
+    # production, but the code must not crash). We patch run_deterministic_checks
+    # so the lede is treated as a det-fail with empty constraints tuple.
     meta = _make_meta()
-    papers = [_make_paper("1")]
-    # Lede that fails deterministic checks with em_dash_present
-    lede_client = _make_lede_client("WCM scholars are advancing — aging research today.")
+    papers = [_make_paper("1"), _make_paper("2")]
+    lede_client = _make_lede_client()  # any lede; det checks are patched below
     critic_client = _make_passing_llm_client()
 
     stage_table = MagicMock()
@@ -445,7 +459,7 @@ def test_pre_llm_gate_no_deterministic_detail():
 def test_critic_reject_carries_no_lede():
     """CRITIC_REJECT# put_item dict must have no lede_text or any key with 'lede'."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
+    papers = [_make_paper("1"), _make_paper("2")]
     lede_client = _make_lede_client()
     critic_client = _make_failing_llm_client("active_verb")
 
@@ -479,8 +493,9 @@ def test_critic_reject_carries_no_lede():
 def test_review_entry_still_carries_lede():
     """After Phase 12, write_review_entry STILL receives lede_text (no regression)."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
-    expected_lede = "WCM scholars are advancing aging research in key domains."
+    papers = [_make_paper("1"), _make_paper("2")]
+    # Use the deterministic-passing lede so the test reaches the review queue
+    expected_lede = _DETERMINISTIC_PASSING_LEDE
     lede_client = _make_lede_client(expected_lede)
     critic_client = _make_failing_llm_client("active_verb")
 
@@ -516,11 +531,9 @@ def test_review_entry_still_carries_lede():
 def test_passing_critic_does_not_write_critic_reject():
     """When critic passes within MAX_RETRIES, no CRITIC_REJECT# is written."""
     meta = _make_meta()
-    papers = [_make_paper("1")]
-    # Lede that passes deterministic: correct length, WCM tic, no forbidden patterns
-    lede_client = _make_lede_client(
-        "WCM scholars are advancing aging research and longevity science in key domains today."
-    )
+    papers = [_make_paper("1"), _make_paper("2")]
+    # Lede passes both deterministic AND LLM checks → status="pass", no writes
+    lede_client = _make_lede_client()  # default 30-word lede passes deterministic
     critic_client = _make_passing_llm_client()
 
     stage_table = MagicMock()
