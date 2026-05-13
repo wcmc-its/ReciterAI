@@ -109,6 +109,7 @@ def run_sweep(
     max_pmids: int | None = None,
     bedrock_client: Any = None,       # injected for testability; None → boto3 lazy-import
     thresholds: dict | None = None,   # injected for testability; None → load from disk
+    now: datetime | None = None,      # WR-06: pin wall clock for diagnostic window
 ) -> FeedbackSweepRun:
     """Single entry point for both the operator CLI and the cold-stage subprocess.
 
@@ -161,6 +162,7 @@ def run_sweep(
         since=since,
         run_id=run_id,
         triggered_by=triggered_by,
+        now=now,  # WR-06: thread pinned wall clock
     )
 
     logger.info(
@@ -448,6 +450,7 @@ def _run_diagnostic_aggregation(
     since: datetime,
     run_id: str,
     triggered_by: str,
+    now: datetime | None = None,
 ) -> list[dict]:
     """D-08 + D-09 + D-30 + D-32: aggregate CRITIC_REJECT# rows per subtopic_id.
 
@@ -458,14 +461,22 @@ def _run_diagnostic_aggregation(
     5. Build underlying_rejects as {publish_id}#{subtopic_id}#{pmid_set_hash} suffixes (D-08 PK shape).
     6. Cap underlying_rejects at feedback_diagnostic_max_underlying (D-32).
     7. Emit SPOTLIGHT_DIAGNOSTIC#{subtopic_id} if distinct_pmid_set_count >= critic_reject_subtopic_max.
+
+    Args:
+        now: WR-06 — pin the wall clock used to compute diag_since and the
+            in-window upper bound. Defaults to datetime.now(timezone.utc).
+            Threaded through from run_sweep so reruns at different real-world
+            timestamps don't shift the effective_since cutoff when the same
+            input rows are present (matches the determinism contract D-14/G-29/G-36).
     """
     persistence_days = int(cfg.get("critic_reject_persistence_days", 90))
     subtopic_max = int(cfg.get("critic_reject_subtopic_max", 2))
     max_underlying = int(cfg.get("feedback_diagnostic_max_underlying", 20))
 
     # The window for critic rejects: since passed in (already computed by caller)
-    # but we also need to apply the persistence_days window for diagnostic
-    now = datetime.now(timezone.utc)
+    # but we also need to apply the persistence_days window for diagnostic.
+    if now is None:
+        now = datetime.now(timezone.utc)
     diag_since = now - timedelta(days=persistence_days)
     # Use the more recent of the two since bounds
     effective_since = max(since, diag_since)
