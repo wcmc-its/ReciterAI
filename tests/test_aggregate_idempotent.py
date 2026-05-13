@@ -44,7 +44,7 @@ def test_rerun_same_rows_produces_identical_put_item_args():
         _make_row(faculty_uid="bob",   primary_subtopic_id="s2", subtopic_ids=["s2"]),
     ]
     faculty_scores_exclusive, _ = agg._aggregate_exclusive(rows)
-    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows)
 
     topic_id = "cardio"
     run_id = "same-run-id-001"
@@ -106,7 +106,7 @@ def test_rerun_overwrites_with_new_data():
     # Run with rows_a
     table_a = MagicMock()
     fse_a, _ = agg._aggregate_exclusive(rows_a)
-    fsi_a, _ = agg._aggregate_inclusive(rows_a, confidence_floor=0.0)
+    fsi_a, _ = agg._aggregate_inclusive(rows_a)
     agg._write_subtopic_score_partitions(
         table_a,
         topic_id=topic_id,
@@ -119,7 +119,7 @@ def test_rerun_overwrites_with_new_data():
     # Run with rows_b
     table_b = MagicMock()
     fse_b, _ = agg._aggregate_exclusive(rows_b)
-    fsi_b, _ = agg._aggregate_inclusive(rows_b, confidence_floor=0.0)
+    fsi_b, _ = agg._aggregate_inclusive(rows_b)
     agg._write_subtopic_score_partitions(
         table_b,
         topic_id=topic_id,

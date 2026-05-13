@@ -92,7 +92,7 @@ def test_aggregate_inclusive_uniform_full_weight():
             "impact_score": 50.0,
         }
     ]
-    faculty_scores, total_weights = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores, total_weights = agg._aggregate_inclusive(rows)
 
     assert "alice" in faculty_scores
     assert abs(faculty_scores["alice"]["s1"] - score) < 1e-9
@@ -113,7 +113,7 @@ def test_aggregate_inclusive_uses_subtopic_ids_not_primary():
             "impact_score": 50.0,
         }
     ]
-    faculty_scores, total_weights = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores, total_weights = agg._aggregate_inclusive(rows)
 
     assert "alice" in faculty_scores
     # Must contain exactly s_a and s_b — NOT primary_only
@@ -134,7 +134,7 @@ def test_aggregate_inclusive_invariant_holds():
         _make_row(faculty_uid="bob",   primary_subtopic_id="s2", subtopic_ids=["s2", "s3"]),
     ]
     _, excl_totals = agg._aggregate_exclusive(rows)
-    _, incl_totals = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    _, incl_totals = agg._aggregate_inclusive(rows)
 
     sum_excl = sum(excl_totals.values())
     sum_incl = sum(incl_totals.values())
@@ -148,7 +148,7 @@ def test_aggregate_inclusive_invariant_equality_case():
         _make_row(faculty_uid="bob",   primary_subtopic_id="s2", subtopic_ids=["s2"]),
     ]
     _, excl_totals = agg._aggregate_exclusive(rows)
-    _, incl_totals = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    _, incl_totals = agg._aggregate_inclusive(rows)
 
     sum_excl = sum(excl_totals.values())
     sum_incl = sum(incl_totals.values())
@@ -162,7 +162,7 @@ def test_aggregate_inclusive_invariant_delta_case():
         _make_row(faculty_uid="bob",   primary_subtopic_id="s2", subtopic_ids=["s2", "s3"]),
     ]
     _, excl_totals = agg._aggregate_exclusive(rows)
-    _, incl_totals = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    _, incl_totals = agg._aggregate_inclusive(rows)
 
     sum_excl = sum(excl_totals.values())
     sum_incl = sum(incl_totals.values())
@@ -256,7 +256,7 @@ def test_d33_invariant_raises_on_divergence():
         _make_row(faculty_uid="alice", primary_subtopic_id="s1", subtopic_ids=["s1"]),
     ]
     faculty_scores_exclusive, _ = agg._aggregate_exclusive(rows)
-    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows)
 
     # Pin a snapshot of the in-memory dicts BEFORE the write to verify W-2
     excl_snapshot = {pid: dict(scores) for pid, scores in faculty_scores_exclusive.items()}
@@ -296,7 +296,7 @@ def test_d33_invariant_raises_on_divergence_via_write_boundary():
         _make_row(faculty_uid="alice", primary_subtopic_id="s1", subtopic_ids=["s1"]),
     ]
     faculty_scores_exclusive, _ = agg._aggregate_exclusive(rows)
-    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores_inclusive, _ = agg._aggregate_inclusive(rows)
 
     # Corrupt the exclusive partition data AFTER writing (simulating a write boundary mutation)
     corrupted_exclusive = {"alice": {"s1": 999.99}}  # different from faculty_map

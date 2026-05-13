@@ -190,13 +190,16 @@ def _aggregate_exclusive(rows: list) -> tuple[dict, dict]:
     )
 
 
-def _aggregate_inclusive(rows: list, *, confidence_floor: float = 0.0) -> tuple[dict, dict]:
+def _aggregate_inclusive(rows: list) -> tuple[dict, dict]:
     """Aggregate articleScore per (person_identifier, subtopic_id) for EVERY above-floor
     subtopic assignment — INCLUSIVE aggregation per D-15 (uniform full weight).
 
     Confidence floor is NOT re-applied here; assign_subtopics.py:632 already filters
-    subtopic_ids[] to above-floor (D-16). The confidence_floor parameter is on the
-    signature for type safety and future-proofing; today it is documentation, not behavior.
+    subtopic_ids[] to above-floor (D-16). WR-09: an earlier signature carried a
+    no-op ``confidence_floor`` parameter "for future-proofing". It has been
+    removed because a parameter that accepts any value but has no effect is a
+    footgun. If a future need to re-apply a floor arises, add the kwarg back
+    with a real implementation and a test that fails when the floor is ignored.
 
     Returns (faculty_scores, subtopic_total_weights) with the same shape as
     _aggregate_exclusive, but accumulates across ALL above-floor subtopic_ids per row.
@@ -533,7 +536,7 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
 
     # Phase 12 §8: run both aggregations side by side
     faculty_scores, total_weights = _aggregate_exclusive(rows)
-    faculty_scores_inclusive, total_weights_inclusive = _aggregate_inclusive(rows, confidence_floor=0.0)
+    faculty_scores_inclusive, total_weights_inclusive = _aggregate_inclusive(rows)
 
     touched_pids = set(faculty_scores.keys())
     logger.info(f"Faculty touched: {len(touched_pids)}")
