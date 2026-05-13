@@ -1,11 +1,10 @@
 """
 Canonical hierarchy artifact generator.
 
-Reads the pre-bundled hierarchy from
-`.planning/phases/04-subtopic-system/hierarchy_full.json`, re-stamps the
-`generated_at` field, ensures `see_also` is present, sorts topic keys for
-sha256 stability, validates against `docs/hierarchy.schema.json`, and
-returns the canonical bytes + manifest dict.
+Takes an in-memory hierarchy dict (produced by `pipeline_hierarchy.bundler.bundle`),
+re-stamps the `generated_at` field on the manifest, ensures `see_also` is present,
+sorts topic keys for sha256 stability, validates against
+`docs/hierarchy.schema.json`, and returns the canonical bytes + manifest dict.
 
 Does not touch S3 — see publish.py for the upload side.
 """
@@ -21,7 +20,6 @@ from typing import Any
 import jsonschema
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_HIERARCHY = REPO_ROOT / ".planning/phases/04-subtopic-system/hierarchy_full.json"
 SCHEMA_PATH = REPO_ROOT / "docs/hierarchy.schema.json"
 
 
@@ -37,8 +35,7 @@ def _sort_topics(hierarchy: dict[str, Any]) -> dict[str, Any]:
 
 def build_hierarchy(
     *,
-    source_path: Path = SOURCE_HIERARCHY,
-    hierarchy: dict[str, Any] | None = None,
+    hierarchy: dict[str, Any],
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -50,21 +47,15 @@ def build_hierarchy(
     stamping into manifest.json ONLY.
 
     Args:
-        source_path: path to a pre-bundled hierarchy_full.json. Ignored when
-                     `hierarchy` is provided.
         hierarchy: in-memory hierarchy dict (e.g. from
-                   `pipeline_hierarchy.bundler.bundle`). Preferred call shape now
-                   that the bundler regenerates this on every publish.
+                   `pipeline_hierarchy.bundler.bundle`).
         generated_at: ISO8601 timestamp used to derive the version label and
                       stamp manifest.json; NOT written into hierarchy.json per D-14.
                       If None, uses now() in UTC.
 
     Returns the in-memory hierarchy dict, ready for serialization (no generated_at).
     """
-    if hierarchy is None:
-        hierarchy = json.loads(source_path.read_text(encoding="utf-8"))
-    else:
-        hierarchy = dict(hierarchy)  # shallow copy so re-stamping doesn't mutate caller
+    hierarchy = dict(hierarchy)  # shallow copy so re-stamping doesn't mutate caller
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     # generated_at NOT written into hierarchy per D-14 (G-29 fix); manifest still carries it.
@@ -82,8 +73,7 @@ def validate(hierarchy: dict[str, Any], schema_path: Path = SCHEMA_PATH) -> None
 
 def generate(
     *,
-    source_path: Path = SOURCE_HIERARCHY,
-    hierarchy: dict[str, Any] | None = None,
+    hierarchy: dict[str, Any],
     schema_path: Path = SCHEMA_PATH,
     version: str | None = None,
     generated_at: str | None = None,
@@ -92,10 +82,8 @@ def generate(
     Produce the three artifact components (hierarchy bytes, schema bytes, manifest).
 
     Args:
-        source_path: pre-bundled file to read when `hierarchy` is not provided.
         hierarchy: in-memory hierarchy dict (e.g. from
-                   `pipeline_hierarchy.bundler.bundle`). When set, `source_path`
-                   is ignored.
+                   `pipeline_hierarchy.bundler.bundle`).
         version: artifact version label (e.g. "v2026-05-11"); defaults to
                  "v{ISO-date}" based on the resolved generated_at.
         generated_at: see build_hierarchy().
@@ -110,7 +98,6 @@ def generate(
     resolved_generated_at = generated_at
 
     hierarchy = build_hierarchy(
-        source_path=source_path,
         hierarchy=hierarchy,
         generated_at=resolved_generated_at,
     )

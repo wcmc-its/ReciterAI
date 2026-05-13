@@ -19,6 +19,8 @@ env/
 
 # Working artifacts — regeneratable by the pipeline; canonical outputs go to S3
 # (wcmc-reciterai-hierarchy, wcmc-reciterai-artifacts)
+.planning/phases/04-subtopic-system/hierarchy_full.json
+hierarchy_full.json
 author_mapping.json
 faculty_metadata.json
 cwid_rollup.csv
