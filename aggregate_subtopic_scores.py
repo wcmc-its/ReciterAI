@@ -299,7 +299,7 @@ def _write_subtopic_score_partitions(
     faculty_scores_exclusive: dict[str, dict[str, float]],
     faculty_scores_inclusive: dict[str, dict[str, float]],
     run_id: str,
-) -> None:
+) -> list[dict[str, Any]]:
     """Write SUBTOPIC_SCORE# (exclusive) and SUBTOPIC_SCORE_INCLUSIVE# (inclusive) partitions.
 
     # D-17 invariant: sum(SUBTOPIC_SCORE_INCLUSIVE#X#*) >= sum(SUBTOPIC_SCORE#X#*);
@@ -308,7 +308,10 @@ def _write_subtopic_score_partitions(
 
     Per D-14: partition-level idempotent overwrite — same PK+SK → DDB puts overwrite.
     Per D-33: both derivations of the exclusive aggregation are cross-checked after
-    both writes complete (via _assert_d33_reconciliation).
+    both writes complete (via _assert_d33_reconciliation). The caller projects this
+    function's RETURN value back into a {pid: {sid: score}} dict to supply an
+    independent partition-side derivation — passing the same source dict twice
+    would degenerate to x == x (tautology).
 
     Args:
         table: DynamoDB table resource (or MagicMock in tests)
@@ -316,6 +319,12 @@ def _write_subtopic_score_partitions(
         faculty_scores_exclusive: {person_identifier: {subtopic_id: float}}
         faculty_scores_inclusive: {person_identifier: {subtopic_id: float}}
         run_id: cold-run ID for idempotent keying
+
+    Returns:
+        The list of items emitted to put_item, in write order. Each item carries
+        record_type ("SUBTOPIC_SCORE" or "SUBTOPIC_SCORE_INCLUSIVE"), subtopic_id,
+        and faculty_scores (Decimal-coerced). Callers use this to independently
+        reconstruct the partition view for D-33 reconciliation.
     """
     # Build per-subtopic maps for exclusive (same structure as inclusive)
     excl_by_subtopic: dict[str, dict[str, float]] = defaultdict(dict)
@@ -328,6 +337,8 @@ def _write_subtopic_score_partitions(
         for sid, score in scores.items():
             incl_by_subtopic[sid][pid] = score
 
+    items_written: list[dict[str, Any]] = []
+
     # Write SUBTOPIC_SCORE# partition (exclusive)
     for subtopic_id, fs in excl_by_subtopic.items():
         item = _build_subtopic_score_record(
@@ -338,6 +349,7 @@ def _write_subtopic_score_partitions(
             run_id=run_id,
         )
         table.put_item(Item=item)
+        items_written.append(item)
 
     # Write SUBTOPIC_SCORE_INCLUSIVE# partition (inclusive)
     for subtopic_id, fs in incl_by_subtopic.items():
@@ -349,6 +361,37 @@ def _write_subtopic_score_partitions(
             run_id=run_id,
         )
         table.put_item(Item=item)
+        items_written.append(item)
+
+    return items_written
+
+
+def _project_exclusive_partition_view(
+    items_written: list[dict[str, Any]],
+) -> dict[str, dict[str, float]]:
+    """Project the SUBTOPIC_SCORE# (exclusive) items back into a {pid: {sid: score}} dict.
+
+    The Decimal-coerced faculty_scores in each item are converted back to float
+    for the D-33 reconciliation comparison (which uses an epsilon-based float
+    compare). Only items with record_type == "SUBTOPIC_SCORE" contribute; the
+    inclusive partition has no parallel faculty-map view (D-33 scope).
+
+    This is the second, INDEPENDENT derivation of the exclusive aggregation
+    that D-33 cross-checks against the in-memory faculty-map. Passing the
+    aggregator's own faculty_scores dict here would reduce the check to x == x
+    (W-2 tautology — the bug this helper exists to prevent).
+    """
+    by_pid: dict[str, dict[str, float]] = defaultdict(dict)
+    for item in items_written:
+        if item.get("record_type") != "SUBTOPIC_SCORE":
+            continue
+        subtopic_id = item.get("subtopic_id", "")
+        if not subtopic_id:
+            continue
+        faculty_scores = item.get("faculty_scores", {}) or {}
+        for pid, score in faculty_scores.items():
+            by_pid[pid][subtopic_id] = float(score)
+    return {pid: dict(scores) for pid, scores in by_pid.items()}
 
 
 def _assert_d33_reconciliation(
@@ -501,7 +544,7 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
         # 2. Write SUBTOPIC_SCORE# and SUBTOPIC_SCORE_INCLUSIVE# partitions (Phase 12 §8)
         run_id = os.environ.get("RECITERAI_COLD_RUN_ID") or _now_iso()
         table = get_table(TABLE_NAME)
-        _write_subtopic_score_partitions(
+        items_written = _write_subtopic_score_partitions(
             table,
             topic_id=topic_id,
             faculty_scores_exclusive=faculty_scores,
@@ -513,10 +556,15 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
             f"for topic={topic_id} run_id={run_id}"
         )
 
-        # 3. D-33 in-stream invariant: verify faculty-map ↔ SUBTOPIC_SCORE# equality per CWID/subtopic
+        # 3. D-33 in-stream invariant: verify faculty-map ↔ SUBTOPIC_SCORE# equality
+        # per CWID/subtopic. The partition view is reconstructed from the items
+        # actually emitted to put_item (independent of the faculty_scores dict),
+        # so this is a genuine cross-check — not the x == x tautology of passing
+        # the same dict twice.
+        partition_view = _project_exclusive_partition_view(items_written)
         _assert_d33_reconciliation(
             faculty_map=faculty_scores,
-            subtopic_score_partition_data=faculty_scores,
+            subtopic_score_partition_data=partition_view,
         )
         logger.info("D-33 reconciliation invariant verified: faculty-map and SUBTOPIC_SCORE# agree")
 
