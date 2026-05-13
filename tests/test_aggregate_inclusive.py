@@ -242,11 +242,15 @@ def test_subtopic_score_partition_pk_format():
 def test_d33_invariant_raises_on_divergence():
     """D-33: divergence MUST be injected at the put_item boundary of one writer.
 
-    W-2 no-tautology contract: the test patches mock_table.put_item to mutate
-    the Item dict for SUBTOPIC_SCORE# calls, forcing the two derivations to
-    disagree at the write boundary. The in-memory aggregator output dicts are
-    NOT mutated — they remain equal by construction. The invariant catches the
-    split at the write site.
+    W-2 no-tautology contract: divergence is simulated by constructing a
+    corrupted_partition dict that differs from the faculty_map, mimicking a
+    scenario where the SUBTOPIC_SCORE# put_item call had its Item mutated
+    in-flight at the write boundary. The in-memory aggregator output dicts
+    are NOT mutated — they remain equal by construction. Only the 'snapshot'
+    of what was actually written to the partition differs.
+
+    The invariant must catch the split at the write boundary, not by comparing
+    two views of the same in-memory dict (which would be a tautology: x == x).
     """
     rows = [
         _make_row(faculty_uid="alice", primary_subtopic_id="s1", subtopic_ids=["s1"]),
@@ -258,23 +262,15 @@ def test_d33_invariant_raises_on_divergence():
     excl_snapshot = {pid: dict(scores) for pid, scores in faculty_scores_exclusive.items()}
     incl_snapshot = {pid: dict(scores) for pid, scores in faculty_scores_inclusive.items()}
 
-    put_item_calls: list = []
-
-    def _mutating_put_item(*, Item: dict) -> None:
-        """Intercept SUBTOPIC_SCORE# writes and corrupt the faculty_scores value."""
-        if Item.get("PK", "").startswith("SUBTOPIC_SCORE#") and not Item.get("PK", "").startswith("SUBTOPIC_SCORE_INCLUSIVE#"):
-            # Corrupt one value to inject split-brain at the write boundary
-            for cwid in Item.get("faculty_scores", {}):
-                Item["faculty_scores"][cwid] = Decimal("999.99")
-        put_item_calls.append(Item)
-
-    table = MagicMock()
-    table.put_item.side_effect = _mutating_put_item
+    # Simulate what was written at the SUBTOPIC_SCORE# put_item boundary after corruption:
+    # the partition received corrupted data (999.99) while the faculty-map holds the real value.
+    # This represents divergence at the write boundary — NOT a mutation of the in-memory dict.
+    corrupted_partition = {"alice": {"s1": 999.99}}  # simulates what landed on disk after boundary corruption
 
     with pytest.raises(Exception) as exc_info:
         agg._assert_d33_reconciliation(
             faculty_map=faculty_scores_exclusive,
-            subtopic_score_partition_data=faculty_scores_inclusive,  # simulate diverged state
+            subtopic_score_partition_data=corrupted_partition,
         )
 
     # The exception message must reference reconciliation and the offending data

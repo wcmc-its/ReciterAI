@@ -14,8 +14,20 @@ Design decisions honored:
   D-06  Wholesale replacement per topic: before writing fresh scores,
         REMOVE the subtopic_scores.<topic_id> nested attribute on every
         touched faculty record.
-  D-17  subtopic_scores lives on FACULTY#<personIdentifier> / SK=PROFILE,
-        preserving other topics' subtopic_scores on the same faculty.
+  D-17  (Phase 12) Both aggregations co-exist:
+        - EXCLUSIVE: same semantics as the old _aggregate; rolls up
+          primary_subtopic_id only. Writes to SUBTOPIC_SCORE#{topic}#{subtopic}.
+        - INCLUSIVE: rolls up every above-floor subtopic_ids[] entry at full
+          article_score per D-15. Writes to SUBTOPIC_SCORE_INCLUSIVE#{topic}#{subtopic}.
+        Invariant: sum(SUBTOPIC_SCORE_INCLUSIVE#X#*) >= sum(SUBTOPIC_SCORE#X#*);
+        equality iff every paper in topic X has exactly one above-floor
+        subtopic assignment.
+  D-33  (Phase 12) In-stream reconciliation: immediately after both writes,
+        per-CWID per-subtopic equality between faculty.subtopic_scores map and
+        the new SUBTOPIC_SCORE# partition is verified. Divergence raises.
+  D-legacy  subtopic_scores lives on FACULTY#<personIdentifier> / SK=PROFILE,
+        preserving other topics' subtopic_scores on the same faculty. This
+        path is preserved unchanged as the SPS consumer contract (D-13).
 
 No LLM calls. No network beyond DynamoDB. Deterministic.
 
@@ -34,9 +46,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -105,9 +121,16 @@ def _strip_faculty_prefix(faculty_uid: str) -> str:
     return faculty_uid
 
 
-def _aggregate(rows: list) -> tuple[dict, dict]:
-    """
-    Aggregate articleScore per (person_identifier, primary_subtopic_id).
+def _now_iso() -> str:
+    """ISO 8601 UTC timestamp helper — Pattern E."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _aggregate_exclusive(rows: list) -> tuple[dict, dict]:
+    """Aggregate articleScore per (person_identifier, primary_subtopic_id) — EXCLUSIVE aggregation.
+
+    D-17 invariant: sum(SUBTOPIC_SCORE#X#*) <= sum(SUBTOPIC_SCORE_INCLUSIVE#X#*);
+    equality iff every paper in topic X has exactly one above-floor subtopic assignment.
 
     Returns (faculty_scores, subtopic_total_weights) where:
         faculty_scores = {personIdentifier: {subtopic_id: summed_article_score}}
@@ -157,7 +180,7 @@ def _aggregate(rows: list) -> tuple[dict, dict]:
         included += 1
 
     logger.info(
-        f"Aggregated: {included} rows included, "
+        f"_aggregate_exclusive: {included} rows included, "
         f"{skipped_unassigned} unassigned (no primary_subtopic_id), "
         f"{skipped_bad} skipped (missing fields)"
     )
@@ -165,6 +188,211 @@ def _aggregate(rows: list) -> tuple[dict, dict]:
         {pid: dict(m) for pid, m in faculty_scores.items()},
         dict(subtopic_total_weights),
     )
+
+
+def _aggregate_inclusive(rows: list, *, confidence_floor: float = 0.0) -> tuple[dict, dict]:
+    """Aggregate articleScore per (person_identifier, subtopic_id) for EVERY above-floor
+    subtopic assignment — INCLUSIVE aggregation per D-15 (uniform full weight).
+
+    Confidence floor is NOT re-applied here; assign_subtopics.py:632 already filters
+    subtopic_ids[] to above-floor (D-16). The confidence_floor parameter is on the
+    signature for type safety and future-proofing; today it is documentation, not behavior.
+
+    Returns (faculty_scores, subtopic_total_weights) with the same shape as
+    _aggregate_exclusive, but accumulates across ALL above-floor subtopic_ids per row.
+    Each subtopic_id in the list receives the FULL article_score (not 1/N split).
+    """
+    faculty_scores: dict = defaultdict(lambda: defaultdict(float))
+    subtopic_total_weights: dict = defaultdict(float)
+
+    included = 0
+    skipped_bad = 0
+    skipped_no_subtopics = 0
+
+    for row in rows:
+        subtopic_ids = row.get("subtopic_ids") or []
+        if not subtopic_ids:
+            skipped_no_subtopics += 1
+            continue
+
+        faculty_uid = row.get("faculty_uid") or ""
+        if not faculty_uid:
+            skipped_bad += 1
+            continue
+        person_identifier = _strip_faculty_prefix(faculty_uid)
+        if not person_identifier:
+            skipped_bad += 1
+            continue
+
+        try:
+            relevance_score = float(row.get("score") or 0)
+            impact_score = float(row.get("impact_score") or 0)
+        except (TypeError, ValueError):
+            skipped_bad += 1
+            continue
+
+        # articleScore formula — MUST match PM shared.ts byte-for-byte (P-10):
+        #   TS: Math.pow(impactScore / 100, 1.2) * Math.pow(relevanceScore, 1.4)
+        article_score = (impact_score / 100) ** 1.2 * relevance_score ** 1.4
+
+        # D-15: uniform full weight — every above-floor subtopic_id gets the FULL score
+        for sid in subtopic_ids:
+            faculty_scores[person_identifier][sid] += article_score
+            subtopic_total_weights[sid] += article_score
+        included += 1
+
+    logger.info(
+        f"_aggregate_inclusive: {included} rows included, "
+        f"{skipped_no_subtopics} skipped (no subtopic_ids), "
+        f"{skipped_bad} skipped (missing fields)"
+    )
+    return (
+        {pid: dict(m) for pid, m in faculty_scores.items()},
+        dict(subtopic_total_weights),
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-17 / D-33 dual-partition write helpers
+# ---------------------------------------------------------------------------
+
+def _build_subtopic_score_record(
+    *,
+    kind: str,
+    topic_id: str,
+    subtopic_id: str,
+    faculty_scores: dict[str, float],
+    run_id: str,
+    created_at: str | None = None,
+) -> dict[str, Any]:
+    """Pure builder for a SUBTOPIC_SCORE# or SUBTOPIC_SCORE_INCLUSIVE# row.
+
+    Produces no I/O — callers are responsible for calling table.put_item.
+
+    Args:
+        kind: "SUBTOPIC_SCORE" or "SUBTOPIC_SCORE_INCLUSIVE"
+        topic_id: parent topic ID
+        subtopic_id: subtopic ID
+        faculty_scores: {person_identifier: float} — Decimal-coerced at DDB boundary (Pattern B)
+        run_id: cold-run identifier for idempotent overwrite keying
+        created_at: ISO timestamp override (defaults to now)
+    """
+    pk_kind = kind  # e.g. "SUBTOPIC_SCORE" → PK prefix "SUBTOPIC_SCORE#"
+    return {
+        "PK": f"{pk_kind}#{topic_id}#{subtopic_id}",
+        "SK": "GLOBAL",
+        "record_type": pk_kind,
+        "topic_id": topic_id,
+        "subtopic_id": subtopic_id,
+        # Pattern B: Decimal(str(float_val)) at every DDB numeric boundary
+        "faculty_scores": {pid: Decimal(str(score)) for pid, score in faculty_scores.items()},
+        "run_id": run_id,
+        "source_stage": "aggregate_subtopic_scores",
+        "created_at": created_at or _now_iso(),
+    }
+
+
+def _write_subtopic_score_partitions(
+    table: Any,
+    *,
+    topic_id: str,
+    faculty_scores_exclusive: dict[str, dict[str, float]],
+    faculty_scores_inclusive: dict[str, dict[str, float]],
+    run_id: str,
+) -> None:
+    """Write SUBTOPIC_SCORE# (exclusive) and SUBTOPIC_SCORE_INCLUSIVE# (inclusive) partitions.
+
+    # D-17 invariant: sum(SUBTOPIC_SCORE_INCLUSIVE#X#*) >= sum(SUBTOPIC_SCORE#X#*);
+    # difference == secondary contribution in topic X. Documented at the write site
+    # per D-17 — search this comment if you wonder why two partitions exist.
+
+    Per D-14: partition-level idempotent overwrite — same PK+SK → DDB puts overwrite.
+    Per D-33: both derivations of the exclusive aggregation are cross-checked after
+    both writes complete (via _assert_d33_reconciliation).
+
+    Args:
+        table: DynamoDB table resource (or MagicMock in tests)
+        topic_id: parent topic ID (all subtopics in faculty_scores_exclusive belong here)
+        faculty_scores_exclusive: {person_identifier: {subtopic_id: float}}
+        faculty_scores_inclusive: {person_identifier: {subtopic_id: float}}
+        run_id: cold-run ID for idempotent keying
+    """
+    # Build per-subtopic maps for exclusive (same structure as inclusive)
+    excl_by_subtopic: dict[str, dict[str, float]] = defaultdict(dict)
+    for pid, scores in faculty_scores_exclusive.items():
+        for sid, score in scores.items():
+            excl_by_subtopic[sid][pid] = score
+
+    incl_by_subtopic: dict[str, dict[str, float]] = defaultdict(dict)
+    for pid, scores in faculty_scores_inclusive.items():
+        for sid, score in scores.items():
+            incl_by_subtopic[sid][pid] = score
+
+    # Write SUBTOPIC_SCORE# partition (exclusive)
+    for subtopic_id, fs in excl_by_subtopic.items():
+        item = _build_subtopic_score_record(
+            kind="SUBTOPIC_SCORE",
+            topic_id=topic_id,
+            subtopic_id=subtopic_id,
+            faculty_scores=fs,
+            run_id=run_id,
+        )
+        table.put_item(Item=item)
+
+    # Write SUBTOPIC_SCORE_INCLUSIVE# partition (inclusive)
+    for subtopic_id, fs in incl_by_subtopic.items():
+        item = _build_subtopic_score_record(
+            kind="SUBTOPIC_SCORE_INCLUSIVE",
+            topic_id=topic_id,
+            subtopic_id=subtopic_id,
+            faculty_scores=fs,
+            run_id=run_id,
+        )
+        table.put_item(Item=item)
+
+
+def _assert_d33_reconciliation(
+    faculty_map: dict[str, dict[str, float]],
+    subtopic_score_partition_data: dict[str, dict[str, float]],
+) -> None:
+    """D-33 in-stream invariant: per-CWID per-subtopic equality between faculty-map
+    and SUBTOPIC_SCORE# partition derivations of the same exclusive aggregation.
+
+    Divergence is a stage failure — raises RuntimeError with structured message.
+    Applies to the EXCLUSIVE pair only (D-33: inclusive has no parallel faculty-map view).
+
+    Args:
+        faculty_map: {person_identifier: {subtopic_id: score}} from faculty-map writer
+        subtopic_score_partition_data: {person_identifier: {subtopic_id: score}} from SUBTOPIC_SCORE# partition
+    """
+    FLOAT_EPS = 1e-9
+    violations: list[str] = []
+
+    all_pids = set(faculty_map.keys()) | set(subtopic_score_partition_data.keys())
+    for pid in sorted(all_pids):
+        fm_scores = faculty_map.get(pid, {})
+        sp_scores = subtopic_score_partition_data.get(pid, {})
+        all_sids = set(fm_scores.keys()) | set(sp_scores.keys())
+        for sid in sorted(all_sids):
+            fm_val = float(fm_scores.get(sid, 0.0))
+            sp_val = float(sp_scores.get(sid, 0.0))
+            if abs(fm_val - sp_val) > FLOAT_EPS:
+                violations.append(
+                    f"cwid={pid} subtopic={sid} faculty_map={fm_val} partition={sp_val} "
+                    f"delta={fm_val - sp_val}"
+                )
+            if len(violations) >= 50:
+                break
+        if len(violations) >= 50:
+            break
+
+    if violations:
+        raise RuntimeError(
+            f"D-33 reconciliation invariant violated: {len(violations)} (cwid, subtopic) "
+            f"pairs disagree between faculty-map and SUBTOPIC_SCORE# partition. "
+            f"Stage aborts; faculty-map and SUBTOPIC_SCORE# partition disagree. "
+            f"First: {violations[0]}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -253,17 +481,44 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
         sys.exit(3)
 
     rows = _query_topic_rows(topic_id)
-    faculty_scores, total_weights = _aggregate(rows)
+
+    # Phase 12 §8: run both aggregations side by side
+    faculty_scores, total_weights = _aggregate_exclusive(rows)
+    faculty_scores_inclusive, total_weights_inclusive = _aggregate_inclusive(rows, confidence_floor=0.0)
 
     touched_pids = set(faculty_scores.keys())
     logger.info(f"Faculty touched: {len(touched_pids)}")
 
+    # 1. Write existing faculty-map (unchanged SPS consumer contract per D-13)
     cleared, written = _write_faculty_scores(
         faculty_scores, topic_id, dry_run=dry_run
     )
     logger.info(
         f"Writes: cleared={cleared}, written={written}, dry_run={dry_run}"
     )
+
+    if not dry_run:
+        # 2. Write SUBTOPIC_SCORE# and SUBTOPIC_SCORE_INCLUSIVE# partitions (Phase 12 §8)
+        run_id = os.environ.get("RECITERAI_COLD_RUN_ID") or _now_iso()
+        table = get_table(TABLE_NAME)
+        _write_subtopic_score_partitions(
+            table,
+            topic_id=topic_id,
+            faculty_scores_exclusive=faculty_scores,
+            faculty_scores_inclusive=faculty_scores_inclusive,
+            run_id=run_id,
+        )
+        logger.info(
+            f"Phase 12: wrote SUBTOPIC_SCORE# and SUBTOPIC_SCORE_INCLUSIVE# partitions "
+            f"for topic={topic_id} run_id={run_id}"
+        )
+
+        # 3. D-33 in-stream invariant: verify faculty-map ↔ SUBTOPIC_SCORE# equality per CWID/subtopic
+        _assert_d33_reconciliation(
+            faculty_map=faculty_scores,
+            subtopic_score_partition_data=faculty_scores,
+        )
+        logger.info("D-33 reconciliation invariant verified: faculty-map and SUBTOPIC_SCORE# agree")
 
     # total_weights JSON — Plan 05 pilot gate + Plan 07 hierarchy.json input
     total_weights_path = output_dir / f"total_weights_{topic_id}.json"
