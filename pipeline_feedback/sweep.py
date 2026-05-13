@@ -62,6 +62,20 @@ def _in_window(ts_str: str, *, since: datetime, until: datetime) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# WR-05: Sonnet parse status sentinels — surface degraded sweeps explicitly
+# ---------------------------------------------------------------------------
+SONNET_PARSE_OK = "ok"
+SONNET_PARSE_NOT_JSON = "not_json"
+SONNET_PARSE_NO_TEXT = "no_text"
+
+# Module-level latch updated by _invoke_sonnet on each call. The sweep
+# orchestrator reads this after invocation and copies it onto the
+# FeedbackSweepRun so callers can distinguish a degraded sweep from
+# a clean "no candidates" run.
+_last_sonnet_parse_status: str = SONNET_PARSE_OK
+
+
+# ---------------------------------------------------------------------------
 # FeedbackSweepRun result dataclass
 # ---------------------------------------------------------------------------
 
@@ -75,6 +89,10 @@ class FeedbackSweepRun:
     candidate_topics: list[dict] = field(default_factory=list)
     recluster_recommendations: list[dict] = field(default_factory=list)
     spotlight_diagnostics: list[dict] = field(default_factory=list)
+    # WR-05: surfaces _invoke_sonnet's parse status so a degraded sweep is
+    # distinguishable from a clean "no candidates" run. One of
+    # SONNET_PARSE_OK / SONNET_PARSE_NOT_JSON / SONNET_PARSE_NO_TEXT.
+    sonnet_parse_status: str = SONNET_PARSE_OK
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +132,10 @@ def run_sweep(
     )
 
     # --- 1. Uncovered-PMID Sonnet sweep (D-06) ---
+    # WR-05: reset the parse-status latch before invocation so a clean run
+    # cannot inherit a stale degraded marker from a prior call.
+    global _last_sonnet_parse_status
+    _last_sonnet_parse_status = SONNET_PARSE_OK
     result.candidate_topics = _run_uncovered_pmid_sweep(
         table=table,
         since=since,
@@ -122,6 +144,7 @@ def run_sweep(
         run_id=run_id,
         triggered_by=triggered_by,
     )
+    result.sonnet_parse_status = _last_sonnet_parse_status
 
     # --- 2. Recluster trigger from DRIFT#evaluation per_topic_low_confidence (D-07 + D-34) ---
     result.recluster_recommendations = _run_recluster_trigger(
@@ -142,12 +165,13 @@ def run_sweep(
 
     logger.info(
         "feedback_sweep complete: run_id=%s triggered_by=%s "
-        "candidates=%d reclusters=%d diagnostics=%d",
+        "candidates=%d reclusters=%d diagnostics=%d sonnet_parse_status=%s",
         run_id,
         triggered_by,
         len(result.candidate_topics),
         len(result.recluster_recommendations),
         len(result.spotlight_diagnostics),
+        result.sonnet_parse_status,
     )
     return result
 
@@ -182,8 +206,14 @@ def _scan_uncovered_pmids(table: Any, *, since: datetime) -> list[dict]:
 def _invoke_sonnet(bedrock_client: Any, uncovered_rows: list[dict]) -> list[dict]:
     """Call Bedrock Sonnet with the uncovered PMIDs payload.
 
-    Returns a list of candidate_topic dicts per the prompt schema.
+    Returns a list of candidate_topic dicts per the prompt schema. On a JSON
+    parse failure of the text response, returns [] and sets
+    ``_last_sonnet_parse_status`` to SONNET_PARSE_NOT_JSON so the caller
+    (and any operator inspecting the sweep summary) can distinguish a degraded
+    sweep from a clean "no candidates" run (WR-05).
     """
+    global _last_sonnet_parse_status
+    _last_sonnet_parse_status = SONNET_PARSE_OK
     prompt_text = _PROMPT_PATH.read_text(encoding="utf-8")
 
     payload = {
@@ -230,11 +260,24 @@ def _invoke_sonnet(bedrock_client: Any, uncovered_rows: list[dict]) -> list[dict
         return body_json["candidate_topics"]
 
     # Parse the JSON out of the text response
+    if not text:
+        _last_sonnet_parse_status = SONNET_PARSE_NO_TEXT
+        logger.warning(
+            "feedback_sweep: Sonnet response contained no text blocks; "
+            "marking sweep degraded (parse_status=%s)",
+            SONNET_PARSE_NO_TEXT,
+        )
+        return []
     try:
         parsed = json.loads(text)
         return parsed.get("candidate_topics", [])
     except (json.JSONDecodeError, AttributeError):
-        logger.warning("feedback_sweep: Sonnet response was not valid JSON; skipping candidate topics")
+        _last_sonnet_parse_status = SONNET_PARSE_NOT_JSON
+        logger.warning(
+            "feedback_sweep: Sonnet response was not valid JSON; skipping candidate "
+            "topics (parse_status=%s). Inspect bedrock invocation logs to diagnose.",
+            SONNET_PARSE_NOT_JSON,
+        )
         return []
 
 
