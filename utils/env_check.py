@@ -25,27 +25,104 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # --- G-1: Data-driven column expectations ---
-# Replace inline string literals with a single data structure so adding or
-# renaming a column is a one-line change here, not a grep-and-replace across
-# the whole module. Each Check-N block iterates over its table's list.
+# Single source of truth for every ReciterDB column the ReciterAI pipeline
+# reads. Adding or renaming a column upstream becomes a one-line change here
+# rather than a grep-and-replace across the codebase. The downstream callsite
+# for each column is named inline so future schema-drift triage starts with
+# "who breaks if this column disappears?"
 EXPECTED_COLUMNS: dict[str, list[str]] = {
+    # Pre-computed publication synopses (the canonical text input for scoring).
+    # Used by: utils/sql_queries.py (PUBLICATION_EXTRACTION_SQL,
+    # SYNOPSIS_EXTRACTION_SQL); import_enrichment.py load_synopses.
     "reciterai_synopsis": [
         "external_id",
         "synopsis",
+        "entity_type",
     ],
+    # WCM faculty profile attributes (FACULTY# DDB enrichment).
+    # Used by: utils/sql_queries.py FACULTY_METADATA_SQL; score_publications.py
+    # extract_faculty_metadata.
     "analysis_summary_person": [
+        "personIdentifier",
         "nameFirst",
         "nameLast",
         "department",
         "hindexNIH",
-        "personIdentifier",
+        "countAll",
+        "countFirst",
+        "countSenior",
     ],
+    # Keyword-relevance scores (TOOL# input substrate).
+    # Used by: env_check sample/count queries; future TOOL# load.
     "reciterai_keyword_relevance": [
         "keyword",
         "relevanceScore",
         "external_id",
         "entity_type",
     ],
+    # Publication corpus + article metadata (year, title, journal).
+    # Used by: utils/sql_queries.py PUBLICATION_EXTRACTION_SQL;
+    # import_enrichment.py load_article_metadata;
+    # pipeline_hot/orchestrator.py delta-PMID resolver.
+    "analysis_summary_article": [
+        "pmid",
+        "publicationTypeCanonical",
+        "articleYear",
+        "articleTitle",
+        "journalTitleVerbose",
+        "dateLastModified",
+    ],
+    # Pre-computed abstracts (joined to the corpus in PUBLICATION_EXTRACTION_SQL).
+    "reporting_abstracts": [
+        "pmid",
+        "abstractVarchar",
+    ],
+    # Author-publication mapping + first/last position attribution.
+    # Used by: utils/sql_queries.py AUTHOR_MAPPING_SQL;
+    # import_enrichment.py load_author_positions;
+    # spotlight/author_resolver.py resolve_first_last_authors.
+    "analysis_summary_author": [
+        "pmid",
+        "personIdentifier",
+        "authorPosition",
+        "authors",
+    ],
+    # WCM identity / full-time-faculty filter — the upstream join that scopes
+    # the corpus to WCM full-time faculty.
+    # Used by: utils/sql_queries.py AUTHOR_MAPPING_SQL, FACULTY_METADATA_SQL.
+    "identity": [
+        "cwid",
+        "fullTimeFaculty",
+    ],
+    # LLM-extracted tools / methods / instruments per publication.
+    # Used by: utils/sql_queries.py TOOL_EXTRACTION_SQL.
+    "reciterai_tools": [
+        "external_id",
+        "raw_name",
+        "tool_category",
+        "confidence_tool",
+        "context",
+        "entity_type",
+    ],
+    # Per-publication impact scores (GPT-5.1 upstream — IMPACT# substrate).
+    # Used by: utils/sql_queries.py IMPACT_EXTRACTION_SQL;
+    # import_enrichment.py load_impact_scores.
+    "reciterai_impact": [
+        "external_id",
+        "impactScore",
+        "justification",
+        "model",
+        "entity_type",
+    ],
+}
+
+# Tables that have a bespoke Check-N block below with additional logic
+# (sample query, count check, etc.). Excluded from the generic coverage
+# loop because they're already validated upstream.
+_BESPOKE_CHECKED_TABLES = {
+    "reciterai_synopsis",
+    "analysis_summary_person",
+    "reciterai_keyword_relevance",
 }
 
 # --- D-27: thresholds.json schema validation paths ---
@@ -87,6 +164,9 @@ def run_env_checks():
     2. reciterai_synopsis columns — external_id, synopsis (Open Question 3 / A6 correction)
     3. analysis_summary_person column names (Open Question 2)
     4. reciterai_keyword_relevance schema and data presence (Open Question 4)
+    4b. Generic column coverage for every other table in EXPECTED_COLUMNS
+        (analysis_summary_article, reporting_abstracts, analysis_summary_author,
+        identity, reciterai_tools, reciterai_impact) — G-1 expansion.
     5. config/thresholds.json schema validation (Phase 12 D-27)
 
     Exits with code 1 if any critical check fails.
@@ -209,6 +289,33 @@ def run_env_checks():
                 print(f"  [OK] {pub_count} publication keyword_relevance records found")
         except Exception as e:
             print(f"  [WARNING] Could not count keyword_relevance records: {e}")
+
+        # --- Check 4b: generic column coverage for downstream-script tables (G-1) ---
+        # DESCRIBE + column-exists for every table in EXPECTED_COLUMNS that's
+        # not already covered by a bespoke check above. This is the preflight
+        # that surfaces schema drift on the broader corpus / author / impact /
+        # tools tables before any Bedrock budget is spent.
+        remaining = [t for t in EXPECTED_COLUMNS if t not in _BESPOKE_CHECKED_TABLES]
+        for table in remaining:
+            print(f"\n[CHECK] {table} schema:")
+            try:
+                actual = [r['Field'] for r in _describe_table(conn, table)]
+            except Exception as e:
+                errors.append(
+                    f"CRITICAL: cannot DESCRIBE {table}: {e}"
+                )
+                print(f"  [ERROR] DESCRIBE failed: {e}")
+                continue
+            missing = [c for c in EXPECTED_COLUMNS[table] if c not in actual]
+            if missing:
+                errors.append(
+                    f"CRITICAL: {table} missing expected columns: {missing}. "
+                    f"Actual columns: {actual}"
+                )
+                print(f"  [ERROR] Missing columns: {missing}")
+            else:
+                print(f"  [OK] All expected columns present: {EXPECTED_COLUMNS[table]}")
+                results[f'{table} columns'] = 'OK'
 
     finally:
         conn.close()
