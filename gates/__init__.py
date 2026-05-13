@@ -16,6 +16,7 @@ The framework lives in `gates.registry`. Individual gates land in
 `gates.parent_prefix`, `gates.pii`, `gates.schema_validation`,
 `gates.schema_roundtrip`. Phase 10+ adds `gates.coverage`,
 `gates.rollup_reconciliation`, `gates.critic_rejection`.
+Phase 12+ adds `gates.reconciliation` (D-18: arithmetic invariant gate).
 """
 
 from gates.registry import (
@@ -25,6 +26,10 @@ from gates.registry import (
     register_gate,
     run_gates,
 )
+
+# Phase 12 D-18: import reconciliation gate so its @register_gate decorator runs at process boot.
+# This is Pattern C (PATTERNS.md): gate self-registers on import via the decorator side effect.
+from gates import reconciliation as _reconciliation_gate  # noqa: F401
 
 __all__ = [
     "GateResult",

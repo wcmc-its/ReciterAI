@@ -166,6 +166,10 @@ Three fields (`assign_subtopics.py:17`):
 | `primary_subtopic_id` | string | The single best subtopic for navigation/rollup views |
 | `subtopic_confidences{}` | map | Full confidence distribution from the classifier |
 
+### Both aggregations (Phase 12 §8)
+
+Exclusive aggregation rolls up each activity row's `primary_subtopic_id` only; inclusive aggregation rolls up every entry in `subtopic_ids[]` at full `article_score` per entry. Invariant (D-17): `sum(SUBTOPIC_SCORE_INCLUSIVE#X#*) ≥ sum(SUBTOPIC_SCORE#X#*)`; equality iff every paper in topic X has exactly one above-floor subtopic assignment. The difference equals the total `article_score` contributed by secondary assignments in topic X. The reconciliation gate (`gates/reconciliation.py`) verifies this invariant before publish; a separate aggregator-internal invariant (D-33) verifies per-CWID per-subtopic equality between the legacy `faculty.subtopic_scores` map and the new `SUBTOPIC_SCORE#` partition.
+
 ### Primary selection logic
 
 - Default: `primary = argmax(subtopic_confidences)`
