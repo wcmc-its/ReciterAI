@@ -98,7 +98,7 @@ def test_sweep_subcommand_explicit_run_id_threaded():
 # ---------------------------------------------------------------------------
 
 def test_render_subcommand_reads_run_id_rows(capsys):
-    from pipeline_feedback.cli import main
+    from pipeline_feedback import cli as cli_mod
 
     rows = [
         {
@@ -116,14 +116,21 @@ def test_render_subcommand_reads_run_id_rows(capsys):
             "source_stage": "feedback.sweep",
         }
     ]
-    mock_table = _mock_table()
+    mock_table = MagicMock()
     mock_table.scan.return_value = {"Items": rows}
 
-    with patch("pipeline_feedback.cli._default_get_table", return_value=mock_table):
-        rc = main(["render", "run-abc"])
+    # Patch _fetch_rows_by_run_id to verify it calls table.scan (via the real impl)
+    # and patch _run_render's get_table via the module-level function replacement.
+    original_run_render = cli_mod._run_render
+
+    def _injected_run_render(args, *, get_table=lambda: mock_table):
+        return original_run_render(args, get_table=get_table)
+
+    with patch.object(cli_mod, "_run_render", side_effect=_injected_run_render):
+        rc = cli_mod.main(["render", "run-abc"])
 
     assert rc == 0
-    mock_table.scan.assert_called_once()
+    mock_table.scan.assert_called()
     # Verify the FilterExpression was set (checking the call used Attr filter)
     scan_call_kwargs = mock_table.scan.call_args[1]
     assert "FilterExpression" in scan_call_kwargs

@@ -35,6 +35,7 @@ def test_default_cold_stages_in_canonical_order():
         "discover",
         "relabel",
         "rollup",
+        "feedback_sweep",  # Phase 12 non-gating stage (D-02, D-08)
         "backfill_spotlight",
         "publish_hierarchy",
     ]
@@ -57,7 +58,7 @@ def test_select_stages_resumes_from_named_stage():
     all_stages = cold.default_cold_stages()
     selected = cold.select_stages(all_stages, from_stage="rollup")
     assert [s.name for s in selected] == [
-        "rollup", "backfill_spotlight", "publish_hierarchy"
+        "rollup", "feedback_sweep", "backfill_spotlight", "publish_hierarchy"
     ]
 
 
@@ -140,7 +141,7 @@ def test_main_writes_complete_row_with_initiated_by(monkeypatch):
     assert row["initiated_by"] == "drift_alert"
     assert row["stage_names"] == [
         "score", "assign", "discover", "relabel", "rollup",
-        "backfill_spotlight", "publish_hierarchy",
+        "feedback_sweep", "backfill_spotlight", "publish_hierarchy",
     ]
 
 
@@ -202,8 +203,8 @@ def test_main_from_stage_skips_earlier_stages(monkeypatch):
 
     rc = cold.main(["--from-stage", "rollup"])
     assert rc == 0
-    # rollup + backfill_spotlight + publish_hierarchy = 3 invocations
-    assert len(invoked_commands) == 3
+    # rollup + feedback_sweep + backfill_spotlight + publish_hierarchy = 4 invocations
+    assert len(invoked_commands) == 4
     # Confirm by inspecting one command string
     flat = [" ".join(c) for c in invoked_commands]
     assert any("rollup_by_cwid" in s for s in flat)
