@@ -49,6 +49,7 @@ out/
 # Large generated CSVs (keep small fixtures explicitly tracked)
 /cwid_*.csv
 /cwid_*.json
+/faculty_subtopic_counts_*.csv
 
 # Phase 11 migration diff logs (operator-generated; not for source control)
 spotlight_history_migration_*.log

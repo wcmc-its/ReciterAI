@@ -7,14 +7,14 @@ current_phase_name: feedback-loops-both-aggregations-residual-hygiene
 current_plan: 1
 status: executing
 stopped_at: Phase 12 planning complete (8 PLAN files, ROADMAP + VALIDATION aligned); plan files renamed to match `gsd-sdk` discovery convention.
-last_updated: "2026-05-12T23:26:09.419Z"
-last_activity: 2026-05-12 -- Phase 12 execution started
+last_updated: "2026-05-13T14:45:34.645Z"
+last_activity: 2026-05-13
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 11
-  completed_plans: 0
-  percent: 0
+  completed_plans: 8
+  percent: 73
 ---
 
 # Project State
@@ -31,8 +31,8 @@ See: .planning/ROADMAP.md (PROJECT.md not present in this repo)
 Phase: 12 (feedback-loops-both-aggregations-residual-hygiene) — EXECUTING
 Plan: 1 of 8
 Status: Executing Phase 12
-Last activity: 2026-05-12 -- Phase 12 execution started
-Last Activity Description: Phase 12 execution started
+Last activity: 2026-05-13
+Last Activity Description: v1.0 milestone completed and archived
 
 Progress: [████░░░░░░] 43%
 
@@ -58,6 +58,17 @@ None tracked here.
 ### Blockers/Concerns
 
 - Phase 8 (Tools / Axis 2) blocked on resolution of issues #5, #6, #7, #8 (`decision-deferred`).
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.0 milestone close on 2026-05-13:
+
+| Category | Item | Status |
+|----------|------|--------|
+| context_question | Phase 10 Q2: Slack channel + env var name for hot-path alerting | open — decide when hot-path Step Functions work begins |
+| context_question | Phase 10 Q3: Bedrock Batch wait mechanism (Wait+Choice poll vs EventBridge Pipes) | open — decide in plan-phase for hot-path |
+
+Both questions are forward-looking design choices for the hot-path Step Functions wiring that was deferred out of v1.0; they are not blockers for any shipped capability.
 
 ## Session Continuity
 
