@@ -29,14 +29,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Iterable
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
 DRIFT_PK = "DRIFT#evaluation"
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _parse_iso(s: str) -> datetime:

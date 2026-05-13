@@ -26,10 +26,10 @@ Security invariants (CLAUDE.md hard rule):
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 import boto3
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -60,18 +60,6 @@ def _get_default_client():
 # ---------------------------------------------------------------------------
 
 
-def _now_iso_z() -> str:
-    """ISO 8601 UTC timestamp with Z suffix (mirrors Phase 5 convention).
-
-    Defined locally to keep 06-04 independent of 06-03 in the parallel
-    wave -- importing from ``spotlight.history_writer`` would create a
-    same-wave dependency violating the parallel-execution invariant.
-    """
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="seconds")
-        .replace("+00:00", "Z")
-    )
 
 
 def _to_av(value: Any) -> dict:
@@ -169,7 +157,7 @@ def write_review_entry(client, entry: dict) -> None:
         "regen_count": {"N": str(int(entry["regen_count"]))},
         # status is FORCED -- the caller cannot override.
         "status": {"S": "pending"},
-        "created_at": {"S": _now_iso_z()},
+        "created_at": {"S": now_iso()},
     }
 
     # Optional fields
@@ -255,7 +243,7 @@ def set_status(
         ExpressionAttributeValues={
             ":s": {"S": target_status},
             ":r": {"S": reviewer},
-            ":t": {"S": _now_iso_z()},
+            ":t": {"S": now_iso()},
             ":pending": {"S": "pending"},
         },
     )

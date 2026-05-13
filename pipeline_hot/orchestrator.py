@@ -38,6 +38,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from pipeline_common import alert
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,6 @@ SKIP_REASON_LOCKED = "prior_run_in_progress"
 # ---------------------------------------------------------------------------
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +182,7 @@ def write_skipped_hot_run_locked(
         input_hash=input_hash or "lock-collision",
         skip_reason=SKIP_REASON_LOCKED,
         started_at=started_at,
-        completed_at=_now_iso(),
+        completed_at=now_iso(),
         duration_ms=duration_ms,
     )
 
@@ -239,7 +238,7 @@ def handler(event: dict, context: Any = None) -> dict:
         {"status": "ready", "input": <state_machine_input>}  — proceed to Score
         {"status": "skipped", "skip_reason": "prior_run_in_progress"} — short-circuit
     """
-    started_at = _now_iso()
+    started_at = now_iso()
     state_machine_arn = event.get("state_machine_arn") or os.environ.get(
         "RECITERAI_HOT_STATE_MACHINE_ARN"
     )

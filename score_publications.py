@@ -61,6 +61,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from utils.event_records import load_thresholds, write_uncovered_pmid
+from utils.iso_clock import now_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -94,8 +95,6 @@ STAGE_MODEL_IDS = [
 ]
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _pmid_scope(pmid: str) -> str:
@@ -423,7 +422,7 @@ def score_one_publication(
     )
 
     t_pmid_start = time.monotonic()
-    pmid_started_at = _now_iso()
+    pmid_started_at = now_iso()
 
     try:
         taxonomy_version = taxonomy['taxonomy_version']
@@ -551,7 +550,7 @@ def score_one_publication(
                     error_code=type(e).__name__,
                     error_message=error_msg[:1000],
                     started_at=pmid_started_at,
-                    completed_at=_now_iso(),
+                    completed_at=now_iso(),
                     duration_ms=int((time.monotonic() - t_pmid_start) * 1000),
                     cost_observed_usd=SCORE_COST_USD,
                     model_ids_snapshot=STAGE_MODEL_IDS,
@@ -723,7 +722,7 @@ async def main():
     args = parser.parse_args()
 
     # --- STAGE# substrate setup (Phase 10 D-07) ---
-    stage_started_at = _now_iso()
+    stage_started_at = now_iso()
     t_stage_start = time.monotonic()
     stage_table = get_table()
 
@@ -783,7 +782,7 @@ async def main():
         input_hash=input_hash,
     )
     if skip:
-        completed_at = _now_iso()
+        completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)
         skip_reason = (
             f"input_hash unchanged since prior complete run at "
@@ -868,7 +867,7 @@ async def main():
     print("\nResults saved. Run load_dynamodb.py next.")
 
     # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
-    completed_at = _now_iso()
+    completed_at = now_iso()
     duration_ms = int((time.monotonic() - t_stage_start) * 1000)
     complete_kwargs = dict(
         stage=STAGE_NAME,

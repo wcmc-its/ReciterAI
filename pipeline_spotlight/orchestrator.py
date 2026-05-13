@@ -29,7 +29,6 @@ import logging
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
@@ -49,6 +48,7 @@ from utils.stage_records import (
 
 from pipeline_spotlight.dirty_gate import GateResult, evaluate_gate
 from pipeline_common import alert
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +58,6 @@ SPOTLIGHT_COST_USD = Decimal("0")  # the actual pipeline cost is recorded on
                                     # the per-stage scripts the orchestrator invokes
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +204,7 @@ def run_gate(
     Separated from `handler` so tests can call this directly with
     synthetic STAGE# corpora without faking the full Lambda event shape.
     """
-    started_at = _now_iso()
+    started_at = now_iso()
     t_start = time.monotonic()
 
     min_dirty = int(thresholds["spotlight_dirty_subtopic_min"])
@@ -231,7 +229,7 @@ def run_gate(
             input_hash=input_hash,
             skip_reason=gate.reason(min_dirty=min_dirty, min_pubs_per=min_pubs),
             started_at=started_at,
-            completed_at=_now_iso(),
+            completed_at=now_iso(),
             duration_ms=duration_ms,
         )
         return {
@@ -254,7 +252,7 @@ def run_gate(
             error_code=type(exc).__name__,
             error_message=str(exc)[:1000],
             started_at=started_at,
-            completed_at=_now_iso(),
+            completed_at=now_iso(),
             duration_ms=duration_ms,
             cost_observed_usd=SPOTLIGHT_COST_USD,
             failure_details={
@@ -271,7 +269,7 @@ def run_gate(
         scope=SPOTLIGHT_SCOPE,
         input_hash=input_hash,
         started_at=started_at,
-        completed_at=_now_iso(),
+        completed_at=now_iso(),
         duration_ms=duration_ms,
         cost_observed_usd=SPOTLIGHT_COST_USD,
         records_written=len(gate.dirty_subtopics),

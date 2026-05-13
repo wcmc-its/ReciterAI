@@ -37,7 +37,6 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -53,6 +52,7 @@ from utils.stage_records import (
     write_complete,
     write_failed,
 )
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,6 @@ COLD_RUN_COST_USD = Decimal("0")  # cold_run wraps stages; per-stage costs alrea
 VALID_INITIATED_BY = ("operator", "drift_alert", "scheduled")
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     repo_root = Path(__file__).resolve().parent.parent
-    started_at = _now_iso()
+    started_at = now_iso()
     t_run = time.monotonic()
 
     # Phase 11: mint run_id and hierarchy_version at run start so all
@@ -424,7 +422,7 @@ def main(argv: list[str] | None = None) -> int:
                         f"stage '{stage.name}' exited rc={outcome.returncode}"
                     ),
                     started_at=started_at,
-                    completed_at=_now_iso(),
+                    completed_at=now_iso(),
                     duration_ms=duration_ms,
                     cost_observed_usd=COLD_RUN_COST_USD,
                     failure_details={
@@ -448,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # All stages green.
     duration_ms = int((time.monotonic() - t_run) * 1000)
-    completed_at = _now_iso()
+    completed_at = now_iso()
     print(f"\n--- cold run complete in {duration_ms / 1000:.1f}s ---")
     for o in outcomes:
         print(f"  {o.name:>22}: {o.status} ({o.duration_ms} ms)")

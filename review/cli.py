@@ -20,7 +20,6 @@ import os
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -30,6 +29,7 @@ from review.config import ReviewerCwidUnresolvable, load_reviewer_cwid
 from review.store import write_review, read_run_signals
 from review.template import build_template
 from review.validator import validate, RunSignals
+from utils.iso_clock import now_iso
 
 
 # ---------------------------------------------------------------------------
@@ -52,9 +52,6 @@ def _default_get_s3_client():
     return S3HierarchyClient()
 
 
-def _now_iso() -> str:
-    """Return current UTC time in ISO 8601 format ending with Z."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +155,7 @@ def _run_approve(
         "summary_stats": yaml_dict.get("summary_stats", {}),
         "status": "approved" if yaml_dict["decision"] == "approve" else "rejected",
         "reviewer_cwid": yaml_dict["reviewer_cwid"],
-        "reviewed_at": _now_iso(),
+        "reviewed_at": now_iso(),
         "rationale": yaml_dict["rationale"],
         "decision": yaml_dict["decision"],
     }
