@@ -34,6 +34,8 @@ from typing import Any
 
 
 # Default thresholds file lives at <repo>/config/thresholds.json.
+# WR-01: kept as a module-level alias for backwards compatibility; the canonical
+# path constant now lives in utils.env_check.THRESHOLDS_FILE.
 DEFAULT_THRESHOLDS_PATH = (
     Path(__file__).parent.parent / "config" / "thresholds.json"
 )
@@ -43,15 +45,10 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def load_thresholds(path: Path | None = None) -> dict[str, Any]:
-    """Load the Phase 10 thresholds config (cached caller-side if needed).
-
-    `path` overrides the default location for test ergonomics. Returns a
-    plain dict — callers index by key.
-    """
-    target = Path(path) if path else DEFAULT_THRESHOLDS_PATH
-    with open(target) as f:
-        return json.load(f)
+# WR-01: load_thresholds is canonical in utils.env_check. Re-exported here so
+# existing importers (`from utils.event_records import load_thresholds`) keep
+# working while the implementation lives in one place.
+from utils.env_check import load_thresholds  # noqa: E402, F401
 
 
 # ---------------------------------------------------------------------------
