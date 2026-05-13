@@ -132,6 +132,15 @@ def default_cold_stages() -> list[ColdStage]:
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
+            name="count",
+            command=[sys.executable, "count_by_cwid.py"],
+            description=(
+                "Scan TOPIC# activity rows and produce per-CWID breakdown CSVs "
+                "(faculty_subtopic_counts_{exclusive,inclusive}.csv + legacy "
+                "cwid_subtopic_counts.csv). Prerequisite for `rollup`."
+            ),
+        ),
+        ColdStage(
             name="rollup",
             command=[sys.executable, "-m", "rollup_by_cwid"],
             description="Full per-CWID rollup",
