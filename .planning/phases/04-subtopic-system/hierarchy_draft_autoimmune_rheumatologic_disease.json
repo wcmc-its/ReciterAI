@@ -304,16 +304,16 @@
     },
     {
       "id": "autoimmune_rorgt_tryptophan_immunotherapy",
-      "label": "Small Molecule Immunomodulators Targeting RORγt and Tryptophan Metabolism",
-      "description": "Studies on novel small molecule modulators of immune pathways, including RORγt nuclear receptor ligands and tryptophan-derived immunomodulatory metabolites, as potential autoimmune therapeutics.",
+      "label": "Small Molecule Immunomodulators Targeting ROR\u03b3t and Tryptophan Metabolism",
+      "description": "Studies on novel small molecule modulators of immune pathways, including ROR\u03b3t nuclear receptor ligands and tryptophan-derived immunomodulatory metabolites, as potential autoimmune therapeutics.",
       "seed_pmids": [
         38239446,
         34290243,
         33095579
       ],
       "coverage_estimate": 0.09,
-      "display_name": "RORγt & Tryptophan-Pathway Immunomodulators",
-      "short_description": "Novel small molecule modulators of RORγt and tryptophan-derived metabolites as potential autoimmune disease therapeutics."
+      "display_name": "ROR\u03b3t & Tryptophan-Pathway Immunomodulators",
+      "short_description": "Novel small molecule modulators of ROR\u03b3t and tryptophan-derived metabolites as potential autoimmune disease therapeutics."
     },
     {
       "id": "autoimmune_autoimmune_encephalitis_neuropsychiatric",

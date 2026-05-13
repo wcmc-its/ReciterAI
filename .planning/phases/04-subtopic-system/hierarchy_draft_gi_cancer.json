@@ -76,7 +76,7 @@
     {
       "id": "gi_colorectal_cancer_molecular_biology",
       "label": "Colorectal Cancer Molecular Biology and Tumor Microenvironment",
-      "description": "Research on molecular mechanisms driving colorectal cancer initiation and progression, including Wnt/APC signaling, PKCλ/ι, aPKC, SOX17, ILC3 dysregulation, immune evasion, lineage plasticity, and tumor microenvironment characterization.",
+      "description": "Research on molecular mechanisms driving colorectal cancer initiation and progression, including Wnt/APC signaling, PKC\u03bb/\u03b9, aPKC, SOX17, ILC3 dysregulation, immune evasion, lineage plasticity, and tumor microenvironment characterization.",
       "seed_pmids": [
         36457029,
         32546576,
@@ -119,7 +119,7 @@
     {
       "id": "gi_hepatocellular_cholangiocarcinoma_biology_treatment",
       "label": "Hepatocellular Carcinoma and Cholangiocarcinoma Biology and Treatment",
-      "description": "Research on molecular pathogenesis, imaging, locoregional therapies (Y-90 radioembolization, TACE), surgical approaches, and biomarkers in hepatocellular carcinoma and intrahepatic cholangiocarcinoma, including PKCλ/ι, STING pathway, and IDH1/2 mutations.",
+      "description": "Research on molecular pathogenesis, imaging, locoregional therapies (Y-90 radioembolization, TACE), surgical approaches, and biomarkers in hepatocellular carcinoma and intrahepatic cholangiocarcinoma, including PKC\u03bb/\u03b9, STING pathway, and IDH1/2 mutations.",
       "seed_pmids": [
         32589943,
         39423823,
@@ -195,7 +195,7 @@
     {
       "id": "gi_tumor_microenvironment_immunotherapy",
       "label": "Tumor Microenvironment, Immunotherapy Resistance, and Immune Modulation in GI Cancers",
-      "description": "Research on immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers, including TGFβ inhibition, MEK inhibition with GITR costimulation, PKCλ/ι-mediated interferon response, and neutrophil-driven resistance.",
+      "description": "Research on immune cell interactions, immunotherapy resistance mechanisms, and novel immune-modulating strategies in GI cancers, including TGF\u03b2 inhibition, MEK inhibition with GITR costimulation, PKC\u03bb/\u03b9-mediated interferon response, and neutrophil-driven resistance.",
       "seed_pmids": [
         34789823,
         38885362,
@@ -322,7 +322,7 @@
       ],
       "coverage_estimate": 0.019,
       "display_name": "Comorbidity Management & Survivorship",
-      "short_description": "Chronic comorbidity care — including diabetes and cardiovascular disease — before and after cancer diagnosis, with attention to racial disparities."
+      "short_description": "Chronic comorbidity care \u2014 including diabetes and cardiovascular disease \u2014 before and after cancer diagnosis, with attention to racial disparities."
     },
     {
       "id": "gi_liver_transplant_viral_hepatitis",
@@ -366,7 +366,7 @@
     {
       "id": "gi_metabolic_immune_reprogramming_cancer",
       "label": "Metabolic Reprogramming and Immune Enhancement in Cancer",
-      "description": "Studies on pharmacologic and metabolic interventions—including LDH inhibition and tumor extracellular vesicle signaling—that redirect glucose metabolism and enhance antitumor T cell immunity in solid tumors.",
+      "description": "Studies on pharmacologic and metabolic interventions\u2014including LDH inhibition and tumor extracellular vesicle signaling\u2014that redirect glucose metabolism and enhance antitumor T cell immunity in solid tumors.",
       "seed_pmids": [
         39225102,
         37225988,

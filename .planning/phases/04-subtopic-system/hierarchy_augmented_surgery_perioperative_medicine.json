@@ -77,10 +77,10 @@
         38037164
       ],
       "coverage_estimate": 0.067,
-      "total_weight": 51.488286,
-      "activity_count": 44,
       "display_name": "Cardiac Surgery Outcomes & Techniques",
-      "short_description": "Operative techniques and perioperative outcomes in CABG, valve replacement, and aortic surgery."
+      "short_description": "Operative techniques and perioperative outcomes in CABG, valve replacement, and aortic surgery.",
+      "total_weight": 51.488286,
+      "activity_count": 44
     },
     {
       "id": "surgery_minimally_invasive_spine",
@@ -150,10 +150,10 @@
         40158805
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 37.995098,
-      "activity_count": 94,
       "display_name": "Minimally Invasive & Open Spine Surgery",
-      "short_description": "Surgical techniques, robotics, and image guidance for cervical, lumbar, and spinal deformity procedures."
+      "short_description": "Surgical techniques, robotics, and image guidance for cervical, lumbar, and spinal deformity procedures.",
+      "total_weight": 37.995098,
+      "activity_count": 94
     },
     {
       "id": "surgery_vascular_aortic",
@@ -215,10 +215,10 @@
         40566116
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 19.581816,
-      "activity_count": 41,
       "display_name": "Vascular & Aortic Surgery",
-      "short_description": "Endovascular and open repair of aortic aneurysms, dissection, and peripheral arterial disease."
+      "short_description": "Endovascular and open repair of aortic aneurysms, dissection, and peripheral arterial disease.",
+      "total_weight": 19.581816,
+      "activity_count": 41
     },
     {
       "id": "surgery_thoracic_lung_resection",
@@ -256,10 +256,10 @@
         37164718
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 35.110861,
-      "activity_count": 29,
       "display_name": "Thoracic Surgery & Lung Resection",
-      "short_description": "Surgical management of lung cancer and thoracic malignancies including lobectomy, esophagectomy, and thymectomy."
+      "short_description": "Surgical management of lung cancer and thoracic malignancies including lobectomy, esophagectomy, and thymectomy.",
+      "total_weight": 35.110861,
+      "activity_count": 29
     },
     {
       "id": "surgery_bariatric_metabolic",
@@ -308,10 +308,10 @@
         32657927
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 21.927295,
-      "activity_count": 32,
       "display_name": "Bariatric & Metabolic Surgery",
-      "short_description": "Surgical and endoscopic interventions for obesity, weight loss outcomes, and metabolic comorbidity management."
+      "short_description": "Surgical and endoscopic interventions for obesity, weight loss outcomes, and metabolic comorbidity management.",
+      "total_weight": 21.927295,
+      "activity_count": 32
     },
     {
       "id": "surgery_breast_reconstruction",
@@ -373,10 +373,10 @@
         38424856
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 22.701959,
-      "activity_count": 60,
       "display_name": "Breast Surgery & Reconstruction",
-      "short_description": "Mastectomy, implant-based and autologous reconstruction techniques, and oncologic outcomes in breast surgery."
+      "short_description": "Mastectomy, implant-based and autologous reconstruction techniques, and oncologic outcomes in breast surgery.",
+      "total_weight": 22.701959,
+      "activity_count": 60
     },
     {
       "id": "surgery_neurosurgery_cranial",
@@ -428,10 +428,10 @@
         40147440
       ],
       "coverage_estimate": 0.042,
-      "total_weight": 25.174871,
-      "activity_count": 49,
       "display_name": "Cranial & Skull Base Neurosurgery",
-      "short_description": "Surgical management of brain tumors, skull base lesions, and neurovascular conditions with operative outcome analysis."
+      "short_description": "Surgical management of brain tumors, skull base lesions, and neurovascular conditions with operative outcome analysis.",
+      "total_weight": 25.174871,
+      "activity_count": 49
     },
     {
       "id": "surgery_postop_opioid_pain",
@@ -468,10 +468,10 @@
         40911471
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 7.650769,
-      "activity_count": 20,
       "display_name": "Postoperative Pain & Opioid Prescribing",
-      "short_description": "Opioid prescribing patterns, persistent use, and multimodal analgesia strategies in surgical patients."
+      "short_description": "Opioid prescribing patterns, persistent use, and multimodal analgesia strategies in surgical patients.",
+      "total_weight": 7.650769,
+      "activity_count": 20
     },
     {
       "id": "surgery_colorectal_gi_surgery",
@@ -520,10 +520,10 @@
         39804518
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 40.60333,
-      "activity_count": 64,
       "display_name": "Colorectal & Gastrointestinal Surgery",
-      "short_description": "Minimally invasive and open management of colorectal cancer, IBD, hernia, and enhanced recovery protocols."
+      "short_description": "Minimally invasive and open management of colorectal cancer, IBD, hernia, and enhanced recovery protocols.",
+      "total_weight": 40.60333,
+      "activity_count": 64
     },
     {
       "id": "surgery_transcatheter_structural_heart",
@@ -576,10 +576,10 @@
         36381416
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 14.437338,
-      "activity_count": 31,
       "display_name": "Transcatheter Structural Heart Interventions",
-      "short_description": "TAVR, transcatheter mitral and tricuspid repair, and outcomes of percutaneous structural heart procedures."
+      "short_description": "TAVR, transcatheter mitral and tricuspid repair, and outcomes of percutaneous structural heart procedures.",
+      "total_weight": 14.437338,
+      "activity_count": 31
     },
     {
       "id": "surgery_head_neck_thyroid",
@@ -634,10 +634,10 @@
         36355601
       ],
       "coverage_estimate": 0.045,
-      "total_weight": 21.429061,
-      "activity_count": 50,
       "display_name": "Head & Neck Surgery with Thyroid Procedures",
-      "short_description": "Surgical management of thyroid, parathyroid, head and neck cancers, and salivary gland tumors."
+      "short_description": "Surgical management of thyroid, parathyroid, head and neck cancers, and salivary gland tumors.",
+      "total_weight": 21.429061,
+      "activity_count": 50
     },
     {
       "id": "surgery_urologic_prostate",
@@ -693,10 +693,10 @@
         37441341
       ],
       "coverage_estimate": 0.046,
-      "total_weight": 13.547365,
-      "activity_count": 44,
       "display_name": "Urologic Surgery & Prostate Cancer Treatment",
-      "short_description": "Robotic and open surgical management of prostate, bladder, and kidney cancers with functional outcome analysis."
+      "short_description": "Robotic and open surgical management of prostate, bladder, and kidney cancers with functional outcome analysis.",
+      "total_weight": 13.547365,
+      "activity_count": 44
     },
     {
       "id": "surgery_obstetric_gynecologic",
@@ -741,10 +741,10 @@
         36194429
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 15.782457,
-      "activity_count": 42,
       "display_name": "Obstetric & Gynecologic Surgery",
-      "short_description": "Cesarean delivery, laparoscopic gynecology, hysterectomy, and pelvic organ prolapse repair outcomes."
+      "short_description": "Cesarean delivery, laparoscopic gynecology, hysterectomy, and pelvic organ prolapse repair outcomes.",
+      "total_weight": 15.782457,
+      "activity_count": 42
     },
     {
       "id": "surgery_global_surgical_education",
@@ -793,10 +793,10 @@
         38833755
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 6.567562,
-      "activity_count": 22,
       "display_name": "Global Surgery, Education & Workforce",
-      "short_description": "Surgical training, simulation, global access in low-income settings, and workforce diversity and quality improvement."
+      "short_description": "Surgical training, simulation, global access in low-income settings, and workforce diversity and quality improvement.",
+      "total_weight": 6.567562,
+      "activity_count": 22
     },
     {
       "id": "surgery_perioperative_anesthesia",
@@ -850,10 +850,10 @@
         32563759
       ],
       "coverage_estimate": 0.044,
-      "total_weight": 14.827656,
-      "activity_count": 41,
       "display_name": "Anesthesia & Enhanced Recovery",
-      "short_description": "Risk stratification, anesthetic techniques, ERAS protocols, and postoperative complication management across surgical specialties."
+      "short_description": "Risk stratification, anesthetic techniques, ERAS protocols, and postoperative complication management across surgical specialties.",
+      "total_weight": 14.827656,
+      "activity_count": 41
     },
     {
       "id": "surgery_coronary_revascularization",
@@ -884,10 +884,10 @@
         33054678
       ],
       "coverage_estimate": 0.054,
-      "total_weight": 34.125398,
-      "activity_count": 54,
       "display_name": "CABG & Coronary Revascularization Strategies",
-      "short_description": "Graft selection, multivessel disease management, and surgical versus percutaneous revascularization comparisons."
+      "short_description": "Graft selection, multivessel disease management, and surgical versus percutaneous revascularization comparisons.",
+      "total_weight": 34.125398,
+      "activity_count": 54
     },
     {
       "id": "surgery_heart_transplant_mechanical_support",
@@ -911,10 +911,10 @@
         40535596
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 9.018948,
-      "activity_count": 30,
       "display_name": "Heart Transplantation & Mechanical Circulatory Support",
-      "short_description": "Outcomes after heart transplantation, left ventricular assist devices, and VA-ECMO in cardiogenic shock."
+      "short_description": "Outcomes after heart transplantation, left ventricular assist devices, and VA-ECMO in cardiogenic shock.",
+      "total_weight": 9.018948,
+      "activity_count": 30
     },
     {
       "id": "surgery_cardiac_valve_aortic_root",
@@ -936,10 +936,10 @@
         35501116
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 21.088484,
-      "activity_count": 28,
       "display_name": "Valve Surgery & Aortic Root Procedures",
-      "short_description": "Surgical aortic and mitral valve repair, aortic root replacement, and hypertrophic cardiomyopathy myectomy outcomes."
+      "short_description": "Surgical aortic and mitral valve repair, aortic root replacement, and hypertrophic cardiomyopathy myectomy outcomes.",
+      "total_weight": 21.088484,
+      "activity_count": 28
     },
     {
       "id": "surgery_aortic_arch_dissection",
@@ -953,10 +953,10 @@
         34294407
       ],
       "coverage_estimate": 0.012,
-      "total_weight": 31.840533,
-      "activity_count": 27,
       "display_name": "Aortic Arch Surgery & Acute Dissection",
-      "short_description": "Open arch repair, acute type A aortic dissection management, and thoracoabdominal aneurysm repair outcomes."
+      "short_description": "Open arch repair, acute type A aortic dissection management, and thoracoabdominal aneurysm repair outcomes.",
+      "total_weight": 31.840533,
+      "activity_count": 27
     },
     {
       "id": "surgery_nerve_decompression_headache",
@@ -981,10 +981,10 @@
         38907793
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 6.908365,
-      "activity_count": 20,
       "display_name": "Peripheral Nerve Decompression for Headache",
-      "short_description": "Surgical decompression of occipital and trigeminal nerves for chronic headache, neuralgia, and nerve compression syndromes."
+      "short_description": "Surgical decompression of occipital and trigeminal nerves for chronic headache, neuralgia, and nerve compression syndromes.",
+      "total_weight": 6.908365,
+      "activity_count": 20
     },
     {
       "id": "surgery_breast_implant_innovation",
@@ -1008,10 +1008,10 @@
         38556675
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 2.313686,
-      "activity_count": 13,
       "display_name": "Breast Implant Safety & Tissue Engineering",
-      "short_description": "Implant surface properties, antifibrotic coatings, biocompatibility, and decellularized scaffold approaches in breast reconstruction."
+      "short_description": "Implant surface properties, antifibrotic coatings, biocompatibility, and decellularized scaffold approaches in breast reconstruction.",
+      "total_weight": 2.313686,
+      "activity_count": 13
     },
     {
       "id": "surgery_minimally_invasive_gi_pancreas",
@@ -1032,10 +1032,10 @@
         39872775
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 11.64688,
-      "activity_count": 23,
       "display_name": "Minimally Invasive Pancreatic & Hepatobiliary Surgery",
-      "short_description": "Robotic and laparoscopic pancreatectomy and liver resection for pancreatic neuroendocrine tumors and hepatobiliary malignancies."
+      "short_description": "Robotic and laparoscopic pancreatectomy and liver resection for pancreatic neuroendocrine tumors and hepatobiliary malignancies.",
+      "total_weight": 11.64688,
+      "activity_count": 23
     },
     {
       "id": "surgery_pediatric_otolaryngology",
@@ -1053,10 +1053,10 @@
         34247264
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 4.185067,
-      "activity_count": 12,
       "display_name": "Pediatric Otolaryngology & Aerodigestive Procedures",
-      "short_description": "Pediatric ENT conditions including tympanostomy, ankyloglossia, sleep apnea, and tracheostomy in critically ill children."
+      "short_description": "Pediatric ENT conditions including tympanostomy, ankyloglossia, sleep apnea, and tracheostomy in critically ill children.",
+      "total_weight": 4.185067,
+      "activity_count": 12
     },
     {
       "id": "surgery_craniofacial_facial_fractures",
@@ -1074,10 +1074,10 @@
         34388721
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 5.32271,
-      "activity_count": 17,
       "display_name": "Craniofacial Surgery & Facial Fracture Management",
-      "short_description": "Repair of frontal sinus, orbital, and mandibular fractures, orofacial clefts, and craniofacial syndrome reconstruction."
+      "short_description": "Repair of frontal sinus, orbital, and mandibular fractures, orofacial clefts, and craniofacial syndrome reconstruction.",
+      "total_weight": 5.32271,
+      "activity_count": 17
     },
     {
       "id": "surgery_deep_brain_stimulation_movement",
@@ -1095,10 +1095,10 @@
         34826875
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 2.904737,
-      "activity_count": 11,
       "display_name": "Deep Brain Stimulation & Neuromodulation",
-      "short_description": "DBS for Parkinson's disease and neurological disorders, MR-guided focused ultrasound, and intrathecal baclofen therapy."
+      "short_description": "DBS for Parkinson's disease and neurological disorders, MR-guided focused ultrasound, and intrathecal baclofen therapy.",
+      "total_weight": 2.904737,
+      "activity_count": 11
     },
     {
       "id": "surgery_intracerebral_hemorrhage_stroke",
@@ -1117,10 +1117,10 @@
         33236688
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 4.030188,
-      "activity_count": 11,
       "display_name": "Intracerebral Hemorrhage & Stroke Surgery",
-      "short_description": "Surgical and minimally invasive management of intracerebral hemorrhage, subarachnoid hemorrhage, and ischemic stroke."
+      "short_description": "Surgical and minimally invasive management of intracerebral hemorrhage, subarachnoid hemorrhage, and ischemic stroke.",
+      "total_weight": 4.030188,
+      "activity_count": 11
     },
     {
       "id": "surgery_male_reproductive_urology",
@@ -1137,10 +1137,10 @@
         40797084
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 2.832229,
-      "activity_count": 12,
       "display_name": "Male Reproductive Surgery & Fertility",
-      "short_description": "Vasectomy reversal, varicocelectomy, and ejaculatory duct procedures and their effects on reproductive outcomes."
+      "short_description": "Vasectomy reversal, varicocelectomy, and ejaculatory duct procedures and their effects on reproductive outcomes.",
+      "total_weight": 2.832229,
+      "activity_count": 12
     },
     {
       "id": "surgery_surgical_oncology_adrenal_endocrine",
@@ -1157,10 +1157,10 @@
         38824259
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 5.953258,
-      "activity_count": 10,
       "display_name": "Adrenal & Endocrine Tumor Surgical Oncology",
-      "short_description": "Adrenalectomy, pancreatic neuroendocrine tumor resection, and genomic predictors of recurrence in endocrine malignancies."
+      "short_description": "Adrenalectomy, pancreatic neuroendocrine tumor resection, and genomic predictors of recurrence in endocrine malignancies.",
+      "total_weight": 5.953258,
+      "activity_count": 10
     },
     {
       "id": "surgery_orthopedic_joint_reconstruction",
@@ -1178,10 +1178,10 @@
         37294199
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 5.352971,
-      "activity_count": 11,
       "display_name": "Orthopedic Joint Reconstruction & Arthroplasty",
-      "short_description": "Total hip and knee arthroplasty outcomes including revision rates, sex differences, and ankle replacement comparisons."
+      "short_description": "Total hip and knee arthroplasty outcomes including revision rates, sex differences, and ankle replacement comparisons.",
+      "total_weight": 5.352971,
+      "activity_count": 11
     },
     {
       "id": "surgery_ophthalmic_surgical_outcomes",
@@ -1199,10 +1199,10 @@
         38461944
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 2.183468,
-      "activity_count": 10,
       "display_name": "Ophthalmic Surgery Outcomes & Device Safety",
-      "short_description": "Cataract and glaucoma surgery outcomes, intraocular lens fixation, vitrectomy safety, and ocular gene therapy delivery."
+      "short_description": "Cataract and glaucoma surgery outcomes, intraocular lens fixation, vitrectomy safety, and ocular gene therapy delivery.",
+      "total_weight": 2.183468,
+      "activity_count": 10
     }
   ],
   "uncovered_pmids": [
@@ -1420,9 +1420,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T18:05:33Z",
+  "augmented_at": "2026-05-13T13:13:50Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_surgery_perioperative_medicine.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_surgery_perioperative_medicine.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

@@ -59,10 +59,10 @@
         40590790
       ],
       "coverage_estimate": 0.054,
-      "total_weight": 39.4594,
-      "activity_count": 65,
       "display_name": "Small Molecule Design & Optimization",
-      "short_description": "High-throughput screening, medicinal chemistry, and computational methods to identify and optimize small molecule therapeutics."
+      "short_description": "High-throughput screening, medicinal chemistry, and computational methods to identify and optimize small molecule therapeutics.",
+      "total_weight": 39.4594,
+      "activity_count": 65
     },
     {
       "id": "drug_antimicrobial_target_identification",
@@ -104,10 +104,10 @@
         32933490
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 32.086573,
-      "activity_count": 58,
       "display_name": "Antimicrobial Target Identification",
-      "short_description": "Novel drug target discovery and inhibitor development for bacterial and parasitic pathogens including TB and malaria."
+      "short_description": "Novel drug target discovery and inhibitor development for bacterial and parasitic pathogens including TB and malaria.",
+      "total_weight": 32.086573,
+      "activity_count": 58
     },
     {
       "id": "drug_cancer_targeted_therapy_resistance",
@@ -149,10 +149,10 @@
         40377995
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 74.951124,
-      "activity_count": 134,
       "display_name": "Targeted Therapy & Resistance Mechanisms",
-      "short_description": "Precision oncology agents, acquired resistance mechanisms, and biomarker strategies across solid tumors and blood cancers."
+      "short_description": "Precision oncology agents, acquired resistance mechanisms, and biomarker strategies across solid tumors and blood cancers.",
+      "total_weight": 74.951124,
+      "activity_count": 134
     },
     {
       "id": "drug_immunotherapy_checkpoint_combinations",
@@ -195,10 +195,10 @@
         36624093
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 26.846924,
-      "activity_count": 46,
       "display_name": "Checkpoint Inhibitors & CAR-T Combinations",
-      "short_description": "Immune checkpoint blockade, CAR-T cell therapies, and combination immunotherapy strategies in preclinical and clinical settings."
+      "short_description": "Immune checkpoint blockade, CAR-T cell therapies, and combination immunotherapy strategies in preclinical and clinical settings.",
+      "total_weight": 26.846924,
+      "activity_count": 46
     },
     {
       "id": "drug_antibody_biologics_vaccine_development",
@@ -237,10 +237,10 @@
         33529170
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 17.28803,
-      "activity_count": 58,
       "display_name": "Antibody, Biologic & Vaccine Development",
-      "short_description": "Monoclonal antibodies, antibody-drug conjugates, mRNA vaccines, and biologics targeting viral pathogens and cancer."
+      "short_description": "Monoclonal antibodies, antibody-drug conjugates, mRNA vaccines, and biologics targeting viral pathogens and cancer.",
+      "total_weight": 17.28803,
+      "activity_count": 58
     },
     {
       "id": "drug_gene_therapy_aav_delivery",
@@ -277,10 +277,10 @@
         37659767
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 9.117343,
-      "activity_count": 29,
       "display_name": "Gene Therapy & Nucleic Acid Delivery",
-      "short_description": "AAV vector engineering, mRNA delivery platforms, and gene therapy efficacy and safety for inherited and acquired diseases."
+      "short_description": "AAV vector engineering, mRNA delivery platforms, and gene therapy efficacy and safety for inherited and acquired diseases.",
+      "total_weight": 9.117343,
+      "activity_count": 29
     },
     {
       "id": "drug_gpcr_ion_channel_structural_pharmacology",
@@ -319,10 +319,10 @@
         39543505
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 12.050368,
-      "activity_count": 44,
       "display_name": "GPCR & Ion Channel Structural Pharmacology",
-      "short_description": "Structural and biophysical basis of GPCR, ion channel, and transporter function to guide allosteric and ligand-based drug design."
+      "short_description": "Structural and biophysical basis of GPCR, ion channel, and transporter function to guide allosteric and ligand-based drug design.",
+      "total_weight": 12.050368,
+      "activity_count": 44
     },
     {
       "id": "drug_metabolic_disease_obesity_pharmacotherapy",
@@ -358,10 +358,10 @@
         37701608
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 26.505743,
-      "activity_count": 73,
       "display_name": "Obesity & Metabolic Disease Pharmacotherapy",
-      "short_description": "GLP-1/GIP agonists, SGLT2 inhibitors, and novel targets for obesity, type 2 diabetes, and related metabolic disorders."
+      "short_description": "GLP-1/GIP agonists, SGLT2 inhibitors, and novel targets for obesity, type 2 diabetes, and related metabolic disorders.",
+      "total_weight": 26.505743,
+      "activity_count": 73
     },
     {
       "id": "drug_hematologic_malignancy_treatment",
@@ -402,10 +402,10 @@
         36991019
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 34.534807,
-      "activity_count": 59,
       "display_name": "Hematologic Malignancy Novel Agents",
-      "short_description": "Clinical trials and resistance mechanisms for venetoclax, ibrutinib, and other agents in leukemia, lymphoma, and myeloid disease."
+      "short_description": "Clinical trials and resistance mechanisms for venetoclax, ibrutinib, and other agents in leukemia, lymphoma, and myeloid disease.",
+      "total_weight": 34.534807,
+      "activity_count": 59
     },
     {
       "id": "drug_radiopharmaceutical_theranostics",
@@ -431,10 +431,10 @@
         39810069
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 6.93775,
-      "activity_count": 21,
       "display_name": "Radiopharmaceuticals & Theranostics",
-      "short_description": "PSMA-targeted agents, alpha-emitting radionuclides, and PET probes for cancer imaging and targeted radionuclide therapy."
+      "short_description": "PSMA-targeted agents, alpha-emitting radionuclides, and PET probes for cancer imaging and targeted radionuclide therapy.",
+      "total_weight": 6.93775,
+      "activity_count": 21
     },
     {
       "id": "drug_neurodegeneration_cns_pharmacology",
@@ -473,10 +473,10 @@
         37095396
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 31.132445,
-      "activity_count": 75,
       "display_name": "Neurodegeneration & CNS Drug Targets",
-      "short_description": "Pharmacological targeting of tau, amyloid-beta, and neuroinflammation in Alzheimer's, Parkinson's, ALS, and related disorders."
+      "short_description": "Pharmacological targeting of tau, amyloid-beta, and neuroinflammation in Alzheimer's, Parkinson's, ALS, and related disorders.",
+      "total_weight": 31.132445,
+      "activity_count": 75
     },
     {
       "id": "drug_covid19_antiviral_treatment",
@@ -509,10 +509,10 @@
         33712587
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 20.979865,
-      "activity_count": 38,
       "display_name": "COVID-19 Antiviral & Immunomodulatory Therapy",
-      "short_description": "Antiviral agents, monoclonal antibodies, and immunomodulators for SARS-CoV-2 across clinical trials and real-world settings."
+      "short_description": "Antiviral agents, monoclonal antibodies, and immunomodulators for SARS-CoV-2 across clinical trials and real-world settings.",
+      "total_weight": 20.979865,
+      "activity_count": 38
     },
     {
       "id": "drug_drug_repurposing_computational_discovery",
@@ -540,10 +540,10 @@
         40307992
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 5.208526,
-      "activity_count": 14,
       "display_name": "Computational Repurposing & Network Pharmacology",
-      "short_description": "Machine learning, knowledge graphs, and network pharmacology to identify new therapeutic uses for existing compounds."
+      "short_description": "Machine learning, knowledge graphs, and network pharmacology to identify new therapeutic uses for existing compounds.",
+      "total_weight": 5.208526,
+      "activity_count": 14
     },
     {
       "id": "drug_dermatology_biologics_topical",
@@ -573,10 +573,10 @@
         38844435
       ],
       "coverage_estimate": 0.023,
-      "total_weight": 3.777307,
-      "activity_count": 28,
       "display_name": "Dermatology Biologics & Topical Therapies",
-      "short_description": "Biologics, JAK inhibitors, and topical agents for atopic dermatitis, psoriasis, and inflammatory skin diseases."
+      "short_description": "Biologics, JAK inhibitors, and topical agents for atopic dermatitis, psoriasis, and inflammatory skin diseases.",
+      "total_weight": 3.777307,
+      "activity_count": 28
     },
     {
       "id": "drug_anesthesia_analgesic_cns_pharmacology",
@@ -608,10 +608,10 @@
         37567808
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 9.140974,
-      "activity_count": 33,
       "display_name": "Anesthesia & Analgesic Mechanisms",
-      "short_description": "Molecular targets and synaptic effects of anesthetics, opioids, psychedelics, and ketamine linking mechanisms to clinical outcomes."
+      "short_description": "Molecular targets and synaptic effects of anesthetics, opioids, psychedelics, and ketamine linking mechanisms to clinical outcomes.",
+      "total_weight": 9.140974,
+      "activity_count": 33
     }
   ],
   "uncovered_pmids": [
@@ -1174,9 +1174,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T18:37:18Z",
+  "augmented_at": "2026-05-13T13:19:41Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_drug_discovery_pharmacology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_drug_discovery_pharmacology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

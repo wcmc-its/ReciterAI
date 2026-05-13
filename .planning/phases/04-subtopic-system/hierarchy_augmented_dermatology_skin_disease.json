@@ -22,10 +22,10 @@
         35253588
       ],
       "coverage_estimate": 0.113,
-      "total_weight": 3.58127,
-      "activity_count": 10,
       "display_name": "Psoriasis Therapy & Health Disparities",
-      "short_description": "Biologic and topical psoriasis treatment efficacy, safety, and outcomes across diverse racial and ethnic populations."
+      "short_description": "Biologic and topical psoriasis treatment efficacy, safety, and outcomes across diverse racial and ethnic populations.",
+      "total_weight": 3.58127,
+      "activity_count": 10
     },
     {
       "id": "dermatology_atopic_dermatitis_therapeutics",
@@ -42,10 +42,10 @@
         32882092
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 2.752644,
-      "activity_count": 8,
       "display_name": "Atopic Dermatitis Treatment & Equity",
-      "short_description": "Systemic and topical therapies for atopic dermatitis with emphasis on efficacy across skin types and diverse populations."
+      "short_description": "Systemic and topical therapies for atopic dermatitis with emphasis on efficacy across skin types and diverse populations.",
+      "total_weight": 2.752644,
+      "activity_count": 8
     },
     {
       "id": "dermatology_hidradenitis_suppurativa",
@@ -63,10 +63,10 @@
         40369811
       ],
       "coverage_estimate": 0.078,
-      "total_weight": 2.899937,
-      "activity_count": 9,
       "display_name": "Hidradenitis Suppurativa Management",
-      "short_description": "Pathophysiology, comorbidities, and biologic or surgical treatment of hidradenitis suppurativa across patient populations."
+      "short_description": "Pathophysiology, comorbidities, and biologic or surgical treatment of hidradenitis suppurativa across patient populations.",
+      "total_weight": 2.899937,
+      "activity_count": 9
     },
     {
       "id": "dermatology_acne_skin_of_color",
@@ -81,10 +81,10 @@
         40122140
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 2.084384,
-      "activity_count": 6,
       "display_name": "Acne & Post-Inflammatory Hyperpigmentation",
-      "short_description": "Acne treatment strategies and management of post-inflammatory hyperpigmentation tailored to skin-of-color patients."
+      "short_description": "Acne treatment strategies and management of post-inflammatory hyperpigmentation tailored to skin-of-color patients.",
+      "total_weight": 2.084384,
+      "activity_count": 6
     },
     {
       "id": "dermatology_melanoma_immunotherapy",
@@ -100,10 +100,10 @@
         40730902
       ],
       "coverage_estimate": 0.061,
-      "total_weight": 4.558395,
-      "activity_count": 8,
       "display_name": "Melanoma Checkpoint-Inhibitor Immunotherapy",
-      "short_description": "Immune checkpoint inhibitors and combination immunotherapy for advanced melanoma, including long-term survival and T cell mechanisms."
+      "short_description": "Immune checkpoint inhibitors and combination immunotherapy for advanced melanoma, including long-term survival and T cell mechanisms.",
+      "total_weight": 4.558395,
+      "activity_count": 8
     },
     {
       "id": "dermatology_melanoma_targeted_therapy_biology",
@@ -121,10 +121,10 @@
         32941657
       ],
       "coverage_estimate": 0.078,
-      "total_weight": 3.897553,
-      "activity_count": 9,
       "display_name": "Melanoma Targeted Therapy & Biology",
-      "short_description": "BRAF/MEK-targeted therapies, melanocyte biology, tumor-infiltrating lymphocytes, and racial disparities in melanoma outcomes."
+      "short_description": "BRAF/MEK-targeted therapies, melanocyte biology, tumor-infiltrating lymphocytes, and racial disparities in melanoma outcomes.",
+      "total_weight": 3.897553,
+      "activity_count": 9
     },
     {
       "id": "dermatology_cutaneous_lymphoma",
@@ -138,10 +138,10 @@
         40827929
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 0.95929,
-      "activity_count": 5,
       "display_name": "Cutaneous T-Cell Lymphoma & Disorders",
-      "short_description": "Diagnosis, classification, and treatment of primary cutaneous lymphoproliferative disorders including mycosis fungoides."
+      "short_description": "Diagnosis, classification, and treatment of primary cutaneous lymphoproliferative disorders including mycosis fungoides.",
+      "total_weight": 0.95929,
+      "activity_count": 5
     },
     {
       "id": "dermatology_cutaneous_scc_and_rare_tumors",
@@ -156,10 +156,10 @@
         37275003
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 1.131488,
-      "activity_count": 5,
       "display_name": "Squamous Cell Carcinoma & Rare Tumors",
-      "short_description": "Molecular mechanisms of cSCC metastasis, genomic characterization, and rare cutaneous neoplasms in immunocompromised patients."
+      "short_description": "Molecular mechanisms of cSCC metastasis, genomic characterization, and rare cutaneous neoplasms in immunocompromised patients.",
+      "total_weight": 1.131488,
+      "activity_count": 5
     },
     {
       "id": "dermatology_covid19_skin_manifestations",
@@ -174,10 +174,10 @@
         36708984
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 3.524639,
-      "activity_count": 6,
       "display_name": "COVID-19 Cutaneous Manifestations",
-      "short_description": "Skin findings in COVID-19 including microvascular injury, complement deposition, and vaccine-induced cutaneous reactions."
+      "short_description": "Skin findings in COVID-19 including microvascular injury, complement deposition, and vaccine-induced cutaneous reactions.",
+      "total_weight": 3.524639,
+      "activity_count": 6
     },
     {
       "id": "dermatology_melasma_pigmentation_disorders",
@@ -191,10 +191,10 @@
         36456760
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 1.677464,
-      "activity_count": 6,
       "display_name": "Melasma, Pigmentation & Cosmetic Procedures",
-      "short_description": "Treatment of melasma and pigmentation disorders alongside cosmetic dermatology procedures for facial rejuvenation."
+      "short_description": "Treatment of melasma and pigmentation disorders alongside cosmetic dermatology procedures for facial rejuvenation.",
+      "total_weight": 1.677464,
+      "activity_count": 6
     },
     {
       "id": "dermatology_wound_healing_reconstruction",
@@ -212,10 +212,10 @@
         38048284
       ],
       "coverage_estimate": 0.078,
-      "total_weight": 1.877899,
-      "activity_count": 12,
       "display_name": "Wound Healing & Skin Reconstruction",
-      "short_description": "Experimental and clinical strategies for wound repair and reconstructive surgery, including scaffolds and advanced flap techniques."
+      "short_description": "Experimental and clinical strategies for wound repair and reconstructive surgery, including scaffolds and advanced flap techniques.",
+      "total_weight": 1.877899,
+      "activity_count": 12
     },
     {
       "id": "dermatology_inflammatory_skin_immunology",
@@ -230,10 +230,10 @@
         35907580
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 6.748637,
-      "activity_count": 11,
       "display_name": "Neuroimmune Mechanisms in Skin Inflammation",
-      "short_description": "Immune and neuroimmune pathways driving inflammatory skin diseases, including IL-23/Th17 signaling and axon-T cell interactions."
+      "short_description": "Immune and neuroimmune pathways driving inflammatory skin diseases, including IL-23/Th17 signaling and axon-T cell interactions.",
+      "total_weight": 6.748637,
+      "activity_count": 11
     },
     {
       "id": "dermatology_infectious_skin_disease",
@@ -247,10 +247,10 @@
         33099192
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 0.863457,
-      "activity_count": 3,
       "display_name": "Infectious & Systemic Skin Manifestations",
-      "short_description": "Diagnosis, epidemiology, and management of cutaneous infectious diseases including mpox and KSHV-associated Kaposi sarcoma."
+      "short_description": "Diagnosis, epidemiology, and management of cutaneous infectious diseases including mpox and KSHV-associated Kaposi sarcoma.",
+      "total_weight": 0.863457,
+      "activity_count": 3
     },
     {
       "id": "dermatology_skin_cancer_ai_diagnostics",
@@ -262,10 +262,10 @@
         34534794
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 0.629441,
-      "activity_count": 2,
       "display_name": "AI-Driven Skin Cancer Diagnostics",
-      "short_description": "Machine learning and deep learning tools for skin lesion classification, melanoma prognostication, and automated image analysis."
+      "short_description": "Machine learning and deep learning tools for skin lesion classification, melanoma prognostication, and automated image analysis.",
+      "total_weight": 0.629441,
+      "activity_count": 2
     }
   ],
   "uncovered_pmids": [
@@ -297,9 +297,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T22:06:56Z",
+  "augmented_at": "2026-05-13T14:13:06Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_dermatology_skin_disease.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_dermatology_skin_disease.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

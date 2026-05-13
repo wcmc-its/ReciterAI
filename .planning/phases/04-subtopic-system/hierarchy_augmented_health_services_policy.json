@@ -55,10 +55,10 @@
         33938919
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 45.968813,
-      "activity_count": 77,
       "display_name": "Payment Models & Insurance Policy",
-      "short_description": "Medicare/Medicaid reimbursement, value-based payment programs, drug pricing, and financial organization of health systems."
+      "short_description": "Medicare/Medicaid reimbursement, value-based payment programs, drug pricing, and financial organization of health systems.",
+      "total_weight": 45.968813,
+      "activity_count": 77
     },
     {
       "id": "health_care_coordination_fragmentation",
@@ -99,10 +99,10 @@
         40493999
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 45.723227,
-      "activity_count": 73,
       "display_name": "Care Coordination & Continuity",
-      "short_description": "Ambulatory care fragmentation, health information exchange, and care transitions linked to utilization, cost, and patient outcomes."
+      "short_description": "Ambulatory care fragmentation, health information exchange, and care transitions linked to utilization, cost, and patient outcomes.",
+      "total_weight": 45.723227,
+      "activity_count": 73
     },
     {
       "id": "health_telehealth_digital_health",
@@ -145,10 +145,10 @@
         34310547
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 27.85872,
-      "activity_count": 62,
       "display_name": "Telehealth & Digital Health Services",
-      "short_description": "Implementation, effectiveness, and equity implications of telemedicine and digital health technologies across clinical settings."
+      "short_description": "Implementation, effectiveness, and equity implications of telemedicine and digital health technologies across clinical settings.",
+      "total_weight": 27.85872,
+      "activity_count": 62
     },
     {
       "id": "health_racial_ethnic_disparities_access",
@@ -197,10 +197,10 @@
         39729978
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 82.348908,
-      "activity_count": 156,
       "display_name": "Disparities in Access & Outcomes",
-      "short_description": "Racial, ethnic, and socioeconomic gaps in healthcare access, treatment quality, and clinical outcomes, including structural racism interventions."
+      "short_description": "Racial, ethnic, and socioeconomic gaps in healthcare access, treatment quality, and clinical outcomes, including structural racism interventions.",
+      "total_weight": 82.348908,
+      "activity_count": 156
     },
     {
       "id": "health_opioid_substance_use_policy",
@@ -249,15 +249,15 @@
         36454553
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 46.485204,
-      "activity_count": 109,
       "display_name": "Opioid Use & Drug Policy",
-      "short_description": "Opioid prescribing, prescription monitoring, medications for opioid use disorder, harm reduction, and substance use treatment financing."
+      "short_description": "Opioid prescribing, prescription monitoring, medications for opioid use disorder, harm reduction, and substance use treatment financing.",
+      "total_weight": 46.485204,
+      "activity_count": 109
     },
     {
       "id": "health_social_determinants_health_outcomes",
       "label": "Social Determinants of Health and Population Health Outcomes",
-      "description": "Studies examining how social determinants of health (SDOH)—including income, education, neighborhood conditions, housing, and social vulnerability—affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
+      "description": "Studies examining how social determinants of health (SDOH)\u2014including income, education, neighborhood conditions, housing, and social vulnerability\u2014affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
       "seed_pmids": [
         32673521,
         33269599,
@@ -291,10 +291,10 @@
         36721088
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 27.210782,
-      "activity_count": 60,
       "display_name": "Social Determinants & Population Health",
-      "short_description": "Income, housing, education, and neighborhood conditions as drivers of cardiovascular, cancer, and other population health outcomes."
+      "short_description": "Income, housing, education, and neighborhood conditions as drivers of cardiovascular, cancer, and other population health outcomes.",
+      "total_weight": 27.210782,
+      "activity_count": 60
     },
     {
       "id": "health_hospital_utilization_quality_improvement",
@@ -336,10 +336,10 @@
         39836912
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 118.966116,
-      "activity_count": 197,
       "display_name": "Hospital Utilization & Patient Safety",
-      "short_description": "Admission rates, readmissions, quality improvement initiatives, and inpatient care organization including ICU staffing and discharge processes."
+      "short_description": "Admission rates, readmissions, quality improvement initiatives, and inpatient care organization including ICU staffing and discharge processes.",
+      "total_weight": 118.966116,
+      "activity_count": 197
     },
     {
       "id": "health_nursing_home_long_term_care",
@@ -374,10 +374,10 @@
         40916344
       ],
       "coverage_estimate": 0.016,
-      "total_weight": 22.09608,
-      "activity_count": 32,
       "display_name": "Nursing Home & Long-Term Care Policy",
-      "short_description": "Nursing home quality, staffing levels, ownership structures, resident outcomes, and policies governing skilled nursing and home health care."
+      "short_description": "Nursing home quality, staffing levels, ownership structures, resident outcomes, and policies governing skilled nursing and home health care.",
+      "total_weight": 22.09608,
+      "activity_count": 32
     },
     {
       "id": "health_medicaid_insurance_coverage_expansion",
@@ -414,10 +414,10 @@
         40201657
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 11.469713,
-      "activity_count": 19,
       "display_name": "Medicaid Expansion & Coverage Access",
-      "short_description": "Effects of Affordable Care Act Medicaid expansion and insurance coverage changes on access, utilization, and health outcomes."
+      "short_description": "Effects of Affordable Care Act Medicaid expansion and insurance coverage changes on access, utilization, and health outcomes.",
+      "total_weight": 11.469713,
+      "activity_count": 19
     },
     {
       "id": "health_covid19_pandemic_health_systems",
@@ -458,10 +458,10 @@
         37717648
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 54.493231,
-      "activity_count": 151,
       "display_name": "Pandemic Impact on Care Delivery",
-      "short_description": "COVID-19 effects on hospital operations, workforce well-being, care model adaptations, and resource allocation across specialties."
+      "short_description": "COVID-19 effects on hospital operations, workforce well-being, care model adaptations, and resource allocation across specialties.",
+      "total_weight": 54.493231,
+      "activity_count": 151
     },
     {
       "id": "health_elder_mistreatment_aging_services",
@@ -497,10 +497,10 @@
         39720910
       ],
       "coverage_estimate": 0.017,
-      "total_weight": 19.764131,
-      "activity_count": 39,
       "display_name": "Elder Mistreatment & Aging Services",
-      "short_description": "Identification, prevention, and response to elder abuse, including ED-based programs, screening tools, and economic consequences."
+      "short_description": "Identification, prevention, and response to elder abuse, including ED-based programs, screening tools, and economic consequences.",
+      "total_weight": 19.764131,
+      "activity_count": 39
     },
     {
       "id": "health_cancer_screening_disparities_survivorship",
@@ -539,10 +539,10 @@
         40103414
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 36.461331,
-      "activity_count": 109,
       "display_name": "Cancer Screening & Survivorship Care",
-      "short_description": "Population-level cancer screening disparities, survivorship care coordination, and access to guideline-concordant oncology services."
+      "short_description": "Population-level cancer screening disparities, survivorship care coordination, and access to guideline-concordant oncology services.",
+      "total_weight": 36.461331,
+      "activity_count": 109
     },
     {
       "id": "health_home_health_community_care_workforce",
@@ -581,10 +581,10 @@
         38600818
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 17.483021,
-      "activity_count": 38,
       "display_name": "Home Health & Community Care Workforce",
-      "short_description": "Home health delivery, community health worker roles, direct care workforce characteristics, and interventions to improve care quality."
+      "short_description": "Home health delivery, community health worker roles, direct care workforce characteristics, and interventions to improve care quality.",
+      "total_weight": 17.483021,
+      "activity_count": 38
     },
     {
       "id": "health_global_health_lmic_systems",
@@ -625,10 +625,10 @@
         39525883
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 24.967498,
-      "activity_count": 92,
       "display_name": "Global Health Systems in Low-Income Countries",
-      "short_description": "Healthcare delivery, disease burden, and intervention effectiveness in low- and middle-income countries across Africa, Asia, and the Caribbean."
+      "short_description": "Healthcare delivery, disease burden, and intervention effectiveness in low- and middle-income countries across Africa, Asia, and the Caribbean.",
+      "total_weight": 24.967498,
+      "activity_count": 92
     },
     {
       "id": "health_mental_health_behavioral_policy",
@@ -667,10 +667,10 @@
         40855707
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 23.91321,
-      "activity_count": 79,
       "display_name": "Behavioral Health Policy & Psychiatric Care",
-      "short_description": "Financing and delivery of mental health services, parity enforcement, primary care integration, and psychiatric workforce issues."
+      "short_description": "Financing and delivery of mental health services, parity enforcement, primary care integration, and psychiatric workforce issues.",
+      "total_weight": 23.91321,
+      "activity_count": 79
     }
   ],
   "uncovered_pmids": [
@@ -1862,9 +1862,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T17:37:47Z",
+  "augmented_at": "2026-05-13T12:45:13Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_health_services_policy.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_health_services_policy.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

@@ -618,7 +618,7 @@
     {
       "id": "mental_bipolar_disorder_mechanisms_treatment",
       "label": "Bipolar Disorder: Neurobiological Mechanisms and Treatment Approaches",
-      "description": "Studies investigating the neurobiological underpinnings of bipolar disorder including oxidative stress, GSK-3β signaling, and TRPV1 channels, as well as treatment approaches such as TMS, GLP-1 agonists, and stimulant use in comorbid conditions.",
+      "description": "Studies investigating the neurobiological underpinnings of bipolar disorder including oxidative stress, GSK-3\u03b2 signaling, and TRPV1 channels, as well as treatment approaches such as TMS, GLP-1 agonists, and stimulant use in comorbid conditions.",
       "seed_pmids": [
         34304690,
         35133924,
@@ -627,7 +627,7 @@
       ],
       "coverage_estimate": 0.02,
       "display_name": "Bipolar Disorder Mechanisms & Treatment",
-      "short_description": "Neurobiological underpinnings of bipolar disorder, including oxidative stress and GSK-3β signaling, and emerging treatment approaches."
+      "short_description": "Neurobiological underpinnings of bipolar disorder, including oxidative stress and GSK-3\u03b2 signaling, and emerging treatment approaches."
     },
     {
       "id": "mental_telepsychiatry_consultation_liaison",

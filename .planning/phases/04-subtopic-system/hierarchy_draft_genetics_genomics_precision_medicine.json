@@ -221,7 +221,7 @@
     {
       "id": "genetics_single_cell_multiomics",
       "label": "Single-Cell Multi-Omics and Spatial Genomics",
-      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling—including spatial transcriptomics—to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
+      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling\u2014including spatial transcriptomics\u2014to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
       "seed_pmids": [
         36593397,
         37563440,

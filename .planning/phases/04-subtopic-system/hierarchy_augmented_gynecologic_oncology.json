@@ -15,10 +15,10 @@
         39443795
       ],
       "coverage_estimate": 0.1,
-      "total_weight": 6.341573,
-      "activity_count": 6,
       "display_name": "Ovarian Cancer Tumor Microenvironment",
-      "short_description": "Immune evasion, immunosuppressive cell populations, and innate/adaptive immune responses driving ovarian tumor progression and therapy resistance."
+      "short_description": "Immune evasion, immunosuppressive cell populations, and innate/adaptive immune responses driving ovarian tumor progression and therapy resistance.",
+      "total_weight": 6.341573,
+      "activity_count": 6
     },
     {
       "id": "gynecologic_ovarian_cancer_molecular_therapeutics",
@@ -31,10 +31,10 @@
         33816459
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 2.771954,
-      "activity_count": 5,
       "display_name": "Ovarian Cancer Molecular Targets & Therapeutics",
-      "short_description": "Functional genomics, kinase inhibitors, and combination therapies targeting PI3K/mTOR and CRL4 pathways in ovarian cancer."
+      "short_description": "Functional genomics, kinase inhibitors, and combination therapies targeting PI3K/mTOR and CRL4 pathways in ovarian cancer.",
+      "total_weight": 2.771954,
+      "activity_count": 5
     },
     {
       "id": "gynecologic_ovarian_cancer_pathology_histology",
@@ -48,10 +48,10 @@
         36306239
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 2.789902,
-      "activity_count": 4,
       "display_name": "Ovarian Cancer Pathology & Classification",
-      "short_description": "Clinicopathologic and molecular characterization of ovarian tumor subtypes including granulosa cell, mucinous, and germ cell tumors."
+      "short_description": "Clinicopathologic and molecular characterization of ovarian tumor subtypes including granulosa cell, mucinous, and germ cell tumors.",
+      "total_weight": 2.789902,
+      "activity_count": 4
     },
     {
       "id": "gynecologic_endometrial_cancer_molecular_pathology",
@@ -64,10 +64,10 @@
         36306239
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 2.539784,
-      "activity_count": 4,
       "display_name": "Endometrial Cancer Molecular Pathology & Biomarkers",
-      "short_description": "Molecular profiling and histopathologic characterization of endometrial cancers, including HER2 testing, recurrence mutations, and biomarker expression."
+      "short_description": "Molecular profiling and histopathologic characterization of endometrial cancers, including HER2 testing, recurrence mutations, and biomarker expression.",
+      "total_weight": 2.539784,
+      "activity_count": 4
     },
     {
       "id": "gynecologic_cervical_cancer_hpv_screening_cytology",
@@ -82,10 +82,10 @@
         32800528
       ],
       "coverage_estimate": 0.1,
-      "total_weight": 1.415563,
-      "activity_count": 7,
       "display_name": "Cervical Cancer Screening & HPV Cytology",
-      "short_description": "Papanicolaou test interpretation, HPV co-testing, and cytologic management of HSIL and unsatisfactory cervicovaginal specimens."
+      "short_description": "Papanicolaou test interpretation, HPV co-testing, and cytologic management of HSIL and unsatisfactory cervicovaginal specimens.",
+      "total_weight": 1.415563,
+      "activity_count": 7
     },
     {
       "id": "gynecologic_hpv_infection_vaccination",
@@ -99,10 +99,10 @@
         34110312
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 1.431394,
-      "activity_count": 5,
       "display_name": "HPV Vaccination, Biology & Prevention",
-      "short_description": "HPV epidemiology, vaccine uptake, antibody responses, viral persistence, and cell-free DNA testing for cancer detection."
+      "short_description": "HPV epidemiology, vaccine uptake, antibody responses, viral persistence, and cell-free DNA testing for cancer detection.",
+      "total_weight": 1.431394,
+      "activity_count": 5
     },
     {
       "id": "gynecologic_hereditary_cancer_genetic_testing_cascade",
@@ -123,10 +123,10 @@
         38838280
       ],
       "coverage_estimate": 0.21,
-      "total_weight": 9.905772,
-      "activity_count": 11,
       "display_name": "Hereditary Cancer Syndromes & Cascade Testing",
-      "short_description": "Cascade genetic testing strategies for hereditary breast/ovarian cancer and Lynch syndrome, including barriers, referral pathways, and digital risk tools."
+      "short_description": "Cascade genetic testing strategies for hereditary breast/ovarian cancer and Lynch syndrome, including barriers, referral pathways, and digital risk tools.",
+      "total_weight": 9.905772,
+      "activity_count": 11
     },
     {
       "id": "gynecologic_lynch_syndrome_endometrial_screening",
@@ -138,10 +138,10 @@
         36305018
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.741158,
-      "activity_count": 2,
       "display_name": "Lynch Syndrome Surveillance & Endometrial Screening",
-      "short_description": "Cancer surveillance protocols for Lynch syndrome patients, including combined colon and endometrial screening and EHR-based population identification."
+      "short_description": "Cancer surveillance protocols for Lynch syndrome patients, including combined colon and endometrial screening and EHR-based population identification.",
+      "total_weight": 0.741158,
+      "activity_count": 2
     },
     {
       "id": "gynecologic_disparities_access_care",
@@ -156,10 +156,10 @@
         32981694
       ],
       "coverage_estimate": 0.1,
-      "total_weight": 2.928475,
-      "activity_count": 4,
       "display_name": "Disparities in Cancer Care & Access",
-      "short_description": "Racial, ethnic, socioeconomic, and geographic disparities in screening, treatment timeliness, and surgical access for gynecologic cancers."
+      "short_description": "Racial, ethnic, socioeconomic, and geographic disparities in screening, treatment timeliness, and surgical access for gynecologic cancers.",
+      "total_weight": 2.928475,
+      "activity_count": 4
     },
     {
       "id": "gynecologic_minimally_invasive_surgical_techniques",
@@ -171,10 +171,10 @@
         32977002
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.234349,
-      "activity_count": 2,
       "display_name": "Minimally Invasive & Robotic Surgery",
-      "short_description": "Robotic-assisted surgery, HIPEC via vaginal access, and tissue extraction techniques for pelvic cancers and myomas."
+      "short_description": "Robotic-assisted surgery, HIPEC via vaginal access, and tissue extraction techniques for pelvic cancers and myomas.",
+      "total_weight": 0.234349,
+      "activity_count": 2
     },
     {
       "id": "gynecologic_ovarian_cancer_survivorship_psychosocial",
@@ -187,10 +187,10 @@
         39836322
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 2.742822,
-      "activity_count": 4,
       "display_name": "Cancer Survivorship & Psychosocial Outcomes",
-      "short_description": "Quality of life, financial toxicity, mental health, and survivorship care planning for women with gynecologic cancers."
+      "short_description": "Quality of life, financial toxicity, mental health, and survivorship care planning for women with gynecologic cancers.",
+      "total_weight": 2.742822,
+      "activity_count": 4
     },
     {
       "id": "gynecologic_brca_somatic_germline_genomics",
@@ -203,10 +203,10 @@
         39638432
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 0.781973,
-      "activity_count": 2,
       "display_name": "BRCA & Somatic-Germline Genomic Profiling",
-      "short_description": "Plasma-based and tumor genomic profiling to detect BRCA mutations, structural variants, and molecular alterations guiding targeted therapy selection."
+      "short_description": "Plasma-based and tumor genomic profiling to detect BRCA mutations, structural variants, and molecular alterations guiding targeted therapy selection.",
+      "total_weight": 0.781973,
+      "activity_count": 2
     },
     {
       "id": "gynecologic_vulvar_rare_tumor_pathology",
@@ -218,10 +218,10 @@
         36306239
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.138769,
-      "activity_count": 1,
       "display_name": "Vulvar & Rare Gynecologic Tumor Pathology",
-      "short_description": "Molecular and clinicopathologic characterization of rare gynecologic neoplasms, including vulvar angiomyofibroblastoma with MTG1-CYP2E1 fusions."
+      "short_description": "Molecular and clinicopathologic characterization of rare gynecologic neoplasms, including vulvar angiomyofibroblastoma with MTG1-CYP2E1 fusions.",
+      "total_weight": 0.138769,
+      "activity_count": 1
     }
   ],
   "uncovered_pmids": [
@@ -235,9 +235,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 1,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T22:14:59Z",
+  "augmented_at": "2026-05-13T14:15:34Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_gynecologic_oncology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_gynecologic_oncology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

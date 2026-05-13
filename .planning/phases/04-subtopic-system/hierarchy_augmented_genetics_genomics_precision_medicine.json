@@ -38,10 +38,10 @@
         31584621
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 64.934094,
-      "activity_count": 70,
       "display_name": "Somatic Mutation & Tumor Evolution",
-      "short_description": "Whole-genome and targeted sequencing to characterize somatic mutations, structural variants, and clonal drivers of cancer progression."
+      "short_description": "Whole-genome and targeted sequencing to characterize somatic mutations, structural variants, and clonal drivers of cancer progression.",
+      "total_weight": 64.934094,
+      "activity_count": 70
     },
     {
       "id": "genetics_epigenomics_chromatin",
@@ -79,10 +79,10 @@
         34806083
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 43.834509,
-      "activity_count": 54,
       "display_name": "Epigenomics & Chromatin Regulation",
-      "short_description": "DNA methylation, histone modifications, and 3D chromatin architecture linking epigenetic states to transcriptional programs in disease."
+      "short_description": "DNA methylation, histone modifications, and 3D chromatin architecture linking epigenetic states to transcriptional programs in disease.",
+      "total_weight": 43.834509,
+      "activity_count": 54
     },
     {
       "id": "genetics_liquid_biopsy_ctdna",
@@ -117,10 +117,10 @@
         37784176
       ],
       "coverage_estimate": 0.031,
-      "total_weight": 27.548681,
-      "activity_count": 30,
       "display_name": "Liquid Biopsy & Circulating Tumor DNA",
-      "short_description": "ctDNA, cfDNA, and circulating tumor cells for non-invasive cancer detection, treatment monitoring, and resistance profiling."
+      "short_description": "ctDNA, cfDNA, and circulating tumor cells for non-invasive cancer detection, treatment monitoring, and resistance profiling.",
+      "total_weight": 27.548681,
+      "activity_count": 30
     },
     {
       "id": "genetics_gwas_polygenic_risk",
@@ -153,10 +153,10 @@
         36379263
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 35.186931,
-      "activity_count": 44,
       "display_name": "GWAS & Polygenic Risk Scores",
-      "short_description": "Genome-wide association studies and polygenic risk score development for disease susceptibility, cancer screening, and population-level prediction."
+      "short_description": "Genome-wide association studies and polygenic risk score development for disease susceptibility, cancer screening, and population-level prediction.",
+      "total_weight": 35.186931,
+      "activity_count": 44
     },
     {
       "id": "genetics_hereditary_cancer_genetic_counseling",
@@ -188,10 +188,10 @@
         32190411
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 19.743117,
-      "activity_count": 24,
       "display_name": "Hereditary Cancer & Genetic Counseling",
-      "short_description": "Predisposition syndromes, germline testing, cascade screening, and equitable access to genetic counseling services."
+      "short_description": "Predisposition syndromes, germline testing, cascade screening, and equitable access to genetic counseling services.",
+      "total_weight": 19.743117,
+      "activity_count": 24
     },
     {
       "id": "genetics_transcriptomics_rna_sequencing",
@@ -225,15 +225,15 @@
         38828640
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 44.005198,
-      "activity_count": 62,
       "display_name": "Transcriptomics & RNA Biology",
-      "short_description": "Bulk and single-cell RNA sequencing, alternative splicing, and RNA modifications characterizing gene expression across disease contexts."
+      "short_description": "Bulk and single-cell RNA sequencing, alternative splicing, and RNA modifications characterizing gene expression across disease contexts.",
+      "total_weight": 44.005198,
+      "activity_count": 62
     },
     {
       "id": "genetics_single_cell_multiomics",
       "label": "Single-Cell Multi-Omics and Spatial Genomics",
-      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling—including spatial transcriptomics—to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
+      "description": "Research applying single-cell genomic, transcriptomic, epigenomic, and proteomic profiling\u2014including spatial transcriptomics\u2014to resolve cellular heterogeneity in tumors, tissues, and developmental systems. Includes multimodal integration methods and single-cell atlases of human tissues.",
       "seed_pmids": [
         36593397,
         37563440,
@@ -261,10 +261,10 @@
         36515978
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 32.62826,
-      "activity_count": 38,
       "display_name": "Single-Cell Multi-Omics & Spatial Genomics",
-      "short_description": "Single-cell and spatially resolved genomic profiling to map cellular heterogeneity in tumors, tissues, and developmental systems."
+      "short_description": "Single-cell and spatially resolved genomic profiling to map cellular heterogeneity in tumors, tissues, and developmental systems.",
+      "total_weight": 32.62826,
+      "activity_count": 38
     },
     {
       "id": "genetics_precision_oncology_biomarkers",
@@ -300,10 +300,10 @@
         39836407
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 35.093052,
-      "activity_count": 67,
       "display_name": "Oncology Biomarkers & Targeted Therapy",
-      "short_description": "Molecular and genomic profiling to guide cancer treatment selection, identify predictive biomarkers, and evaluate targeted therapies."
+      "short_description": "Molecular and genomic profiling to guide cancer treatment selection, identify predictive biomarkers, and evaluate targeted therapies.",
+      "total_weight": 35.093052,
+      "activity_count": 67
     },
     {
       "id": "genetics_epigenetic_aging_clonal_hematopoiesis",
@@ -330,10 +330,10 @@
         36138229
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 8.488532,
-      "activity_count": 17,
       "display_name": "Epigenetic Aging & Clonal Hematopoiesis",
-      "short_description": "DNA methylation clocks, biological age estimation, and CHIP as aging-related genomic phenomena with cardiovascular and cancer implications."
+      "short_description": "DNA methylation clocks, biological age estimation, and CHIP as aging-related genomic phenomena with cardiovascular and cancer implications.",
+      "total_weight": 8.488532,
+      "activity_count": 17
     },
     {
       "id": "genetics_lymphoma_leukemia_genomics",
@@ -367,10 +367,10 @@
         32442065
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 44.33766,
-      "activity_count": 64,
       "display_name": "Hematologic Malignancy Genomics",
-      "short_description": "Genomic, epigenomic, and transcriptomic characterization of leukemias and lymphomas to identify driver mutations and precision therapy targets."
+      "short_description": "Genomic, epigenomic, and transcriptomic characterization of leukemias and lymphomas to identify driver mutations and precision therapy targets.",
+      "total_weight": 44.33766,
+      "activity_count": 64
     },
     {
       "id": "genetics_gene_therapy_aav",
@@ -400,10 +400,10 @@
         35811100
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 14.197991,
-      "activity_count": 30,
       "display_name": "Gene Therapy & Genome Editing",
-      "short_description": "AAV vector development, CRISPR-Cas9 editing, and clinical gene therapy trials for neurological, metabolic, and inherited disorders."
+      "short_description": "AAV vector development, CRISPR-Cas9 editing, and clinical gene therapy trials for neurological, metabolic, and inherited disorders.",
+      "total_weight": 14.197991,
+      "activity_count": 30
     },
     {
       "id": "genetics_breast_cancer_genomics",
@@ -439,10 +439,10 @@
         40443130
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 21.814651,
-      "activity_count": 39,
       "display_name": "Breast Cancer Genomics & Risk",
-      "short_description": "Hereditary risk, somatic profiling, expression subtypes, and biomarker-guided treatment including BRCA1/2 and polygenic risk assessment."
+      "short_description": "Hereditary risk, somatic profiling, expression subtypes, and biomarker-guided treatment including BRCA1/2 and polygenic risk assessment.",
+      "total_weight": 21.814651,
+      "activity_count": 39
     },
     {
       "id": "genetics_prostate_cancer_genomics",
@@ -473,10 +473,10 @@
         35638091
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 28.906612,
-      "activity_count": 29,
       "display_name": "Prostate Cancer Molecular Profiling",
-      "short_description": "Androgen receptor signaling, chromatin remodeling, genomic subtypes, and biomarkers for prognosis and treatment selection in prostate cancer."
+      "short_description": "Androgen receptor signaling, chromatin remodeling, genomic subtypes, and biomarkers for prognosis and treatment selection in prostate cancer.",
+      "total_weight": 28.906612,
+      "activity_count": 29
     },
     {
       "id": "genetics_spaceflight_omics",
@@ -497,10 +497,10 @@
         40681523
       ],
       "coverage_estimate": 0.014,
-      "total_weight": 15.684185,
-      "activity_count": 13,
       "display_name": "Spaceflight Omics & Astronaut Genomics",
-      "short_description": "Multi-omics characterization of genomic, epigenomic, and immune changes induced by spaceflight in astronauts and civilian participants."
+      "short_description": "Multi-omics characterization of genomic, epigenomic, and immune changes induced by spaceflight in astronauts and civilian participants.",
+      "total_weight": 15.684185,
+      "activity_count": 13
     },
     {
       "id": "genetics_neurological_disease_genomics",
@@ -532,10 +532,10 @@
         35256815
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 27.397217,
-      "activity_count": 54,
       "display_name": "Neurological & Psychiatric Disease Genomics",
-      "short_description": "GWAS, transcriptomics, and iPSC models illuminating molecular mechanisms of Alzheimer's, schizophrenia, autism, and neurodegeneration."
+      "short_description": "GWAS, transcriptomics, and iPSC models illuminating molecular mechanisms of Alzheimer's, schizophrenia, autism, and neurodegeneration.",
+      "total_weight": 27.397217,
+      "activity_count": 54
     }
   ],
   "uncovered_pmids": [
@@ -1174,9 +1174,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T19:21:28Z",
+  "augmented_at": "2026-05-13T13:29:58Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_genetics_genomics_precision_medicine.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_genetics_genomics_precision_medicine.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

@@ -352,7 +352,7 @@
     {
       "id": "bioethics_ai_clinical_tools",
       "label": "AI and Machine Learning Applications in Clinical Practice",
-      "description": "Research on the development, evaluation, and interpretability of AI/ML tools—including large language models, imaging algorithms, and predictive models—applied to clinical diagnosis, documentation, and patient management.",
+      "description": "Research on the development, evaluation, and interpretability of AI/ML tools\u2014including large language models, imaging algorithms, and predictive models\u2014applied to clinical diagnosis, documentation, and patient management.",
       "seed_pmids": [
         37803009,
         38486010,
@@ -437,7 +437,7 @@
     {
       "id": "bioethics_religion_culture_clinical_ethics",
       "label": "Religion, Culture, and Clinical Ethics",
-      "description": "Exploration of how religious traditions and cultural frameworks—including Orthodox Judaism, Islam, and other theocentric worldviews—shape medical ethics, clinical decision-making, and patient care.",
+      "description": "Exploration of how religious traditions and cultural frameworks\u2014including Orthodox Judaism, Islam, and other theocentric worldviews\u2014shape medical ethics, clinical decision-making, and patient care.",
       "seed_pmids": [
         39575535,
         33752441,
@@ -464,7 +464,7 @@
     {
       "id": "bioethics_cognitive_bias_clinical_decision",
       "label": "Cognitive Bias and Group Dynamics in Clinical Decision-Making",
-      "description": "Research examining how cognitive biases—including confirmation bias, groupthink, and diagnostic anchoring—affect clinical judgment and decision-making quality among healthcare providers.",
+      "description": "Research examining how cognitive biases\u2014including confirmation bias, groupthink, and diagnostic anchoring\u2014affect clinical judgment and decision-making quality among healthcare providers.",
       "seed_pmids": [
         32485753,
         38877491,

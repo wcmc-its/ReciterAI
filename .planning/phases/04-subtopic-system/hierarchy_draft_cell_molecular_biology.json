@@ -119,7 +119,7 @@
     {
       "id": "cell_intracellular_signaling_pathways",
       "label": "Intracellular Signaling Pathways and Second Messengers",
-      "description": "Research on intracellular signal transduction cascades including cAMP/PKA, PI3K/AKT/mTOR, MAPK/ERK, Wnt/β-catenin, NF-κB, JAK/STAT, and calcium signaling. Encompasses studies of second messenger dynamics, kinase/phosphatase regulation, and pathway crosstalk in physiological and disease contexts.",
+      "description": "Research on intracellular signal transduction cascades including cAMP/PKA, PI3K/AKT/mTOR, MAPK/ERK, Wnt/\u03b2-catenin, NF-\u03baB, JAK/STAT, and calcium signaling. Encompasses studies of second messenger dynamics, kinase/phosphatase regulation, and pathway crosstalk in physiological and disease contexts.",
       "seed_pmids": [
         32184256,
         34413957,

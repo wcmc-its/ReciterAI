@@ -140,7 +140,7 @@
     {
       "id": "developmental_osteoblast_skeletal_differentiation",
       "label": "Osteoblast Differentiation and Skeletal Development",
-      "description": "Research on the molecular pathways governing osteoblast differentiation, bone formation, and skeletal patterning, including signaling through ERK/MAPK, hedgehog, Wnt, and GSK3-β pathways. Encompasses studies on craniosynostosis, skeletal stem cells, and mineralization defects.",
+      "description": "Research on the molecular pathways governing osteoblast differentiation, bone formation, and skeletal patterning, including signaling through ERK/MAPK, hedgehog, Wnt, and GSK3-\u03b2 pathways. Encompasses studies on craniosynostosis, skeletal stem cells, and mineralization defects.",
       "seed_pmids": [
         32807497,
         35325978,
@@ -158,7 +158,7 @@
     {
       "id": "developmental_intestinal_epithelial_lineage",
       "label": "Intestinal Epithelial Lineage and Stem Cell Biology",
-      "description": "Studies on the specification, maintenance, and plasticity of intestinal epithelial cell lineages, including Lgr5+ intestinal stem cells, goblet cells, and colonocyte identity. Encompasses Wnt/β-catenin signaling, niche interactions, and lineage reversion in homeostasis and cancer.",
+      "description": "Studies on the specification, maintenance, and plasticity of intestinal epithelial cell lineages, including Lgr5+ intestinal stem cells, goblet cells, and colonocyte identity. Encompasses Wnt/\u03b2-catenin signaling, niche interactions, and lineage reversion in homeostasis and cancer.",
       "seed_pmids": [
         35931033,
         35790295,
@@ -171,7 +171,7 @@
       ],
       "coverage_estimate": 0.04,
       "display_name": "Intestinal Epithelial Stem Cell Biology",
-      "short_description": "Specification and plasticity of intestinal epithelial lineages, Lgr5+ stem cells, and Wnt/β-catenin niche interactions in homeostasis and cancer."
+      "short_description": "Specification and plasticity of intestinal epithelial lineages, Lgr5+ stem cells, and Wnt/\u03b2-catenin niche interactions in homeostasis and cancer."
     },
     {
       "id": "developmental_endothelial_vascular_specification",
@@ -209,8 +209,8 @@
     },
     {
       "id": "developmental_pancreatic_beta_cell_differentiation",
-      "label": "Pancreatic β Cell Differentiation and Function",
-      "description": "Research on the differentiation, identity maintenance, and functional regulation of pancreatic β cells, including transcription factor control, epigenetic regulation, and lineage plasticity relevant to diabetes. Encompasses CDK4 signaling, ALDH1A3 inhibition, RAR-β deletion, and SARS-CoV-2-induced transdifferentiation.",
+      "label": "Pancreatic \u03b2 Cell Differentiation and Function",
+      "description": "Research on the differentiation, identity maintenance, and functional regulation of pancreatic \u03b2 cells, including transcription factor control, epigenetic regulation, and lineage plasticity relevant to diabetes. Encompasses CDK4 signaling, ALDH1A3 inhibition, RAR-\u03b2 deletion, and SARS-CoV-2-induced transdifferentiation.",
       "seed_pmids": [
         34081913,
         37712417,
@@ -221,8 +221,8 @@
         39232561
       ],
       "coverage_estimate": 0.035,
-      "display_name": "Pancreatic β-Cell Differentiation & Function",
-      "short_description": "Transcription factor control, epigenetic regulation, and lineage plasticity of pancreatic β cells relevant to diabetes and viral transdifferentiation."
+      "display_name": "Pancreatic \u03b2-Cell Differentiation & Function",
+      "short_description": "Transcription factor control, epigenetic regulation, and lineage plasticity of pancreatic \u03b2 cells relevant to diabetes and viral transdifferentiation."
     },
     {
       "id": "developmental_adipogenesis_differentiation",

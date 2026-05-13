@@ -298,7 +298,7 @@
     {
       "id": "pain_neuropathic_pain_mechanisms",
       "label": "Neuropathic Pain Biology & Peripheral Nerve Pathology",
-      "description": "Translational and clinical research on neuropathic pain mechanisms including small fiber neuropathy, peripheral nerve injury, traumatic neuromas, corneal nerve loss in non-diabetic conditions (COVID-19, Guillain-Barré), and pharmacological targets such as HCN channels and probucol.",
+      "description": "Translational and clinical research on neuropathic pain mechanisms including small fiber neuropathy, peripheral nerve injury, traumatic neuromas, corneal nerve loss in non-diabetic conditions (COVID-19, Guillain-Barr\u00e9), and pharmacological targets such as HCN channels and probucol.",
       "seed_pmids": [
         34826876,
         38099280,
@@ -457,7 +457,7 @@
     {
       "id": "pain_complementary_integrative_palliative",
       "label": "Complementary & Integrative Medicine in Palliative & Supportive Care",
-      "description": "Studies examining the use, perception, and evidence base for complementary and integrative medicine (CIM) approaches—including acupuncture, aromatherapy, tai chi, and spiritual care—for pain and symptom management in palliative, oncologic, and chronic pain populations.",
+      "description": "Studies examining the use, perception, and evidence base for complementary and integrative medicine (CIM) approaches\u2014including acupuncture, aromatherapy, tai chi, and spiritual care\u2014for pain and symptom management in palliative, oncologic, and chronic pain populations.",
       "seed_pmids": [
         33887994,
         34788656,

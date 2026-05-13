@@ -410,7 +410,7 @@
     {
       "id": "breast_ml_precision_oncology",
       "label": "Machine Learning and Computational Methods in Precision Oncology",
-      "description": "Development and application of machine learning models—including biologically constrained and deep learning frameworks—to improve cancer risk prediction, treatment response, and molecular profiling.",
+      "description": "Development and application of machine learning models\u2014including biologically constrained and deep learning frameworks\u2014to improve cancer risk prediction, treatment response, and molecular profiling.",
       "seed_pmids": [
         36852282,
         35239414,
@@ -449,7 +449,7 @@
     {
       "id": "breast_cardiotoxicity_cardiooncology",
       "label": "Cardiotoxicity and Cardio-Oncology in Breast Cancer Treatment",
-      "description": "Studies assessing cardiac toxicity from breast cancer therapies—including radiotherapy and chemotherapy—using imaging modalities such as PET and MRI to monitor subacute and chronic cardiovascular effects.",
+      "description": "Studies assessing cardiac toxicity from breast cancer therapies\u2014including radiotherapy and chemotherapy\u2014using imaging modalities such as PET and MRI to monitor subacute and chronic cardiovascular effects.",
       "seed_pmids": [
         32919154,
         37019746,
@@ -462,7 +462,7 @@
     {
       "id": "breast_cancer_screening_access_policy",
       "label": "Cancer Screening Access, Policy, and Health System Interventions",
-      "description": "Population-level studies examining adherence to cancer screening guidelines across diverse patient groups—including stroke survivors, mental illness patients, and Medicaid enrollees—and the policy interventions that affect screening uptake.",
+      "description": "Population-level studies examining adherence to cancer screening guidelines across diverse patient groups\u2014including stroke survivors, mental illness patients, and Medicaid enrollees\u2014and the policy interventions that affect screening uptake.",
       "seed_pmids": [
         32019432,
         35032754,
@@ -475,7 +475,7 @@
     {
       "id": "breast_patient_models_biomarkers",
       "label": "Patient-Derived Models and Novel Biomarkers for Cancer Detection",
-      "description": "Development of patient-derived in vitro and in vivo cancer models and novel blood-based or imaging biomarkers—including methylation assays and circulating macrophage-like cells—for cancer detection and monitoring.",
+      "description": "Development of patient-derived in vitro and in vivo cancer models and novel blood-based or imaging biomarkers\u2014including methylation assays and circulating macrophage-like cells\u2014for cancer detection and monitoring.",
       "seed_pmids": [
         35230691,
         40912599,

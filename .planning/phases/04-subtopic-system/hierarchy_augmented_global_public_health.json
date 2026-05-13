@@ -27,10 +27,10 @@
         33712587
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 28.506388,
-      "activity_count": 43,
       "display_name": "COVID-19 Transmission & Clinical Outcomes",
-      "short_description": "Population-level epidemiology of SARS-CoV-2 transmission, disease severity, hospitalization, and variant burden across global cohorts."
+      "short_description": "Population-level epidemiology of SARS-CoV-2 transmission, disease severity, hospitalization, and variant burden across global cohorts.",
+      "total_weight": 28.506388,
+      "activity_count": 43
     },
     {
       "id": "global_covid19_vaccines_immunity",
@@ -64,10 +64,10 @@
         37515986
       ],
       "coverage_estimate": 0.031,
-      "total_weight": 27.337195,
-      "activity_count": 44,
       "display_name": "COVID-19 Vaccine Effectiveness & Immunity",
-      "short_description": "Vaccine effectiveness, waning immunity, booster doses, and hybrid immunity against SARS-CoV-2 variants in large national cohorts."
+      "short_description": "Vaccine effectiveness, waning immunity, booster doses, and hybrid immunity against SARS-CoV-2 variants in large national cohorts.",
+      "total_weight": 27.337195,
+      "activity_count": 44
     },
     {
       "id": "global_covid19_pandemic_health_systems",
@@ -99,10 +99,10 @@
         37406237
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 13.42685,
-      "activity_count": 51,
       "display_name": "Pandemic Disruption to Health Systems",
-      "short_description": "Effects of COVID-19 on healthcare delivery, surgical operations, mental health services, and adaptations including telehealth expansion."
+      "short_description": "Effects of COVID-19 on healthcare delivery, surgical operations, mental health services, and adaptations including telehealth expansion.",
+      "total_weight": 13.42685,
+      "activity_count": 51
     },
     {
       "id": "global_covid19_mental_health_psychosocial",
@@ -127,10 +127,10 @@
         35549622
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 5.360257,
-      "activity_count": 21,
       "display_name": "Pandemic Mental Health & Psychosocial Impacts",
-      "short_description": "Psychological distress, anxiety, depression, and mental health service use among diverse populations during the COVID-19 pandemic."
+      "short_description": "Psychological distress, anxiety, depression, and mental health service use among diverse populations during the COVID-19 pandemic.",
+      "total_weight": 5.360257,
+      "activity_count": 21
     },
     {
       "id": "global_long_covid_post_acute_sequelae",
@@ -149,10 +149,10 @@
         34100231
       ],
       "coverage_estimate": 0.012,
-      "total_weight": 4.908325,
-      "activity_count": 9,
       "display_name": "Long COVID & Post-Acute Sequelae",
-      "short_description": "Prevalence, risk factors, symptoms, and functional impacts of post-acute SARS-CoV-2 sequelae across diverse populations."
+      "short_description": "Prevalence, risk factors, symptoms, and functional impacts of post-acute SARS-CoV-2 sequelae across diverse populations.",
+      "total_weight": 4.908325,
+      "activity_count": 9
     },
     {
       "id": "global_health_disparities_sdoh",
@@ -185,10 +185,10 @@
         35177548
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 28.805483,
-      "activity_count": 102,
       "display_name": "Disparities, Equity & Social Determinants",
-      "short_description": "How race, socioeconomic status, and neighborhood conditions drive disparities in disease outcomes, access, and mortality."
+      "short_description": "How race, socioeconomic status, and neighborhood conditions drive disparities in disease outcomes, access, and mortality.",
+      "total_weight": 28.805483,
+      "activity_count": 102
     },
     {
       "id": "global_infectious_disease_lmic",
@@ -225,10 +225,10 @@
         40842278
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 21.891267,
-      "activity_count": 42,
       "display_name": "Infectious Disease Epidemiology in LMICs",
-      "short_description": "Burden, transmission, prevention, and treatment of HIV, TB, malaria, and other infectious diseases in low- and middle-income countries."
+      "short_description": "Burden, transmission, prevention, and treatment of HIV, TB, malaria, and other infectious diseases in low- and middle-income countries.",
+      "total_weight": 21.891267,
+      "activity_count": 42
     },
     {
       "id": "global_hiv_cardiovascular_tanzania",
@@ -253,10 +253,10 @@
         40116806
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 10.851187,
-      "activity_count": 21,
       "display_name": "HIV-Associated Cardiovascular & Metabolic Disease",
-      "short_description": "Cardiovascular, renal, and metabolic complications among people living with HIV in sub-Saharan Africa, including antiretroviral therapy effects."
+      "short_description": "Cardiovascular, renal, and metabolic complications among people living with HIV in sub-Saharan Africa, including antiretroviral therapy effects.",
+      "total_weight": 10.851187,
+      "activity_count": 21
     },
     {
       "id": "global_ncd_lmic_diabetes_hypertension",
@@ -289,10 +289,10 @@
         37086189
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 10.641139,
-      "activity_count": 31,
       "display_name": "Non-Communicable Disease Burden in LMICs",
-      "short_description": "Epidemiology and community-based management of diabetes, hypertension, and cardiovascular disease in low- and middle-income country settings."
+      "short_description": "Epidemiology and community-based management of diabetes, hypertension, and cardiovascular disease in low- and middle-income country settings.",
+      "total_weight": 10.641139,
+      "activity_count": 31
     },
     {
       "id": "global_sexually_transmitted_infections_epidemiology",
@@ -319,10 +319,10 @@
         37608372
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 13.519443,
-      "activity_count": 30,
       "display_name": "STI Epidemiology & Mathematical Modeling",
-      "short_description": "Global and regional burden of herpes, gonorrhea, chlamydia, syphilis, and HIV using systematic reviews and transmission modeling."
+      "short_description": "Global and regional burden of herpes, gonorrhea, chlamydia, syphilis, and HIV using systematic reviews and transmission modeling.",
+      "total_weight": 13.519443,
+      "activity_count": 30
     },
     {
       "id": "global_hepatitis_viral_epidemiology",
@@ -352,10 +352,10 @@
         37521971
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 9.750475,
-      "activity_count": 21,
       "display_name": "Viral Hepatitis Screening & Treatment",
-      "short_description": "Epidemiology, screening, treatment, and elimination of hepatitis B, C, and D across high-risk and underserved populations worldwide."
+      "short_description": "Epidemiology, screening, treatment, and elimination of hepatitis B, C, and D across high-risk and underserved populations worldwide.",
+      "total_weight": 9.750475,
+      "activity_count": 21
     },
     {
       "id": "global_opioid_substance_use_policy",
@@ -386,10 +386,10 @@
         36880906
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 10.181392,
-      "activity_count": 38,
       "display_name": "Opioid Policy, Overdose & Harm Reduction",
-      "short_description": "Opioid prescribing policy, naloxone distribution, medication-assisted treatment, and syringe service programs with a focus on health equity."
+      "short_description": "Opioid prescribing policy, naloxone distribution, medication-assisted treatment, and syringe service programs with a focus on health equity.",
+      "total_weight": 10.181392,
+      "activity_count": 38
     },
     {
       "id": "global_maternal_perinatal_health",
@@ -419,10 +419,10 @@
         33786469
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 12.964585,
-      "activity_count": 39,
       "display_name": "Maternal & Perinatal Health Outcomes",
-      "short_description": "Maternal morbidity, perinatal outcomes, reproductive health disparities, and interventions for mothers and newborns in diverse settings."
+      "short_description": "Maternal morbidity, perinatal outcomes, reproductive health disparities, and interventions for mothers and newborns in diverse settings.",
+      "total_weight": 12.964585,
+      "activity_count": 39
     },
     {
       "id": "global_emergency_trauma_lmic",
@@ -452,10 +452,10 @@
         37856389
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 13.96814,
-      "activity_count": 44,
       "display_name": "Emergency Care & Surgical Capacity in LMICs",
-      "short_description": "Trauma outcomes, burn care, emergency medical systems, and surgical capacity building in resource-limited settings across East Africa and Asia."
+      "short_description": "Trauma outcomes, burn care, emergency medical systems, and surgical capacity building in resource-limited settings across East Africa and Asia.",
+      "total_weight": 13.96814,
+      "activity_count": 44
     },
     {
       "id": "global_elder_abuse_aging",
@@ -483,10 +483,10 @@
         33375925
       ],
       "coverage_estimate": 0.023,
-      "total_weight": 6.804749,
-      "activity_count": 21,
       "display_name": "Elder Mistreatment & Abuse Prevention",
-      "short_description": "Prevalence, risk factors, screening, and multidisciplinary responses to elder abuse, financial exploitation, and caregiver neglect."
+      "short_description": "Prevalence, risk factors, screening, and multidisciplinary responses to elder abuse, financial exploitation, and caregiver neglect.",
+      "total_weight": 6.804749,
+      "activity_count": 21
     },
     {
       "id": "global_malaria_antimicrobial_drug_resistance",
@@ -502,10 +502,10 @@
         35895423
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 1.586311,
-      "activity_count": 7,
       "display_name": "Malaria Drug Resistance & Novel Therapeutics",
-      "short_description": "Plasmodium biology, mechanisms of antimalarial resistance, and development of proteasome inhibitors and epigenetic therapeutic targets."
+      "short_description": "Plasmodium biology, mechanisms of antimalarial resistance, and development of proteasome inhibitors and epigenetic therapeutic targets.",
+      "total_weight": 1.586311,
+      "activity_count": 7
     },
     {
       "id": "global_covid19_diagnostics_testing",
@@ -526,10 +526,10 @@
         33991092
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 4.744937,
-      "activity_count": 15,
       "display_name": "COVID-19 Diagnostics & Surveillance Methods",
-      "short_description": "Performance of RT-PCR, rapid antigen, and serological assays for SARS-CoV-2, including wastewater surveillance and variant genotyping."
+      "short_description": "Performance of RT-PCR, rapid antigen, and serological assays for SARS-CoV-2, including wastewater surveillance and variant genotyping.",
+      "total_weight": 4.744937,
+      "activity_count": 15
     },
     {
       "id": "global_covid19_treatment_therapeutics",
@@ -548,10 +548,10 @@
         34995147
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 1.648174,
-      "activity_count": 9,
       "display_name": "COVID-19 Therapeutics & Clinical Management",
-      "short_description": "Monoclonal antibodies, antivirals, and repurposed drugs for COVID-19 treatment across disease severity levels."
+      "short_description": "Monoclonal antibodies, antivirals, and repurposed drugs for COVID-19 treatment across disease severity levels.",
+      "total_weight": 1.648174,
+      "activity_count": 9
     },
     {
       "id": "global_covid19_pediatric_outcomes",
@@ -569,10 +569,10 @@
         38548700
       ],
       "coverage_estimate": 0.016,
-      "total_weight": 2.964406,
-      "activity_count": 6,
       "display_name": "COVID-19 in Pediatric Populations",
-      "short_description": "SARS-CoV-2 severity, hospitalization, and immune responses in children and adolescents, including Omicron wave and pandemic care impacts."
+      "short_description": "SARS-CoV-2 severity, hospitalization, and immune responses in children and adolescents, including Omicron wave and pandemic care impacts.",
+      "total_weight": 2.964406,
+      "activity_count": 6
     },
     {
       "id": "global_covid19_population_immunity_modeling",
@@ -596,10 +596,10 @@
         33807647
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 7.452657,
-      "activity_count": 14,
       "display_name": "COVID-19 Immunity Modeling & Interventions",
-      "short_description": "Mathematical modeling of SARS-CoV-2 transmission, herd immunity, reinfection dynamics, and vaccination prioritization strategies."
+      "short_description": "Mathematical modeling of SARS-CoV-2 transmission, herd immunity, reinfection dynamics, and vaccination prioritization strategies.",
+      "total_weight": 7.452657,
+      "activity_count": 14
     },
     {
       "id": "global_suicide_mental_health_epidemiology",
@@ -623,10 +623,10 @@
         35910318
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 6.350401,
-      "activity_count": 29,
       "display_name": "Suicide Epidemiology & Prevention",
-      "short_description": "Population-level patterns of suicidal ideation, attempts, and deaths across demographic groups, with social determinants and prevention strategies."
+      "short_description": "Population-level patterns of suicidal ideation, attempts, and deaths across demographic groups, with social determinants and prevention strategies.",
+      "total_weight": 6.350401,
+      "activity_count": 29
     },
     {
       "id": "global_antimicrobial_resistance_gram_negative",
@@ -643,10 +643,10 @@
         39333485
       ],
       "coverage_estimate": 0.015,
-      "total_weight": 3.072125,
-      "activity_count": 9,
       "display_name": "Antimicrobial Resistance & Infection Control",
-      "short_description": "Epidemiology and management of carbapenem-resistant organisms and multidrug-resistant gram-negative bacteria in clinical and environmental settings."
+      "short_description": "Epidemiology and management of carbapenem-resistant organisms and multidrug-resistant gram-negative bacteria in clinical and environmental settings.",
+      "total_weight": 3.072125,
+      "activity_count": 9
     },
     {
       "id": "global_tuberculosis_diagnosis_treatment",
@@ -665,10 +665,10 @@
         40915316
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 5.966543,
-      "activity_count": 15,
       "display_name": "Tuberculosis Diagnosis & Treatment",
-      "short_description": "Novel TB diagnostics, drug-resistance testing, treatment regimens, and epidemiological modeling of TB burden and comorbidities."
+      "short_description": "Novel TB diagnostics, drug-resistance testing, treatment regimens, and epidemiological modeling of TB burden and comorbidities.",
+      "total_weight": 5.966543,
+      "activity_count": 15
     },
     {
       "id": "global_ncd_qatar_gulf_region",
@@ -697,10 +697,10 @@
         39609019
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 7.36144,
-      "activity_count": 19,
       "display_name": "NCD Epidemiology in Qatar & the Gulf",
-      "short_description": "Diabetes, hypertension, obesity, and mental health burden in Qatar and Gulf Cooperation Council countries via population-based surveys."
+      "short_description": "Diabetes, hypertension, obesity, and mental health burden in Qatar and Gulf Cooperation Council countries via population-based surveys.",
+      "total_weight": 7.36144,
+      "activity_count": 19
     },
     {
       "id": "global_cardiovascular_disease_lmic_haiti",
@@ -724,10 +724,10 @@
         34351939
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 38.061092,
-      "activity_count": 29,
       "display_name": "Cardiovascular Disease in Low-Income Settings",
-      "short_description": "Prevalence and risk factors for cardiovascular disease in Haiti and sub-Saharan Africa, including hypertension, diet, and environmental exposures."
+      "short_description": "Prevalence and risk factors for cardiovascular disease in Haiti and sub-Saharan Africa, including hypertension, diet, and environmental exposures.",
+      "total_weight": 38.061092,
+      "activity_count": 29
     },
     {
       "id": "global_heat_climate_health",
@@ -747,10 +747,10 @@
         33853696
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 3.8444,
-      "activity_count": 12,
       "display_name": "Heat-Related Illness & Climate Health Impacts",
-      "short_description": "Health consequences of extreme heat and natural disasters, including cardiovascular effects, community interventions, and climate-related health equity."
+      "short_description": "Health consequences of extreme heat and natural disasters, including cardiovascular effects, community interventions, and climate-related health equity.",
+      "total_weight": 3.8444,
+      "activity_count": 12
     },
     {
       "id": "global_hiv_perinatal_transmission_bnab",
@@ -770,10 +770,10 @@
         38608008
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 2.306567,
-      "activity_count": 11,
       "display_name": "Perinatal HIV Transmission & Infant Immunization",
-      "short_description": "Maternal-to-child HIV transmission, broadly neutralizing antibodies, and passive and active immunization strategies for infants."
+      "short_description": "Maternal-to-child HIV transmission, broadly neutralizing antibodies, and passive and active immunization strategies for infants.",
+      "total_weight": 2.306567,
+      "activity_count": 11
     },
     {
       "id": "global_reproductive_abortion_policy",
@@ -795,10 +795,10 @@
         34092236
       ],
       "coverage_estimate": 0.023,
-      "total_weight": 5.309366,
-      "activity_count": 13,
       "display_name": "Reproductive Health Policy & Abortion Access",
-      "short_description": "Abortion access, stigma reduction, reproductive justice frameworks, and contraceptive autonomy across diverse policy environments."
+      "short_description": "Abortion access, stigma reduction, reproductive justice frameworks, and contraceptive autonomy across diverse policy environments.",
+      "total_weight": 5.309366,
+      "activity_count": 13
     },
     {
       "id": "global_home_health_workforce_longterm_care",
@@ -814,10 +814,10 @@
         36210760
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 1.341633,
-      "activity_count": 6,
       "display_name": "Long-Term Care Workforce & Nursing Home Quality",
-      "short_description": "Working conditions, disaster preparedness, and health of home health aides, alongside staffing and quality outcomes in nursing homes."
+      "short_description": "Working conditions, disaster preparedness, and health of home health aides, alongside staffing and quality outcomes in nursing homes.",
+      "total_weight": 1.341633,
+      "activity_count": 6
     },
     {
       "id": "global_cancer_screening_survivorship_disparities",
@@ -841,10 +841,10 @@
         35381162
       ],
       "coverage_estimate": 0.027,
-      "total_weight": 8.36021,
-      "activity_count": 26,
       "display_name": "Cancer Screening, Survivorship & Disparities",
-      "short_description": "Disparities in cancer screening uptake and survivorship outcomes by race, ethnicity, and socioeconomic status, with equity-focused interventions."
+      "short_description": "Disparities in cancer screening uptake and survivorship outcomes by race, ethnicity, and socioeconomic status, with equity-focused interventions.",
+      "total_weight": 8.36021,
+      "activity_count": 26
     }
   ],
   "uncovered_pmids": [
@@ -1143,9 +1143,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T19:36:49Z",
+  "augmented_at": "2026-05-13T13:33:46Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_global_public_health.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_global_public_health.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

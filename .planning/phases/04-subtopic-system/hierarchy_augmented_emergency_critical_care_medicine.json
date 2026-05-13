@@ -19,10 +19,10 @@
         39266325
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 14.210524,
-      "activity_count": 15,
       "display_name": "Sepsis & Multi-Organ Dysfunction",
-      "short_description": "Pathophysiology, subphenotyping, vasopressor use, and outcomes in sepsis-induced organ failure and ARDS."
+      "short_description": "Pathophysiology, subphenotyping, vasopressor use, and outcomes in sepsis-induced organ failure and ARDS.",
+      "total_weight": 14.210524,
+      "activity_count": 15
     },
     {
       "id": "emergency_covid19_hospitalized_outcomes",
@@ -51,10 +51,10 @@
         40093761
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 10.060031,
-      "activity_count": 24,
       "display_name": "COVID-19 Hospitalization & Outcomes",
-      "short_description": "Clinical features, comorbidities, variant-specific severity, and in-hospital mortality among hospitalized COVID-19 patients."
+      "short_description": "Clinical features, comorbidities, variant-specific severity, and in-hospital mortality among hospitalized COVID-19 patients.",
+      "total_weight": 10.060031,
+      "activity_count": 24
     },
     {
       "id": "emergency_covid19_cardiac_thrombotic_complications",
@@ -75,10 +75,10 @@
         36272351
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 4.050069,
-      "activity_count": 8,
       "display_name": "COVID-19 Cardiac & Thrombotic Complications",
-      "short_description": "Myocarditis, arrhythmias, pulmonary embolism, and anticoagulation management in hospitalized COVID-19 patients."
+      "short_description": "Myocarditis, arrhythmias, pulmonary embolism, and anticoagulation management in hospitalized COVID-19 patients.",
+      "total_weight": 4.050069,
+      "activity_count": 8
     },
     {
       "id": "emergency_icu_operations_staffing",
@@ -98,10 +98,10 @@
         36610663
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 4.618146,
-      "activity_count": 15,
       "display_name": "ICU Staffing & Quality Improvement",
-      "short_description": "Intensivist ratios, interprofessional staffing models, and quality initiatives for safety in intensive care settings."
+      "short_description": "Intensivist ratios, interprofessional staffing models, and quality initiatives for safety in intensive care settings.",
+      "total_weight": 4.618146,
+      "activity_count": 15
     },
     {
       "id": "emergency_resuscitation_cardiac_arrest",
@@ -122,10 +122,10 @@
         34695057
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 7.275725,
-      "activity_count": 16,
       "display_name": "Resuscitation Science & Cardiac Arrest",
-      "short_description": "CPR training, bystander response, REBOA, epinephrine use, and mechanical circulatory support in cardiac arrest."
+      "short_description": "CPR training, bystander response, REBOA, epinephrine use, and mechanical circulatory support in cardiac arrest.",
+      "total_weight": 7.275725,
+      "activity_count": 16
     },
     {
       "id": "emergency_pulmonary_embolism_management",
@@ -146,10 +146,10 @@
         40311504
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 3.01021,
-      "activity_count": 13,
       "display_name": "Acute Pulmonary Embolism Management",
-      "short_description": "Risk stratification, catheter-directed thrombolysis, mechanical thrombectomy, and anticoagulation for acute pulmonary embolism."
+      "short_description": "Risk stratification, catheter-directed thrombolysis, mechanical thrombectomy, and anticoagulation for acute pulmonary embolism.",
+      "total_weight": 3.01021,
+      "activity_count": 13
     },
     {
       "id": "emergency_cardiogenic_shock_mcs",
@@ -168,10 +168,10 @@
         32234259
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 23.362777,
-      "activity_count": 13,
       "display_name": "Cardiogenic Shock & Circulatory Support",
-      "short_description": "Impella, IABP, VA-ECMO, and LVAD outcomes in cardiogenic shock, including disparities in device utilization."
+      "short_description": "Impella, IABP, VA-ECMO, and LVAD outcomes in cardiogenic shock, including disparities in device utilization.",
+      "total_weight": 23.362777,
+      "activity_count": 13
     },
     {
       "id": "emergency_stroke_cerebrovascular_ed",
@@ -197,10 +197,10 @@
         40202470
       ],
       "coverage_estimate": 0.034,
-      "total_weight": 15.804903,
-      "activity_count": 23,
       "display_name": "Stroke & Cerebrovascular Emergencies",
-      "short_description": "ED diagnosis, misdiagnosis, thrombectomy access, and risk stratification for stroke and hemorrhagic cerebrovascular events."
+      "short_description": "ED diagnosis, misdiagnosis, thrombectomy access, and risk stratification for stroke and hemorrhagic cerebrovascular events.",
+      "total_weight": 15.804903,
+      "activity_count": 23
     },
     {
       "id": "emergency_traumatic_injury_management",
@@ -226,10 +226,10 @@
         40261189
       ],
       "coverage_estimate": 0.034,
-      "total_weight": 11.440605,
-      "activity_count": 39,
       "display_name": "Traumatic Injury & Trauma Systems",
-      "short_description": "TBI, spinal cord injury, hemorrhage control, and trauma system design across high-income and low-resource settings."
+      "short_description": "TBI, spinal cord injury, hemorrhage control, and trauma system design across high-income and low-resource settings.",
+      "total_weight": 11.440605,
+      "activity_count": 39
     },
     {
       "id": "emergency_pediatric_critical_care",
@@ -258,10 +258,10 @@
         40842138
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 11.728603,
-      "activity_count": 26,
       "display_name": "Pediatric Critical Care & PICU Outcomes",
-      "short_description": "Delirium, transfusion practices, sedation, and staffing quality metrics in pediatric intensive care."
+      "short_description": "Delirium, transfusion practices, sedation, and staffing quality metrics in pediatric intensive care.",
+      "total_weight": 11.728603,
+      "activity_count": 26
     },
     {
       "id": "emergency_ed_operations_telemedicine",
@@ -285,10 +285,10 @@
         38904902
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 21.495865,
-      "activity_count": 37,
       "display_name": "ED Operations & Telemedicine",
-      "short_description": "Workflow optimization, virtual urgent care, patient navigation, and health IT for emergency care delivery."
+      "short_description": "Workflow optimization, virtual urgent care, patient navigation, and health IT for emergency care delivery.",
+      "total_weight": 21.495865,
+      "activity_count": 37
     },
     {
       "id": "emergency_elder_mistreatment_ed",
@@ -311,10 +311,10 @@
         38602348
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 11.169312,
-      "activity_count": 16,
       "display_name": "Elder Mistreatment in Emergency Settings",
-      "short_description": "Screening tools, interdisciplinary response teams, and outcomes for elder mistreatment identified in EDs and hospitals."
+      "short_description": "Screening tools, interdisciplinary response teams, and outcomes for elder mistreatment identified in EDs and hospitals.",
+      "total_weight": 11.169312,
+      "activity_count": 16
     },
     {
       "id": "emergency_opioid_substance_use_ed",
@@ -331,10 +331,10 @@
         37821869
       ],
       "coverage_estimate": 0.014,
-      "total_weight": 1.768614,
-      "activity_count": 7,
       "display_name": "Opioid Use Disorder in the ED",
-      "short_description": "ED-initiated buprenorphine, prescription monitoring, MOUD cost-effectiveness, and stigma reduction for substance use disorders."
+      "short_description": "ED-initiated buprenorphine, prescription monitoring, MOUD cost-effectiveness, and stigma reduction for substance use disorders.",
+      "total_weight": 1.768614,
+      "activity_count": 7
     },
     {
       "id": "emergency_global_emergency_care_lmic",
@@ -362,10 +362,10 @@
         40185614
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 5.523584,
-      "activity_count": 23,
       "display_name": "Global Emergency Care in Low-Resource Settings",
-      "short_description": "Trauma management, prehospital EMS, and emergency system capacity building in low- and middle-income countries."
+      "short_description": "Trauma management, prehospital EMS, and emergency system capacity building in low- and middle-income countries.",
+      "total_weight": 5.523584,
+      "activity_count": 23
     },
     {
       "id": "emergency_neurocritical_care_brain_injury",
@@ -390,10 +390,10 @@
         40129892
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 12.075077,
-      "activity_count": 29,
       "display_name": "Neurocritical Care & Acute Brain Injury",
-      "short_description": "ICP management, EEG monitoring, prognostication, and outcomes for hemorrhagic stroke and traumatic brain injury in the ICU."
+      "short_description": "ICP management, EEG monitoring, prognostication, and outcomes for hemorrhagic stroke and traumatic brain injury in the ICU.",
+      "total_weight": 12.075077,
+      "activity_count": 29
     },
     {
       "id": "emergency_covid19_pathophysiology_biomarkers",
@@ -411,10 +411,10 @@
         32942274
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 20.371644,
-      "activity_count": 20,
       "display_name": "COVID-19 Pathophysiology & Biomarkers",
-      "short_description": "Vascular injury, cytokine profiles, multi-omics, and laboratory biomarkers predicting severe COVID-19 and mortality."
+      "short_description": "Vascular injury, cytokine profiles, multi-omics, and laboratory biomarkers predicting severe COVID-19 and mortality.",
+      "total_weight": 20.371644,
+      "activity_count": 20
     },
     {
       "id": "emergency_covid19_neurological_complications",
@@ -432,10 +432,10 @@
         36343241
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 8.553616,
-      "activity_count": 8,
       "display_name": "COVID-19 Neurological & Cognitive Sequelae",
-      "short_description": "Stroke risk, brain imaging findings, cognitive deficits, and post-acute neurological complications of COVID-19."
+      "short_description": "Stroke risk, brain imaging findings, cognitive deficits, and post-acute neurological complications of COVID-19.",
+      "total_weight": 8.553616,
+      "activity_count": 8
     },
     {
       "id": "emergency_covid19_treatment_immunomodulation",
@@ -454,10 +454,10 @@
         34399058
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 2.040071,
-      "activity_count": 12,
       "display_name": "COVID-19 Immunomodulator & Antiviral Therapies",
-      "short_description": "Clinical evaluation of anakinra, infliximab, remdesivir, and evolving pharmacological strategies for COVID-19 treatment."
+      "short_description": "Clinical evaluation of anakinra, infliximab, remdesivir, and evolving pharmacological strategies for COVID-19 treatment.",
+      "total_weight": 2.040071,
+      "activity_count": 12
     },
     {
       "id": "emergency_covid19_hospital_operations_pandemic_response",
@@ -479,10 +479,10 @@
         33770848
       ],
       "coverage_estimate": 0.042,
-      "total_weight": 9.779611,
-      "activity_count": 22,
       "display_name": "Hospital Operations During COVID-19",
-      "short_description": "Institutional adaptations including surgical shutdowns, resource reallocation, simulation training, and crisis care ethics."
+      "short_description": "Institutional adaptations including surgical shutdowns, resource reallocation, simulation training, and crisis care ethics.",
+      "total_weight": 9.779611,
+      "activity_count": 22
     },
     {
       "id": "emergency_covid19_special_populations_comorbidities",
@@ -502,10 +502,10 @@
         36218031
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 10.057129,
-      "activity_count": 19,
       "display_name": "COVID-19 in Special Populations & Comorbidities",
-      "short_description": "Severity and outcomes in patients with cancer, CKD, diabetes, pregnancy, and other high-risk conditions during COVID-19."
+      "short_description": "Severity and outcomes in patients with cancer, CKD, diabetes, pregnancy, and other high-risk conditions during COVID-19.",
+      "total_weight": 10.057129,
+      "activity_count": 19
     },
     {
       "id": "emergency_covid19_respiratory_mechanical_ventilation",
@@ -522,10 +522,10 @@
         33315112
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 3.299732,
-      "activity_count": 7,
       "display_name": "COVID-19 Respiratory Failure & Ventilation",
-      "short_description": "Mechanical ventilation strategies, awake proning, barotrauma, tracheostomy, and ARDS outcomes in COVID-19."
+      "short_description": "Mechanical ventilation strategies, awake proning, barotrauma, tracheostomy, and ARDS outcomes in COVID-19.",
+      "total_weight": 3.299732,
+      "activity_count": 7
     },
     {
       "id": "emergency_post_covid_long_covid_outcomes",
@@ -539,10 +539,10 @@
         33589778
       ],
       "coverage_estimate": 0.016,
-      "total_weight": 4.128921,
-      "activity_count": 5,
       "display_name": "Long COVID & Post-Acute Sequelae",
-      "short_description": "Persistent symptoms, cardiopulmonary dysfunction, post-intensive care syndrome, and recovery disparities after COVID-19."
+      "short_description": "Persistent symptoms, cardiopulmonary dysfunction, post-intensive care syndrome, and recovery disparities after COVID-19.",
+      "total_weight": 4.128921,
+      "activity_count": 5
     },
     {
       "id": "emergency_antimicrobial_resistance_diagnostics",
@@ -558,10 +558,10 @@
         34646911
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 3.455662,
-      "activity_count": 10,
       "display_name": "Antimicrobial Resistance & Stewardship",
-      "short_description": "Detection of multidrug-resistant organisms, rapid molecular diagnostics, and stewardship programs in acute care settings."
+      "short_description": "Detection of multidrug-resistant organisms, rapid molecular diagnostics, and stewardship programs in acute care settings.",
+      "total_weight": 3.455662,
+      "activity_count": 10
     },
     {
       "id": "emergency_pediatric_transfusion_blood_management",
@@ -578,10 +578,10 @@
         36798534
       ],
       "coverage_estimate": 0.026,
-      "total_weight": 3.794686,
-      "activity_count": 12,
       "display_name": "Pediatric Transfusion & Blood Management",
-      "short_description": "Platelet and blood component transfusion practices, storage effects, and transfusion outcomes in critically ill children."
+      "short_description": "Platelet and blood component transfusion practices, storage effects, and transfusion outcomes in critically ill children.",
+      "total_weight": 3.794686,
+      "activity_count": 12
     },
     {
       "id": "emergency_lung_transplant_ecmo_outcomes",
@@ -597,10 +597,10 @@
         37559410
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 0.52075,
-      "activity_count": 6,
       "display_name": "Lung Transplantation & Perioperative ECMO",
-      "short_description": "Primary graft dysfunction, perioperative ECMO use, retransplantation outcomes, and ECMO withdrawal decisions."
+      "short_description": "Primary graft dysfunction, perioperative ECMO use, retransplantation outcomes, and ECMO withdrawal decisions.",
+      "total_weight": 0.52075,
+      "activity_count": 6
     },
     {
       "id": "emergency_palliative_care_ethics_end_of_life",
@@ -620,10 +620,10 @@
         35442779
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 2.956639,
-      "activity_count": 12,
       "display_name": "Palliative Care & End-of-Life Ethics",
-      "short_description": "Surrogate decision-making, DNR orders, ethical consultations, and end-of-life frameworks in critical and emergency care."
+      "short_description": "Surrogate decision-making, DNR orders, ethical consultations, and end-of-life frameworks in critical and emergency care.",
+      "total_weight": 2.956639,
+      "activity_count": 12
     },
     {
       "id": "emergency_icu_data_informatics_ai",
@@ -641,10 +641,10 @@
         38506968
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 3.973258,
-      "activity_count": 9,
       "display_name": "AI & Informatics in Critical Care",
-      "short_description": "Machine learning, federated learning, and EHR data systems for ICU mortality prediction and emergency care documentation."
+      "short_description": "Machine learning, federated learning, and EHR data systems for ICU mortality prediction and emergency care documentation.",
+      "total_weight": 3.973258,
+      "activity_count": 9
     },
     {
       "id": "emergency_cardiac_surgery_perioperative_outcomes",
@@ -662,10 +662,10 @@
         33444770
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 2.351015,
-      "activity_count": 7,
       "display_name": "Cardiac Surgery Perioperative Outcomes",
-      "short_description": "Vasoactive medications, pulmonary artery catheters, CABG, robotic mitral surgery, and aortic dissection repair outcomes."
+      "short_description": "Vasoactive medications, pulmonary artery catheters, CABG, robotic mitral surgery, and aortic dissection repair outcomes.",
+      "total_weight": 2.351015,
+      "activity_count": 7
     },
     {
       "id": "emergency_pediatric_ed_acute_illness",
@@ -686,10 +686,10 @@
         35373052
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 7.64137,
-      "activity_count": 18,
       "display_name": "Pediatric ED Acute Illness & Management",
-      "short_description": "Febrile infants, croup, MIS-C, concussion, mental health emergencies, and early warning scores in pediatric emergency care."
+      "short_description": "Febrile infants, croup, MIS-C, concussion, mental health emergencies, and early warning scores in pediatric emergency care.",
+      "total_weight": 7.64137,
+      "activity_count": 18
     },
     {
       "id": "emergency_hypertension_cardiac_biomarkers_ed",
@@ -708,10 +708,10 @@
         39913488
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 10.443439,
-      "activity_count": 14,
       "display_name": "Hypertension & Acute Coronary Syndromes",
-      "short_description": "Severe hypertension management, troponin assay performance, STEMI complications, and new atrial fibrillation in the ED."
+      "short_description": "Severe hypertension management, troponin assay performance, STEMI complications, and new atrial fibrillation in the ED.",
+      "total_weight": 10.443439,
+      "activity_count": 14
     }
   ],
   "uncovered_pmids": [
@@ -891,9 +891,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T20:12:19Z",
+  "augmented_at": "2026-05-13T13:43:18Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_emergency_critical_care_medicine.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_emergency_critical_care_medicine.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

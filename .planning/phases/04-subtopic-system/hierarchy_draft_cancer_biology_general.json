@@ -439,7 +439,7 @@
     {
       "id": "cancer_oncogenic_signaling_pathways",
       "label": "Oncogenic Signaling Pathways and Tumor Suppressor Biology",
-      "description": "Studies on key oncogenic and tumor suppressor signaling networks in cancer including PI3K/AKT/mTOR, RAS/MAPK, Wnt/β-catenin, Hippo, NF-κB, and androgen receptor pathways, and how their dysregulation drives malignant transformation and informs therapeutic targeting.",
+      "description": "Studies on key oncogenic and tumor suppressor signaling networks in cancer including PI3K/AKT/mTOR, RAS/MAPK, Wnt/\u03b2-catenin, Hippo, NF-\u03baB, and androgen receptor pathways, and how their dysregulation drives malignant transformation and informs therapeutic targeting.",
       "seed_pmids": [
         32792368,
         32814897,

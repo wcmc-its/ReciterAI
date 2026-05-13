@@ -33,10 +33,10 @@
         34192049
       ],
       "coverage_estimate": 0.014,
-      "total_weight": 61.062187,
-      "activity_count": 188,
       "display_name": "Trial Design & Research Infrastructure",
-      "short_description": "Methodological foundations and organizational infrastructure for designing, conducting, and supporting clinical trials."
+      "short_description": "Methodological foundations and organizational infrastructure for designing, conducting, and supporting clinical trials.",
+      "total_weight": 61.062187,
+      "activity_count": 188
     },
     {
       "id": "translational_biomarker_liquid_biopsy",
@@ -65,10 +65,10 @@
         33323406
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 55.766966,
-      "activity_count": 108,
       "display_name": "Liquid Biopsy & Circulating Biomarkers",
-      "short_description": "Discovery and validation of ctDNA, cell-free DNA, and proteomic signatures for cancer detection and treatment monitoring."
+      "short_description": "Discovery and validation of ctDNA, cell-free DNA, and proteomic signatures for cancer detection and treatment monitoring.",
+      "total_weight": 55.766966,
+      "activity_count": 108
     },
     {
       "id": "translational_oncology_clinical_trials",
@@ -104,10 +104,10 @@
         37327088
       ],
       "coverage_estimate": 0.015,
-      "total_weight": 73.879175,
-      "activity_count": 194,
       "display_name": "Oncology Trials & Treatment Outcomes",
-      "short_description": "Phase I–III trials and real-world studies evaluating systemic, targeted, and immunotherapy regimens across malignancies."
+      "short_description": "Phase I\u2013III trials and real-world studies evaluating systemic, targeted, and immunotherapy regimens across malignancies.",
+      "total_weight": 73.879175,
+      "activity_count": 194
     },
     {
       "id": "translational_machine_learning_ehr",
@@ -138,10 +138,10 @@
         40589496
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 40.666854,
-      "activity_count": 113,
       "display_name": "Machine Learning & EHR Prediction",
-      "short_description": "AI and deep learning applied to electronic health records for risk stratification, subphenotyping, and clinical decision support."
+      "short_description": "AI and deep learning applied to electronic health records for risk stratification, subphenotyping, and clinical decision support.",
+      "total_weight": 40.666854,
+      "activity_count": 113
     },
     {
       "id": "translational_imaging_biomarkers",
@@ -172,10 +172,10 @@
         33071729
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 68.267082,
-      "activity_count": 184,
       "display_name": "Quantitative Imaging Biomarkers",
-      "short_description": "Validation of MRI, PET, and computational imaging methods as biomarkers for neurological, cardiovascular, and oncologic diseases."
+      "short_description": "Validation of MRI, PET, and computational imaging methods as biomarkers for neurological, cardiovascular, and oncologic diseases.",
+      "total_weight": 68.267082,
+      "activity_count": 184
     },
     {
       "id": "translational_patient_reported_outcomes",
@@ -202,10 +202,10 @@
         40494733
       ],
       "coverage_estimate": 0.01,
-      "total_weight": 16.37453,
-      "activity_count": 82,
       "display_name": "Patient-Reported Outcomes & Quality of Life",
-      "short_description": "Development and application of PRO measures and symptom monitoring tools in trials and real-world clinical settings."
+      "short_description": "Development and application of PRO measures and symptom monitoring tools in trials and real-world clinical settings.",
+      "total_weight": 16.37453,
+      "activity_count": 82
     },
     {
       "id": "translational_covid19_therapeutics_vaccines",
@@ -236,10 +236,10 @@
         39169230
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 53.653003,
-      "activity_count": 101,
       "display_name": "COVID-19 Therapeutics, Vaccines & Epidemiology",
-      "short_description": "Vaccine effectiveness, therapeutic interventions, long COVID characterization, and clinical outcomes for SARS-CoV-2."
+      "short_description": "Vaccine effectiveness, therapeutic interventions, long COVID characterization, and clinical outcomes for SARS-CoV-2.",
+      "total_weight": 53.653003,
+      "activity_count": 101
     },
     {
       "id": "translational_gene_therapy_aav",
@@ -268,10 +268,10 @@
         38152412
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 20.487639,
-      "activity_count": 38,
       "display_name": "Gene Therapy & AAV Vector Development",
-      "short_description": "Engineering, safety evaluation, and therapeutic application of AAV and other gene therapy vectors across disease areas."
+      "short_description": "Engineering, safety evaluation, and therapeutic application of AAV and other gene therapy vectors across disease areas.",
+      "total_weight": 20.487639,
+      "activity_count": 38
     },
     {
       "id": "translational_precision_oncology_genomics",
@@ -300,10 +300,10 @@
         33929788
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 93.819023,
-      "activity_count": 187,
       "display_name": "Precision Oncology & Tumor Genomics",
-      "short_description": "Genomic and molecular tumor profiling to identify actionable alterations, predict response, and characterize resistance mechanisms."
+      "short_description": "Genomic and molecular tumor profiling to identify actionable alterations, predict response, and characterize resistance mechanisms.",
+      "total_weight": 93.819023,
+      "activity_count": 187
     },
     {
       "id": "translational_neurology_stroke_brain_injury",
@@ -332,10 +332,10 @@
         39886760
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 31.762594,
-      "activity_count": 80,
       "display_name": "Stroke & Traumatic Brain Injury Research",
-      "short_description": "Biomarker discovery, neuroimaging outcomes, and neuroprotective strategies for stroke, TBI, and neurological disorders."
+      "short_description": "Biomarker discovery, neuroimaging outcomes, and neuroprotective strategies for stroke, TBI, and neurological disorders.",
+      "total_weight": 31.762594,
+      "activity_count": 80
     },
     {
       "id": "translational_infectious_disease_hiv",
@@ -364,10 +364,10 @@
         35192346
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 30.520357,
-      "activity_count": 105,
       "display_name": "HIV, Vaccines & Infectious Disease",
-      "short_description": "HIV pathogenesis, reservoir characterization, broadly neutralizing antibodies, and vaccine development for emerging pathogens."
+      "short_description": "HIV pathogenesis, reservoir characterization, broadly neutralizing antibodies, and vaccine development for emerging pathogens.",
+      "total_weight": 30.520357,
+      "activity_count": 105
     },
     {
       "id": "translational_wearables_digital_health",
@@ -394,10 +394,10 @@
         40716358
       ],
       "coverage_estimate": 0.01,
-      "total_weight": 9.063307,
-      "activity_count": 34,
       "display_name": "Wearables, Digital Biomarkers & mHealth",
-      "short_description": "Sensor-based monitoring, mobile health apps, and technology-driven interventions for chronic disease and mental health management."
+      "short_description": "Sensor-based monitoring, mobile health apps, and technology-driven interventions for chronic disease and mental health management.",
+      "total_weight": 9.063307,
+      "activity_count": 34
     },
     {
       "id": "translational_transplant_kidney_allograft",
@@ -425,10 +425,10 @@
         34436474
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 16.412026,
-      "activity_count": 38,
       "display_name": "Transplantation & Allograft Biomarker Monitoring",
-      "short_description": "Noninvasive biomarker development for rejection surveillance and clinical management of solid organ transplant recipients."
+      "short_description": "Noninvasive biomarker development for rejection surveillance and clinical management of solid organ transplant recipients.",
+      "total_weight": 16.412026,
+      "activity_count": 38
     },
     {
       "id": "translational_research_workforce_ctsa",
@@ -454,10 +454,10 @@
         38862209
       ],
       "coverage_estimate": 0.01,
-      "total_weight": 6.986507,
-      "activity_count": 22,
       "display_name": "Workforce Development & CTSA Programs",
-      "short_description": "Physician-scientist training, research capacity building, and CTSA hub infrastructure supporting bench-to-bedside science."
+      "short_description": "Physician-scientist training, research capacity building, and CTSA hub infrastructure supporting bench-to-bedside science.",
+      "total_weight": 6.986507,
+      "activity_count": 22
     },
     {
       "id": "translational_alzheimers_neurodegeneration_biomarkers",
@@ -485,10 +485,10 @@
         39994231
       ],
       "coverage_estimate": 0.011,
-      "total_weight": 25.64867,
-      "activity_count": 58,
       "display_name": "Alzheimer's Disease & Neurodegeneration Biomarkers",
-      "short_description": "Amyloid, tau, and fluid biomarkers linking molecular pathology to early detection and clinical outcomes in neurodegeneration."
+      "short_description": "Amyloid, tau, and fluid biomarkers linking molecular pathology to early detection and clinical outcomes in neurodegeneration.",
+      "total_weight": 25.64867,
+      "activity_count": 58
     }
   ],
   "uncovered_pmids": [
@@ -1968,9 +1968,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T17:26:42Z",
+  "augmented_at": "2026-05-13T12:43:00Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_translational_clinical_science.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_translational_clinical_science.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

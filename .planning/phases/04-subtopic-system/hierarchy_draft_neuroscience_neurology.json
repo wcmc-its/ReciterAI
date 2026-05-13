@@ -481,7 +481,7 @@
     {
       "id": "neuroscience_neuroinflammation_microglia",
       "label": "Neuroinflammation, Microglia, and Neuroimmunology",
-      "description": "Research on neuroinflammation mechanisms including microglial function, tau-driven neuroinflammation, blood-brain barrier dysfunction, neuroimmune interactions, and inflammatory pathways in neurological diseases. Covers microglial NF-κB signaling, cGAS-IFN pathways, CD36, border-associated macrophages, and immune cell trafficking in stroke and neurodegeneration.",
+      "description": "Research on neuroinflammation mechanisms including microglial function, tau-driven neuroinflammation, blood-brain barrier dysfunction, neuroimmune interactions, and inflammatory pathways in neurological diseases. Covers microglial NF-\u03baB signaling, cGAS-IFN pathways, CD36, border-associated macrophages, and immune cell trafficking in stroke and neurodegeneration.",
       "seed_pmids": [
         35413950,
         37095396,

@@ -38,7 +38,7 @@
     {
       "id": "environmental_air_pollution_respiratory",
       "label": "Air Pollution and Respiratory Health",
-      "description": "Research on the effects of ambient and indoor air pollutants—including NO2, PM2.5, soybean dust, mold, and cooking fuels—on respiratory outcomes such as asthma, hypersensitivity pneumonitis, and lung function.",
+      "description": "Research on the effects of ambient and indoor air pollutants\u2014including NO2, PM2.5, soybean dust, mold, and cooking fuels\u2014on respiratory outcomes such as asthma, hypersensitivity pneumonitis, and lung function.",
       "seed_pmids": [
         32197971,
         37541489,
@@ -83,7 +83,7 @@
     {
       "id": "environmental_built_environment_health",
       "label": "Built Environment and Urban Health Outcomes",
-      "description": "Studies linking features of the urban built environment—including neighborhood design, food access, noise, and green space—to health outcomes such as cardiovascular disease, maternal mental health, and diet quality.",
+      "description": "Studies linking features of the urban built environment\u2014including neighborhood design, food access, noise, and green space\u2014to health outcomes such as cardiovascular disease, maternal mental health, and diet quality.",
       "seed_pmids": [
         34481472,
         33215073,
@@ -169,7 +169,7 @@
     {
       "id": "environmental_lead_toxic_metals_lmic",
       "label": "Lead and Heavy Metal Exposure in Low- and Middle-Income Countries",
-      "description": "Research on environmental heavy metal exposures—particularly lead—in low- and middle-income country settings and their associations with cardiovascular and systemic health outcomes.",
+      "description": "Research on environmental heavy metal exposures\u2014particularly lead\u2014in low- and middle-income country settings and their associations with cardiovascular and systemic health outcomes.",
       "seed_pmids": [
         34878898,
         39032621,

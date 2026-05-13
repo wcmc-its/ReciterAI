@@ -294,7 +294,7 @@
     {
       "id": "maternal_congenital_cmv_transmission",
       "label": "Congenital Cytomegalovirus Transmission and Maternal Immune Responses",
-      "description": "Studies investigating maternal immune mechanisms—including neutralizing antibodies, Fc-mediated responses, and ADCC-activating antibodies—that influence congenital human cytomegalovirus transmission risk, as well as placental IgG transfer efficiency and vaccine development strategies.",
+      "description": "Studies investigating maternal immune mechanisms\u2014including neutralizing antibodies, Fc-mediated responses, and ADCC-activating antibodies\u2014that influence congenital human cytomegalovirus transmission risk, as well as placental IgG transfer efficiency and vaccine development strategies.",
       "seed_pmids": [
         37427588,
         35763348,
@@ -437,7 +437,7 @@
     {
       "id": "maternal_fetal_programming_neurobiology",
       "label": "Fetal Programming, Maternal Stress, and Offspring Neurobiology",
-      "description": "Research on how prenatal maternal exposures—including stress, immune activation, hormones, and cytokines—program offspring brain development, anxiety, and behavioral outcomes through biological mechanisms.",
+      "description": "Research on how prenatal maternal exposures\u2014including stress, immune activation, hormones, and cytokines\u2014program offspring brain development, anxiety, and behavioral outcomes through biological mechanisms.",
       "seed_pmids": [
         40914942,
         38428650,

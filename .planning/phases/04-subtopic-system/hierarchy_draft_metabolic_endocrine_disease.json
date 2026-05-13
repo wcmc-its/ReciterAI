@@ -264,7 +264,7 @@
     {
       "id": "metabolic_adipocyte_biology_adipogenesis",
       "label": "Adipocyte Biology, Adipogenesis, and Adipose Tissue Function",
-      "description": "Research on molecular mechanisms of adipocyte differentiation, lipid metabolism, thermogenesis, and adipokine signaling, including studies on SIRT1, PGC1α, PPAR pathways, adipose tissue browning, and the role of adipose dysfunction in metabolic disease.",
+      "description": "Research on molecular mechanisms of adipocyte differentiation, lipid metabolism, thermogenesis, and adipokine signaling, including studies on SIRT1, PGC1\u03b1, PPAR pathways, adipose tissue browning, and the role of adipose dysfunction in metabolic disease.",
       "seed_pmids": [
         33854178,
         32694788,
@@ -682,7 +682,7 @@
     {
       "id": "metabolic_pregnancy_metabolic_outcomes",
       "label": "Metabolic Conditions and Pregnancy Outcomes",
-      "description": "Studies examining the impact of metabolic conditions—including gestational diabetes, obesity, hypertension, and thyroid disorders—on maternal and neonatal outcomes, as well as glucose challenge testing and postpartum cardiovascular risk.",
+      "description": "Studies examining the impact of metabolic conditions\u2014including gestational diabetes, obesity, hypertension, and thyroid disorders\u2014on maternal and neonatal outcomes, as well as glucose challenge testing and postpartum cardiovascular risk.",
       "seed_pmids": [
         33157064,
         34157439,

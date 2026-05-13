@@ -380,7 +380,7 @@
     {
       "id": "systems_metabolic_reprogramming_cancer",
       "label": "Metabolic Reprogramming in Cancer and Therapeutic Targeting",
-      "description": "Research characterizing metabolic pathway alterations in cancer cells—including lipid metabolism, mitochondrial function, NAD/NADP biosynthesis, and amino acid metabolism—and identifying metabolic vulnerabilities for therapeutic intervention.",
+      "description": "Research characterizing metabolic pathway alterations in cancer cells\u2014including lipid metabolism, mitochondrial function, NAD/NADP biosynthesis, and amino acid metabolism\u2014and identifying metabolic vulnerabilities for therapeutic intervention.",
       "seed_pmids": [
         34133937,
         35019856,

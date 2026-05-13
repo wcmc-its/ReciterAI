@@ -101,7 +101,7 @@
       ],
       "coverage_estimate": 0.015,
       "display_name": "Oncology Trials & Treatment Outcomes",
-      "short_description": "Phase I–III trials and real-world studies evaluating systemic, targeted, and immunotherapy regimens across malignancies."
+      "short_description": "Phase I\u2013III trials and real-world studies evaluating systemic, targeted, and immunotherapy regimens across malignancies."
     },
     {
       "id": "translational_machine_learning_ehr",

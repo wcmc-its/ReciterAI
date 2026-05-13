@@ -328,7 +328,7 @@
     {
       "id": "womens_reproductive_endocrinology_ovarian",
       "label": "Reproductive Endocrinology, Ovarian Biology, and Folliculogenesis",
-      "description": "Research on ovarian physiology including follicle development, theca cell biology, anti-Müllerian hormone, ovarian xenograft models, and hormonal regulation of reproductive function including progesterone receptor signaling and meiosis.",
+      "description": "Research on ovarian physiology including follicle development, theca cell biology, anti-M\u00fcllerian hormone, ovarian xenograft models, and hormonal regulation of reproductive function including progesterone receptor signaling and meiosis.",
       "seed_pmids": [
         32783948,
         33137110,
@@ -347,7 +347,7 @@
       ],
       "coverage_estimate": 0.025,
       "display_name": "Ovarian Biology & Folliculogenesis",
-      "short_description": "Follicle development, anti-Müllerian hormone, theca cell biology, and hormonal regulation of reproductive function."
+      "short_description": "Follicle development, anti-M\u00fcllerian hormone, theca cell biology, and hormonal regulation of reproductive function."
     },
     {
       "id": "womens_uterine_pelvic_disorders",

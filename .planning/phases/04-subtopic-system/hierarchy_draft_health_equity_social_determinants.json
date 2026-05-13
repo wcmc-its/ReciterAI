@@ -43,7 +43,7 @@
     {
       "id": "health_sdoh_cardiovascular_stroke",
       "label": "Social Determinants of Health and Cardiovascular/Stroke Outcomes",
-      "description": "Studies examining how social determinants of health—including poverty, neighborhood disadvantage, race, and cumulative social vulnerabilities—affect incidence, outcomes, and mortality from cardiovascular disease, heart failure, stroke, and coronary heart disease, primarily using large cohort studies such as REGARDS.",
+      "description": "Studies examining how social determinants of health\u2014including poverty, neighborhood disadvantage, race, and cumulative social vulnerabilities\u2014affect incidence, outcomes, and mortality from cardiovascular disease, heart failure, stroke, and coronary heart disease, primarily using large cohort studies such as REGARDS.",
       "seed_pmids": [
         32316807,
         32673521,
@@ -249,7 +249,7 @@
     {
       "id": "health_neighborhood_built_environment",
       "label": "Neighborhood Disadvantage, Built Environment, and Health Outcomes",
-      "description": "Studies investigating how neighborhood-level factors—including residential segregation, food environment, built environment, social deprivation, and environmental exposures—affect health outcomes and healthcare utilization. Includes research on geographic variation in Medicare spending and neighborhood social conditions.",
+      "description": "Studies investigating how neighborhood-level factors\u2014including residential segregation, food environment, built environment, social deprivation, and environmental exposures\u2014affect health outcomes and healthcare utilization. Includes research on geographic variation in Medicare spending and neighborhood social conditions.",
       "seed_pmids": [
         32520834,
         34110394,

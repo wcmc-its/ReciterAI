@@ -1,0 +1,22 @@
+{
+  "topic_id": "implementation_science",
+  "total_weights": {
+    "implementation_quality_improvement_clinical_protocols": 95.242369,
+    "implementation_guideline_adherence_barriers": 41.238038,
+    "implementation_telehealth_digital_care": 35.863368,
+    "implementation_cancer_screening_survivorship": 34.482857,
+    "implementation_health_disparities_equity": 29.199646,
+    "implementation_health_informatics_ai_decision_support": 28.227536,
+    "implementation_community_based_interventions": 27.538909,
+    "implementation_elder_mistreatment_caregiver_support": 25.153002,
+    "implementation_opioid_prescribing_policy": 22.605216,
+    "implementation_hiv_infectious_disease_programs": 22.196561,
+    "implementation_mental_health_substance_use_integration": 21.922355,
+    "implementation_medical_education_training": 19.783731,
+    "implementation_care_coordination_transitions": 15.507393,
+    "implementation_global_health_lmic": 12.723988,
+    "implementation_payment_policy_value_based_care": 11.04534
+  },
+  "faculty_count": 667,
+  "subtopic_count": 15
+}

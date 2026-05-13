@@ -349,7 +349,7 @@
     {
       "id": "single_adipocyte_differentiation_metabolism",
       "label": "Adipocyte Differentiation, Metabolism, and Proteomics",
-      "description": "Research characterizing adipocyte differentiation programs and metabolic regulation using proteomic and transcriptomic approaches, including SILAC-based profiling of 3T3-L1 cells, metformin effects, HIF1α-PPARγ networks, and circadian control of preadipocyte commitment.",
+      "description": "Research characterizing adipocyte differentiation programs and metabolic regulation using proteomic and transcriptomic approaches, including SILAC-based profiling of 3T3-L1 cells, metformin effects, HIF1\u03b1-PPAR\u03b3 networks, and circadian control of preadipocyte commitment.",
       "seed_pmids": [
         32991178,
         35275438,
@@ -456,7 +456,7 @@
     {
       "id": "single_lupus_autoimmune_innate",
       "label": "Lupus and Autoimmune Innate Immune Dysregulation",
-      "description": "Studies examining innate immune mechanisms in lupus, including IFN-driven IL-1β secretion in monocytes, Langerhans cell ADAM17 regulation in photosensitivity, and lymphatic fluid as an immunosurveillance conduit for tissue-specific inflammatory signals.",
+      "description": "Studies examining innate immune mechanisms in lupus, including IFN-driven IL-1\u03b2 secretion in monocytes, Langerhans cell ADAM17 regulation in photosensitivity, and lymphatic fluid as an immunosurveillance conduit for tissue-specific inflammatory signals.",
       "seed_pmids": [
         39378884,
         38860651,
@@ -482,7 +482,7 @@
     {
       "id": "single_liver_zonation_fibrosis",
       "label": "Liver Cell Biology: Zonation, Fibrosis, and Transcriptional Regulation",
-      "description": "Research on hepatic cell biology including aging-associated disruption of hepatocyte zonation, HNF4α regulation in cirrhosis and liver failure, hedgehog-driven peribiliary fibrogenic mesenchymal cells, and AAV vector tropism in liver cells.",
+      "description": "Research on hepatic cell biology including aging-associated disruption of hepatocyte zonation, HNF4\u03b1 regulation in cirrhosis and liver failure, hedgehog-driven peribiliary fibrogenic mesenchymal cells, and AAV vector tropism in liver cells.",
       "seed_pmids": [
         40622856,
         37993018,
@@ -491,12 +491,12 @@
       ],
       "coverage_estimate": 0.03,
       "display_name": "Liver Zonation, Fibrosis & Transcriptional Regulation",
-      "short_description": "Hepatocyte zonation, HNF4α regulation in cirrhosis, hedgehog-driven fibrogenic cells, and AAV tropism in liver biology."
+      "short_description": "Hepatocyte zonation, HNF4\u03b1 regulation in cirrhosis, hedgehog-driven fibrogenic cells, and AAV tropism in liver biology."
     },
     {
       "id": "single_chromosomal_instability_cancer_progression",
       "label": "Chromosomal Instability, Epigenetic Reprogramming, and Cancer Progression",
-      "description": "Studies on how chromosomal instability and epigenetic dysregulation drive cancer progression and metastasis, including PRC1 loss in uveal melanoma, non-cell-autonomous CIN-driven metastasis, PKCλ/ι inhibition activating interferon responses, and machine learning prediction of chromatin conformation in cancer.",
+      "description": "Studies on how chromosomal instability and epigenetic dysregulation drive cancer progression and metastasis, including PRC1 loss in uveal melanoma, non-cell-autonomous CIN-driven metastasis, PKC\u03bb/\u03b9 inhibition activating interferon responses, and machine learning prediction of chromatin conformation in cancer.",
       "seed_pmids": [
         34518527,
         37612508,

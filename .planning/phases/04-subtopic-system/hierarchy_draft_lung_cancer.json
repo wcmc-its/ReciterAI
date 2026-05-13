@@ -79,7 +79,7 @@
     {
       "id": "lung_tumor_microenvironment_immunity",
       "label": "Tumor Microenvironment and Immune Evasion in Lung Cancer",
-      "description": "Investigations into the lung cancer tumor microenvironment, including immune cell dynamics, immune evasion mechanisms (EMSY, IRE1α, PD-L1/EGFR interactions), and the evolution of immunity from preinvasive to invasive adenocarcinoma.",
+      "description": "Investigations into the lung cancer tumor microenvironment, including immune cell dynamics, immune evasion mechanisms (EMSY, IRE1\u03b1, PD-L1/EGFR interactions), and the evolution of immunity from preinvasive to invasive adenocarcinoma.",
       "seed_pmids": [
         34963055,
         36624093,

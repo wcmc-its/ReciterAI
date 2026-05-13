@@ -4,8 +4,8 @@
   "subtopics": [
     {
       "id": "neurodegenerative_amyloid_tau_pathology",
-      "label": "Amyloid-β and Tau Pathology in Alzheimer's Disease",
-      "description": "Research investigating the molecular mechanisms of amyloid-β production, aggregation, and clearance, tau phosphorylation, post-translational modifications, fibril formation, and the interplay between amyloid and tau pathologies in Alzheimer's disease and related tauopathies.",
+      "label": "Amyloid-\u03b2 and Tau Pathology in Alzheimer's Disease",
+      "description": "Research investigating the molecular mechanisms of amyloid-\u03b2 production, aggregation, and clearance, tau phosphorylation, post-translational modifications, fibril formation, and the interplay between amyloid and tau pathologies in Alzheimer's disease and related tauopathies.",
       "seed_pmids": [
         32341125,
         35258946,
@@ -32,13 +32,13 @@
         32738978
       ],
       "coverage_estimate": 0.092,
-      "display_name": "Amyloid-β & Tau Pathology",
-      "short_description": "Molecular mechanisms of amyloid-β aggregation, tau phosphorylation, and their interplay in Alzheimer's disease and tauopathies."
+      "display_name": "Amyloid-\u03b2 & Tau Pathology",
+      "short_description": "Molecular mechanisms of amyloid-\u03b2 aggregation, tau phosphorylation, and their interplay in Alzheimer's disease and tauopathies."
     },
     {
       "id": "neurodegenerative_neuroinflammation_microglia",
       "label": "Neuroinflammation and Microglial Biology in Neurodegeneration",
-      "description": "Studies examining microglial activation, TREM2 signaling, NF-κB pathways, progranulin deficiency, cannabinoid receptor modulation, and neuroinflammatory mechanisms including cGAS-STING and cytokine signaling in Alzheimer's disease, Parkinson's disease, and ALS.",
+      "description": "Studies examining microglial activation, TREM2 signaling, NF-\u03baB pathways, progranulin deficiency, cannabinoid receptor modulation, and neuroinflammatory mechanisms including cGAS-STING and cytokine signaling in Alzheimer's disease, Parkinson's disease, and ALS.",
       "seed_pmids": [
         32552741,
         32944144,
@@ -118,7 +118,7 @@
     {
       "id": "neurodegenerative_glymphatic_csf_clearance",
       "label": "Glymphatic System, CSF Clearance, and Brain Fluid Dynamics",
-      "description": "Research on glymphatic clearance pathways, perivascular space dynamics, CSF flow, interstitial fluid transport, and their associations with amyloid-β deposition, tau accumulation, and neurodegeneration measured via DTI-ALPS, MRI, and PET imaging.",
+      "description": "Research on glymphatic clearance pathways, perivascular space dynamics, CSF flow, interstitial fluid transport, and their associations with amyloid-\u03b2 deposition, tau accumulation, and neurodegeneration measured via DTI-ALPS, MRI, and PET imaging.",
       "seed_pmids": [
         38405348,
         37907155,
@@ -329,7 +329,7 @@
     {
       "id": "neurodegenerative_liver_fibrosis_vascular_risk",
       "label": "Systemic and Vascular Risk Factors for Cognitive Decline and Dementia",
-      "description": "Epidemiological and clinical studies examining associations between systemic conditions—including liver fibrosis, cardiovascular disease, hypertension, intracranial hemorrhage, and metabolic syndrome—and the risk or progression of dementia and cognitive decline.",
+      "description": "Epidemiological and clinical studies examining associations between systemic conditions\u2014including liver fibrosis, cardiovascular disease, hypertension, intracranial hemorrhage, and metabolic syndrome\u2014and the risk or progression of dementia and cognitive decline.",
       "seed_pmids": [
         35666174,
         37976909,
@@ -406,7 +406,7 @@
     {
       "id": "neurodegenerative_choroid_plexus_neurodegeneration",
       "label": "Choroid Plexus Pathology and Calcification in Neurodegeneration",
-      "description": "Research examining choroid plexus volume, calcification, and their associations with cortical microglial activation, APOE ε4 status, and neurodegeneration biomarkers using multimodal PET, CT, and MRI approaches.",
+      "description": "Research examining choroid plexus volume, calcification, and their associations with cortical microglial activation, APOE \u03b54 status, and neurodegeneration biomarkers using multimodal PET, CT, and MRI approaches.",
       "seed_pmids": [
         37321857,
         40229453,
@@ -458,7 +458,7 @@
     {
       "id": "neurodegenerative_ad_molecular_targets",
       "label": "Novel Molecular Targets and Small Molecule Therapeutics for Alzheimer's Disease",
-      "description": "Research identifying and validating novel molecular targets for Alzheimer's disease treatment, including CK1γ2 activation to reduce amyloid, adenosine deficiency driving synaptic hyperexcitability, transposable element dysregulation, and sex-specific demyelination via Tlr7.",
+      "description": "Research identifying and validating novel molecular targets for Alzheimer's disease treatment, including CK1\u03b32 activation to reduce amyloid, adenosine deficiency driving synaptic hyperexcitability, transposable element dysregulation, and sex-specific demyelination via Tlr7.",
       "seed_pmids": [
         38079390,
         39850358,
@@ -468,7 +468,7 @@
       ],
       "coverage_estimate": 0.06,
       "display_name": "Novel Molecular Targets for Alzheimer's Therapy",
-      "short_description": "Identification of therapeutic targets including CK1δ/γ, adenosine pathways, and transposable element dysregulation in Alzheimer's disease."
+      "short_description": "Identification of therapeutic targets including CK1\u03b4/\u03b3, adenosine pathways, and transposable element dysregulation in Alzheimer's disease."
     },
     {
       "id": "neurodegenerative_pd_metabolism_synaptic",

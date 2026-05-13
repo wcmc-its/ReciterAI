@@ -724,7 +724,7 @@
     {
       "id": "biochemistry_nanoparticle_theranostics_drug_delivery",
       "label": "Nanoparticle-Based Drug Delivery, Theranostics, and Targeted Cancer Therapy",
-      "description": "Studies on ultrasmall silica nanoparticles, peptide nanofibers, and targeted ligands (PSMA, FAP-α) for cancer drug delivery, imaging, and theranostic applications in prostate, lung, gastric, and other cancers.",
+      "description": "Studies on ultrasmall silica nanoparticles, peptide nanofibers, and targeted ligands (PSMA, FAP-\u03b1) for cancer drug delivery, imaging, and theranostic applications in prostate, lung, gastric, and other cancers.",
       "seed_pmids": [
         32723835,
         37007587,

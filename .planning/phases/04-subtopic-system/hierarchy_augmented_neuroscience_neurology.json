@@ -94,10 +94,10 @@
         36794299
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 86.956266,
-      "activity_count": 88,
       "display_name": "Stroke & Cerebrovascular Disease",
-      "short_description": "Mechanisms, treatment, outcomes, and prevention of ischemic and hemorrhagic stroke and cerebrovascular conditions."
+      "short_description": "Mechanisms, treatment, outcomes, and prevention of ischemic and hemorrhagic stroke and cerebrovascular conditions.",
+      "total_weight": 86.956266,
+      "activity_count": 88
     },
     {
       "id": "neuroscience_epilepsy_seizure",
@@ -159,10 +159,10 @@
         36636525
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 19.613808,
-      "activity_count": 44,
       "display_name": "Epilepsy & Seizure Disorders",
-      "short_description": "Diagnosis, mechanisms, and treatment of epilepsy and seizures across pediatric and adult populations."
+      "short_description": "Diagnosis, mechanisms, and treatment of epilepsy and seizures across pediatric and adult populations.",
+      "total_weight": 19.613808,
+      "activity_count": 44
     },
     {
       "id": "neuroscience_brain_injury_neurorehabilitation",
@@ -216,10 +216,10 @@
         32712797
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 42.836437,
-      "activity_count": 53,
       "display_name": "Brain Injury & Neurorehabilitation",
-      "short_description": "Recovery, functional outcomes, and rehabilitation interventions for traumatic and acquired brain injury."
+      "short_description": "Recovery, functional outcomes, and rehabilitation interventions for traumatic and acquired brain injury.",
+      "total_weight": 42.836437,
+      "activity_count": 53
     },
     {
       "id": "neuroscience_neuroimaging_mri",
@@ -316,10 +316,10 @@
         32499951
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 36.700272,
-      "activity_count": 62,
       "display_name": "Advanced Neuroimaging & MRI Methods",
-      "short_description": "Technical development and clinical application of quantitative MRI and PET-based neurological biomarkers."
+      "short_description": "Technical development and clinical application of quantitative MRI and PET-based neurological biomarkers.",
+      "total_weight": 36.700272,
+      "activity_count": 62
     },
     {
       "id": "neuroscience_corneal_confocal_neuropathy",
@@ -382,10 +382,10 @@
         40345154
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 24.470255,
-      "activity_count": 56,
       "display_name": "Corneal Confocal Microscopy & Neuropathy",
-      "short_description": "Non-invasive corneal nerve imaging as a biomarker for peripheral neuropathy and neurodegeneration."
+      "short_description": "Non-invasive corneal nerve imaging as a biomarker for peripheral neuropathy and neurodegeneration.",
+      "total_weight": 24.470255,
+      "activity_count": 56
     },
     {
       "id": "neuroscience_multiple_sclerosis",
@@ -425,10 +425,10 @@
         36601789
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 25.330199,
-      "activity_count": 23,
       "display_name": "Multiple Sclerosis Imaging & Treatment",
-      "short_description": "MRI biomarkers, disease-modifying therapies, and clinical outcomes in multiple sclerosis."
+      "short_description": "MRI biomarkers, disease-modifying therapies, and clinical outcomes in multiple sclerosis.",
+      "total_weight": 25.330199,
+      "activity_count": 23
     },
     {
       "id": "neuroscience_synaptic_ion_channel",
@@ -487,15 +487,15 @@
         34697455
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 31.539292,
-      "activity_count": 65,
       "display_name": "Synaptic Biology & Ion Channel Physiology",
-      "short_description": "Molecular mechanisms of synaptic transmission, vesicle release, and ion channel function in neurons."
+      "short_description": "Molecular mechanisms of synaptic transmission, vesicle release, and ion channel function in neurons.",
+      "total_weight": 31.539292,
+      "activity_count": 65
     },
     {
       "id": "neuroscience_neuroinflammation_microglia",
       "label": "Neuroinflammation, Microglia, and Neuroimmunology",
-      "description": "Research on neuroinflammation mechanisms including microglial function, tau-driven neuroinflammation, blood-brain barrier dysfunction, neuroimmune interactions, and inflammatory pathways in neurological diseases. Covers microglial NF-κB signaling, cGAS-IFN pathways, CD36, border-associated macrophages, and immune cell trafficking in stroke and neurodegeneration.",
+      "description": "Research on neuroinflammation mechanisms including microglial function, tau-driven neuroinflammation, blood-brain barrier dysfunction, neuroimmune interactions, and inflammatory pathways in neurological diseases. Covers microglial NF-\u03baB signaling, cGAS-IFN pathways, CD36, border-associated macrophages, and immune cell trafficking in stroke and neurodegeneration.",
       "seed_pmids": [
         35413950,
         37095396,
@@ -537,10 +537,10 @@
         39266325
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 21.774677,
-      "activity_count": 27,
       "display_name": "Neuroinflammation & Microglial Biology",
-      "short_description": "Microglial function, neuroimmune signaling, and inflammatory pathways in neurological disease."
+      "short_description": "Microglial function, neuroimmune signaling, and inflammatory pathways in neurological disease.",
+      "total_weight": 21.774677,
+      "activity_count": 27
     },
     {
       "id": "neuroscience_headache_pain",
@@ -589,10 +589,10 @@
         40317750
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 12.667803,
-      "activity_count": 37,
       "display_name": "Headache Disorders & Pain Neuroscience",
-      "short_description": "Migraine, neuropathic pain mechanisms, CGRP-targeted therapies, and surgical headache treatment."
+      "short_description": "Migraine, neuropathic pain mechanisms, CGRP-targeted therapies, and surgical headache treatment.",
+      "total_weight": 12.667803,
+      "activity_count": 37
     },
     {
       "id": "neuroscience_neural_circuits_cognition",
@@ -656,10 +656,10 @@
         37150221
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 35.770309,
-      "activity_count": 65,
       "display_name": "Neural Circuits, Memory & Cognition",
-      "short_description": "Circuit mechanisms underlying memory, learning, fear, and reward in hippocampal and prefrontal systems."
+      "short_description": "Circuit mechanisms underlying memory, learning, fear, and reward in hippocampal and prefrontal systems.",
+      "total_weight": 35.770309,
+      "activity_count": 65
     },
     {
       "id": "neuroscience_neurodevelopment_genetics",
@@ -711,10 +711,10 @@
         40907077
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 19.432131,
-      "activity_count": 33,
       "display_name": "Neurodevelopment & Single-Cell Genomics",
-      "short_description": "Genetic and epigenetic regulation of brain development using single-cell transcriptomic and genomic approaches."
+      "short_description": "Genetic and epigenetic regulation of brain development using single-cell transcriptomic and genomic approaches.",
+      "total_weight": 19.432131,
+      "activity_count": 33
     },
     {
       "id": "neuroscience_neurovascular_bbb",
@@ -755,10 +755,10 @@
         32161395
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 11.435517,
-      "activity_count": 19,
       "display_name": "Neurovascular Unit & Blood-Brain Barrier",
-      "short_description": "BBB permeability, glymphatic function, and neurovascular coupling in stroke and neurological disease."
+      "short_description": "BBB permeability, glymphatic function, and neurovascular coupling in stroke and neurological disease.",
+      "total_weight": 11.435517,
+      "activity_count": 19
     },
     {
       "id": "neuroscience_movement_disorders_dbs",
@@ -802,10 +802,10 @@
         37188222
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 15.704407,
-      "activity_count": 27,
       "display_name": "Movement Disorders & Neuromodulation",
-      "short_description": "Deep brain stimulation, focused ultrasound, and motor circuit mechanisms in Parkinson's and movement disorders."
+      "short_description": "Deep brain stimulation, focused ultrasound, and motor circuit mechanisms in Parkinson's and movement disorders.",
+      "total_weight": 15.704407,
+      "activity_count": 27
     },
     {
       "id": "neuroscience_alzheimer_biomarkers",
@@ -854,10 +854,10 @@
         38035277
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 16.545303,
-      "activity_count": 29,
       "display_name": "Alzheimer's Biomarkers & Neuroimaging",
-      "short_description": "Amyloid, tau PET, CSF markers, and multimodal imaging for early detection and staging of Alzheimer's disease."
+      "short_description": "Amyloid, tau PET, CSF markers, and multimodal imaging for early detection and staging of Alzheimer's disease.",
+      "total_weight": 16.545303,
+      "activity_count": 29
     },
     {
       "id": "neuroscience_spinal_cord_spine",
@@ -907,10 +907,10 @@
         33236688
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 8.419754,
-      "activity_count": 35,
       "display_name": "Spinal Cord Injury & Spine Surgery",
-      "short_description": "Surgical outcomes, neurological recovery, and global health perspectives on spinal cord injury and spine disease."
+      "short_description": "Surgical outcomes, neurological recovery, and global health perspectives on spinal cord injury and spine disease.",
+      "total_weight": 8.419754,
+      "activity_count": 35
     },
     {
       "id": "neuroscience_late_life_depression_psychiatry",
@@ -940,10 +940,10 @@
         33169946
       ],
       "coverage_estimate": 0.065,
-      "total_weight": 19.182377,
-      "activity_count": 26,
       "display_name": "Late-Life Depression & Mood Disorders",
-      "short_description": "Neurobiology, neuroimaging, and treatment of late-life depression, bipolar disorder, and PTSD."
+      "short_description": "Neurobiology, neuroimaging, and treatment of late-life depression, bipolar disorder, and PTSD.",
+      "total_weight": 19.182377,
+      "activity_count": 26
     },
     {
       "id": "neuroscience_covid19_neurological",
@@ -971,10 +971,10 @@
         37311536
       ],
       "coverage_estimate": 0.059,
-      "total_weight": 33.984951,
-      "activity_count": 32,
       "display_name": "COVID-19 Neurological Complications",
-      "short_description": "Brain imaging findings, cognitive sequelae, and rehabilitation of long COVID neuropsychiatric complications."
+      "short_description": "Brain imaging findings, cognitive sequelae, and rehabilitation of long COVID neuropsychiatric complications.",
+      "total_weight": 33.984951,
+      "activity_count": 32
     },
     {
       "id": "neuroscience_skull_base_surgery",
@@ -995,10 +995,10 @@
         36527462
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 6.530291,
-      "activity_count": 15,
       "display_name": "Skull Base Surgery & Cranial Approaches",
-      "short_description": "Endoscopic and open surgical approaches to the skull base, cavernous sinus, and craniovertebral junction."
+      "short_description": "Endoscopic and open surgical approaches to the skull base, cavernous sinus, and craniovertebral junction.",
+      "total_weight": 6.530291,
+      "activity_count": 15
     },
     {
       "id": "neuroscience_meningioma_pet_mri",
@@ -1015,10 +1015,10 @@
         38922363
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 4.346766,
-      "activity_count": 8,
       "display_name": "Meningioma PET/MRI & Treatment",
-      "short_description": "DOTATATE PET/MRI for meningioma diagnosis, radiosurgery planning, and novel medical therapies."
+      "short_description": "DOTATATE PET/MRI for meningioma diagnosis, radiosurgery planning, and novel medical therapies.",
+      "total_weight": 4.346766,
+      "activity_count": 8
     },
     {
       "id": "neuroscience_pediatric_brain_tumors",
@@ -1039,10 +1039,10 @@
         34243672
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 2.23563,
-      "activity_count": 11,
       "display_name": "Pediatric Brain Tumors & CNS Gliomas",
-      "short_description": "Molecular classification and drug delivery strategies for DIPG, high-grade gliomas, and pediatric CNS tumors."
+      "short_description": "Molecular classification and drug delivery strategies for DIPG, high-grade gliomas, and pediatric CNS tumors.",
+      "total_weight": 2.23563,
+      "activity_count": 11
     },
     {
       "id": "neuroscience_cns_gene_therapy",
@@ -1057,10 +1057,10 @@
         32659229
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 4.469294,
-      "activity_count": 6,
       "display_name": "CNS Gene Therapy & AAV Delivery",
-      "short_description": "AAV-mediated gene therapy for Batten disease, leukodystrophy, and other inherited neurological conditions."
+      "short_description": "AAV-mediated gene therapy for Batten disease, leukodystrophy, and other inherited neurological conditions.",
+      "total_weight": 4.469294,
+      "activity_count": 6
     },
     {
       "id": "neuroscience_delirium_pediatric_icu",
@@ -1078,10 +1078,10 @@
         33757305
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 2.031123,
-      "activity_count": 9,
       "display_name": "Delirium in Pediatric Critical Care",
-      "short_description": "Prevalence, biomarkers, and pharmacological prevention of delirium in pediatric ICU and transplant settings."
+      "short_description": "Prevalence, biomarkers, and pharmacological prevention of delirium in pediatric ICU and transplant settings.",
+      "total_weight": 2.031123,
+      "activity_count": 9
     },
     {
       "id": "neuroscience_stroke_diagnosis_quality",
@@ -1102,10 +1102,10 @@
         34056914
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 21.16982,
-      "activity_count": 26,
       "display_name": "Stroke Diagnosis, Quality & Disparities",
-      "short_description": "Diagnostic accuracy, misdiagnosis rates, and healthcare disparities in acute stroke and TIA management."
+      "short_description": "Diagnostic accuracy, misdiagnosis rates, and healthcare disparities in acute stroke and TIA management.",
+      "total_weight": 21.16982,
+      "activity_count": 26
     },
     {
       "id": "neuroscience_ischemic_stroke_mechanisms",
@@ -1130,10 +1130,10 @@
         39481070
       ],
       "coverage_estimate": 0.049,
-      "total_weight": 21.389569,
-      "activity_count": 21,
       "display_name": "Ischemic Stroke Mechanisms & Outcomes",
-      "short_description": "Pathophysiology, neuroimaging biomarkers, and clinical outcomes of ischemic stroke and cerebrovascular events."
+      "short_description": "Pathophysiology, neuroimaging biomarkers, and clinical outcomes of ischemic stroke and cerebrovascular events.",
+      "total_weight": 21.389569,
+      "activity_count": 21
     },
     {
       "id": "neuroscience_dysphagia_voice_disorders",
@@ -1148,10 +1148,10 @@
         40317750
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 0.624402,
-      "activity_count": 6,
       "display_name": "Dysphagia, Voice & Swallowing Disorders",
-      "short_description": "Swallowing dysfunction, aspiration, and laryngeal motor neuropathy in Parkinson's and neurological conditions."
+      "short_description": "Swallowing dysfunction, aspiration, and laryngeal motor neuropathy in Parkinson's and neurological conditions.",
+      "total_weight": 0.624402,
+      "activity_count": 6
     },
     {
       "id": "neuroscience_breast_reconstruction_reinnervation",
@@ -1172,10 +1172,10 @@
         39989892
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 1.4934,
-      "activity_count": 12,
       "display_name": "Sensory Reinnervation in Breast Reconstruction",
-      "short_description": "Targeted nipple-areola reinnervation and sensory recovery following mastectomy and reconstructive surgery."
+      "short_description": "Targeted nipple-areola reinnervation and sensory recovery following mastectomy and reconstructive surgery.",
+      "total_weight": 1.4934,
+      "activity_count": 12
     },
     {
       "id": "neuroscience_hiv_neurocognitive",
@@ -1191,10 +1191,10 @@
         32697615
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 2.621461,
-      "activity_count": 8,
       "display_name": "HIV-Associated Neurocognitive Disorders",
-      "short_description": "Cognitive impairment, brain biomarkers, and neuropathology in people living with HIV."
+      "short_description": "Cognitive impairment, brain biomarkers, and neuropathology in people living with HIV.",
+      "total_weight": 2.621461,
+      "activity_count": 8
     },
     {
       "id": "neuroscience_neuroimmunology_ilc",
@@ -1211,10 +1211,10 @@
         37918350
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 5.215617,
-      "activity_count": 10,
       "display_name": "Innate Lymphoid Cells & Gut-Brain Immunity",
-      "short_description": "Neuropeptide regulation of ILCs, mucosal immunity, and gut-brain immune interactions in neuroinflammation."
+      "short_description": "Neuropeptide regulation of ILCs, mucosal immunity, and gut-brain immune interactions in neuroinflammation.",
+      "total_weight": 5.215617,
+      "activity_count": 10
     },
     {
       "id": "neuroscience_neurosteroids_reproductive",
@@ -1231,10 +1231,10 @@
         35922659
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 4.341026,
-      "activity_count": 9,
       "display_name": "Neurosteroids, Hormones & Mood",
-      "short_description": "Allopregnanolone and neuroactive steroids in perinatal anxiety, postpartum depression, and reproductive mood disorders."
+      "short_description": "Allopregnanolone and neuroactive steroids in perinatal anxiety, postpartum depression, and reproductive mood disorders.",
+      "total_weight": 4.341026,
+      "activity_count": 9
     },
     {
       "id": "neuroscience_neurosurgery_education_technology",
@@ -1251,10 +1251,10 @@
         36782426
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 1.401359,
-      "activity_count": 6,
       "display_name": "Neurosurgical Education & Simulation Technology",
-      "short_description": "Augmented reality, virtual reality, and 3D simulation tools for surgical training and patient assistive technology."
+      "short_description": "Augmented reality, virtual reality, and 3D simulation tools for surgical training and patient assistive technology.",
+      "total_weight": 1.401359,
+      "activity_count": 6
     }
   ],
   "uncovered_pmids": [
@@ -1409,9 +1409,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T18:26:13Z",
+  "augmented_at": "2026-05-13T13:17:32Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_neuroscience_neurology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_neuroscience_neurology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

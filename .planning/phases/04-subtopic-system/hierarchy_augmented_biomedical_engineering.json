@@ -21,10 +21,10 @@
         39422495
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 4.583201,
-      "activity_count": 12,
       "display_name": "PET Scanner & Detector Innovation",
-      "short_description": "Hardware advances in PET detector modules, time-of-flight systems, and signal processing for high-resolution neuroimaging and oncology."
+      "short_description": "Hardware advances in PET detector modules, time-of-flight systems, and signal processing for high-resolution neuroimaging and oncology.",
+      "total_weight": 4.583201,
+      "activity_count": 12
     },
     {
       "id": "biomedical_quantitative_ultrasound",
@@ -43,10 +43,10 @@
         32763851
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 3.847671,
-      "activity_count": 11,
       "display_name": "Quantitative Ultrasound & Tissue Characterization",
-      "short_description": "Acoustic backscatter and localization microscopy methods for characterizing ocular, pulmonary, vascular, and lymph node tissue."
+      "short_description": "Acoustic backscatter and localization microscopy methods for characterizing ocular, pulmonary, vascular, and lymph node tissue.",
+      "total_weight": 3.847671,
+      "activity_count": 11
     },
     {
       "id": "biomedical_wearable_ai_monitoring",
@@ -70,10 +70,10 @@
         40716358
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 8.635857,
-      "activity_count": 19,
       "display_name": "Wearable Sensors & AI Health Monitoring",
-      "short_description": "Continuous physiological monitoring using wearable devices and AI algorithms for diabetes, neurological, and mental health conditions."
+      "short_description": "Continuous physiological monitoring using wearable devices and AI algorithms for diabetes, neurological, and mental health conditions.",
+      "total_weight": 8.635857,
+      "activity_count": 19
     },
     {
       "id": "biomedical_tissue_engineering_scaffolds",
@@ -95,10 +95,10 @@
         38675000
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 4.187166,
-      "activity_count": 13,
       "display_name": "Scaffolds & Biomaterials for Tissue Regeneration",
-      "short_description": "3D-printed polymers, hydrogels, and decellularized constructs engineered for cartilage, wound, and organ repair applications."
+      "short_description": "3D-printed polymers, hydrogels, and decellularized constructs engineered for cartilage, wound, and organ repair applications.",
+      "total_weight": 4.187166,
+      "activity_count": 13
     },
     {
       "id": "biomedical_breast_implant_reconstruction",
@@ -117,10 +117,10 @@
         32385706
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 3.09616,
-      "activity_count": 11,
       "display_name": "Implant Materials & Reconstructive Coatings",
-      "short_description": "Surface coatings, mesh scaffolds, and implant designs to reduce capsular contracture and complications in alloplastic breast reconstruction."
+      "short_description": "Surface coatings, mesh scaffolds, and implant designs to reduce capsular contracture and complications in alloplastic breast reconstruction.",
+      "total_weight": 3.09616,
+      "activity_count": 11
     },
     {
       "id": "biomedical_nanoparticle_drug_delivery",
@@ -140,10 +140,10 @@
         33933264
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 4.89609,
-      "activity_count": 15,
       "display_name": "Nanoparticle-Based Drug Delivery",
-      "short_description": "Engineered nanoparticles and nanofiber platforms for targeted delivery in cancer, wound healing, and infectious disease."
+      "short_description": "Engineered nanoparticles and nanofiber platforms for targeted delivery in cancer, wound healing, and infectious disease.",
+      "total_weight": 4.89609,
+      "activity_count": 15
     },
     {
       "id": "biomedical_focused_ultrasound_neuromodulation",
@@ -161,10 +161,10 @@
         33839564
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 5.428394,
-      "activity_count": 11,
       "display_name": "Focused Ultrasound & Neuromodulation",
-      "short_description": "Ultrasound-mediated blood-brain barrier opening, drug delivery, and brain stimulation for Alzheimer's, epilepsy, and traumatic brain injury."
+      "short_description": "Ultrasound-mediated blood-brain barrier opening, drug delivery, and brain stimulation for Alzheimer's, epilepsy, and traumatic brain injury.",
+      "total_weight": 5.428394,
+      "activity_count": 11
     },
     {
       "id": "biomedical_leadless_cardiac_devices",
@@ -184,10 +184,10 @@
         33010088
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 2.965931,
-      "activity_count": 12,
       "display_name": "Leadless Pacing & Cardiac Implant Devices",
-      "short_description": "Clinical evaluation of leadless pacemakers, subcutaneous ICDs, and cardiac resynchronization systems for arrhythmia management."
+      "short_description": "Clinical evaluation of leadless pacemakers, subcutaneous ICDs, and cardiac resynchronization systems for arrhythmia management.",
+      "total_weight": 2.965931,
+      "activity_count": 12
     },
     {
       "id": "biomedical_robotic_surgical_systems",
@@ -206,10 +206,10 @@
         36220987
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 1.035696,
-      "activity_count": 9,
       "display_name": "Robotic & Minimally Invasive Surgery",
-      "short_description": "Outcomes, learning curves, and technical innovations in robotic-assisted cardiac, urologic, bariatric, and general surgery."
+      "short_description": "Outcomes, learning curves, and technical innovations in robotic-assisted cardiac, urologic, bariatric, and general surgery.",
+      "total_weight": 1.035696,
+      "activity_count": 9
     },
     {
       "id": "biomedical_image_guided_spine_surgery",
@@ -230,10 +230,10 @@
         35364670
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 3.421535,
-      "activity_count": 12,
       "display_name": "Navigation & Augmented Reality in Spine Surgery",
-      "short_description": "Intraoperative 3D navigation, augmented reality overlays, and robotic assistance for pedicle screw placement and spinal fusion."
+      "short_description": "Intraoperative 3D navigation, augmented reality overlays, and robotic assistance for pedicle screw placement and spinal fusion.",
+      "total_weight": 3.421535,
+      "activity_count": 12
     },
     {
       "id": "biomedical_soft_robotic_cardiac_catheters",
@@ -246,10 +246,10 @@
         39597205
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 3.910506,
-      "activity_count": 4,
       "display_name": "Soft Robotic Catheters & Flexible Cardiac Sensors",
-      "short_description": "Catheter-deployable soft robotic devices with conformable sensor arrays for high-density atrial electrophysiology mapping and ablation."
+      "short_description": "Catheter-deployable soft robotic devices with conformable sensor arrays for high-density atrial electrophysiology mapping and ablation.",
+      "total_weight": 3.910506,
+      "activity_count": 4
     },
     {
       "id": "biomedical_3d_printing_medical_simulation",
@@ -266,10 +266,10 @@
         35990564
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 4.981269,
-      "activity_count": 17,
       "display_name": "3D Printing for Simulation & Surgical Planning",
-      "short_description": "Patient-specific anatomical models, surgical guides, and low-cost simulators produced via 3D printing for training and procedural planning."
+      "short_description": "Patient-specific anatomical models, surgical guides, and low-cost simulators produced via 3D printing for training and procedural planning.",
+      "total_weight": 4.981269,
+      "activity_count": 17
     },
     {
       "id": "biomedical_mri_reconstruction_methods",
@@ -287,10 +287,10 @@
         37229309
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 3.483802,
-      "activity_count": 7,
       "display_name": "Advanced MRI Reconstruction & Quantitative Mapping",
-      "short_description": "Deep learning and computational methods for susceptibility mapping, motion correction, and quantitative MRI in neuro and body imaging."
+      "short_description": "Deep learning and computational methods for susceptibility mapping, motion correction, and quantitative MRI in neuro and body imaging.",
+      "total_weight": 3.483802,
+      "activity_count": 7
     },
     {
       "id": "biomedical_ocular_biomechanics_devices",
@@ -307,10 +307,10 @@
         34321409
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.673833,
-      "activity_count": 7,
       "display_name": "Ocular Biomechanics & Ophthalmic Devices",
-      "short_description": "Biomechanical characterization of eye tissues in myopia and glaucoma, plus safety analysis of vitrectomy and intraocular lens systems."
+      "short_description": "Biomechanical characterization of eye tissues in myopia and glaucoma, plus safety analysis of vitrectomy and intraocular lens systems.",
+      "total_weight": 1.673833,
+      "activity_count": 7
     },
     {
       "id": "biomedical_vascularization_organoids",
@@ -325,10 +325,10 @@
         36282694
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 5.099858,
-      "activity_count": 6,
       "display_name": "Vascularization of Engineered Tissues & Organoids",
-      "short_description": "Prevascularized scaffolds, endothelial cell platforms, and organ-on-chip systems to achieve functional vasculature in engineered constructs."
+      "short_description": "Prevascularized scaffolds, endothelial cell platforms, and organ-on-chip systems to achieve functional vasculature in engineered constructs.",
+      "total_weight": 5.099858,
+      "activity_count": 6
     },
     {
       "id": "biomedical_spine_implants_fusion",
@@ -344,10 +344,10 @@
         38194481
       ],
       "coverage_estimate": 0.067,
-      "total_weight": 1.148868,
-      "activity_count": 7,
       "display_name": "Spinal Implants, Fusion Devices & Disc Biology",
-      "short_description": "Cervical cages, interbody fusion devices, disc arthroplasty prostheses, and biomechanics of intervertebral disc degeneration."
+      "short_description": "Cervical cages, interbody fusion devices, disc arthroplasty prostheses, and biomechanics of intervertebral disc degeneration.",
+      "total_weight": 1.148868,
+      "activity_count": 7
     },
     {
       "id": "biomedical_minimally_invasive_spine_endoscopy",
@@ -363,10 +363,10 @@
         36203278
       ],
       "coverage_estimate": 0.067,
-      "total_weight": 0.884404,
-      "activity_count": 6,
       "display_name": "Minimally Invasive & Endoscopic Spine Surgery",
-      "short_description": "Endoscopic discectomy, foraminotomy, and transforaminal techniques with associated training, monitoring, and complication outcomes."
+      "short_description": "Endoscopic discectomy, foraminotomy, and transforaminal techniques with associated training, monitoring, and complication outcomes.",
+      "total_weight": 0.884404,
+      "activity_count": 6
     },
     {
       "id": "biomedical_telemedicine_ar_remote_surgery",
@@ -380,10 +380,10 @@
         36203278
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 1.196253,
-      "activity_count": 4,
       "display_name": "Telemedicine & AR-Assisted Remote Surgery",
-      "short_description": "Smart glasses and augmented reality platforms supporting remote surgical guidance and clinical training in resource-limited settings."
+      "short_description": "Smart glasses and augmented reality platforms supporting remote surgical guidance and clinical training in resource-limited settings.",
+      "total_weight": 1.196253,
+      "activity_count": 4
     },
     {
       "id": "biomedical_orofacial_respiratory_strength",
@@ -397,10 +397,10 @@
         37672667
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 1.672232,
-      "activity_count": 6,
       "display_name": "Orofacial & Respiratory Muscle Assessment Tools",
-      "short_description": "Low-cost manometers and handheld instruments for measuring tongue, lip, and respiratory muscle strength in dysphagia and pulmonary care."
+      "short_description": "Low-cost manometers and handheld instruments for measuring tongue, lip, and respiratory muscle strength in dysphagia and pulmonary care.",
+      "total_weight": 1.672232,
+      "activity_count": 6
     },
     {
       "id": "biomedical_seizure_detection_neurological_monitoring",
@@ -413,10 +413,10 @@
         32161395
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 1.078278,
-      "activity_count": 4,
       "display_name": "Seizure Detection & Neurological Monitoring Devices",
-      "short_description": "Wearable, acoustic, and EEG-based systems for seizure detection and continuous brain monitoring in neurologically injured patients."
+      "short_description": "Wearable, acoustic, and EEG-based systems for seizure detection and continuous brain monitoring in neurologically injured patients.",
+      "total_weight": 1.078278,
+      "activity_count": 4
     },
     {
       "id": "biomedical_osseointegrated_prostheses",
@@ -428,10 +428,10 @@
         40167082
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 0.331646,
-      "activity_count": 3,
       "display_name": "Osseointegrated Implants for Limb Amputees",
-      "short_description": "Cost-benefit, infection management, and surgical outcomes of osseointegrated prosthetic systems for lower limb amputees."
+      "short_description": "Cost-benefit, infection management, and surgical outcomes of osseointegrated prosthetic systems for lower limb amputees.",
+      "total_weight": 0.331646,
+      "activity_count": 3
     },
     {
       "id": "biomedical_ai_deep_learning_medical_imaging",
@@ -447,10 +447,10 @@
         32161395
       ],
       "coverage_estimate": 0.067,
-      "total_weight": 2.633594,
-      "activity_count": 12,
       "display_name": "Deep Learning for Medical Image Analysis",
-      "short_description": "AI-driven segmentation and classification across OCT, laryngoscopy, thermography, and vascular imaging modalities."
+      "short_description": "AI-driven segmentation and classification across OCT, laryngoscopy, thermography, and vascular imaging modalities.",
+      "total_weight": 2.633594,
+      "activity_count": 12
     },
     {
       "id": "biomedical_cardiac_regeneration_cardiomyocytes",
@@ -462,10 +462,10 @@
         38747042
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 0.86774,
-      "activity_count": 4,
       "display_name": "Cardiac Regeneration & Cardiomyocyte Engineering",
-      "short_description": "Tissue regeneration strategies, cardiomyocyte isolation, and iPSC-derived cell electrophysiology for cardiac repair and drug testing."
+      "short_description": "Tissue regeneration strategies, cardiomyocyte isolation, and iPSC-derived cell electrophysiology for cardiac repair and drug testing.",
+      "total_weight": 0.86774,
+      "activity_count": 4
     },
     {
       "id": "biomedical_assistive_tech_cognitive_aging",
@@ -478,10 +478,10 @@
         40432385
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 0.393931,
-      "activity_count": 5,
       "display_name": "Assistive Technology for Aging & Cognitive Impairment",
-      "short_description": "Smartwatches, mHealth apps, and remote sensing systems designed for older adults with cognitive or dexterity limitations."
+      "short_description": "Smartwatches, mHealth apps, and remote sensing systems designed for older adults with cognitive or dexterity limitations.",
+      "total_weight": 0.393931,
+      "activity_count": 5
     },
     {
       "id": "biomedical_point_of_care_diagnostics",
@@ -493,10 +493,10 @@
         39884499
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 0.647026,
-      "activity_count": 3,
       "display_name": "Point-of-Care Diagnostics & Rapid Testing",
-      "short_description": "Portable, low-cost platforms for isothermal nucleic acid testing, infectious disease detection, and closed-loop insulin delivery."
+      "short_description": "Portable, low-cost platforms for isothermal nucleic acid testing, infectious disease detection, and closed-loop insulin delivery.",
+      "total_weight": 0.647026,
+      "activity_count": 3
     },
     {
       "id": "biomedical_surgical_ergonomics_training",
@@ -511,10 +511,10 @@
         39239606
       ],
       "coverage_estimate": 0.057,
-      "total_weight": 0.542323,
-      "activity_count": 4,
       "display_name": "Surgical Ergonomics, Training & Simulation",
-      "short_description": "Ergonomic challenges in operative practice, learning curve analysis, and VR or manikin-based simulation for procedural skill development."
+      "short_description": "Ergonomic challenges in operative practice, learning curve analysis, and VR or manikin-based simulation for procedural skill development.",
+      "total_weight": 0.542323,
+      "activity_count": 4
     },
     {
       "id": "biomedical_optogenetics_retinal_neural",
@@ -526,10 +526,10 @@
         36109613
       ],
       "coverage_estimate": 0.029,
-      "total_weight": 0.607221,
-      "activity_count": 2,
       "display_name": "Optogenetics for Retinal & Neural Therapy",
-      "short_description": "Light-activated intervention platforms targeting retinal degenerative diseases and non-neuronal cell habituation for clinical translation."
+      "short_description": "Light-activated intervention platforms targeting retinal degenerative diseases and non-neuronal cell habituation for clinical translation.",
+      "total_weight": 0.607221,
+      "activity_count": 2
     },
     {
       "id": "biomedical_acoustic_ultrasound_biomedical_tools",
@@ -542,10 +542,10 @@
         36943177
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 1.867691,
-      "activity_count": 3,
       "display_name": "Acoustic & Ultrasound-Based Biomedical Devices",
-      "short_description": "Novel acoustic tools for fistula stenosis detection, oocyte manipulation, and low-intensity pulsed ultrasound for fracture healing."
+      "short_description": "Novel acoustic tools for fistula stenosis detection, oocyte manipulation, and low-intensity pulsed ultrasound for fracture healing.",
+      "total_weight": 1.867691,
+      "activity_count": 3
     },
     {
       "id": "biomedical_breast_reconstruction_techniques",
@@ -558,10 +558,10 @@
         33863678
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 0.537246,
-      "activity_count": 3,
       "display_name": "Breast Reconstruction Techniques & Outcomes",
-      "short_description": "Fat grafting, cryoablation, nerve repair, and autologous cartilage scaffolds for nipple and breast reconstruction surgical outcomes."
+      "short_description": "Fat grafting, cryoablation, nerve repair, and autologous cartilage scaffolds for nipple and breast reconstruction surgical outcomes.",
+      "total_weight": 0.537246,
+      "activity_count": 3
     },
     {
       "id": "biomedical_brain_vascular_hemodynamics",
@@ -574,10 +574,10 @@
         32161395
       ],
       "coverage_estimate": 0.038,
-      "total_weight": 0.272466,
-      "activity_count": 2,
       "display_name": "Cerebrovascular Imaging & Hemodynamics",
-      "short_description": "Third harmonic generation microscopy, MRI oxygen extraction mapping, and venous perfusion modeling for cerebrovascular assessment."
+      "short_description": "Third harmonic generation microscopy, MRI oxygen extraction mapping, and venous perfusion modeling for cerebrovascular assessment.",
+      "total_weight": 0.272466,
+      "activity_count": 2
     }
   ],
   "uncovered_pmids": [
@@ -621,9 +621,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T21:36:42Z",
+  "augmented_at": "2026-05-13T14:05:06Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_biomedical_engineering.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_biomedical_engineering.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

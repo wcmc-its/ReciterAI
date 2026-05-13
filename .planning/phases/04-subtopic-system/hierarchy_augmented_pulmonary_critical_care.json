@@ -29,10 +29,10 @@
         40920896
       ],
       "coverage_estimate": 0.055,
-      "total_weight": 16.786341,
-      "activity_count": 23,
       "display_name": "COPD & Airway Cell Biology",
-      "short_description": "Cellular and molecular mechanisms of COPD, including airway epithelial dysfunction, sphingolipid metabolism, and smoking-induced dysregulation."
+      "short_description": "Cellular and molecular mechanisms of COPD, including airway epithelial dysfunction, sphingolipid metabolism, and smoking-induced dysregulation.",
+      "total_weight": 16.786341,
+      "activity_count": 23
     },
     {
       "id": "pulmonary_interstitial_lung_disease",
@@ -64,10 +64,10 @@
         33443657
       ],
       "coverage_estimate": 0.064,
-      "total_weight": 22.473599,
-      "activity_count": 27,
       "display_name": "Interstitial Lung Disease & Fibrosis",
-      "short_description": "Pathogenesis, biomarkers, and clinical management of IPF, hypersensitivity pneumonitis, and related interstitial lung diseases."
+      "short_description": "Pathogenesis, biomarkers, and clinical management of IPF, hypersensitivity pneumonitis, and related interstitial lung diseases.",
+      "total_weight": 22.473599,
+      "activity_count": 27
     },
     {
       "id": "pulmonary_asthma_allergic_airway",
@@ -88,10 +88,10 @@
         35567744
       ],
       "coverage_estimate": 0.033,
-      "total_weight": 9.741425,
-      "activity_count": 13,
       "display_name": "Asthma & Allergic Airway Disease",
-      "short_description": "Mechanisms and treatment of asthma, including type 2 inflammation, innate lymphoid cells, allergen exposure, and genetic risk factors."
+      "short_description": "Mechanisms and treatment of asthma, including type 2 inflammation, innate lymphoid cells, allergen exposure, and genetic risk factors.",
+      "total_weight": 9.741425,
+      "activity_count": 13
     },
     {
       "id": "pulmonary_covid19_respiratory_pathophysiology",
@@ -121,10 +121,10 @@
         40286790
       ],
       "coverage_estimate": 0.058,
-      "total_weight": 32.899464,
-      "activity_count": 20,
       "display_name": "COVID-19 Respiratory Pathophysiology",
-      "short_description": "Pulmonary and systemic pathophysiology of severe COVID-19, including ARDS, vascular injury, cytokine profiles, and ventilator management."
+      "short_description": "Pulmonary and systemic pathophysiology of severe COVID-19, including ARDS, vascular injury, cytokine profiles, and ventilator management.",
+      "total_weight": 32.899464,
+      "activity_count": 20
     },
     {
       "id": "pulmonary_covid19_clinical_outcomes",
@@ -156,10 +156,10 @@
         32997958
       ],
       "coverage_estimate": 0.064,
-      "total_weight": 22.626479,
-      "activity_count": 49,
       "display_name": "COVID-19 Clinical Outcomes & Treatment",
-      "short_description": "Risk factors, comorbidities, antiviral and immunomodulatory therapies, and predictive models for hospitalized COVID-19 patients."
+      "short_description": "Risk factors, comorbidities, antiviral and immunomodulatory therapies, and predictive models for hospitalized COVID-19 patients.",
+      "total_weight": 22.626479,
+      "activity_count": 49
     },
     {
       "id": "pulmonary_covid19_long_covid_pasc",
@@ -180,10 +180,10 @@
         33589778
       ],
       "coverage_estimate": 0.033,
-      "total_weight": 10.516447,
-      "activity_count": 14,
       "display_name": "Long COVID & Post-Acute Sequelae",
-      "short_description": "Symptom characterization, subphenotyping, and cardiopulmonary and cognitive manifestations of PASC across demographic groups."
+      "short_description": "Symptom characterization, subphenotyping, and cardiopulmonary and cognitive manifestations of PASC across demographic groups.",
+      "total_weight": 10.516447,
+      "activity_count": 14
     },
     {
       "id": "pulmonary_respiratory_infections_pneumonia",
@@ -208,10 +208,10 @@
         36700925
       ],
       "coverage_estimate": 0.044,
-      "total_weight": 6.754183,
-      "activity_count": 16,
       "display_name": "Respiratory Infections & Pneumonia",
-      "short_description": "Host immune responses and pathogen mechanisms in bacterial, viral, and fungal respiratory infections including pneumococcal pneumonia and influenza."
+      "short_description": "Host immune responses and pathogen mechanisms in bacterial, viral, and fungal respiratory infections including pneumococcal pneumonia and influenza.",
+      "total_weight": 6.754183,
+      "activity_count": 16
     },
     {
       "id": "pulmonary_pulmonary_hypertension_vascular",
@@ -233,10 +233,10 @@
         40692422
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 7.679096,
-      "activity_count": 9,
       "display_name": "Hypertension & Vascular Disease",
-      "short_description": "Diagnosis, risk stratification, right ventricular function, and outcomes across pulmonary hypertension and vascular disease subtypes."
+      "short_description": "Diagnosis, risk stratification, right ventricular function, and outcomes across pulmonary hypertension and vascular disease subtypes.",
+      "total_weight": 7.679096,
+      "activity_count": 9
     },
     {
       "id": "pulmonary_pulmonary_embolism",
@@ -258,10 +258,10 @@
         40311504
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 3.03509,
-      "activity_count": 12,
       "display_name": "Embolism Diagnosis & Treatment",
-      "short_description": "Acute pulmonary embolism management including catheter-directed thrombolysis, thrombectomy, risk stratification, and anticoagulation strategies."
+      "short_description": "Acute pulmonary embolism management including catheter-directed thrombolysis, thrombectomy, risk stratification, and anticoagulation strategies.",
+      "total_weight": 3.03509,
+      "activity_count": 12
     },
     {
       "id": "pulmonary_lung_transplantation",
@@ -280,10 +280,10 @@
         37635039
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 1.727951,
-      "activity_count": 10,
       "display_name": "Lung Transplantation & Outcomes",
-      "short_description": "Transplant outcomes, primary graft dysfunction, ECMO use, CMV immunity, and perioperative management in lung transplant recipients."
+      "short_description": "Transplant outcomes, primary graft dysfunction, ECMO use, CMV immunity, and perioperative management in lung transplant recipients.",
+      "total_weight": 1.727951,
+      "activity_count": 10
     },
     {
       "id": "pulmonary_mechanical_ventilation_icu",
@@ -310,10 +310,10 @@
         34854939
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 7.857188,
-      "activity_count": 20,
       "display_name": "Mechanical Ventilation & ICU Care",
-      "short_description": "Ventilation practices, sedation, vasopressor use, tracheostomy, and outcomes in critically ill adult and pediatric patients."
+      "short_description": "Ventilation practices, sedation, vasopressor use, tracheostomy, and outcomes in critically ill adult and pediatric patients.",
+      "total_weight": 7.857188,
+      "activity_count": 20
     },
     {
       "id": "pulmonary_airway_epithelium_sars_biology",
@@ -334,10 +334,10 @@
         34917944
       ],
       "coverage_estimate": 0.033,
-      "total_weight": 9.26449,
-      "activity_count": 6,
       "display_name": "Airway Epithelium & Viral Entry",
-      "short_description": "ACE2 expression, organoid models, and host transcriptomic responses underlying SARS-CoV-2 infection in the respiratory tract."
+      "short_description": "ACE2 expression, organoid models, and host transcriptomic responses underlying SARS-CoV-2 infection in the respiratory tract.",
+      "total_weight": 9.26449,
+      "activity_count": 6
     },
     {
       "id": "pulmonary_lung_cancer_biology_treatment",
@@ -360,10 +360,10 @@
         36621452
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 3.035442,
-      "activity_count": 11,
       "display_name": "Lung Cancer Biology & Surgery",
-      "short_description": "Tumor microenvironment, oncogenic drivers, immune evasion, and surgical approaches for early-stage non-small cell lung cancer."
+      "short_description": "Tumor microenvironment, oncogenic drivers, immune evasion, and surgical approaches for early-stage non-small cell lung cancer.",
+      "total_weight": 3.035442,
+      "activity_count": 11
     },
     {
       "id": "pulmonary_sleep_apnea_respiratory_physiology",
@@ -383,10 +383,10 @@
         39388722
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.940835,
-      "activity_count": 9,
       "display_name": "Sleep Apnea & Respiratory Physiology",
-      "short_description": "Cardiovascular risk, CPAP therapy, platelet activation, and respiratory muscle physiology in obstructive sleep apnea."
+      "short_description": "Cardiovascular risk, CPAP therapy, platelet activation, and respiratory muscle physiology in obstructive sleep apnea.",
+      "total_weight": 1.940835,
+      "activity_count": 9
     },
     {
       "id": "pulmonary_chest_imaging_diagnostics",
@@ -408,10 +408,10 @@
         35467819
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 2.698961,
-      "activity_count": 12,
       "display_name": "Chest Imaging & Diagnostics",
-      "short_description": "CT, MRI, X-ray, and ultrasound for diagnosis and monitoring of ILD, pneumothorax, COVID-19 pneumonia, and lung cancer."
+      "short_description": "CT, MRI, X-ray, and ultrasound for diagnosis and monitoring of ILD, pneumothorax, COVID-19 pneumonia, and lung cancer.",
+      "total_weight": 2.698961,
+      "activity_count": 12
     },
     {
       "id": "pulmonary_covid19_cardiac_complications",
@@ -428,10 +428,10 @@
         38620488
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 2.662584,
-      "activity_count": 8,
       "display_name": "COVID-19 Cardiac & Thrombotic Complications",
-      "short_description": "Myocarditis, arrhythmias, thrombotic events, troponin elevation, and anticoagulation management in hospitalized COVID-19 patients."
+      "short_description": "Myocarditis, arrhythmias, thrombotic events, troponin elevation, and anticoagulation management in hospitalized COVID-19 patients.",
+      "total_weight": 2.662584,
+      "activity_count": 8
     },
     {
       "id": "pulmonary_covid19_epigenetics_omics",
@@ -444,10 +444,10 @@
         35756895
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 16.641487,
-      "activity_count": 8,
       "display_name": "COVID-19 Multi-Omics & Molecular Signatures",
-      "short_description": "DNA methylation profiling and integrative multi-omics approaches identifying molecular signatures of COVID-19 severity and outcomes."
+      "short_description": "DNA methylation profiling and integrative multi-omics approaches identifying molecular signatures of COVID-19 severity and outcomes.",
+      "total_weight": 16.641487,
+      "activity_count": 8
     },
     {
       "id": "pulmonary_covid19_hospital_operations",
@@ -464,10 +464,10 @@
         38553353
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 5.000737,
-      "activity_count": 5,
       "display_name": "COVID-19 Surge Capacity & Preparedness",
-      "short_description": "Hospital and ICU operational responses to COVID-19, including surge planning, rapid expansion, and staff redeployment protocols."
+      "short_description": "Hospital and ICU operational responses to COVID-19, including surge planning, rapid expansion, and staff redeployment protocols.",
+      "total_weight": 5.000737,
+      "activity_count": 5
     },
     {
       "id": "pulmonary_covid19_pediatric",
@@ -480,10 +480,10 @@
         35651739
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 1.586886,
-      "activity_count": 4,
       "display_name": "Pediatric COVID-19 & Clinical Outcomes",
-      "short_description": "Clinical presentation, hospitalization indications, and outcomes of COVID-19 in children, including Omicron-era and croup presentations."
+      "short_description": "Clinical presentation, hospitalization indications, and outcomes of COVID-19 in children, including Omicron-era and croup presentations.",
+      "total_weight": 1.586886,
+      "activity_count": 4
     },
     {
       "id": "pulmonary_tuberculosis_mycobacterial",
@@ -497,10 +497,10 @@
         35292587
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 1.85113,
-      "activity_count": 5,
       "display_name": "Tuberculosis & Mycobacterial Infections",
-      "short_description": "TB treatment regimens, host-directed therapy, diagnostic methods, and co-infections with mycobacterial species."
+      "short_description": "TB treatment regimens, host-directed therapy, diagnostic methods, and co-infections with mycobacterial species.",
+      "total_weight": 1.85113,
+      "activity_count": 5
     },
     {
       "id": "pulmonary_icu_quality_safety",
@@ -516,10 +516,10 @@
         36400435
       ],
       "coverage_estimate": 0.031,
-      "total_weight": 2.413138,
-      "activity_count": 11,
       "display_name": "ICU Quality Improvement & Safety",
-      "short_description": "Quality improvement initiatives, patient safety practices, staffing ratios, and operational tools for critical care delivery."
+      "short_description": "Quality improvement initiatives, patient safety practices, staffing ratios, and operational tools for critical care delivery.",
+      "total_weight": 2.413138,
+      "activity_count": 11
     },
     {
       "id": "pulmonary_ecmo_extracorporeal",
@@ -532,10 +532,10 @@
         37976562
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 2.174924,
-      "activity_count": 4,
       "display_name": "ECMO & Extracorporeal Support",
-      "short_description": "ECMO outcomes in adults and children, including hemostatic management, renal replacement, and temperature management in respiratory failure."
+      "short_description": "ECMO outcomes in adults and children, including hemostatic management, renal replacement, and temperature management in respiratory failure.",
+      "total_weight": 2.174924,
+      "activity_count": 4
     },
     {
       "id": "pulmonary_lung_cancer_surgical_periop",
@@ -548,10 +548,10 @@
         34255071
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 1.864407,
-      "activity_count": 4,
       "display_name": "Lung Cancer Perioperative Management",
-      "short_description": "Preoperative pulmonary function assessment, postoperative complications, and surgical outcomes in lung cancer resection patients."
+      "short_description": "Preoperative pulmonary function assessment, postoperative complications, and surgical outcomes in lung cancer resection patients.",
+      "total_weight": 1.864407,
+      "activity_count": 4
     },
     {
       "id": "pulmonary_lung_cancer_immunotherapy",
@@ -564,10 +564,10 @@
         36179671
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 4.089327,
-      "activity_count": 5,
       "display_name": "Lung Cancer Immunotherapy & Targeted Therapy",
-      "short_description": "Checkpoint inhibitors, anti-PD-L1 combined with radiation, molecular biomarkers of response, and novel drug delivery for lung cancer."
+      "short_description": "Checkpoint inhibitors, anti-PD-L1 combined with radiation, molecular biomarkers of response, and novel drug delivery for lung cancer.",
+      "total_weight": 4.089327,
+      "activity_count": 5
     },
     {
       "id": "pulmonary_pediatric_critical_care",
@@ -583,10 +583,10 @@
         39760135
       ],
       "coverage_estimate": 0.031,
-      "total_weight": 6.013652,
-      "activity_count": 15,
       "display_name": "Pediatric & Neonatal Critical Care",
-      "short_description": "Delirium, sedation, unplanned extubations, CPAP in preterm infants, and tracheostomy care in pediatric and neonatal populations."
+      "short_description": "Delirium, sedation, unplanned extubations, CPAP in preterm infants, and tracheostomy care in pediatric and neonatal populations.",
+      "total_weight": 6.013652,
+      "activity_count": 15
     },
     {
       "id": "pulmonary_covid19_sars2_biology_models",
@@ -600,10 +600,10 @@
         37872315
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 3.116526,
-      "activity_count": 5,
       "display_name": "SARS-CoV-2 Biology & Experimental Models",
-      "short_description": "Organoid, stem cell, and animal models investigating SARS-CoV-2 infection mechanisms, immune responses, and experimental therapeutics."
+      "short_description": "Organoid, stem cell, and animal models investigating SARS-CoV-2 infection mechanisms, immune responses, and experimental therapeutics.",
+      "total_weight": 3.116526,
+      "activity_count": 5
     },
     {
       "id": "pulmonary_antimicrobial_resistance",
@@ -615,10 +615,10 @@
         35042262
       ],
       "coverage_estimate": 0.013,
-      "total_weight": 0.591368,
-      "activity_count": 3,
       "display_name": "Antimicrobial Resistance & Stewardship",
-      "short_description": "Carbapenem-resistant pathogens, polymyxin breakpoints, ventilator-associated pneumonia algorithms, and outcomes of resistant infections."
+      "short_description": "Carbapenem-resistant pathogens, polymyxin breakpoints, ventilator-associated pneumonia algorithms, and outcomes of resistant infections.",
+      "total_weight": 0.591368,
+      "activity_count": 3
     },
     {
       "id": "pulmonary_respiratory_trauma_surgery",
@@ -631,10 +631,10 @@
         38788529
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 0.93185,
-      "activity_count": 4,
       "display_name": "Thoracic Trauma & Surgical Complications",
-      "short_description": "Rib fixation, chest tube management, diaphragm preservation, and perioperative respiratory outcomes in thoracic and spinal surgery."
+      "short_description": "Rib fixation, chest tube management, diaphragm preservation, and perioperative respiratory outcomes in thoracic and spinal surgery.",
+      "total_weight": 0.93185,
+      "activity_count": 4
     },
     {
       "id": "pulmonary_smoking_vaping_occupational",
@@ -647,10 +647,10 @@
         39179686
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 0.819149,
-      "activity_count": 4,
       "display_name": "Smoking, Vaping & Occupational Exposures",
-      "short_description": "E-cigarette use in adolescents and adults, oral and respiratory effects of vaping, and occupational dust-related respiratory disease."
+      "short_description": "E-cigarette use in adolescents and adults, oral and respiratory effects of vaping, and occupational dust-related respiratory disease.",
+      "total_weight": 0.819149,
+      "activity_count": 4
     },
     {
       "id": "pulmonary_covid19_neurological_manifestations",
@@ -663,10 +663,10 @@
         36343241
       ],
       "coverage_estimate": 0.018,
-      "total_weight": 1.288366,
-      "activity_count": 2,
       "display_name": "COVID-19 Neurological Manifestations",
-      "short_description": "Neurological presentations of COVID-19, including encephalopathy, brain fog in long COVID, and neurological symptoms as primary presentation."
+      "short_description": "Neurological presentations of COVID-19, including encephalopathy, brain fog in long COVID, and neurological symptoms as primary presentation.",
+      "total_weight": 1.288366,
+      "activity_count": 2
     }
   ],
   "uncovered_pmids": [
@@ -741,9 +741,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T20:52:53Z",
+  "augmented_at": "2026-05-13T13:54:21Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_pulmonary_critical_care.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_pulmonary_critical_care.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

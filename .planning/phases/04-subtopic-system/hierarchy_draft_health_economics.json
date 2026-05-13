@@ -484,7 +484,7 @@
     {
       "id": "health_opioid_prescribing_policy",
       "label": "Opioid Prescribing Regulation and Policy Interventions",
-      "description": "Studies on the effects of regulatory and institutional policies—including drug rescheduling, marketing restrictions, and emergency department MOUD initiation—on opioid prescribing patterns and treatment access.",
+      "description": "Studies on the effects of regulatory and institutional policies\u2014including drug rescheduling, marketing restrictions, and emergency department MOUD initiation\u2014on opioid prescribing patterns and treatment access.",
       "seed_pmids": [
         32101973,
         32479218,
@@ -586,7 +586,7 @@
     {
       "id": "health_comorbidity_chronic_disease_utilization",
       "label": "Comorbidity, Chronic Disease Burden, and Healthcare Resource Utilization",
-      "description": "Research examining how comorbidities and multimorbidity—including COPD, diabetes, sickle cell disease, and mental illness—drive healthcare utilization, hospitalizations, and outcomes.",
+      "description": "Research examining how comorbidities and multimorbidity\u2014including COPD, diabetes, sickle cell disease, and mental illness\u2014drive healthcare utilization, hospitalizations, and outcomes.",
       "seed_pmids": [
         39133115,
         40037280,

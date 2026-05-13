@@ -220,7 +220,7 @@
     {
       "id": "microbiome_diet_nutrition",
       "label": "Diet, Nutrition, and Microbiome Interactions",
-      "description": "Studies on how dietary components—including fiber, fermentable carbohydrates, and specific nutrients—shape gut microbiome composition and downstream host metabolic and immune outcomes. Covers inulin, FODMAPs, synbiotics, and dietary restriction effects on microbial communities.",
+      "description": "Studies on how dietary components\u2014including fiber, fermentable carbohydrates, and specific nutrients\u2014shape gut microbiome composition and downstream host metabolic and immune outcomes. Covers inulin, FODMAPs, synbiotics, and dietary restriction effects on microbial communities.",
       "seed_pmids": [
         36323778,
         38506708,

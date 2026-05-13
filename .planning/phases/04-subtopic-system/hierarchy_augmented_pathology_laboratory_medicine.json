@@ -63,10 +63,10 @@
         43434451
       ],
       "coverage_estimate": 0.065,
-      "total_weight": 33.401959,
-      "activity_count": 73,
       "display_name": "Tissue & Cytology Morphologic Evaluation",
-      "short_description": "Histopathologic and cytologic characterization of tumors and non-neoplastic lesions across organ systems."
+      "short_description": "Histopathologic and cytologic characterization of tumors and non-neoplastic lesions across organ systems.",
+      "total_weight": 33.401959,
+      "activity_count": 73
     },
     {
       "id": "pathology_molecular_genomic_cancer",
@@ -118,10 +118,10 @@
         34131192
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 54.998717,
-      "activity_count": 90,
       "display_name": "Cancer Genomic & Molecular Profiling",
-      "short_description": "Next-generation sequencing and multi-omic profiling of somatic mutations, structural variants, and gene fusions in malignancies."
+      "short_description": "Next-generation sequencing and multi-omic profiling of somatic mutations, structural variants, and gene fusions in malignancies.",
+      "total_weight": 54.998717,
+      "activity_count": 90
     },
     {
       "id": "pathology_liquid_biopsy_ctdna",
@@ -161,10 +161,10 @@
         40819062
       ],
       "coverage_estimate": 0.037,
-      "total_weight": 22.145481,
-      "activity_count": 32,
       "display_name": "Liquid Biopsy & Circulating Tumor DNA",
-      "short_description": "Detection and clinical utility of ctDNA, cfDNA, and circulating tumor cells for cancer diagnosis and treatment monitoring."
+      "short_description": "Detection and clinical utility of ctDNA, cfDNA, and circulating tumor cells for cancer diagnosis and treatment monitoring.",
+      "total_weight": 22.145481,
+      "activity_count": 32
     },
     {
       "id": "pathology_digital_computational_pathology",
@@ -205,10 +205,10 @@
         39907244
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 19.359969,
-      "activity_count": 42,
       "display_name": "Digital & Computational Pathology AI",
-      "short_description": "Machine learning and image analysis algorithms applied to whole slide images for automated diagnosis and biomarker quantification."
+      "short_description": "Machine learning and image analysis algorithms applied to whole slide images for automated diagnosis and biomarker quantification.",
+      "total_weight": 19.359969,
+      "activity_count": 42
     },
     {
       "id": "pathology_clinical_laboratory_assays",
@@ -249,10 +249,10 @@
         36610415
       ],
       "coverage_estimate": 0.039,
-      "total_weight": 33.441365,
-      "activity_count": 93,
       "display_name": "Diagnostic Test Development & Validation",
-      "short_description": "Development and performance evaluation of immunoassays, PCR tests, flow cytometry, and point-of-care diagnostics for clinical use."
+      "short_description": "Development and performance evaluation of immunoassays, PCR tests, flow cytometry, and point-of-care diagnostics for clinical use.",
+      "total_weight": 33.441365,
+      "activity_count": 93
     },
     {
       "id": "pathology_covid19_sars_pathology",
@@ -289,10 +289,10 @@
         40712141
       ],
       "coverage_estimate": 0.034,
-      "total_weight": 65.765247,
-      "activity_count": 66,
       "display_name": "COVID-19 Tissue & Laboratory Diagnostics",
-      "short_description": "Histopathologic, molecular, and serological investigations of SARS-CoV-2 infection severity, autopsy findings, and outcomes."
+      "short_description": "Histopathologic, molecular, and serological investigations of SARS-CoV-2 infection severity, autopsy findings, and outcomes.",
+      "total_weight": 65.765247,
+      "activity_count": 66
     },
     {
       "id": "pathology_transplant_allograft",
@@ -321,10 +321,10 @@
         40143922
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 16.829689,
-      "activity_count": 24,
       "display_name": "Transplant Pathology & Allograft Rejection",
-      "short_description": "Molecular and histopathologic assessment of kidney, liver, and lung allograft rejection using noninvasive biomarkers."
+      "short_description": "Molecular and histopathologic assessment of kidney, liver, and lung allograft rejection using noninvasive biomarkers.",
+      "total_weight": 16.829689,
+      "activity_count": 24
     },
     {
       "id": "pathology_corneal_confocal_neuropathy",
@@ -367,10 +367,10 @@
         32934893
       ],
       "coverage_estimate": 0.041,
-      "total_weight": 10.604429,
-      "activity_count": 34,
       "display_name": "Corneal Confocal Microscopy & Neuropathy",
-      "short_description": "Corneal nerve fiber loss and immune cell changes as surrogate biomarkers for diabetic neuropathy and neurodegeneration."
+      "short_description": "Corneal nerve fiber loss and immune cell changes as surrogate biomarkers for diabetic neuropathy and neurodegeneration.",
+      "total_weight": 10.604429,
+      "activity_count": 34
     },
     {
       "id": "pathology_epigenomics_methylation",
@@ -397,10 +397,10 @@
         31950578
       ],
       "coverage_estimate": 0.022,
-      "total_weight": 3.153966,
-      "activity_count": 10,
       "display_name": "Epigenomics & DNA Methylation Biomarkers",
-      "short_description": "DNA methylation profiling and epigenetic alterations in cancer, including methylation-based liquid biopsy and prognostic markers."
+      "short_description": "DNA methylation profiling and epigenetic alterations in cancer, including methylation-based liquid biopsy and prognostic markers.",
+      "total_weight": 3.153966,
+      "activity_count": 10
     },
     {
       "id": "pathology_extracellular_vesicles_biomarkers",
@@ -425,10 +425,10 @@
         34285158
       ],
       "coverage_estimate": 0.019,
-      "total_weight": 13.265086,
-      "activity_count": 22,
       "display_name": "Extracellular Vesicles & Exosome Biomarkers",
-      "short_description": "Characterization of EVs and exosomes as diagnostic and prognostic biomarkers in cancer, cardiovascular disease, and HIV."
+      "short_description": "Characterization of EVs and exosomes as diagnostic and prognostic biomarkers in cancer, cardiovascular disease, and HIV.",
+      "total_weight": 13.265086,
+      "activity_count": 22
     },
     {
       "id": "pathology_hematopathology_myeloid",
@@ -462,10 +462,10 @@
         36796082
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 19.694103,
-      "activity_count": 49,
       "display_name": "Hematopathology & Myeloid Neoplasms",
-      "short_description": "Clinicopathologic and molecular characterization of leukemia, myelodysplastic syndromes, lymphomas, and multiple myeloma."
+      "short_description": "Clinicopathologic and molecular characterization of leukemia, myelodysplastic syndromes, lymphomas, and multiple myeloma.",
+      "total_weight": 19.694103,
+      "activity_count": 49
     },
     {
       "id": "pathology_prostate_cancer_pathology",
@@ -497,10 +497,10 @@
         34496233
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 17.7396,
-      "activity_count": 33,
       "display_name": "Prostate Cancer Grading & Molecular Diagnostics",
-      "short_description": "Histopathologic grading, genomic biomarkers, and imaging-pathology correlations in prostate cancer diagnosis and risk stratification."
+      "short_description": "Histopathologic grading, genomic biomarkers, and imaging-pathology correlations in prostate cancer diagnosis and risk stratification.",
+      "total_weight": 17.7396,
+      "activity_count": 33
     },
     {
       "id": "pathology_thyroid_endocrine_pathology",
@@ -532,10 +532,10 @@
         34621263
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 15.068029,
-      "activity_count": 22,
       "display_name": "Thyroid & Endocrine Tumor Pathology",
-      "short_description": "Fine-needle aspiration cytology, molecular testing, and histopathologic classification of thyroid and endocrine neoplasms."
+      "short_description": "Fine-needle aspiration cytology, molecular testing, and histopathologic classification of thyroid and endocrine neoplasms.",
+      "total_weight": 15.068029,
+      "activity_count": 22
     },
     {
       "id": "pathology_infectious_disease_microbiology_lab",
@@ -570,10 +570,10 @@
         40736690
       ],
       "coverage_estimate": 0.031,
-      "total_weight": 23.39968,
-      "activity_count": 69,
       "display_name": "Infectious Disease Laboratory Diagnostics",
-      "short_description": "Molecular and rapid diagnostic methods for bacterial, viral, fungal, and parasitic pathogens with epidemiological surveillance."
+      "short_description": "Molecular and rapid diagnostic methods for bacterial, viral, fungal, and parasitic pathogens with epidemiological surveillance.",
+      "total_weight": 23.39968,
+      "activity_count": 69
     },
     {
       "id": "pathology_breast_pathology_biomarkers",
@@ -605,10 +605,10 @@
         35233546
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 9.295361,
-      "activity_count": 31,
       "display_name": "Breast Lesion Pathology & Tissue Biomarkers",
-      "short_description": "Histopathologic features, HER2 testing, and molecular characterization of benign and malignant breast lesions."
+      "short_description": "Histopathologic features, HER2 testing, and molecular characterization of benign and malignant breast lesions.",
+      "total_weight": 9.295361,
+      "activity_count": 31
     }
   ],
   "uncovered_pmids": [
@@ -1281,9 +1281,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T19:29:33Z",
+  "augmented_at": "2026-05-13T13:32:10Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_pathology_laboratory_medicine.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_pathology_laboratory_medicine.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

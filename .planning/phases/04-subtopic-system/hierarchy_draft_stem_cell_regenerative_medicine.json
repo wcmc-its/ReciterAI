@@ -231,7 +231,7 @@
     {
       "id": "stem_osteoblast_skeletal_differentiation",
       "label": "Skeletal Stem Cells, Osteoblast Differentiation, and Bone Biology",
-      "description": "Studies on osteoblast and skeletal stem cell differentiation, signaling pathways regulating bone formation and mineralization (hedgehog, ERK MAPK, GSK3-β), and skeletal stem cell contributions to bone homeostasis and disease.",
+      "description": "Studies on osteoblast and skeletal stem cell differentiation, signaling pathways regulating bone formation and mineralization (hedgehog, ERK MAPK, GSK3-\u03b2), and skeletal stem cell contributions to bone homeostasis and disease.",
       "seed_pmids": [
         32807497,
         34326333,
@@ -369,7 +369,7 @@
     {
       "id": "stem_intestinal_stem_cell_niche",
       "label": "Intestinal Stem Cell Niche and Signaling",
-      "description": "Research on Lgr5+ intestinal stem cell biology, including niche support from lymphatics and fibroblasts, Wnt/NF-κB/PI3K signaling cross-talk, and lineage characterization methods.",
+      "description": "Research on Lgr5+ intestinal stem cell biology, including niche support from lymphatics and fibroblasts, Wnt/NF-\u03baB/PI3K signaling cross-talk, and lineage characterization methods.",
       "seed_pmids": [
         35931033,
         35790295,
@@ -377,7 +377,7 @@
       ],
       "coverage_estimate": 0.013,
       "display_name": "Intestinal Stem Cell Niche & Signaling",
-      "short_description": "Lgr5+ intestinal stem cell biology, niche support from lymphatics and fibroblasts, and Wnt/NF-κB/PI3K signaling cross-talk."
+      "short_description": "Lgr5+ intestinal stem cell biology, niche support from lymphatics and fibroblasts, and Wnt/NF-\u03baB/PI3K signaling cross-talk."
     },
     {
       "id": "stem_nerve_regeneration_neuropathy",
@@ -489,7 +489,7 @@
     {
       "id": "stem_wnt_signaling_development",
       "label": "Wnt Signaling, Secretion, and Developmental Patterning",
-      "description": "Research on Wnt pathway components including WLS/Evi-mediated Wnt transport, Wnt/β-catenin cross-talk with other pathways, and OTX2-driven enhancer remodeling in definitive endoderm specification.",
+      "description": "Research on Wnt pathway components including WLS/Evi-mediated Wnt transport, Wnt/\u03b2-catenin cross-talk with other pathways, and OTX2-driven enhancer remodeling in definitive endoderm specification.",
       "seed_pmids": [
         33357447,
         35790295,
@@ -498,7 +498,7 @@
       ],
       "coverage_estimate": 0.018,
       "display_name": "Wnt Signaling & Developmental Patterning",
-      "short_description": "Wnt pathway transport, β-catenin cross-talk, and OTX2-driven enhancer remodeling in endoderm specification and developmental patterning."
+      "short_description": "Wnt pathway transport, \u03b2-catenin cross-talk, and OTX2-driven enhancer remodeling in endoderm specification and developmental patterning."
     },
     {
       "id": "stem_tau_neurodegeneration_microglia",

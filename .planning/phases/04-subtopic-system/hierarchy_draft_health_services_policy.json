@@ -247,7 +247,7 @@
     {
       "id": "health_social_determinants_health_outcomes",
       "label": "Social Determinants of Health and Population Health Outcomes",
-      "description": "Studies examining how social determinants of health (SDOH)—including income, education, neighborhood conditions, housing, and social vulnerability—affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
+      "description": "Studies examining how social determinants of health (SDOH)\u2014including income, education, neighborhood conditions, housing, and social vulnerability\u2014affect cardiovascular disease, cancer, stroke, and other health outcomes, as well as methods for measuring and addressing SDOH in clinical and population settings.",
       "seed_pmids": [
         32673521,
         33269599,

@@ -14,10 +14,10 @@
         34044717
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 1.07687,
-      "activity_count": 4,
       "display_name": "OSA Cardiovascular & Metabolic Consequences",
-      "short_description": "Cardiovascular and metabolic effects of obstructive sleep apnea, including blood pressure, platelet activation, and CPAP outcomes."
+      "short_description": "Cardiovascular and metabolic effects of obstructive sleep apnea, including blood pressure, platelet activation, and CPAP outcomes.",
+      "total_weight": 1.07687,
+      "activity_count": 4
     },
     {
       "id": "sleep_osa_clinical_populations",
@@ -31,10 +31,10 @@
         33348291
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 2.918691,
-      "activity_count": 5,
       "display_name": "OSA in Special Clinical Populations",
-      "short_description": "OSA prevalence, risk factors, and outcomes in infants, pregnant women, pediatric obesity, and surgical patients."
+      "short_description": "OSA prevalence, risk factors, and outcomes in infants, pregnant women, pediatric obesity, and surgical patients.",
+      "total_weight": 2.918691,
+      "activity_count": 5
     },
     {
       "id": "sleep_osa_treatment_devices",
@@ -46,10 +46,10 @@
         32036486
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 0.30067,
-      "activity_count": 1,
       "display_name": "CPAP & Oral Appliance Therapies",
-      "short_description": "Therapeutic interventions for obstructive sleep apnea, comparing mandibular advancement devices and CPAP on clinical outcomes."
+      "short_description": "Therapeutic interventions for obstructive sleep apnea, comparing mandibular advancement devices and CPAP on clinical outcomes.",
+      "total_weight": 0.30067,
+      "activity_count": 1
     },
     {
       "id": "sleep_neurodegeneration_cognition",
@@ -62,10 +62,10 @@
         36388181
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 3.88899,
-      "activity_count": 4,
       "display_name": "Neurodegeneration & Cognitive Decline",
-      "short_description": "Links between impaired sleep, tau deposition, NREM delta power, and accelerated cognitive decline in Alzheimer's disease."
+      "short_description": "Links between impaired sleep, tau deposition, NREM delta power, and accelerated cognitive decline in Alzheimer's disease.",
+      "total_weight": 3.88899,
+      "activity_count": 4
     },
     {
       "id": "sleep_parkinsons_rbd",
@@ -77,10 +77,10 @@
         37680305
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 1.249278,
-      "activity_count": 3,
       "display_name": "Parkinson's Disease & REM Behavior Disorder",
-      "short_description": "Sleep disturbances in Parkinson's disease and REM sleep behavior disorder, including light therapy and phenoconversion predictors."
+      "short_description": "Sleep disturbances in Parkinson's disease and REM sleep behavior disorder, including light therapy and phenoconversion predictors.",
+      "total_weight": 1.249278,
+      "activity_count": 3
     },
     {
       "id": "sleep_circadian_molecular_mechanisms",
@@ -93,10 +93,10 @@
         36918693
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 1.443129,
-      "activity_count": 3,
       "display_name": "Molecular Circadian Clock Mechanisms",
-      "short_description": "Molecular underpinnings of circadian rhythms, including cAMP signaling, cell differentiation, and glucocorticoid oscillations."
+      "short_description": "Molecular underpinnings of circadian rhythms, including cAMP signaling, cell differentiation, and glucocorticoid oscillations.",
+      "total_weight": 1.443129,
+      "activity_count": 3
     },
     {
       "id": "sleep_wearable_technology_monitoring",
@@ -109,10 +109,10 @@
         37387020
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 3.30989,
-      "activity_count": 5,
       "display_name": "Wearable Technology & AI Monitoring",
-      "short_description": "Wearable devices and artificial intelligence applied to detection, monitoring, and management of sleep disorders."
+      "short_description": "Wearable devices and artificial intelligence applied to detection, monitoring, and management of sleep disorders.",
+      "total_weight": 3.30989,
+      "activity_count": 5
     },
     {
       "id": "sleep_auditory_environmental_interventions",
@@ -124,10 +124,10 @@
         39849604
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 1.74174,
-      "activity_count": 3,
       "display_name": "Auditory & Environmental Sleep Interventions",
-      "short_description": "Effects of white noise, sound stimulation, extreme heat, and ambient lighting on sleep quality and duration."
+      "short_description": "Effects of white noise, sound stimulation, extreme heat, and ambient lighting on sleep quality and duration.",
+      "total_weight": 1.74174,
+      "activity_count": 3
     },
     {
       "id": "sleep_palliative_care_education",
@@ -139,10 +139,10 @@
         37916613
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 0.35294,
-      "activity_count": 2,
       "display_name": "Palliative Care Staff Training",
-      "short_description": "Educational interventions to improve sleep management knowledge among palliative care and clinical professionals."
+      "short_description": "Educational interventions to improve sleep management knowledge among palliative care and clinical professionals.",
+      "total_weight": 0.35294,
+      "activity_count": 2
     },
     {
       "id": "sleep_mental_health_psychiatric",
@@ -155,10 +155,10 @@
         35449210
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 0.717083,
-      "activity_count": 3,
       "display_name": "Psychiatric Disorders & Psychological Well-being",
-      "short_description": "Bidirectional relationships between sleep and psychiatric conditions including schizophrenia, depression, and anxiety."
+      "short_description": "Bidirectional relationships between sleep and psychiatric conditions including schizophrenia, depression, and anxiety.",
+      "total_weight": 0.717083,
+      "activity_count": 3
     },
     {
       "id": "sleep_covid_pandemic_disruption",
@@ -172,10 +172,10 @@
         34016818
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 2.27312,
-      "activity_count": 5,
       "display_name": "COVID-19 Pandemic & Sleep Disruption",
-      "short_description": "Effects of pandemic lockdowns and long COVID sequelae on sleep patterns, mental health, and child well-being."
+      "short_description": "Effects of pandemic lockdowns and long COVID sequelae on sleep patterns, mental health, and child well-being.",
+      "total_weight": 2.27312,
+      "activity_count": 5
     },
     {
       "id": "sleep_tinnitus_comorbidities",
@@ -187,10 +187,10 @@
         37916613
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 1.588733,
-      "activity_count": 3,
       "display_name": "Quality & Chronic Comorbidities",
-      "short_description": "Associations between sleep quality and chronic conditions including tinnitus, pediatric cancer, and musculoskeletal disorders."
+      "short_description": "Associations between sleep quality and chronic conditions including tinnitus, pediatric cancer, and musculoskeletal disorders.",
+      "total_weight": 1.588733,
+      "activity_count": 3
     },
     {
       "id": "sleep_fatigue_occupational",
@@ -202,10 +202,10 @@
         34049045
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 0.590694,
-      "activity_count": 2,
       "display_name": "Fatigue & Occupational Safety",
-      "short_description": "Consequences of sleep restriction and fatigue in occupational settings, including driving safety and blood pressure effects."
+      "short_description": "Consequences of sleep restriction and fatigue in occupational settings, including driving safety and blood pressure effects.",
+      "total_weight": 0.590694,
+      "activity_count": 2
     },
     {
       "id": "sleep_hrv_autonomic_nocturnal",
@@ -217,10 +217,10 @@
         36866835
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.389673,
-      "activity_count": 3,
       "display_name": "Nocturnal Heart Rate Variability & Autonomic Function",
-      "short_description": "Nocturnal heart rate variability and blood pressure dipping as markers of autonomic dysfunction across clinical populations."
+      "short_description": "Nocturnal heart rate variability and blood pressure dipping as markers of autonomic dysfunction across clinical populations.",
+      "total_weight": 0.389673,
+      "activity_count": 3
     }
   ],
   "uncovered_pmids": [
@@ -239,9 +239,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T22:16:03Z",
+  "augmented_at": "2026-05-13T14:15:53Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_sleep_medicine_circadian_biology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_sleep_medicine_circadian_biology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

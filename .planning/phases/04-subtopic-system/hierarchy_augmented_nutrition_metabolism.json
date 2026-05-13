@@ -30,10 +30,10 @@
         40921956
       ],
       "coverage_estimate": 0.064,
-      "total_weight": 7.912081,
-      "activity_count": 27,
       "display_name": "Obesity Pharmacotherapy & Weight Management",
-      "short_description": "Pharmacological, surgical, and behavioral interventions for obesity, including GLP-1 agonists, bariatric surgery, and long-term weight loss strategies."
+      "short_description": "Pharmacological, surgical, and behavioral interventions for obesity, including GLP-1 agonists, bariatric surgery, and long-term weight loss strategies.",
+      "total_weight": 7.912081,
+      "activity_count": 27
     },
     {
       "id": "nutrition_dietary_patterns_epidemiology",
@@ -58,10 +58,10 @@
         38830587
       ],
       "coverage_estimate": 0.049,
-      "total_weight": 10.888501,
-      "activity_count": 15,
       "display_name": "Dietary Patterns & Nutritional Epidemiology",
-      "short_description": "Population-based studies linking dietary patterns, food quality, and food environment to chronic disease risk including cardiovascular disease and diabetes."
+      "short_description": "Population-based studies linking dietary patterns, food quality, and food environment to chronic disease risk including cardiovascular disease and diabetes.",
+      "total_weight": 10.888501,
+      "activity_count": 15
     },
     {
       "id": "nutrition_metabolomics_multiomics",
@@ -92,10 +92,10 @@
         39237774
       ],
       "coverage_estimate": 0.067,
-      "total_weight": 11.166854,
-      "activity_count": 23,
       "display_name": "Metabolomics & Multi-Omics Profiling",
-      "short_description": "Integrated metabolomic, proteomic, and multi-omics approaches to characterize metabolic signatures of disease, drug response, and physiological conditions."
+      "short_description": "Integrated metabolomic, proteomic, and multi-omics approaches to characterize metabolic signatures of disease, drug response, and physiological conditions.",
+      "total_weight": 11.166854,
+      "activity_count": 23
     },
     {
       "id": "nutrition_lipid_metabolism_adipose",
@@ -124,10 +124,10 @@
         36396956
       ],
       "coverage_estimate": 0.061,
-      "total_weight": 6.876746,
-      "activity_count": 25,
       "display_name": "Lipid Metabolism & Adipose Biology",
-      "short_description": "Lipid metabolic pathways, adipocyte biology, adipogenesis, and molecular regulation of fat storage, mobilization, and thermogenesis."
+      "short_description": "Lipid metabolic pathways, adipocyte biology, adipogenesis, and molecular regulation of fat storage, mobilization, and thermogenesis.",
+      "total_weight": 6.876746,
+      "activity_count": 25
     },
     {
       "id": "nutrition_nad_metabolism_mitochondria",
@@ -150,10 +150,10 @@
         37224753
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 3.548395,
-      "activity_count": 12,
       "display_name": "NAD+ Metabolism & Cellular Bioenergetics",
-      "short_description": "NAD+/NADH biosynthesis, mitochondrial oxidative phosphorylation, and cellular energy metabolism in metabolic disease, aging, and therapeutic contexts."
+      "short_description": "NAD+/NADH biosynthesis, mitochondrial oxidative phosphorylation, and cellular energy metabolism in metabolic disease, aging, and therapeutic contexts.",
+      "total_weight": 3.548395,
+      "activity_count": 12
     },
     {
       "id": "nutrition_glucose_homeostasis_diabetes",
@@ -180,10 +180,10 @@
         37650052
       ],
       "coverage_estimate": 0.055,
-      "total_weight": 6.845474,
-      "activity_count": 22,
       "display_name": "Glucose Homeostasis & Type 2 Diabetes",
-      "short_description": "Insulin secretion, insulin resistance, beta-cell function, and molecular mechanisms of glucose transport underlying type 2 diabetes pathophysiology."
+      "short_description": "Insulin secretion, insulin resistance, beta-cell function, and molecular mechanisms of glucose transport underlying type 2 diabetes pathophysiology.",
+      "total_weight": 6.845474,
+      "activity_count": 22
     },
     {
       "id": "nutrition_cancer_metabolism",
@@ -209,10 +209,10 @@
         32589943
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 9.920176,
-      "activity_count": 19,
       "display_name": "Cancer Metabolism & Tumor Reprogramming",
-      "short_description": "Metabolic alterations in cancer cells, including Warburg effect, lipid biosynthesis, and oncometabolites driving tumor progression and therapeutic resistance."
+      "short_description": "Metabolic alterations in cancer cells, including Warburg effect, lipid biosynthesis, and oncometabolites driving tumor progression and therapeutic resistance.",
+      "total_weight": 9.920176,
+      "activity_count": 19
     },
     {
       "id": "nutrition_gut_microbiome_diet",
@@ -238,10 +238,10 @@
         40239649
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 17.064545,
-      "activity_count": 20,
       "display_name": "Gut Microbiome & Host Metabolism",
-      "short_description": "Interactions between dietary fiber, fermentable carbohydrates, and gut microbiota affecting host metabolism, immunity, and bile acid signaling."
+      "short_description": "Interactions between dietary fiber, fermentable carbohydrates, and gut microbiota affecting host metabolism, immunity, and bile acid signaling.",
+      "total_weight": 17.064545,
+      "activity_count": 20
     },
     {
       "id": "nutrition_vitamin_micronutrient",
@@ -268,10 +268,10 @@
         40904694
       ],
       "coverage_estimate": 0.055,
-      "total_weight": 5.451938,
-      "activity_count": 19,
       "display_name": "Vitamins, Minerals & Micronutrient Metabolism",
-      "short_description": "Roles of vitamins, minerals, and micronutrients in metabolic health, disease prevention, deficiency states, and clinical supplementation outcomes."
+      "short_description": "Roles of vitamins, minerals, and micronutrients in metabolic health, disease prevention, deficiency states, and clinical supplementation outcomes.",
+      "total_weight": 5.451938,
+      "activity_count": 19
     },
     {
       "id": "nutrition_sphingolipid_ceramide",
@@ -287,10 +287,10 @@
         38938596
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 3.013866,
-      "activity_count": 6,
       "display_name": "Sphingolipid & Ceramide Signaling",
-      "short_description": "Sphingolipid biosynthesis, ceramide and sphingosine-1-phosphate signaling, and their roles in cardiovascular disease and cardiometabolic dysfunction."
+      "short_description": "Sphingolipid biosynthesis, ceramide and sphingosine-1-phosphate signaling, and their roles in cardiovascular disease and cardiometabolic dysfunction.",
+      "total_weight": 3.013866,
+      "activity_count": 6
     },
     {
       "id": "nutrition_alcohol_liver_retinoid",
@@ -310,15 +310,15 @@
         38054575
       ],
       "coverage_estimate": 0.034,
-      "total_weight": 6.908615,
-      "activity_count": 11,
       "display_name": "Alcohol-Associated Liver Disease & Hepatic Metabolism",
-      "short_description": "Metabolic mechanisms of alcohol-associated liver disease and NAFLD, including retinoid metabolism, hepatic steatosis, and therapeutic targeting."
+      "short_description": "Metabolic mechanisms of alcohol-associated liver disease and NAFLD, including retinoid metabolism, hepatic steatosis, and therapeutic targeting.",
+      "total_weight": 6.908615,
+      "activity_count": 11
     },
     {
       "id": "nutrition_dietary_intervention_chronic_disease",
       "label": "Dietary Interventions and Nutritional Strategies for Chronic Disease Prevention",
-      "description": "Clinical and translational studies evaluating specific dietary interventions—including ketogenic diets, Mediterranean diet, omega-3 fatty acids, carotenoids, and caloric restriction—for prevention or management of chronic diseases such as Alzheimer's disease, cardiovascular disease, and cancer.",
+      "description": "Clinical and translational studies evaluating specific dietary interventions\u2014including ketogenic diets, Mediterranean diet, omega-3 fatty acids, carotenoids, and caloric restriction\u2014for prevention or management of chronic diseases such as Alzheimer's disease, cardiovascular disease, and cancer.",
       "seed_pmids": [
         38962750,
         33236056,
@@ -336,10 +336,10 @@
         34741806
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 2.025553,
-      "activity_count": 5,
       "display_name": "Dietary Interventions for Chronic Disease",
-      "short_description": "Clinical and translational studies of ketogenic, Mediterranean, and caloric-restriction diets for prevention of Alzheimer's disease, cardiovascular disease, and cancer."
+      "short_description": "Clinical and translational studies of ketogenic, Mediterranean, and caloric-restriction diets for prevention of Alzheimer's disease, cardiovascular disease, and cancer.",
+      "total_weight": 2.025553,
+      "activity_count": 5
     },
     {
       "id": "nutrition_mycobacterium_metabolism",
@@ -357,10 +357,10 @@
         40892921
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 3.339007,
-      "activity_count": 9,
       "display_name": "Mycobacterium tuberculosis Metabolic Vulnerabilities",
-      "short_description": "Carbon and nitrogen metabolism, fatty acid oxidation, and NAD biosynthesis in M. tuberculosis as targets for novel drug development."
+      "short_description": "Carbon and nitrogen metabolism, fatty acid oxidation, and NAD biosynthesis in M. tuberculosis as targets for novel drug development.",
+      "total_weight": 3.339007,
+      "activity_count": 9
     },
     {
       "id": "nutrition_metabolic_syndrome_cardiometabolic",
@@ -383,10 +383,10 @@
         32506740
       ],
       "coverage_estimate": 0.043,
-      "total_weight": 2.399148,
-      "activity_count": 12,
       "display_name": "Metabolic Syndrome & Cardiometabolic Risk",
-      "short_description": "Epidemiological and clinical studies of metabolic syndrome components, dyslipidemia, hypertension, and obesity-related cardiovascular comorbidities."
+      "short_description": "Epidemiological and clinical studies of metabolic syndrome components, dyslipidemia, hypertension, and obesity-related cardiovascular comorbidities.",
+      "total_weight": 2.399148,
+      "activity_count": 12
     },
     {
       "id": "nutrition_obesity_cancer_survivors",
@@ -403,10 +403,10 @@
         38243739
       ],
       "coverage_estimate": 0.065,
-      "total_weight": 1.235767,
-      "activity_count": 8,
       "display_name": "Weight Management in Cancer Survivors",
-      "short_description": "Dietary and behavioral interventions targeting obesity and body composition in cancer survivors to reduce recurrence risk."
+      "short_description": "Dietary and behavioral interventions targeting obesity and body composition in cancer survivors to reduce recurrence risk.",
+      "total_weight": 1.235767,
+      "activity_count": 8
     },
     {
       "id": "nutrition_renal_electrolyte_transport",
@@ -421,15 +421,15 @@
         33279558
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 4.408084,
-      "activity_count": 8,
       "display_name": "Renal Electrolyte Transport & Homeostasis",
-      "short_description": "Kidney tubular mechanisms regulating sodium and potassium excretion, including ENaC, ROMK channels, and dietary potassium effects on transport."
+      "short_description": "Kidney tubular mechanisms regulating sodium and potassium excretion, including ENaC, ROMK channels, and dietary potassium effects on transport.",
+      "total_weight": 4.408084,
+      "activity_count": 8
     },
     {
       "id": "nutrition_immune_metabolism_tcell",
       "label": "Immune Cell Metabolism, T Cell Function, and Immunotherapy",
-      "description": "Research on metabolic reprogramming in immune cells—particularly T cells and dendritic cells—and how nutrient availability, lipid oxidation, and glycolytic pathways influence antitumor immunity and immunotherapy efficacy.",
+      "description": "Research on metabolic reprogramming in immune cells\u2014particularly T cells and dendritic cells\u2014and how nutrient availability, lipid oxidation, and glycolytic pathways influence antitumor immunity and immunotherapy efficacy.",
       "seed_pmids": [
         39327500,
         39443795,
@@ -439,10 +439,10 @@
         38489352
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 3.786076,
-      "activity_count": 6,
       "display_name": "Immune Cell Metabolism & Antitumor Immunity",
-      "short_description": "Metabolic reprogramming in T cells and dendritic cells, and how nutrient availability and glycolytic pathways influence immunotherapy efficacy."
+      "short_description": "Metabolic reprogramming in T cells and dendritic cells, and how nutrient availability and glycolytic pathways influence immunotherapy efficacy.",
+      "total_weight": 3.786076,
+      "activity_count": 6
     },
     {
       "id": "nutrition_covid19_metabolic",
@@ -456,10 +456,10 @@
         34417256
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 5.727276,
-      "activity_count": 10,
       "display_name": "COVID-19 & Metabolic Dysregulation",
-      "short_description": "Metabolic and nutritional aspects of COVID-19, including hyperglycemia, insulin resistance, adipose infectivity, and multi-omics signatures of disease severity."
+      "short_description": "Metabolic and nutritional aspects of COVID-19, including hyperglycemia, insulin resistance, adipose infectivity, and multi-omics signatures of disease severity.",
+      "total_weight": 5.727276,
+      "activity_count": 10
     },
     {
       "id": "nutrition_breast_tissue_composition",
@@ -474,10 +474,10 @@
         33841882
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 2.657956,
-      "activity_count": 7,
       "display_name": "Breast Tissue Composition & Cancer Risk",
-      "short_description": "Adiposity, hormonal factors, and alcohol consumption as determinants of breast tissue composition, mammographic features, and cancer risk biomarkers."
+      "short_description": "Adiposity, hormonal factors, and alcohol consumption as determinants of breast tissue composition, mammographic features, and cancer risk biomarkers.",
+      "total_weight": 2.657956,
+      "activity_count": 7
     },
     {
       "id": "nutrition_mtor_lysosomal_nutrient_sensing",
@@ -489,10 +489,10 @@
         32698574
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 4.184429,
-      "activity_count": 4,
       "display_name": "mTOR Signaling & Lysosomal Nutrient Sensing",
-      "short_description": "Nutrient-sensing via mTORC1, lysosomal catabolism, phosphoinositide switches, and SAM dynamics as metabolic signals in mammalian cells."
+      "short_description": "Nutrient-sensing via mTORC1, lysosomal catabolism, phosphoinositide switches, and SAM dynamics as metabolic signals in mammalian cells.",
+      "total_weight": 4.184429,
+      "activity_count": 4
     },
     {
       "id": "nutrition_neurological_metabolic",
@@ -507,10 +507,10 @@
         35080429
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 3.936598,
-      "activity_count": 14,
       "display_name": "Brain Metabolism & Neurological Disorders",
-      "short_description": "Metabolic underpinnings of neurological conditions including Glut1 deficiency, Alzheimer's disease succinylation, and synaptic triglyceride utilization."
+      "short_description": "Metabolic underpinnings of neurological conditions including Glut1 deficiency, Alzheimer's disease succinylation, and synaptic triglyceride utilization.",
+      "total_weight": 3.936598,
+      "activity_count": 14
     },
     {
       "id": "nutrition_obesity_disparities_behavioral",
@@ -525,10 +525,10 @@
         37990659
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 1.289504,
-      "activity_count": 6,
       "display_name": "Obesity Disparities & Community Interventions",
-      "short_description": "Racial, ethnic, and socioeconomic disparities in obesity prevalence, behavioral determinants of eating, and culturally tailored community-based programs."
+      "short_description": "Racial, ethnic, and socioeconomic disparities in obesity prevalence, behavioral determinants of eating, and culturally tailored community-based programs.",
+      "total_weight": 1.289504,
+      "activity_count": 6
     },
     {
       "id": "nutrition_hepatic_gene_expression_diet",
@@ -540,10 +540,10 @@
         33822771
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 0.493368,
-      "activity_count": 2,
       "display_name": "Hepatic Gene Expression & Dietary Regulation",
-      "short_description": "Fasting-feeding cycles and dietary carbohydrate composition as regulators of liver transcriptomic responses and gene expression."
+      "short_description": "Fasting-feeding cycles and dietary carbohydrate composition as regulators of liver transcriptomic responses and gene expression.",
+      "total_weight": 0.493368,
+      "activity_count": 2
     },
     {
       "id": "nutrition_pediatric_neonatal_nutrition",
@@ -560,10 +560,10 @@
         37907014
       ],
       "coverage_estimate": 0.065,
-      "total_weight": 2.468436,
-      "activity_count": 11,
       "display_name": "Pediatric & Neonatal Nutritional Health",
-      "short_description": "Feeding practices and nutritional interventions in neonates and children, including lactoferrin supplementation, neonatal hypoglycemia, and gestational diabetes outcomes."
+      "short_description": "Feeding practices and nutritional interventions in neonates and children, including lactoferrin supplementation, neonatal hypoglycemia, and gestational diabetes outcomes.",
+      "total_weight": 2.468436,
+      "activity_count": 11
     },
     {
       "id": "nutrition_adipokine_cardiometabolic_signaling",
@@ -577,10 +577,10 @@
         38695569
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 0.84799,
-      "activity_count": 6,
       "display_name": "Adipokine & FGF Organ Crosstalk",
-      "short_description": "Adipokine and fibroblast growth factor signaling between adipose tissue and heart, pancreas, and kidney in cardiometabolic regulation and dysfunction."
+      "short_description": "Adipokine and fibroblast growth factor signaling between adipose tissue and heart, pancreas, and kidney in cardiometabolic regulation and dysfunction.",
+      "total_weight": 0.84799,
+      "activity_count": 6
     },
     {
       "id": "nutrition_tryptophan_kynurenine_metabolism",
@@ -592,10 +592,10 @@
         35563125
       ],
       "coverage_estimate": 0.024,
-      "total_weight": 2.343125,
-      "activity_count": 4,
       "display_name": "Tryptophan & Amino Acid Pathway Dysregulation",
-      "short_description": "Tryptophan catabolism, kynurenamine immunomodulation, transsulfuration pathway alterations in ALS, and homoarginine effects on amino acid homeostasis."
+      "short_description": "Tryptophan catabolism, kynurenamine immunomodulation, transsulfuration pathway alterations in ALS, and homoarginine effects on amino acid homeostasis.",
+      "total_weight": 2.343125,
+      "activity_count": 4
     }
   ],
   "uncovered_pmids": [
@@ -660,9 +660,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T21:05:28Z",
+  "augmented_at": "2026-05-13T13:56:27Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_nutrition_metabolism.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_nutrition_metabolism.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

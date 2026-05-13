@@ -56,10 +56,10 @@
         34262986
       ],
       "coverage_estimate": 0.025,
-      "total_weight": 150.382696,
-      "activity_count": 236,
       "display_name": "COVID-19 Outcomes & Surveillance",
-      "short_description": "Population-level studies on SARS-CoV-2 transmission, seroprevalence, vaccine effectiveness, and post-acute sequelae across diverse settings."
+      "short_description": "Population-level studies on SARS-CoV-2 transmission, seroprevalence, vaccine effectiveness, and post-acute sequelae across diverse settings.",
+      "total_weight": 150.382696,
+      "activity_count": 236
     },
     {
       "id": "epidemiology_social_determinants_disparities",
@@ -108,10 +108,10 @@
         36914764
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 48.62689,
-      "activity_count": 87,
       "display_name": "Social Determinants & Health Disparities",
-      "short_description": "How social, economic, racial, and neighborhood-level factors shape disease incidence, healthcare access, and health outcomes."
+      "short_description": "How social, economic, racial, and neighborhood-level factors shape disease incidence, healthcare access, and health outcomes.",
+      "total_weight": 48.62689,
+      "activity_count": 87
     },
     {
       "id": "epidemiology_chronic_disease_risk_factors",
@@ -160,10 +160,10 @@
         39868515
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 132.454321,
-      "activity_count": 260,
       "display_name": "Chronic Disease Risk Factor Analysis",
-      "short_description": "Prevalence, incidence, and modifiable risk factors for cardiovascular disease, diabetes, obesity, and related comorbidities across populations."
+      "short_description": "Prevalence, incidence, and modifiable risk factors for cardiovascular disease, diabetes, obesity, and related comorbidities across populations.",
+      "total_weight": 132.454321,
+      "activity_count": 260
     },
     {
       "id": "epidemiology_infectious_disease_surveillance",
@@ -211,10 +211,10 @@
         34715799
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 57.622645,
-      "activity_count": 149,
       "display_name": "Infectious Disease Burden & Surveillance",
-      "short_description": "Transmission dynamics, prevalence, and epidemic modeling for HIV, hepatitis, STIs, tuberculosis, and emerging pathogens."
+      "short_description": "Transmission dynamics, prevalence, and epidemic modeling for HIV, hepatitis, STIs, tuberculosis, and emerging pathogens.",
+      "total_weight": 57.622645,
+      "activity_count": 149
     },
     {
       "id": "epidemiology_opioid_substance_use_policy",
@@ -262,10 +262,10 @@
         40623314
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 23.752008,
-      "activity_count": 73,
       "display_name": "Opioid Use Disorders & Drug Policy",
-      "short_description": "Opioid prescribing patterns, overdose mortality, harm reduction interventions, and the impact of drug policy on substance use outcomes."
+      "short_description": "Opioid prescribing patterns, overdose mortality, harm reduction interventions, and the impact of drug policy on substance use outcomes.",
+      "total_weight": 23.752008,
+      "activity_count": 73
     },
     {
       "id": "epidemiology_maternal_perinatal_health",
@@ -314,10 +314,10 @@
         32711687
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 35.04581,
-      "activity_count": 92,
       "display_name": "Maternal & Perinatal Health Outcomes",
-      "short_description": "Population-level studies on maternal morbidity, perinatal outcomes, pregnancy complications, and reproductive health disparities."
+      "short_description": "Population-level studies on maternal morbidity, perinatal outcomes, pregnancy complications, and reproductive health disparities.",
+      "total_weight": 35.04581,
+      "activity_count": 92
     },
     {
       "id": "epidemiology_cancer_screening_survivorship",
@@ -366,10 +366,10 @@
         35701333
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 67.957974,
-      "activity_count": 162,
       "display_name": "Cancer Screening, Disparities & Survivorship",
-      "short_description": "Cancer incidence, screening utilization, disparities in care access, and survivorship prevalence across diverse populations."
+      "short_description": "Cancer incidence, screening utilization, disparities in care access, and survivorship prevalence across diverse populations.",
+      "total_weight": 67.957974,
+      "activity_count": 162
     },
     {
       "id": "epidemiology_mental_health_suicide",
@@ -418,10 +418,10 @@
         36011934
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 23.680557,
-      "activity_count": 76,
       "display_name": "Mental Health & Suicide Prevention",
-      "short_description": "Prevalence of mental health conditions, suicidal behavior, and social determinants of psychological distress at the population level."
+      "short_description": "Prevalence of mental health conditions, suicidal behavior, and social determinants of psychological distress at the population level.",
+      "total_weight": 23.680557,
+      "activity_count": 76
     },
     {
       "id": "epidemiology_healthcare_utilization_fragmentation",
@@ -470,10 +470,10 @@
         37219992
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 61.996091,
-      "activity_count": 136,
       "display_name": "Healthcare Utilization & Care Fragmentation",
-      "short_description": "Patterns of healthcare use, care coordination quality, preventable hospitalizations, and readmissions in Medicare and other populations."
+      "short_description": "Patterns of healthcare use, care coordination quality, preventable hospitalizations, and readmissions in Medicare and other populations.",
+      "total_weight": 61.996091,
+      "activity_count": 136
     },
     {
       "id": "epidemiology_stroke_cerebrovascular_disease",
@@ -522,10 +522,10 @@
         39349265
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 67.890379,
-      "activity_count": 89,
       "display_name": "Stroke & Cerebrovascular Disease Burden",
-      "short_description": "Registry and population-based studies on stroke incidence, risk factors, recurrence, outcomes, and disparities across diverse groups."
+      "short_description": "Registry and population-based studies on stroke incidence, risk factors, recurrence, outcomes, and disparities across diverse groups.",
+      "total_weight": 67.890379,
+      "activity_count": 89
     },
     {
       "id": "epidemiology_global_lmic_population_health",
@@ -574,10 +574,10 @@
         36819610
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 21.221243,
-      "activity_count": 60,
       "display_name": "Global Health in Low-Income Countries",
-      "short_description": "Disease burden, risk factor prevalence, and community-based interventions in sub-Saharan Africa, South Asia, and other low-income regions."
+      "short_description": "Disease burden, risk factor prevalence, and community-based interventions in sub-Saharan Africa, South Asia, and other low-income regions.",
+      "total_weight": 21.221243,
+      "activity_count": 60
     },
     {
       "id": "epidemiology_elder_mistreatment_aging",
@@ -626,10 +626,10 @@
         40916344
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 24.967872,
-      "activity_count": 59,
       "display_name": "Elder Mistreatment & Long-Term Care",
-      "short_description": "Prevalence, risk factors, and health consequences of elder mistreatment, nursing home quality, and aging-related outcomes in older adults."
+      "short_description": "Prevalence, risk factors, and health consequences of elder mistreatment, nursing home quality, and aging-related outcomes in older adults.",
+      "total_weight": 24.967872,
+      "activity_count": 59
     },
     {
       "id": "epidemiology_vaccine_immunization_epidemiology",
@@ -678,10 +678,10 @@
         40595406
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 15.837404,
-      "activity_count": 26,
       "display_name": "Vaccine Effectiveness & Immunization Programs",
-      "short_description": "Population-level evaluation of vaccine effectiveness, waning immunity, and the epidemiological impact of vaccination strategies."
+      "short_description": "Population-level evaluation of vaccine effectiveness, waning immunity, and the epidemiological impact of vaccination strategies.",
+      "total_weight": 15.837404,
+      "activity_count": 26
     },
     {
       "id": "epidemiology_racial_ethnic_health_disparities_outcomes",
@@ -730,10 +730,10 @@
         36131809
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 74.614222,
-      "activity_count": 154,
       "display_name": "Racial & Ethnic Disparities in Clinical Outcomes",
-      "short_description": "Racial and ethnic differences in treatment receipt, surgical outcomes, and mortality across cardiovascular, cancer, and maternal health conditions."
+      "short_description": "Racial and ethnic differences in treatment receipt, surgical outcomes, and mortality across cardiovascular, cancer, and maternal health conditions.",
+      "total_weight": 74.614222,
+      "activity_count": 154
     },
     {
       "id": "epidemiology_machine_learning_ehr_methods",
@@ -782,10 +782,10 @@
         35023833
       ],
       "coverage_estimate": 0.021,
-      "total_weight": 25.764101,
-      "activity_count": 56,
       "display_name": "Machine Learning & EHR-Based Methods",
-      "short_description": "Electronic health records, natural language processing, and predictive modeling applied to population-level epidemiological analyses."
+      "short_description": "Electronic health records, natural language processing, and predictive modeling applied to population-level epidemiological analyses.",
+      "total_weight": 25.764101,
+      "activity_count": 56
     }
   ],
   "uncovered_pmids": [
@@ -2190,9 +2190,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T17:04:40Z",
+  "augmented_at": "2026-05-13T12:37:21Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_epidemiology_population_health.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_epidemiology_population_health.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

@@ -28,10 +28,10 @@
         39054460
       ],
       "coverage_estimate": 0.08,
-      "total_weight": 14.178966,
-      "activity_count": 26,
       "display_name": "Prostate Cancer Treatment & Outcomes",
-      "short_description": "Clinical trials and real-world studies on localized, metastatic, and castration-resistant prostate cancer treatments and survival endpoints."
+      "short_description": "Clinical trials and real-world studies on localized, metastatic, and castration-resistant prostate cancer treatments and survival endpoints.",
+      "total_weight": 14.178966,
+      "activity_count": 26
     },
     {
       "id": "urology_prostate_cancer_molecular_biology",
@@ -62,10 +62,10 @@
         35231161
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 24.789656,
-      "activity_count": 29,
       "display_name": "Prostate Cancer Molecular Biology & Genomics",
-      "short_description": "Genomic, epigenomic, and transcriptomic studies of androgen receptor signaling, lineage plasticity, and therapeutic vulnerabilities in prostate cancer."
+      "short_description": "Genomic, epigenomic, and transcriptomic studies of androgen receptor signaling, lineage plasticity, and therapeutic vulnerabilities in prostate cancer.",
+      "total_weight": 24.789656,
+      "activity_count": 29
     },
     {
       "id": "urology_prostate_cancer_imaging_diagnosis",
@@ -91,10 +91,10 @@
         37246010
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 16.46922,
-      "activity_count": 15,
       "display_name": "Prostate Cancer Imaging & Biopsy",
-      "short_description": "Multiparametric MRI, PSMA PET/CT, AI-assisted analysis, and targeted biopsy techniques for detecting clinically significant prostate cancer."
+      "short_description": "Multiparametric MRI, PSMA PET/CT, AI-assisted analysis, and targeted biopsy techniques for detecting clinically significant prostate cancer.",
+      "total_weight": 16.46922,
+      "activity_count": 15
     },
     {
       "id": "urology_prostate_cancer_screening_disparities",
@@ -121,10 +121,10 @@
         39509585
       ],
       "coverage_estimate": 0.08,
-      "total_weight": 16.420975,
-      "activity_count": 26,
       "display_name": "Screening, Surveillance & Health Disparities",
-      "short_description": "PSA screening trends, active surveillance utilization, and racial and sociodemographic disparities in prostate cancer diagnosis and management."
+      "short_description": "PSA screening trends, active surveillance utilization, and racial and sociodemographic disparities in prostate cancer diagnosis and management.",
+      "total_weight": 16.420975,
+      "activity_count": 26
     },
     {
       "id": "urology_psma_theranostics",
@@ -140,10 +140,10 @@
         37221397
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.669878,
-      "activity_count": 5,
       "display_name": "PSMA-Targeted Theranostics & Radioligand Therapy",
-      "short_description": "Preclinical and clinical research on PSMA-targeted imaging agents and lutetium-based radioligand therapies for metastatic castration-resistant prostate cancer."
+      "short_description": "Preclinical and clinical research on PSMA-targeted imaging agents and lutetium-based radioligand therapies for metastatic castration-resistant prostate cancer.",
+      "total_weight": 1.669878,
+      "activity_count": 5
     },
     {
       "id": "urology_bladder_urothelial_cancer",
@@ -181,10 +181,10 @@
         40121304
       ],
       "coverage_estimate": 0.12,
-      "total_weight": 26.245578,
-      "activity_count": 32,
       "display_name": "Bladder & Urothelial Cancer Treatment",
-      "short_description": "Immunotherapy, antibody-drug conjugates, FGFR-targeted therapy, genomic evolution, and surgical outcomes in bladder and urothelial carcinoma."
+      "short_description": "Immunotherapy, antibody-drug conjugates, FGFR-targeted therapy, genomic evolution, and surgical outcomes in bladder and urothelial carcinoma.",
+      "total_weight": 26.245578,
+      "activity_count": 32
     },
     {
       "id": "urology_renal_cell_carcinoma",
@@ -210,10 +210,10 @@
         32613266
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 5.962989,
-      "activity_count": 13,
       "display_name": "Renal Cell Carcinoma Therapy & Genomics",
-      "short_description": "Systemic therapies, molecular biology, liquid biopsy, and surgical management across clear cell and other renal cell carcinoma subtypes."
+      "short_description": "Systemic therapies, molecular biology, liquid biopsy, and surgical management across clear cell and other renal cell carcinoma subtypes.",
+      "total_weight": 5.962989,
+      "activity_count": 13
     },
     {
       "id": "urology_kidney_stones_endourology",
@@ -230,10 +230,10 @@
         40888955
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 2.700333,
-      "activity_count": 10,
       "display_name": "Kidney Stones & Endourological Procedures",
-      "short_description": "Clinical management of nephrolithiasis via PCNL, ureteroscopy, laser lithotripsy, and imaging-guided stone detection and passage prediction."
+      "short_description": "Clinical management of nephrolithiasis via PCNL, ureteroscopy, laser lithotripsy, and imaging-guided stone detection and passage prediction.",
+      "total_weight": 2.700333,
+      "activity_count": 10
     },
     {
       "id": "urology_bph_functional_urology",
@@ -252,10 +252,10 @@
         35667245
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 5.543825,
-      "activity_count": 12,
       "display_name": "Benign Prostatic Hyperplasia & Functional Disorders",
-      "short_description": "Surgical and minimally invasive BPH treatments, urinary incontinence surgery, pelvic floor disorders, and chronic pelvic pain syndrome."
+      "short_description": "Surgical and minimally invasive BPH treatments, urinary incontinence surgery, pelvic floor disorders, and chronic pelvic pain syndrome.",
+      "total_weight": 5.543825,
+      "activity_count": 12
     },
     {
       "id": "urology_male_infertility_reproductive",
@@ -286,10 +286,10 @@
         36706828
       ],
       "coverage_estimate": 0.09,
-      "total_weight": 10.262106,
-      "activity_count": 23,
       "display_name": "Male Infertility & Reproductive Medicine",
-      "short_description": "Semen analysis, varicocelectomy, azoospermia genetics, sperm biology, and assisted reproductive technology outcomes in male infertility."
+      "short_description": "Semen analysis, varicocelectomy, azoospermia genetics, sperm biology, and assisted reproductive technology outcomes in male infertility.",
+      "total_weight": 10.262106,
+      "activity_count": 23
     },
     {
       "id": "urology_male_contraception_sperm_biology",
@@ -308,10 +308,10 @@
         32614044
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 8.506997,
-      "activity_count": 10,
       "display_name": "Non-Hormonal Male Contraception & Sperm Signaling",
-      "short_description": "Soluble adenylyl cyclase inhibition as a target for on-demand male contraception, including sperm motility, cAMP signaling, and capacitation biology."
+      "short_description": "Soluble adenylyl cyclase inhibition as a target for on-demand male contraception, including sperm motility, cAMP signaling, and capacitation biology.",
+      "total_weight": 8.506997,
+      "activity_count": 10
     },
     {
       "id": "urology_penile_erectile_prosthetic",
@@ -329,10 +329,10 @@
         34337474
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 3.844527,
-      "activity_count": 8,
       "display_name": "Erectile Dysfunction & Prosthetic Urology",
-      "short_description": "Penile prosthesis surgery, intracavernosal therapy, Peyronie's disease treatment, and post-prostatectomy sexual function outcomes."
+      "short_description": "Penile prosthesis surgery, intracavernosal therapy, Peyronie's disease treatment, and post-prostatectomy sexual function outcomes.",
+      "total_weight": 3.844527,
+      "activity_count": 8
     },
     {
       "id": "urology_urothelial_cytopathology",
@@ -346,10 +346,10 @@
         40743580
       ],
       "coverage_estimate": 0.02,
-      "total_weight": 2.297182,
-      "activity_count": 5,
       "display_name": "Urothelial Carcinoma Cytopathology & Diagnosis",
-      "short_description": "Cytological and histopathological diagnosis of urothelial carcinoma using Paris System criteria, whole-slide imaging, and immunohistochemical markers."
+      "short_description": "Cytological and histopathological diagnosis of urothelial carcinoma using Paris System criteria, whole-slide imaging, and immunohistochemical markers.",
+      "total_weight": 2.297182,
+      "activity_count": 5
     },
     {
       "id": "urology_urinary_tract_infection_microbiome",
@@ -364,10 +364,10 @@
         37208135
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 2.249366,
-      "activity_count": 5,
       "display_name": "Urinary Tract Infections & Microbiome",
-      "short_description": "UTI pathogenesis, gut microbiota interactions, bacteriophage therapy, and infectious complications of urological procedures."
+      "short_description": "UTI pathogenesis, gut microbiota interactions, bacteriophage therapy, and infectious complications of urological procedures.",
+      "total_weight": 2.249366,
+      "activity_count": 5
     },
     {
       "id": "urology_prostate_cancer_biomarkers_liquid_biopsy",
@@ -389,10 +389,10 @@
         39086310
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 7.038845,
-      "activity_count": 9,
       "display_name": "Urological Cancer Biomarkers & Liquid Biopsy",
-      "short_description": "Circulating tumor DNA, cell-free methylation, plasma metabolomics, and multi-analyte approaches for detection and treatment monitoring in urological cancers."
+      "short_description": "Circulating tumor DNA, cell-free methylation, plasma metabolomics, and multi-analyte approaches for detection and treatment monitoring in urological cancers.",
+      "total_weight": 7.038845,
+      "activity_count": 9
     }
   ],
   "uncovered_pmids": [
@@ -435,9 +435,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 1,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T21:38:53Z",
+  "augmented_at": "2026-05-13T14:05:42Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_urology_mens_health.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_urology_mens_health.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

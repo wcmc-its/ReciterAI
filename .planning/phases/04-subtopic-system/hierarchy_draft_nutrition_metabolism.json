@@ -296,7 +296,7 @@
     {
       "id": "nutrition_dietary_intervention_chronic_disease",
       "label": "Dietary Interventions and Nutritional Strategies for Chronic Disease Prevention",
-      "description": "Clinical and translational studies evaluating specific dietary interventions—including ketogenic diets, Mediterranean diet, omega-3 fatty acids, carotenoids, and caloric restriction—for prevention or management of chronic diseases such as Alzheimer's disease, cardiovascular disease, and cancer.",
+      "description": "Clinical and translational studies evaluating specific dietary interventions\u2014including ketogenic diets, Mediterranean diet, omega-3 fatty acids, carotenoids, and caloric restriction\u2014for prevention or management of chronic diseases such as Alzheimer's disease, cardiovascular disease, and cancer.",
       "seed_pmids": [
         38962750,
         33236056,
@@ -397,7 +397,7 @@
     {
       "id": "nutrition_immune_metabolism_tcell",
       "label": "Immune Cell Metabolism, T Cell Function, and Immunotherapy",
-      "description": "Research on metabolic reprogramming in immune cells—particularly T cells and dendritic cells—and how nutrient availability, lipid oxidation, and glycolytic pathways influence antitumor immunity and immunotherapy efficacy.",
+      "description": "Research on metabolic reprogramming in immune cells\u2014particularly T cells and dendritic cells\u2014and how nutrient availability, lipid oxidation, and glycolytic pathways influence antitumor immunity and immunotherapy efficacy.",
       "seed_pmids": [
         39327500,
         39443795,

@@ -95,7 +95,7 @@
     {
       "id": "melanoma_cutaneous_scc_immunosuppression",
       "label": "Cutaneous Squamous Cell Carcinoma in Immunocompromised Patients",
-      "description": "Studies examining the impact of immunosuppression—including solid organ transplantation and other immunomodulating conditions—on the prognosis, metastasis, and management of cutaneous squamous cell carcinoma.",
+      "description": "Studies examining the impact of immunosuppression\u2014including solid organ transplantation and other immunomodulating conditions\u2014on the prognosis, metastasis, and management of cutaneous squamous cell carcinoma.",
       "seed_pmids": [
         33247523,
         36980651,
@@ -160,7 +160,7 @@
     {
       "id": "melanoma_combination_immunotherapy_preclinical",
       "label": "Combination Immunotherapy Strategies and Preclinical Tumor Models",
-      "description": "Preclinical studies investigating combination approaches to enhance antitumor immunity, including TGFβ inhibition, LDH inhibition, phosphatidylserine targeting, GITR engagement, and cyclophosphamide-based regimens in melanoma and solid tumor models.",
+      "description": "Preclinical studies investigating combination approaches to enhance antitumor immunity, including TGF\u03b2 inhibition, LDH inhibition, phosphatidylserine targeting, GITR engagement, and cyclophosphamide-based regimens in melanoma and solid tumor models.",
       "seed_pmids": [
         34789823,
         39225102,
@@ -170,7 +170,7 @@
       ],
       "coverage_estimate": 0.1,
       "display_name": "Combination Immunotherapy & Preclinical Tumor Models",
-      "short_description": "Preclinical combination strategies enhancing antitumor immunity, including TGFβ inhibition, GITR engagement, and phosphatidylserine targeting."
+      "short_description": "Preclinical combination strategies enhancing antitumor immunity, including TGF\u03b2 inhibition, GITR engagement, and phosphatidylserine targeting."
     }
   ],
   "uncovered_pmids": [

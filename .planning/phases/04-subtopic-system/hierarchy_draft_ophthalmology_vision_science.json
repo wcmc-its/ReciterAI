@@ -310,7 +310,7 @@
     {
       "id": "ophthalmology_ccm_neurodegeneration_rare_disease",
       "label": "Corneal Confocal Microscopy in Neurodegeneration and Rare Diseases",
-      "description": "Application of corneal confocal microscopy and related ocular measures to detect neurodegeneration or autonomic dysfunction in rare and neurological conditions including Guillain-Barré syndrome, Fabry disease, and dementia.",
+      "description": "Application of corneal confocal microscopy and related ocular measures to detect neurodegeneration or autonomic dysfunction in rare and neurological conditions including Guillain-Barr\u00e9 syndrome, Fabry disease, and dementia.",
       "seed_pmids": [
         40166899,
         33854145,
@@ -318,7 +318,7 @@
       ],
       "coverage_estimate": 0.09,
       "display_name": "Confocal Microscopy in Rare Neurological Disease",
-      "short_description": "Ocular measures of neurodegeneration and autonomic dysfunction in Guillain-Barré syndrome and Fabry disease."
+      "short_description": "Ocular measures of neurodegeneration and autonomic dysfunction in Guillain-Barr\u00e9 syndrome and Fabry disease."
     },
     {
       "id": "ophthalmology_uveal_melanoma_ocular_oncology",

@@ -26,10 +26,10 @@
         31173076
       ],
       "coverage_estimate": 0.085,
-      "total_weight": 9.399403,
-      "activity_count": 19,
       "display_name": "Heart Development & Regeneration",
-      "short_description": "Molecular and cellular mechanisms of cardiomyocyte differentiation, cardiogenesis, and cardiac regeneration in zebrafish, mouse, and stem cell models."
+      "short_description": "Molecular and cellular mechanisms of cardiomyocyte differentiation, cardiogenesis, and cardiac regeneration in zebrafish, mouse, and stem cell models.",
+      "total_weight": 9.399403,
+      "activity_count": 19
     },
     {
       "id": "developmental_neural_differentiation_cortex",
@@ -54,10 +54,10 @@
         38594596
       ],
       "coverage_estimate": 0.08,
-      "total_weight": 11.636692,
-      "activity_count": 21,
       "display_name": "Neural Differentiation & Cortical Patterning",
-      "short_description": "Specification and circuit integration of neurons and progenitors during brain development, including cortical layering and axon guidance."
+      "short_description": "Specification and circuit integration of neurons and progenitors during brain development, including cortical layering and axon guidance.",
+      "total_weight": 11.636692,
+      "activity_count": 21
     },
     {
       "id": "developmental_pluripotent_stem_cell_reprogramming",
@@ -80,10 +80,10 @@
         32328637
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 9.245765,
-      "activity_count": 15,
       "display_name": "Pluripotent Stem Cell Biology & Reprogramming",
-      "short_description": "Generation, epigenetic regulation, and directed differentiation of ESCs and iPSCs for disease modeling and developmental research."
+      "short_description": "Generation, epigenetic regulation, and directed differentiation of ESCs and iPSCs for disease modeling and developmental research.",
+      "total_weight": 9.245765,
+      "activity_count": 15
     },
     {
       "id": "developmental_organoid_disease_modeling",
@@ -102,10 +102,10 @@
         36877162
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 4.18042,
-      "activity_count": 8,
       "display_name": "Organoid-Based Disease Modeling",
-      "short_description": "Brain, lung, pancreatic, and other organoid systems derived from human stem cells to model congenital conditions and disease pathology."
+      "short_description": "Brain, lung, pancreatic, and other organoid systems derived from human stem cells to model congenital conditions and disease pathology.",
+      "total_weight": 4.18042,
+      "activity_count": 8
     },
     {
       "id": "developmental_hematopoiesis_stem_cell_fate",
@@ -123,10 +123,10 @@
         33440144
       ],
       "coverage_estimate": 0.045,
-      "total_weight": 4.050363,
-      "activity_count": 8,
       "display_name": "Hematopoietic Stem Cell Fate & Lineage",
-      "short_description": "Epigenetic and transcriptional control of hematopoietic stem cell differentiation, clonal hematopoiesis, and myeloid and lymphoid fate decisions."
+      "short_description": "Epigenetic and transcriptional control of hematopoietic stem cell differentiation, clonal hematopoiesis, and myeloid and lymphoid fate decisions.",
+      "total_weight": 4.050363,
+      "activity_count": 8
     },
     {
       "id": "developmental_epigenetic_chromatin_regulation",
@@ -144,15 +144,15 @@
         36992663
       ],
       "coverage_estimate": 0.045,
-      "total_weight": 10.622541,
-      "activity_count": 15,
       "display_name": "Chromatin Regulation & Cell Identity",
-      "short_description": "Histone modifications, DNA methylation, and 3D genome organization governing lineage commitment and developmental transitions."
+      "short_description": "Histone modifications, DNA methylation, and 3D genome organization governing lineage commitment and developmental transitions.",
+      "total_weight": 10.622541,
+      "activity_count": 15
     },
     {
       "id": "developmental_osteoblast_skeletal_differentiation",
       "label": "Osteoblast Differentiation and Skeletal Development",
-      "description": "Research on the molecular pathways governing osteoblast differentiation, bone formation, and skeletal patterning, including signaling through ERK/MAPK, hedgehog, Wnt, and GSK3-β pathways. Encompasses studies on craniosynostosis, skeletal stem cells, and mineralization defects.",
+      "description": "Research on the molecular pathways governing osteoblast differentiation, bone formation, and skeletal patterning, including signaling through ERK/MAPK, hedgehog, Wnt, and GSK3-\u03b2 pathways. Encompasses studies on craniosynostosis, skeletal stem cells, and mineralization defects.",
       "seed_pmids": [
         32807497,
         35325978,
@@ -164,15 +164,15 @@
         37704733
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 6.379494,
-      "activity_count": 9,
       "display_name": "Osteoblast Differentiation & Skeletal Patterning",
-      "short_description": "Molecular pathways controlling bone formation, skeletal stem cells, and mineralization, including craniosynostosis and hedgehog/Wnt signaling."
+      "short_description": "Molecular pathways controlling bone formation, skeletal stem cells, and mineralization, including craniosynostosis and hedgehog/Wnt signaling.",
+      "total_weight": 6.379494,
+      "activity_count": 9
     },
     {
       "id": "developmental_intestinal_epithelial_lineage",
       "label": "Intestinal Epithelial Lineage and Stem Cell Biology",
-      "description": "Studies on the specification, maintenance, and plasticity of intestinal epithelial cell lineages, including Lgr5+ intestinal stem cells, goblet cells, and colonocyte identity. Encompasses Wnt/β-catenin signaling, niche interactions, and lineage reversion in homeostasis and cancer.",
+      "description": "Studies on the specification, maintenance, and plasticity of intestinal epithelial cell lineages, including Lgr5+ intestinal stem cells, goblet cells, and colonocyte identity. Encompasses Wnt/\u03b2-catenin signaling, niche interactions, and lineage reversion in homeostasis and cancer.",
       "seed_pmids": [
         35931033,
         35790295,
@@ -184,10 +184,10 @@
         34621263
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 0.842718,
-      "activity_count": 4,
       "display_name": "Intestinal Epithelial Stem Cell Biology",
-      "short_description": "Specification and plasticity of intestinal epithelial lineages, Lgr5+ stem cells, and Wnt/β-catenin niche interactions in homeostasis and cancer."
+      "short_description": "Specification and plasticity of intestinal epithelial lineages, Lgr5+ stem cells, and Wnt/\u03b2-catenin niche interactions in homeostasis and cancer.",
+      "total_weight": 0.842718,
+      "activity_count": 4
     },
     {
       "id": "developmental_endothelial_vascular_specification",
@@ -204,10 +204,10 @@
         36599970
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 12.332158,
-      "activity_count": 6,
       "display_name": "Endothelial Specification & Vascular Development",
-      "short_description": "Origin and maintenance of endothelial cells and vascular progenitors, including angiogenesis, blood-brain barrier formation, and organ-specific zonation."
+      "short_description": "Origin and maintenance of endothelial cells and vascular progenitors, including angiogenesis, blood-brain barrier formation, and organ-specific zonation.",
+      "total_weight": 12.332158,
+      "activity_count": 6
     },
     {
       "id": "developmental_neural_tube_spina_bifida",
@@ -222,15 +222,15 @@
         40923693
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 3.911077,
-      "activity_count": 8,
       "display_name": "Neural Tube Defects & Developmental Genetics",
-      "short_description": "Genetic and genomic etiology of spina bifida and related congenital malformations, including GWAS, copy number variants, and nutritional risk factors."
+      "short_description": "Genetic and genomic etiology of spina bifida and related congenital malformations, including GWAS, copy number variants, and nutritional risk factors.",
+      "total_weight": 3.911077,
+      "activity_count": 8
     },
     {
       "id": "developmental_pancreatic_beta_cell_differentiation",
-      "label": "Pancreatic β Cell Differentiation and Function",
-      "description": "Research on the differentiation, identity maintenance, and functional regulation of pancreatic β cells, including transcription factor control, epigenetic regulation, and lineage plasticity relevant to diabetes. Encompasses CDK4 signaling, ALDH1A3 inhibition, RAR-β deletion, and SARS-CoV-2-induced transdifferentiation.",
+      "label": "Pancreatic \u03b2 Cell Differentiation and Function",
+      "description": "Research on the differentiation, identity maintenance, and functional regulation of pancreatic \u03b2 cells, including transcription factor control, epigenetic regulation, and lineage plasticity relevant to diabetes. Encompasses CDK4 signaling, ALDH1A3 inhibition, RAR-\u03b2 deletion, and SARS-CoV-2-induced transdifferentiation.",
       "seed_pmids": [
         34081913,
         37712417,
@@ -241,10 +241,10 @@
         39232561
       ],
       "coverage_estimate": 0.035,
+      "display_name": "Pancreatic \u03b2-Cell Differentiation & Function",
+      "short_description": "Transcription factor control, epigenetic regulation, and lineage plasticity of pancreatic \u03b2 cells relevant to diabetes and viral transdifferentiation.",
       "total_weight": 3.04393,
-      "activity_count": 6,
-      "display_name": "Pancreatic β-Cell Differentiation & Function",
-      "short_description": "Transcription factor control, epigenetic regulation, and lineage plasticity of pancreatic β cells relevant to diabetes and viral transdifferentiation."
+      "activity_count": 6
     },
     {
       "id": "developmental_adipogenesis_differentiation",
@@ -261,10 +261,10 @@
         33314576
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 1.646002,
-      "activity_count": 9,
       "display_name": "Adipocyte Differentiation & Adipogenesis",
-      "short_description": "Molecular regulation of preadipocyte commitment and adipocyte differentiation, including circadian clock control and epigenetic reprogramming."
+      "short_description": "Molecular regulation of preadipocyte commitment and adipocyte differentiation, including circadian clock control and epigenetic reprogramming.",
+      "total_weight": 1.646002,
+      "activity_count": 9
     },
     {
       "id": "developmental_gametogenesis_reproductive",
@@ -286,10 +286,10 @@
         36992663
       ],
       "coverage_estimate": 0.065,
-      "total_weight": 11.865054,
-      "activity_count": 18,
       "display_name": "Gametogenesis & Reproductive Development",
-      "short_description": "Cellular and molecular mechanisms of spermatogenesis, oogenesis, meiosis, and folliculogenesis, including genetic causes of infertility."
+      "short_description": "Cellular and molecular mechanisms of spermatogenesis, oogenesis, meiosis, and folliculogenesis, including genetic causes of infertility.",
+      "total_weight": 11.865054,
+      "activity_count": 18
     },
     {
       "id": "developmental_lineage_plasticity_cancer",
@@ -308,10 +308,10 @@
         32115621
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 5.650663,
-      "activity_count": 11,
       "display_name": "Lineage Plasticity & Cell Fate in Cancer",
-      "short_description": "Developmental transcription factors and epigenetic states driving histological transformation and tumor cell state transitions across cancer types."
+      "short_description": "Developmental transcription factors and epigenetic states driving histological transformation and tumor cell state transitions across cancer types.",
+      "total_weight": 5.650663,
+      "activity_count": 11
     },
     {
       "id": "developmental_wnt_hedgehog_signaling",
@@ -327,10 +327,10 @@
         32580940
       ],
       "coverage_estimate": 0.035,
-      "total_weight": 0.602252,
-      "activity_count": 2,
       "display_name": "Wnt & Hedgehog Signaling Pathways",
-      "short_description": "Roles of Wnt and Hedgehog pathways in tissue patterning, organogenesis, and cell fate specification during development and disease."
+      "short_description": "Roles of Wnt and Hedgehog pathways in tissue patterning, organogenesis, and cell fate specification during development and disease.",
+      "total_weight": 0.602252,
+      "activity_count": 2
     },
     {
       "id": "developmental_airway_epithelial_differentiation",
@@ -342,10 +342,10 @@
         35194053
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 1.48608,
-      "activity_count": 3,
       "display_name": "Airway Epithelial Differentiation & Lung Disease",
-      "short_description": "Differentiation and dysfunction of airway epithelial progenitor cells in the context of smoking, HIV, and COPD."
+      "short_description": "Differentiation and dysfunction of airway epithelial progenitor cells in the context of smoking, HIV, and COPD.",
+      "total_weight": 1.48608,
+      "activity_count": 3
     },
     {
       "id": "developmental_m6a_rna_modification",
@@ -357,10 +357,10 @@
         33510167
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.407226,
-      "activity_count": 2,
       "display_name": "m6A RNA Modification & Epitranscriptomics",
-      "short_description": "m6A mRNA methylation machinery and reader proteins governing post-transcriptional gene regulation and mRNA stability."
+      "short_description": "m6A mRNA methylation machinery and reader proteins governing post-transcriptional gene regulation and mRNA stability.",
+      "total_weight": 0.407226,
+      "activity_count": 2
     },
     {
       "id": "developmental_glioma_stem_cell_microenvironment",
@@ -372,10 +372,10 @@
         38579726
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 2.353019,
-      "activity_count": 4,
       "display_name": "Glioma Stem Cells & Tumor Microenvironment",
-      "short_description": "Hypoxia and microenvironmental states supporting glioma stem cell maintenance and influencing glioblastoma biology and IDH-targeted therapy."
+      "short_description": "Hypoxia and microenvironmental states supporting glioma stem cell maintenance and influencing glioblastoma biology and IDH-targeted therapy.",
+      "total_weight": 2.353019,
+      "activity_count": 4
     },
     {
       "id": "developmental_b_cell_lymphoma_differentiation",
@@ -387,10 +387,10 @@
         36060812
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 1.55796,
-      "activity_count": 2,
       "display_name": "B-Cell Differentiation & Lymphomagenesis",
-      "short_description": "Transcriptional and chromatin regulators controlling B-cell fate decisions and germinal center-derived lymphoma development."
+      "short_description": "Transcriptional and chromatin regulators controlling B-cell fate decisions and germinal center-derived lymphoma development.",
+      "total_weight": 1.55796,
+      "activity_count": 2
     },
     {
       "id": "developmental_ivf_embryo_assessment",
@@ -402,10 +402,10 @@
         35610153
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 2.759237,
-      "activity_count": 4,
       "display_name": "IVF Embryo Assessment & Reproductive Technology",
-      "short_description": "Computational and imaging approaches for evaluating human embryo quality, ploidy prediction, and blastocyst conversion in assisted reproduction."
+      "short_description": "Computational and imaging approaches for evaluating human embryo quality, ploidy prediction, and blastocyst conversion in assisted reproduction.",
+      "total_weight": 2.759237,
+      "activity_count": 4
     },
     {
       "id": "developmental_maternal_offspring_programming",
@@ -418,10 +418,10 @@
         36458257
       ],
       "coverage_estimate": 0.06,
-      "total_weight": 1.718075,
-      "activity_count": 5,
       "display_name": "Maternal Programming of Offspring Development",
-      "short_description": "Gestational factors including cytokines and hormones that program offspring neurodevelopment, immune function, and behavior."
+      "short_description": "Gestational factors including cytokines and hormones that program offspring neurodevelopment, immune function, and behavior.",
+      "total_weight": 1.718075,
+      "activity_count": 5
     },
     {
       "id": "developmental_microglia_brain_immunity",
@@ -433,10 +433,10 @@
         38237586
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.68397,
-      "activity_count": 1,
       "display_name": "Microglial Biology & Brain Innate Immunity",
-      "short_description": "Microglial subpopulations and innate immune cell roles in brain development, pharmacological depletion resistance, and neurological disease."
+      "short_description": "Microglial subpopulations and innate immune cell roles in brain development, pharmacological depletion resistance, and neurological disease.",
+      "total_weight": 0.68397,
+      "activity_count": 1
     },
     {
       "id": "developmental_endoderm_organogenesis_patterning",
@@ -448,10 +448,10 @@
         37644156
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 2.53206,
-      "activity_count": 3,
       "display_name": "Endoderm Specification & Organ Patterning",
-      "short_description": "Transcription factor-driven enhancer remodeling and signaling pathways directing endoderm specification and patterning of kidney and pancreas."
+      "short_description": "Transcription factor-driven enhancer remodeling and signaling pathways directing endoderm specification and patterning of kidney and pancreas.",
+      "total_weight": 2.53206,
+      "activity_count": 3
     },
     {
       "id": "developmental_cell_cycle_quiescence",
@@ -463,10 +463,10 @@
         39565578
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.418654,
-      "activity_count": 2,
       "display_name": "Cell Cycle Regulation & Quiescence",
-      "short_description": "Molecular mechanisms controlling cell cycle progression, density-dependent quiescence, and cyclin D1 and CDK inhibitor regulation."
+      "short_description": "Molecular mechanisms controlling cell cycle progression, density-dependent quiescence, and cyclin D1 and CDK inhibitor regulation.",
+      "total_weight": 0.418654,
+      "activity_count": 2
     },
     {
       "id": "developmental_tissue_regeneration_sirtuin",
@@ -478,10 +478,10 @@
         40530862
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.322474,
-      "activity_count": 2,
       "display_name": "Tissue Regeneration & Stress Response Signaling",
-      "short_description": "Sirt1-mediated mitochondrial stress responses, nuclear pore remodeling, and cardiac scar-to-syncytium regeneration strategies."
+      "short_description": "Sirt1-mediated mitochondrial stress responses, nuclear pore remodeling, and cardiac scar-to-syncytium regeneration strategies.",
+      "total_weight": 0.322474,
+      "activity_count": 2
     },
     {
       "id": "developmental_ipsc_genome_editing_tools",
@@ -493,10 +493,10 @@
         33004554
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 0.75249,
-      "activity_count": 3,
       "display_name": "iPSC Genome Editing & Disease Modeling Tools",
-      "short_description": "CRISPR-based genome editing advances in human iPSCs and derived cell types for modeling neurological and vascular disease."
+      "short_description": "CRISPR-based genome editing advances in human iPSCs and derived cell types for modeling neurological and vascular disease.",
+      "total_weight": 0.75249,
+      "activity_count": 3
     }
   ],
   "uncovered_pmids": [
@@ -534,9 +534,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T21:49:24Z",
+  "augmented_at": "2026-05-13T14:08:19Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_developmental_biology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_developmental_biology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

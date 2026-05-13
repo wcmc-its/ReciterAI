@@ -388,7 +388,7 @@
     {
       "id": "immunology_inflammatory_signaling_senescence",
       "label": "Inflammatory Signaling, Cellular Senescence, and Sterile Inflammation",
-      "description": "Research on molecular mechanisms of sterile inflammation including NF-κB, STING, cGAS, and inflammasome pathways, cellular senescence-associated inflammatory phenotypes (SASP), and oxidative stress-driven immune activation. Includes studies of complement activation, necroptosis, and inflammatory mediators in non-infectious tissue injury.",
+      "description": "Research on molecular mechanisms of sterile inflammation including NF-\u03baB, STING, cGAS, and inflammasome pathways, cellular senescence-associated inflammatory phenotypes (SASP), and oxidative stress-driven immune activation. Includes studies of complement activation, necroptosis, and inflammatory mediators in non-infectious tissue injury.",
       "seed_pmids": [
         32299776,
         33058948,
@@ -409,7 +409,7 @@
       ],
       "coverage_estimate": 0.018,
       "display_name": "Sterile Inflammation & Cellular Senescence",
-      "short_description": "NF-κB, STING, and inflammasome pathways driving senescence-associated inflammation and non-infectious tissue injury."
+      "short_description": "NF-\u03baB, STING, and inflammasome pathways driving senescence-associated inflammation and non-infectious tissue injury."
     }
   ],
   "uncovered_pmids": [

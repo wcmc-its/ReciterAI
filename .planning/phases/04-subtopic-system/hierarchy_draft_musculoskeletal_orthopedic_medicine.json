@@ -127,7 +127,7 @@
     {
       "id": "musculoskeletal_bone_biology_osteoblast_osteoclast",
       "label": "Bone Cell Biology: Osteoblast and Osteoclast Signaling and Differentiation",
-      "description": "Research on the molecular and cellular mechanisms governing osteoblast differentiation, osteoclastogenesis, and skeletal mineralization, including key signaling pathways such as ERK/MAPK, hedgehog, GSK3-β, and mTORC1. Includes studies on bone-specific kinases, transcription factors, and sex differences in bone cell biology.",
+      "description": "Research on the molecular and cellular mechanisms governing osteoblast differentiation, osteoclastogenesis, and skeletal mineralization, including key signaling pathways such as ERK/MAPK, hedgehog, GSK3-\u03b2, and mTORC1. Includes studies on bone-specific kinases, transcription factors, and sex differences in bone cell biology.",
       "seed_pmids": [
         32807497,
         34326333,

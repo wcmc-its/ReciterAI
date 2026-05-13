@@ -21,10 +21,10 @@
         40128288
       ],
       "coverage_estimate": 0.048,
-      "total_weight": 4.043189,
-      "activity_count": 12,
       "display_name": "scRNA-Seq Methods & Computational Frameworks",
-      "short_description": "Computational methods, statistical models, and experimental protocols for single-cell RNA sequencing, clustering, and data integration."
+      "short_description": "Computational methods, statistical models, and experimental protocols for single-cell RNA sequencing, clustering, and data integration.",
+      "total_weight": 4.043189,
+      "activity_count": 12
     },
     {
       "id": "single_spatial_transcriptomics_imaging",
@@ -46,10 +46,10 @@
         39264806
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 12.713186,
-      "activity_count": 15,
       "display_name": "Tissue Architecture Mapping & Imaging",
-      "short_description": "Spatially resolved transcriptomics and multiplexed imaging to map cell-type distributions and microenvironmental interactions at single-cell resolution."
+      "short_description": "Spatially resolved transcriptomics and multiplexed imaging to map cell-type distributions and microenvironmental interactions at single-cell resolution.",
+      "total_weight": 12.713186,
+      "activity_count": 15
     },
     {
       "id": "single_long_read_isoform_splicing",
@@ -69,10 +69,10 @@
         36759904
       ],
       "coverage_estimate": 0.044,
-      "total_weight": 14.029815,
-      "activity_count": 11,
       "display_name": "Long-Read Sequencing & Isoform Resolution",
-      "short_description": "Full-length RNA isoform and alternative splicing characterization across cell types using PacBio and Oxford Nanopore technologies."
+      "short_description": "Full-length RNA isoform and alternative splicing characterization across cell types using PacBio and Oxford Nanopore technologies.",
+      "total_weight": 14.029815,
+      "activity_count": 11
     },
     {
       "id": "single_multiome_epigenome_chromatin",
@@ -95,10 +95,10 @@
         36877162
       ],
       "coverage_estimate": 0.056,
-      "total_weight": 12.785257,
-      "activity_count": 14,
       "display_name": "Epigenome & Chromatin Multi-Omics",
-      "short_description": "Joint profiling of chromatin accessibility, histone modifications, DNA methylation, and transcriptome to map epigenetic cell identity."
+      "short_description": "Joint profiling of chromatin accessibility, histone modifications, DNA methylation, and transcriptome to map epigenetic cell identity.",
+      "total_weight": 12.785257,
+      "activity_count": 14
     },
     {
       "id": "single_tumor_microenvironment_immune",
@@ -121,10 +121,10 @@
         40443130
       ],
       "coverage_estimate": 0.056,
-      "total_weight": 18.262645,
-      "activity_count": 14,
       "display_name": "Tumor Microenvironment & Immune Heterogeneity",
-      "short_description": "Immune cell composition, tumor-infiltrating lymphocyte states, and stromal interactions across cancer types linked to immunotherapy response."
+      "short_description": "Immune cell composition, tumor-infiltrating lymphocyte states, and stromal interactions across cancer types linked to immunotherapy response.",
+      "total_weight": 18.262645,
+      "activity_count": 14
     },
     {
       "id": "single_neural_brain_cell_states",
@@ -146,10 +146,10 @@
         39607927
       ],
       "coverage_estimate": 0.052,
-      "total_weight": 14.058759,
-      "activity_count": 17,
       "display_name": "Brain Cell Types & Neurological Disease States",
-      "short_description": "Transcriptomic and epigenomic profiling of neurons, glia, and microglia in neurodegeneration, psychiatric disorders, and brain injury."
+      "short_description": "Transcriptomic and epigenomic profiling of neurons, glia, and microglia in neurodegeneration, psychiatric disorders, and brain injury.",
+      "total_weight": 14.058759,
+      "activity_count": 17
     },
     {
       "id": "single_hematopoiesis_clonal_evolution",
@@ -169,10 +169,10 @@
         36469010
       ],
       "coverage_estimate": 0.044,
-      "total_weight": 8.226194,
-      "activity_count": 11,
       "display_name": "Hematopoiesis, Clonal Evolution & Blood Disorders",
-      "short_description": "Stem and progenitor cell differentiation, clonal hematopoiesis, and lineage dynamics in normal and malignant blood disorders."
+      "short_description": "Stem and progenitor cell differentiation, clonal hematopoiesis, and lineage dynamics in normal and malignant blood disorders.",
+      "total_weight": 8.226194,
+      "activity_count": 11
     },
     {
       "id": "single_organoid_stem_cell_differentiation",
@@ -195,10 +195,10 @@
         40080060
       ],
       "coverage_estimate": 0.056,
-      "total_weight": 10.610331,
-      "activity_count": 12,
       "display_name": "Organoids & Stem Cell Fate Specification",
-      "short_description": "Organoid and pluripotent stem cell models for studying cell fate decisions, lineage specification, and multi-organ disease modeling."
+      "short_description": "Organoid and pluripotent stem cell models for studying cell fate decisions, lineage specification, and multi-organ disease modeling.",
+      "total_weight": 10.610331,
+      "activity_count": 12
     },
     {
       "id": "single_lineage_tracing_plasticity",
@@ -218,10 +218,10 @@
         35617398
       ],
       "coverage_estimate": 0.044,
-      "total_weight": 10.636981,
-      "activity_count": 9,
       "display_name": "Lineage Tracing, Plasticity & Tumor Evolution",
-      "short_description": "Clonal lineage tracking, phenotypic plasticity, and evolutionary trajectory reconstruction in cancer and normal tissue."
+      "short_description": "Clonal lineage tracking, phenotypic plasticity, and evolutionary trajectory reconstruction in cancer and normal tissue.",
+      "total_weight": 10.636981,
+      "activity_count": 9
     },
     {
       "id": "single_airway_lung_epithelium",
@@ -238,10 +238,10 @@
         38528608
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 9.49477,
-      "activity_count": 9,
       "display_name": "Airway & Lung Epithelial Cell Biology",
-      "short_description": "Transcriptomic and spatial profiling of lung epithelial cell types in COPD, IPF, COVID-19, and infection-related injury."
+      "short_description": "Transcriptomic and spatial profiling of lung epithelial cell types in COPD, IPF, COVID-19, and infection-related injury.",
+      "total_weight": 9.49477,
+      "activity_count": 9
     },
     {
       "id": "single_spaceflight_multiomics",
@@ -258,10 +258,10 @@
         32375154
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 10.393842,
-      "activity_count": 10,
       "display_name": "Spaceflight Physiology & Multi-Omics Profiling",
-      "short_description": "Molecular and cellular responses to spaceflight in astronaut biospecimens, including immune dysregulation and hematopoietic changes."
+      "short_description": "Molecular and cellular responses to spaceflight in astronaut biospecimens, including immune dysregulation and hematopoietic changes.",
+      "total_weight": 10.393842,
+      "activity_count": 10
     },
     {
       "id": "single_pancreas_islet_diabetes",
@@ -277,10 +277,10 @@
         39232561
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 17.350222,
-      "activity_count": 10,
       "display_name": "Pancreatic Islet Atlas & Diabetes Pathophysiology",
-      "short_description": "Multi-omic profiling of islet cell types and beta cell dysfunction to elucidate mechanisms of type 1 and type 2 diabetes."
+      "short_description": "Multi-omic profiling of islet cell types and beta cell dysfunction to elucidate mechanisms of type 1 and type 2 diabetes.",
+      "total_weight": 17.350222,
+      "activity_count": 10
     },
     {
       "id": "single_proteomics_surfaceome",
@@ -298,10 +298,10 @@
         38862464
       ],
       "coverage_estimate": 0.036,
-      "total_weight": 2.949324,
-      "activity_count": 8,
       "display_name": "Proteomic Profiling & Surface Characterization",
-      "short_description": "Mass spectrometry and proximity proteomics to map cell-type-specific protein expression, surface proteomes, and extracellular vesicles."
+      "short_description": "Mass spectrometry and proximity proteomics to map cell-type-specific protein expression, surface proteomes, and extracellular vesicles.",
+      "total_weight": 2.949324,
+      "activity_count": 8
     },
     {
       "id": "single_ilc_gut_immunity",
@@ -317,10 +317,10 @@
         39332042
       ],
       "coverage_estimate": 0.028,
-      "total_weight": 7.181686,
-      "activity_count": 6,
       "display_name": "Innate Lymphoid Cells & Gut Immune Homeostasis",
-      "short_description": "Transcriptional regulation and functional roles of ILC subsets in intestinal immune homeostasis, tolerance, and inflammation."
+      "short_description": "Transcriptional regulation and functional roles of ILC subsets in intestinal immune homeostasis, tolerance, and inflammation.",
+      "total_weight": 7.181686,
+      "activity_count": 6
     },
     {
       "id": "single_endothelial_vascular_organogenesis",
@@ -337,10 +337,10 @@
         38440076
       ],
       "coverage_estimate": 0.032,
-      "total_weight": 9.300089,
-      "activity_count": 5,
       "display_name": "Endothelial Heterogeneity & Vascular Biology",
-      "short_description": "Endothelial cell subtype specification, angiogenesis, and tissue homeostasis across organogenesis, cancer, and organ development."
+      "short_description": "Endothelial cell subtype specification, angiogenesis, and tissue homeostasis across organogenesis, cancer, and organ development.",
+      "total_weight": 9.300089,
+      "activity_count": 5
     },
     {
       "id": "single_lymphoma_b_cell_genomics",
@@ -358,10 +358,10 @@
         36468984
       ],
       "coverage_estimate": 0.08,
-      "total_weight": 7.302631,
-      "activity_count": 10,
       "display_name": "B Cell Lymphoma Genomics & Epigenetics",
-      "short_description": "Genetic and epigenetic mechanisms driving B cell lymphoma transformation, including chromatin regulators and oncogenic mutations."
+      "short_description": "Genetic and epigenetic mechanisms driving B cell lymphoma transformation, including chromatin regulators and oncogenic mutations.",
+      "total_weight": 7.302631,
+      "activity_count": 10
     },
     {
       "id": "single_cell_cycle_differentiation_commitment",
@@ -375,15 +375,15 @@
         36469503
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 0.697403,
-      "activity_count": 3,
       "display_name": "Fate Commitment & Cycle Regulation",
-      "short_description": "Molecular mechanisms by which cell cycle checkpoints, CDK4/6, and circadian rhythms govern terminal differentiation and fate commitment timing."
+      "short_description": "Molecular mechanisms by which cell cycle checkpoints, CDK4/6, and circadian rhythms govern terminal differentiation and fate commitment timing.",
+      "total_weight": 0.697403,
+      "activity_count": 3
     },
     {
       "id": "single_adipocyte_differentiation_metabolism",
       "label": "Adipocyte Differentiation, Metabolism, and Proteomics",
-      "description": "Research characterizing adipocyte differentiation programs and metabolic regulation using proteomic and transcriptomic approaches, including SILAC-based profiling of 3T3-L1 cells, metformin effects, HIF1α-PPARγ networks, and circadian control of preadipocyte commitment.",
+      "description": "Research characterizing adipocyte differentiation programs and metabolic regulation using proteomic and transcriptomic approaches, including SILAC-based profiling of 3T3-L1 cells, metformin effects, HIF1\u03b1-PPAR\u03b3 networks, and circadian control of preadipocyte commitment.",
       "seed_pmids": [
         32991178,
         35275438,
@@ -391,10 +391,10 @@
         39346858
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.03664,
-      "activity_count": 7,
       "display_name": "Adipocyte Differentiation & Metabolic Regulation",
-      "short_description": "Proteomic and transcriptomic characterization of adipocyte differentiation programs, metabolic networks, and circadian control."
+      "short_description": "Proteomic and transcriptomic characterization of adipocyte differentiation programs, metabolic networks, and circadian control.",
+      "total_weight": 1.03664,
+      "activity_count": 7
     },
     {
       "id": "single_kidney_transplant_transcriptomics",
@@ -409,10 +409,10 @@
         36354355
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 5.045023,
-      "activity_count": 7,
       "display_name": "Kidney Transplant Rejection & Allograft Profiling",
-      "short_description": "RNA-sequencing of kidney allografts to characterize immune infiltration and molecular markers of acute and chronic rejection."
+      "short_description": "RNA-sequencing of kidney allografts to characterize immune infiltration and molecular markers of acute and chronic rejection.",
+      "total_weight": 5.045023,
+      "activity_count": 7
     },
     {
       "id": "single_covid19_immune_epigenetics",
@@ -426,10 +426,10 @@
         34731648
       ],
       "coverage_estimate": 0.04,
-      "total_weight": 17.498212,
-      "activity_count": 7,
       "display_name": "COVID-19 Immune Response & Epigenetic Consequences",
-      "short_description": "Immunological and epigenetic effects of SARS-CoV-2 infection, including methylation signatures, hematopoietic memory, and vascular pathology."
+      "short_description": "Immunological and epigenetic effects of SARS-CoV-2 infection, including methylation signatures, hematopoietic memory, and vascular pathology.",
+      "total_weight": 17.498212,
+      "activity_count": 7
     },
     {
       "id": "single_heart_regeneration_cardiomyocyte",
@@ -444,10 +444,10 @@
         35179181
       ],
       "coverage_estimate": 0.05,
-      "total_weight": 6.292622,
-      "activity_count": 7,
       "display_name": "Cardiac Regeneration & Cardiomyocyte Biology",
-      "short_description": "Epicardial progenitor activation, cross-species injury responses, and cardiomyocyte dynamics in heart regeneration and disease."
+      "short_description": "Epicardial progenitor activation, cross-species injury responses, and cardiomyocyte dynamics in heart regeneration and disease.",
+      "total_weight": 6.292622,
+      "activity_count": 7
     },
     {
       "id": "single_cancer_immunotherapy_combination",
@@ -464,10 +464,10 @@
         38401548
       ],
       "coverage_estimate": 0.07,
-      "total_weight": 6.605231,
-      "activity_count": 9,
       "display_name": "Combination Immunotherapy & Tumor Immune Evasion",
-      "short_description": "CAR-T therapies, checkpoint combinations, and mechanisms of tumor immune escape via chromosomal instability and endothelial necroptosis."
+      "short_description": "CAR-T therapies, checkpoint combinations, and mechanisms of tumor immune escape via chromosomal instability and endothelial necroptosis.",
+      "total_weight": 6.605231,
+      "activity_count": 9
     },
     {
       "id": "single_ovarian_follicle_reproductive",
@@ -480,10 +480,10 @@
         35263130
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 8.309001,
-      "activity_count": 4,
       "display_name": "Ovarian Follicle Biology & Reproductive Cells",
-      "short_description": "Molecular characterization of ovarian follicle cell populations, theca subtypes, and AMH-driven premature luteinization."
+      "short_description": "Molecular characterization of ovarian follicle cell populations, theca subtypes, and AMH-driven premature luteinization.",
+      "total_weight": 8.309001,
+      "activity_count": 4
     },
     {
       "id": "single_colorectal_cancer_microenvironment",
@@ -496,25 +496,25 @@
         35931033
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 4.503292,
-      "activity_count": 5,
       "display_name": "Colorectal Cancer Stem Cells & Epigenetic Regulation",
-      "short_description": "Colorectal cancer initiation and progression via epithelial deficiency, hyaluronan remodeling, and chromatin complex dysregulation."
+      "short_description": "Colorectal cancer initiation and progression via epithelial deficiency, hyaluronan remodeling, and chromatin complex dysregulation.",
+      "total_weight": 4.503292,
+      "activity_count": 5
     },
     {
       "id": "single_lupus_autoimmune_innate",
       "label": "Lupus and Autoimmune Innate Immune Dysregulation",
-      "description": "Studies examining innate immune mechanisms in lupus, including IFN-driven IL-1β secretion in monocytes, Langerhans cell ADAM17 regulation in photosensitivity, and lymphatic fluid as an immunosurveillance conduit for tissue-specific inflammatory signals.",
+      "description": "Studies examining innate immune mechanisms in lupus, including IFN-driven IL-1\u03b2 secretion in monocytes, Langerhans cell ADAM17 regulation in photosensitivity, and lymphatic fluid as an immunosurveillance conduit for tissue-specific inflammatory signals.",
       "seed_pmids": [
         39378884,
         38860651,
         38848214
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.810107,
-      "activity_count": 3,
       "display_name": "Lupus & Autoimmune Innate Immune Dysregulation",
-      "short_description": "Innate immune mechanisms in lupus, including IFN-driven monocyte activation, Langerhans cell regulation, and lymphatic immunosurveillance."
+      "short_description": "Innate immune mechanisms in lupus, including IFN-driven monocyte activation, Langerhans cell regulation, and lymphatic immunosurveillance.",
+      "total_weight": 1.810107,
+      "activity_count": 3
     },
     {
       "id": "single_circulating_tumor_cells_liquid_biopsy",
@@ -526,15 +526,15 @@
         39577685
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 0.916676,
-      "activity_count": 3,
       "display_name": "Circulating Tumor Cells & Liquid Biopsy",
-      "short_description": "Isolation and genomic characterization of CTCs and ctDNA for treatment response prediction and cancer monitoring."
+      "short_description": "Isolation and genomic characterization of CTCs and ctDNA for treatment response prediction and cancer monitoring.",
+      "total_weight": 0.916676,
+      "activity_count": 3
     },
     {
       "id": "single_liver_zonation_fibrosis",
       "label": "Liver Cell Biology: Zonation, Fibrosis, and Transcriptional Regulation",
-      "description": "Research on hepatic cell biology including aging-associated disruption of hepatocyte zonation, HNF4α regulation in cirrhosis and liver failure, hedgehog-driven peribiliary fibrogenic mesenchymal cells, and AAV vector tropism in liver cells.",
+      "description": "Research on hepatic cell biology including aging-associated disruption of hepatocyte zonation, HNF4\u03b1 regulation in cirrhosis and liver failure, hedgehog-driven peribiliary fibrogenic mesenchymal cells, and AAV vector tropism in liver cells.",
       "seed_pmids": [
         40622856,
         37993018,
@@ -542,15 +542,15 @@
         32143547
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 2.036647,
-      "activity_count": 4,
       "display_name": "Liver Zonation, Fibrosis & Transcriptional Regulation",
-      "short_description": "Hepatocyte zonation, HNF4α regulation in cirrhosis, hedgehog-driven fibrogenic cells, and AAV tropism in liver biology."
+      "short_description": "Hepatocyte zonation, HNF4\u03b1 regulation in cirrhosis, hedgehog-driven fibrogenic cells, and AAV tropism in liver biology.",
+      "total_weight": 2.036647,
+      "activity_count": 4
     },
     {
       "id": "single_chromosomal_instability_cancer_progression",
       "label": "Chromosomal Instability, Epigenetic Reprogramming, and Cancer Progression",
-      "description": "Studies on how chromosomal instability and epigenetic dysregulation drive cancer progression and metastasis, including PRC1 loss in uveal melanoma, non-cell-autonomous CIN-driven metastasis, PKCλ/ι inhibition activating interferon responses, and machine learning prediction of chromatin conformation in cancer.",
+      "description": "Studies on how chromosomal instability and epigenetic dysregulation drive cancer progression and metastasis, including PRC1 loss in uveal melanoma, non-cell-autonomous CIN-driven metastasis, PKC\u03bb/\u03b9 inhibition activating interferon responses, and machine learning prediction of chromatin conformation in cancer.",
       "seed_pmids": [
         34518527,
         37612508,
@@ -558,10 +558,10 @@
         37673071
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 2.536024,
-      "activity_count": 4,
       "display_name": "Chromosomal Instability & Epigenetic Reprogramming",
-      "short_description": "How chromosomal instability and epigenetic dysregulation drive cancer metastasis, immune evasion, and chromatin conformation changes."
+      "short_description": "How chromosomal instability and epigenetic dysregulation drive cancer metastasis, immune evasion, and chromatin conformation changes.",
+      "total_weight": 2.536024,
+      "activity_count": 4
     },
     {
       "id": "single_stem_cell_reprogramming_pluripotency",
@@ -574,10 +574,10 @@
         40834858
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.632631,
-      "activity_count": 5,
       "display_name": "Stem Cell Reprogramming & Pluripotency Mechanisms",
-      "short_description": "Molecular mechanisms of iPSC reprogramming, H3K27ac bookmarking, DNA replication fidelity, and enhancer remodeling in endoderm."
+      "short_description": "Molecular mechanisms of iPSC reprogramming, H3K27ac bookmarking, DNA replication fidelity, and enhancer remodeling in endoderm.",
+      "total_weight": 1.632631,
+      "activity_count": 5
     },
     {
       "id": "single_skeletal_bone_metastasis",
@@ -589,10 +589,10 @@
         32979200
       ],
       "coverage_estimate": 0.03,
-      "total_weight": 1.672812,
-      "activity_count": 3,
       "display_name": "Skeletal Stem Cells, Bone Biology & Metastasis",
-      "short_description": "Skeletal stem cell lineages in bone development, breast cancer metastasis, craniosynostosis, and single-cell preparation methods."
+      "short_description": "Skeletal stem cell lineages in bone development, breast cancer metastasis, craniosynostosis, and single-cell preparation methods.",
+      "total_weight": 1.672812,
+      "activity_count": 3
     }
   ],
   "uncovered_pmids": [
@@ -643,9 +643,9 @@
   "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
   "passes_executed": 2,
   "review_status": "auto_approved",
-  "augmented_at": "2026-04-14T21:30:34Z",
+  "augmented_at": "2026-05-13T14:03:29Z",
   "augmentation_source": {
-    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_single_cell_spatial_biology.json",
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_single_cell_spatial_biology.json",
     "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
   }
 }

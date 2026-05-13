@@ -83,7 +83,7 @@
     {
       "id": "nephrology_ckd_progression_mechanisms",
       "label": "CKD Progression: Molecular Mechanisms and Fibrosis",
-      "description": "Research into molecular and cellular mechanisms driving chronic kidney disease progression and fibrosis, including TGF-β1 signaling, mitofusin-2 in macrophages, retinoic acid receptor activity in proximal tubules, iron therapy effects on macrophages, erythropoietin production, and profibrotic gene expression in interstitial cells.",
+      "description": "Research into molecular and cellular mechanisms driving chronic kidney disease progression and fibrosis, including TGF-\u03b21 signaling, mitofusin-2 in macrophages, retinoic acid receptor activity in proximal tubules, iron therapy effects on macrophages, erythropoietin production, and profibrotic gene expression in interstitial cells.",
       "seed_pmids": [
         33705825,
         35227692,
@@ -98,7 +98,7 @@
       ],
       "coverage_estimate": 0.045,
       "display_name": "CKD Fibrosis & Molecular Mechanisms",
-      "short_description": "Cellular and molecular drivers of chronic kidney disease progression, including TGF-β1 signaling, macrophage biology, and profibrotic gene expression."
+      "short_description": "Cellular and molecular drivers of chronic kidney disease progression, including TGF-\u03b21 signaling, macrophage biology, and profibrotic gene expression."
     },
     {
       "id": "nephrology_enac_electrolyte_transport",
@@ -162,7 +162,7 @@
     {
       "id": "nephrology_ckd_pediatric",
       "label": "Pediatric Chronic Kidney Disease: Growth, Anemia, and Complications",
-      "description": "Studies on chronic kidney disease in children and adolescents, including growth impairment, delayed menarche, anemia management with iron therapy, TNF-α and mineral bone disorder, pubertal LH levels and GFR decline, and longitudinal outcomes in the CKiD cohort.",
+      "description": "Studies on chronic kidney disease in children and adolescents, including growth impairment, delayed menarche, anemia management with iron therapy, TNF-\u03b1 and mineral bone disorder, pubertal LH levels and GFR decline, and longitudinal outcomes in the CKiD cohort.",
       "seed_pmids": [
         32337637,
         33387018,
