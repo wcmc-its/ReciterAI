@@ -39,6 +39,7 @@ def test_read_watermark_returns_populated_dataclass(mock_table):
             "last_successful_max_pmid": 40927852,
             "last_run_started_at": "2026-05-13T14:00:00Z",
             "last_run_status": STATUS_COMPLETE,
+            "last_run_id": "11111111-1111-1111-1111-111111111111",
         }
     }
     wm = read_watermark(table=mock_table)
@@ -47,7 +48,20 @@ def test_read_watermark_returns_populated_dataclass(mock_table):
         last_successful_max_pmid=40927852,
         last_run_started_at="2026-05-13T14:00:00Z",
         last_run_status=STATUS_COMPLETE,
+        last_run_id="11111111-1111-1111-1111-111111111111",
     )
+
+
+def test_read_watermark_run_id_defaults_to_none_for_old_items(mock_table):
+    """Items written before the run_id field existed must read back cleanly."""
+    mock_table.get_item.return_value = {
+        "Item": {
+            "last_successful_max_pmid": 100,
+            "last_run_status": STATUS_COMPLETE,
+        }
+    }
+    wm = read_watermark(table=mock_table)
+    assert wm.last_run_id is None
 
 
 def test_read_watermark_coerces_max_pmid_to_int(mock_table):
@@ -74,17 +88,31 @@ def test_read_watermark_handles_partial_item(mock_table):
     assert wm.last_successful_run_at is None
 
 
-def test_mark_run_started_writes_started_at_and_in_progress(mock_table):
-    ts = mark_run_started(table=mock_table)
-    assert ts.endswith("Z")
-    assert "T" in ts
+def test_mark_run_started_writes_started_at_run_id_and_in_progress(mock_table):
+    run_id = mark_run_started(table=mock_table)
+    # Return value is a UUID4 string; verify shape.
+    import uuid as _uuid
+    parsed = _uuid.UUID(run_id)
+    assert parsed.version == 4
+
     call = mock_table.update_item.call_args
     assert call.kwargs["Key"] == {"PK": PK, "SK": SK}
-    assert call.kwargs["ExpressionAttributeValues"][":status"] == STATUS_IN_PROGRESS
-    assert call.kwargs["ExpressionAttributeValues"][":started"] == ts
+    vals = call.kwargs["ExpressionAttributeValues"]
+    assert vals[":status"] == STATUS_IN_PROGRESS
+    assert vals[":run_id"] == run_id
+    started = vals[":started"]
+    assert started.endswith("Z") and "T" in started
     # Must NOT touch last_successful_*
     expr = call.kwargs["UpdateExpression"]
     assert "last_successful" not in expr
+    # Must write run_id
+    assert "last_run_id" in expr
+
+
+def test_mark_run_started_returns_unique_run_ids_across_calls(mock_table):
+    a = mark_run_started(table=mock_table)
+    b = mark_run_started(table=mock_table)
+    assert a != b
 
 
 def test_mark_run_complete_advances_max_pmid_and_run_at(mock_table):
@@ -98,6 +126,16 @@ def test_mark_run_complete_advances_max_pmid_and_run_at(mock_table):
     expr = call.kwargs["UpdateExpression"]
     assert "last_successful_run_at" in expr
     assert "last_successful_max_pmid" in expr
+
+
+def test_mark_run_complete_guards_against_backward_movement(mock_table):
+    """ConditionExpression must reject writes that would lower max_pmid."""
+    mark_run_complete(max_pmid=100, table=mock_table)
+    call = mock_table.update_item.call_args
+    cond = call.kwargs.get("ConditionExpression", "")
+    # Allow first-ever write (attribute_not_exists) OR strictly-greater advance.
+    assert "attribute_not_exists(last_successful_max_pmid)" in cond
+    assert "last_successful_max_pmid < :max_pmid" in cond
 
 
 def test_mark_run_complete_coerces_max_pmid_to_int(mock_table):
