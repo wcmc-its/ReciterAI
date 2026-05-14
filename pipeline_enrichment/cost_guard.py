@@ -6,14 +6,21 @@ The intent is to catch anomalies — a watermark that hasn't advanced for
 weeks, a corpus-filter regression that suddenly sweeps in thousands of
 papers, etc. — before they spend real money.
 
-Math (per #37 cost model):
-    Per-paper all-in ≈ $0.035 (with OpenAI Batch API, 50% off)
-    Per-paper sync   ≈ $0.060 (Batch deferred per design decision —
-                                ~2× on the OpenAI portion only)
+Measured (50-paper run, 2026-05-14, n=100 calls):
+    Per-paper sync ≈ $0.0094 ($0.471495 / 50 papers)
+        ≈ 1,649 input + 265 output tokens per call × 2 calls/paper
 
-Step 2 commits to sync, so the default per-paper estimate here is $0.060.
-At the $30 default threshold the guard trips at ~500 papers, well above
-the 5–15 daily norm and below the issue's "anomalous" benchmark of ~850.
+Default per-paper here is set to $0.010 — a slight conservative overestimate
+of the measured rate so the guard remains protective if reasoning-token usage
+trends upward on harder abstracts. At the $30 default threshold this trips
+at ~3,000 papers, which is well above any plausible non-anomalous workload
+(daily delta 5–15, bootstrap ~1,900, annual rescore ~6,200 — only the
+rescore would trip).
+
+Earlier versions of this module used $0.060 per-paper, derived from #37's
+modeling estimate. That number was a hand-wave that didn't survive contact
+with measured data; the audit committed to in `docs/daily-enrichment.md` is
+the source for the current default.
 
 Annual rescore bypasses the guard via the orchestrator's --full flag;
 this module just raises on threshold breach, doesn't know about --full.
@@ -26,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-DEFAULT_PER_PAPER_USD = Decimal("0.060")
+DEFAULT_PER_PAPER_USD = Decimal("0.010")
 DEFAULT_THRESHOLD_USD = Decimal("30.00")
 
 
