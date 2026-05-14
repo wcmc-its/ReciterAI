@@ -201,7 +201,7 @@ def test_empty_delta_returns_no_op_without_touching_watermark(fake_engine, fake_
 
 def test_cost_guard_trips_marks_failed_without_invoking_llm(fake_engine, fake_watermark, fake_writer):
     """Anomalously large delta → refused before any LLM call."""
-    huge_delta = _delta_rows(list(range(1, 1000)))  # 999 pmids → ~$59.94 > $30
+    huge_delta = _delta_rows(list(range(1, 3500)))  # 3499 pmids × $0.010 = $34.99 > $30
     syn = MagicMock(side_effect=AssertionError("LLM must not be called"))
     imp = MagicMock(side_effect=AssertionError("LLM must not be called"))
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
@@ -212,7 +212,7 @@ def test_cost_guard_trips_marks_failed_without_invoking_llm(fake_engine, fake_wa
         )
     assert result.status == STATUS_COST_GUARD_TRIPPED
     assert result.cost_estimate is not None
-    assert result.cost_estimate.delta_size == 999
+    assert result.cost_estimate.delta_size == 3499
     syn.assert_not_called()
     imp.assert_not_called()
     # Trip is recorded on the watermark (started + failed), but
@@ -224,7 +224,7 @@ def test_cost_guard_trips_marks_failed_without_invoking_llm(fake_engine, fake_wa
 
 def test_full_flag_bypasses_cost_guard(fake_engine, fake_watermark, fake_writer):
     """Annual rescore / cold-start backfill path."""
-    huge_delta = _delta_rows(list(range(1, 600)))  # well past trip count
+    huge_delta = _delta_rows(list(range(1, 3500)))  # well past trip count
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
         result = run_daily_enrichment(
             engine=fake_engine,
@@ -233,10 +233,10 @@ def test_full_flag_bypasses_cost_guard(fake_engine, fake_watermark, fake_writer)
             score_impact=_ok_impact,
         )
     assert result.status == STATUS_COMPLETE
-    assert result.successes == 599
+    assert result.successes == 3499
     # Cost estimate is still computed for diagnostics.
     assert result.cost_estimate is not None
-    assert result.cost_estimate.delta_size == 599
+    assert result.cost_estimate.delta_size == 3499
 
 
 def test_custom_threshold_and_per_paper_overrides_are_honored(fake_engine, fake_watermark, fake_writer):
@@ -403,7 +403,7 @@ def test_run_id_from_mark_started_propagates_to_result(fake_engine, fake_waterma
 # ---------------------------------------------------------------------------
 
 def test_alert_fires_on_cost_guard_trip(fake_engine, fake_watermark, fake_writer):
-    huge_delta = _delta_rows(list(range(1, 800)))  # 799 pmids → ~$47.94 > $30
+    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 pmids × $0.010 = $39.99 > $30
     alert_mock = MagicMock(return_value=True)
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
         result = run_daily_enrichment(
@@ -421,7 +421,7 @@ def test_alert_fires_on_cost_guard_trip(fake_engine, fake_watermark, fake_writer
     context = alert_mock.call_args.kwargs.get("context") or (
         alert_mock.call_args.args[3] if len(alert_mock.call_args.args) > 3 else {}
     )
-    assert context["delta_size"] == 799
+    assert context["delta_size"] == 3999
     assert "estimated_usd" in context
     assert "threshold_usd" in context
 
@@ -559,7 +559,7 @@ def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, 
 
 def test_cost_observed_is_none_on_cost_guard_tripped(fake_engine, fake_watermark, fake_writer):
     """Cost guard refuses BEFORE any LLM call. Nothing measured to report."""
-    huge_delta = _delta_rows(list(range(1, 800)))
+    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 × $0.010 trips
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
         result = run_daily_enrichment(
             engine=fake_engine,

@@ -20,10 +20,12 @@ from pipeline_enrichment.cost_guard import (
 # ---------------------------------------------------------------------------
 
 def test_estimate_scales_linearly_with_delta_size():
+    # At the post-2026-05-14 default of $0.010/paper (measured from a
+    # 50-paper run).
     assert estimate_run_cost(0) == Decimal("0.00")
-    assert estimate_run_cost(1) == Decimal("0.06")
-    assert estimate_run_cost(10) == Decimal("0.60")
-    assert estimate_run_cost(100) == Decimal("6.00")
+    assert estimate_run_cost(1) == Decimal("0.01")
+    assert estimate_run_cost(10) == Decimal("0.10")
+    assert estimate_run_cost(100) == Decimal("1.00")
 
 
 def test_estimate_respects_per_paper_override():
@@ -55,38 +57,38 @@ def test_check_guard_passes_under_threshold_and_returns_estimate():
     est = check_guard(delta_size=10)
     assert isinstance(est, CostEstimate)
     assert est.delta_size == 10
-    assert est.estimated_usd == Decimal("0.60")
+    assert est.estimated_usd == Decimal("0.10")  # 10 × 0.010
     assert est.threshold_usd == DEFAULT_THRESHOLD_USD
     assert est.per_paper_usd == DEFAULT_PER_PAPER_USD
 
 
 def test_check_guard_trips_above_threshold():
-    """At default rates ($0.06/paper, $30 threshold), guard trips above ~500."""
+    """At default rates ($0.010/paper, $30 threshold), guard trips above ~3000."""
     with pytest.raises(CostGuardTripped) as exc_info:
-        check_guard(delta_size=501)
+        check_guard(delta_size=3001)
     err = exc_info.value
-    assert err.estimate.delta_size == 501
-    assert err.estimate.estimated_usd == Decimal("30.06")
+    assert err.estimate.delta_size == 3001
+    assert err.estimate.estimated_usd == Decimal("30.01")
     # Exception message must include diagnostic context for the Teams alert.
     msg = str(err)
-    assert "501" in msg
-    assert "30.06" in msg
+    assert "3001" in msg
+    assert "30.01" in msg
     assert "30.00" in msg
 
 
 def test_check_guard_at_threshold_does_not_trip():
-    """Equal-to is not greater-than. 500 × 0.06 = 30.00 exactly."""
-    est = check_guard(delta_size=500)
+    """Equal-to is not greater-than. 3000 × 0.010 = 30.00 exactly."""
+    est = check_guard(delta_size=3000)
     assert est.estimated_usd == Decimal("30.00")
 
 
 def test_check_guard_respects_custom_threshold():
     """Operator override (e.g., higher threshold for a planned catch-up)."""
-    est = check_guard(delta_size=600, threshold_usd=Decimal("50.00"))
-    assert est.estimated_usd == Decimal("36.00")  # 600 × 0.06
+    est = check_guard(delta_size=4000, threshold_usd=Decimal("50.00"))
+    assert est.estimated_usd == Decimal("40.00")  # 4000 × 0.010
     # And trips when the new threshold is itself exceeded.
     with pytest.raises(CostGuardTripped):
-        check_guard(delta_size=900, threshold_usd=Decimal("50.00"))
+        check_guard(delta_size=6000, threshold_usd=Decimal("50.00"))
 
 
 def test_check_guard_respects_custom_per_paper_rate():
@@ -108,9 +110,9 @@ def test_check_guard_typical_daily_delta_passes_far_under_threshold():
 def test_cost_guard_tripped_carries_full_estimate_for_alerting():
     """Teams-alert handler reads .estimate to format the alert payload."""
     try:
-        check_guard(delta_size=1000)
+        check_guard(delta_size=6000)
     except CostGuardTripped as e:
-        assert e.estimate.delta_size == 1000
+        assert e.estimate.delta_size == 6000
         assert e.estimate.per_paper_usd == DEFAULT_PER_PAPER_USD
         assert e.estimate.threshold_usd == DEFAULT_THRESHOLD_USD
         assert e.estimate.estimated_usd == Decimal("60.00")

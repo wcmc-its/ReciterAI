@@ -36,26 +36,28 @@ The following must be set in the operator's environment (`~/.zshrc`):
 ## Bootstrap (one-time)
 
 The first production-style run faces a backlog: the gap between the
-laptop POC's last run and today. As of 2026-05-14 that was **~1,862
-papers**, accruing daily until bootstrap completes.
+laptop POC's last run and today. As of 2026-05-14 (after a 50-paper
+test run) that was **~1,815 papers**, accruing daily until bootstrap
+completes.
 
 ```bash
 # From the repo root:
 source ~/.zshrc
-python -m scripts.run_daily_enrichment --full --verbose
+python3 -m scripts.run_daily_enrichment --full --verbose
 ```
 
-`--full` bypasses the cost guard (which would otherwise refuse a delta
-this large). At the rate observed in the PR 1 smoke test (~7.4 s/paper
-sync, ~$0.067/paper), bootstrap is:
+`--full` bypasses the cost guard. At the rate measured in a 50-paper
+run on 2026-05-14 (`$0.471495 / 50 papers = $0.00943/paper`, n=100 API
+calls), bootstrap is:
 
-- Wall time: **~4 hours** for ~1,862 papers (longer by the time you
-  actually run it — the backlog accrues).
-- Cost: **~$125** at observed rates. Note this is materially higher
-  than #37's modeling estimate of ~$0.018/paper; the gap is most likely
-  GPT-5.1 reasoning-token usage on the impact prompt
-  (`reasoning_effort=medium`). The number will be re-baselined after
-  a few cycles of measured data.
+- Cost: **~$18** for ~1,815 papers. Materially lower than #37's
+  modeling estimate of ~$0.035/paper Batch / ~$0.060/paper sync —
+  the model under-counted output tokens (likely because it didn't
+  account for the level of reasoning the impact prompt actually
+  produces, or it priced against an older tier).
+- Wall time: TBD. The 50-paper run took several minutes; bootstrap is
+  proportional. Plan for hours, not days; use `tmux` / `screen` so the
+  run survives a terminal close.
 
 **Operational constraints during bootstrap:**
 
@@ -67,22 +69,21 @@ sync, ~$0.067/paper), bootstrap is:
   and continues — net effect is wall time inflation, not failure.
 - Don't close the terminal. Use `tmux` or `screen` if the run might
   outlast your session.
-- Treat this as an overnight or weekend task, not a Tuesday morning
-  task.
 
 Output is JSON-serialized RunResult on stdout. On completion you'll
 see `"status": "complete"` and a `cost_observed_usd` field. Save the
-output for the post-bootstrap cost audit (below).
+output as another data point for the cost numbers in this doc.
 
 ## Daily operation (steady state)
 
 Once bootstrap is done, the watermark is current. Daily deltas are
-expected to be 5–15 papers (~30–60 s wall time, well under $1/run).
+expected to be 5–15 papers. At measured rate (~$0.0094/paper sync),
+that's **~$0.05–0.15 per run** — trivially small.
 
 ```bash
 # Once per day, from the repo root:
 source ~/.zshrc
-python -m scripts.run_daily_enrichment
+python3 -m scripts.run_daily_enrichment
 ```
 
 Exit code 0 = clean (status `complete` or `no_op`). Exit code 1 =
@@ -124,9 +125,9 @@ manually before the daily delta grows unmanageably.
 
 Manual operation couples freshness to the operator's calendar. Two
 weeks of PTO = two weeks of accruing delta = a longer catch-up run on
-return. The cost guard will refuse a delta that's grown past ~500
-papers (default threshold $30 / per-paper $0.06); `--full` is the
-escape hatch but is itself a multi-hour run.
+return. The cost guard will refuse a delta that's grown past ~3,000
+papers (default threshold $30 / per-paper $0.010); `--full` is the
+escape hatch.
 
 If sustained absence is expected, options in declining order of
 sensibility:
@@ -158,20 +159,37 @@ Fields of interest:
 - `last_run_started_at` — set every `mark_run_started` call
 - `last_run_id` — UUID4, useful for cross-referencing in Teams alerts
 
-## Cost reconciliation (deferred)
+## Cost reconciliation
 
-The `cost_guard.py` default of $0.060/paper and the projected ~$430/yr
-were sized against #37's original modeling estimate. The 3-paper smoke
-test came in at ~$0.067/paper (~12% higher), suggesting the model
-under-counted output tokens (likely cause: reasoning tokens from
-`reasoning_effort=medium` on the impact prompt).
+Done as of 2026-05-14, based on a 50-paper test run (n=100 API calls):
 
-A proper audit should happen once we have ≥2 weeks of measured
-`cost_observed_usd` data from real daily runs. Until then, the docs
-above use the smoke-test rate; the cost_guard default stays at $0.060
-since it remains conservative against the observed rate; the $430/yr
-projection is not quoted in this doc because it's built on an estimate
-that didn't survive contact with measured data.
+| Metric | Measured | Earlier guess |
+|---|---|---|
+| Per-paper sync | **$0.00943** | ~$0.067 (hand-wave) / ~$0.060 (cost_guard default) |
+| Bootstrap (~1,815 papers) | **~$17** | ~$125 |
+| Annual at 5 papers/day × 250 days | **~$12/yr** | ~$430/yr |
+| Annual rescore (~6,200 papers) | **~$58** | ~$110 (Batch) / ~$415 (sync) |
+
+The earlier numbers were predicated on $0.067/paper, which was an
+unverified eyeball from the PR 1 smoke test rather than a measurement.
+The 50-paper run captured token counts directly: 1,649 input + 265
+output tokens per call × 2 calls/paper × ($1.25/$10 per Mtok input/output)
+= $0.00943/paper.
+
+The `cost_guard.py` default per-paper has been bumped to **$0.010**
+(slight conservative overestimate of measured). The $30 threshold
+hasn't moved; at the new rate it trips at ~3,000 papers, well above
+plausible non-anomalous workloads. The threshold is still useful as
+an anomaly detector for "watermark hasn't advanced in months" or
+"corpus filter regression" scenarios.
+
+**What this changes architecturally:** the Batch-mode + threshold-
+selection conversation that was happening before this audit is largely
+moot at these prices. Batch's ~50% savings is ~$9 on the bootstrap and
+~$6/yr on the annual rescore. Not worth the architectural overhead
+(two-process coordination, async result-collection, in-flight state in
+DDB). If costs ever drift materially upward, revisit; for now sync
+everywhere is the right answer.
 
 ## Follow-up trigger
 

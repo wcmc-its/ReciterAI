@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         "--per-paper-usd",
         type=Decimal,
         default=None,
-        help="Override cost-guard per-paper assumption (default: $0.060).",
+        help="Override cost-guard per-paper assumption (default: $0.010).",
     )
     p.add_argument(
         "--no-alerts",
