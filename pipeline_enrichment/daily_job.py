@@ -1,15 +1,23 @@
-"""Daily enrichment orchestrator (#37 step 2).
+"""Daily enrichment orchestrator (#37 step 2 + step 3 PR 3.1).
 
 One cycle:
     read_watermark  →  fetch_new_publications  →  cost_guard  →
         per-pmid loop ( ensure_entity → synopsis → impact → MariaDB ) →
+        end-of-run DDB IMPACT# batch dual-write →
         advance watermark on full success
 
-Step 2 scope (per the issue's exit criteria, "no DynamoDB writes yet"):
-- MariaDB writes for synopsis + impact only.
-- The watermark itself IS in DDB but counts as ops state, not sink data.
-- Topic scoring, subtopic assignment, CWID rollups, STAGE# row, and the
-  IMPACT# DDB dual-write all land in step 3 (#37 step 3).
+Step 2 (already shipped): MariaDB writes for synopsis + impact only.
+Step 3 PR 3.1 (this PR): adds an end-of-run batch dual-write of the same
+synopsis + impact data into DDB IMPACT#pmid_{pmid}/SK SCORE items, per the
+SPS reader contract documented in `pipeline_enrichment/ddb_writer.py`.
+Topic scoring, STAGE# row, cross-check, and backfill land in PRs 3.2–3.4
+and the topic-scoring takeover question is split off to issue #52.
+
+DDB write timing within the loop is "batch at end-of-run after all MariaDB
+writes succeed" (not per-pmid inline) so the failure model stays
+all-or-nothing per run: a failed DDB batch leaves the watermark
+unadvanced and the next retry redoes the whole delta. DDB writes are
+upserts so retry is safe.
 
 Failure model (per #37's "Failed runs leave watermark untouched" spec):
 - All-or-nothing watermark advancement. If ANY pmid fails (synopsis OR
@@ -37,10 +45,12 @@ from typing import Any, Callable, Optional
 from openai import OpenAI
 from sqlalchemy.engine import Engine
 
-from pipeline_enrichment import alerting, cost_guard, mariadb_writer
+from pipeline_enrichment import alerting, cost_guard, ddb_writer, mariadb_writer
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
+from utils.dynamodb_helpers import get_table as _default_get_table
+from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
 from utils.openai_client import GPT5_MODEL
 from utils.sql_queries import fetch_new_publications
@@ -50,11 +60,30 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PmidOutcome:
+    """Per-pmid outcome plus payload for downstream sinks.
+
+    Originally just the success/failure flags. Expanded in step 3 PR 3.1
+    to also carry the enrichment payload (synopsis text, impact score,
+    dated model strings, single `enriched_at` timestamp) so the
+    end-of-run DDB batch writer can compose IMPACT# items from the
+    collected outcomes without re-querying anything.
+
+    All payload fields stay None until the corresponding step succeeds;
+    that keeps existing tests (which only read ok/error flags) unchanged.
+    """
+
     pmid: str
     synopsis_ok: bool = False
     impact_ok: bool = False
     synopsis_error: Optional[str] = None
     impact_error: Optional[str] = None
+    # Payload — populated only on success. Used by ddb_writer.build_impact_item.
+    synopsis: Optional[str] = None
+    synopsis_model: Optional[str] = None
+    impact_score: Optional[int] = None
+    justification: Optional[str] = None
+    impact_model: Optional[str] = None
+    enriched_at: Optional[str] = None  # ISO 8601 UTC, stamped at impact success
 
     @property
     def fully_succeeded(self) -> bool:
@@ -66,6 +95,10 @@ STATUS_COMPLETE = "complete"               # All pmids processed cleanly.
 STATUS_FAILED = "failed"                    # ≥1 pmid failed.
 STATUS_NO_OP = "no_op"                      # Empty delta, nothing to do.
 STATUS_COST_GUARD_TRIPPED = "cost_guard_tripped"  # Refused before LLM calls.
+STATUS_DDB_BATCH_FAILED = "ddb_batch_failed"      # All pmids OK in MariaDB but
+                                                  # end-of-run DDB batch failed.
+                                                  # Watermark stays unadvanced;
+                                                  # next retry redoes the delta.
 
 
 @dataclass
@@ -215,6 +248,56 @@ def run_daily_enrichment(
     # 6. Advance watermark on all-success.
     all_succeeded = all(o.fully_succeeded for o in outcomes)
     if all_succeeded:
+        # 6a. End-of-run DDB IMPACT# batch dual-write (#37 step 3 PR 3.1).
+        # Sequenced BEFORE mark_run_complete so a DDB batch failure leaves
+        # the watermark unadvanced. Next run's retry redoes the same delta;
+        # MariaDB upserts and DDB upserts are both idempotent.
+        ddb_target = ddb_table if ddb_table is not None else _default_get_table()
+        impact_items = [
+            ddb_writer.build_impact_item(
+                pmid=o.pmid,
+                impact_score=o.impact_score,
+                justification=o.justification,
+                impact_model=o.impact_model,
+                synopsis=o.synopsis,
+                synopsis_model=o.synopsis_model,
+                enriched_at=o.enriched_at,
+            )
+            for o in outcomes
+        ]
+        try:
+            ddb_writer.write_impact_batch(ddb_target, impact_items)
+        except Exception as e:
+            wm.mark_run_failed(table=ddb_table)
+            logger.error(
+                "daily run: DDB IMPACT# batch failed after MariaDB success "
+                "— watermark NOT advanced. delta_size=%d, error=%s",
+                delta_size, e,
+            )
+            alert_fn(
+                "ERROR",
+                "Daily enrichment DDB batch failed",
+                f"All {delta_size} pmids written to MariaDB, but the "
+                f"end-of-run DDB IMPACT# batch failed. Watermark not "
+                f"advanced; next run will retry the same delta. DDB "
+                f"writes are idempotent upserts.",
+                context={
+                    "run_id": run_id,
+                    "delta_size": delta_size,
+                    "error": str(e),
+                },
+            )
+            return RunResult(
+                status=STATUS_DDB_BATCH_FAILED,
+                delta_size=delta_size,
+                outcomes=outcomes,
+                cost_estimate=cost_estimate,
+                cost_observed_usd=accumulator.total_usd,
+                cost_summary=accumulator.summary(),
+                run_id=run_id,
+                failure_reason=f"DDB IMPACT# batch failed: {e}",
+            )
+
         new_max = max(int(r["pmid"]) for r in delta)
         wm.mark_run_complete(max_pmid=new_max, table=ddb_table)
         logger.info(
@@ -332,6 +415,8 @@ def _process_one_pmid(
         outcome.synopsis_error = f"upsert_synopsis: {e}"
         return outcome
     outcome.synopsis_ok = True
+    outcome.synopsis = syn.synopsis
+    outcome.synopsis_model = syn.model
 
     # --- Impact (only on synopsis success) ---
     imp = score_impact(pub_data=row, client=openai_client)
@@ -357,5 +442,13 @@ def _process_one_pmid(
         outcome.impact_error = f"upsert_impact: {e}"
         return outcome
     outcome.impact_ok = True
+    outcome.impact_score = imp.impact_score
+    outcome.justification = imp.justification or ""
+    outcome.impact_model = imp.model
+    # Single enriched_at for both attributes — synopsis + impact land
+    # within seconds of each other in this same call. Stamped after
+    # impact MariaDB write succeeds so the timestamp reflects the moment
+    # the row is fully durable in MariaDB.
+    outcome.enriched_at = now_iso()
 
     return outcome

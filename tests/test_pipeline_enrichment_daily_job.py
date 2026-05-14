@@ -12,6 +12,7 @@ from pipeline_enrichment import daily_job
 from pipeline_enrichment.daily_job import (
     STATUS_COMPLETE,
     STATUS_COST_GUARD_TRIPPED,
+    STATUS_DDB_BATCH_FAILED,
     STATUS_FAILED,
     STATUS_NO_OP,
     PmidOutcome,
@@ -26,6 +27,18 @@ from pipeline_enrichment.watermark import Watermark
 @pytest.fixture(autouse=True)
 def _no_real_webhook(monkeypatch):
     monkeypatch.delenv("RECITERAI_TEAMS_WEBHOOK_URL", raising=False)
+
+
+# Step 3 PR 3.1: orchestrator's end-of-run DDB batch falls back to
+# get_table() when ddb_table=None. Without this autouse stub it would hit
+# boto3 / AWS during every happy-path test. The MagicMock natively supports
+# `with mock.batch_writer() as batch: batch.put_item(...)` because
+# MagicMock implements __enter__/__exit__.
+@pytest.fixture(autouse=True)
+def _stub_default_ddb_table():
+    with patch.object(daily_job, "_default_get_table") as fake:
+        fake.return_value = MagicMock(name="fake_ddb_table")
+        yield fake
 
 
 # ---------------------------------------------------------------------------
@@ -597,3 +610,137 @@ def test_zero_token_results_do_not_record_to_accumulator(fake_engine, fake_water
     assert result.cost_observed_usd == Decimal("0")
     summary = result.cost_summary
     assert summary["call_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Step 3 PR 3.1 — DDB IMPACT# end-of-run dual-write
+# ---------------------------------------------------------------------------
+
+def test_dual_write_invokes_ddb_batch_with_one_item_per_pmid(
+    fake_engine, fake_watermark, fake_writer
+):
+    """On full success, the orchestrator builds one IMPACT# item per pmid
+    and passes them to ddb_writer.write_impact_batch before advancing the
+    watermark."""
+    delta = _delta_rows([2001, 2002, 2003])
+    fake_table = MagicMock(name="injected_ddb_table")
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=3) as wb:
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            ddb_table=fake_table,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+
+    assert result.status == STATUS_COMPLETE
+    wb.assert_called_once()
+    # Same Table instance the caller injected, not the default get_table().
+    assert wb.call_args.args[0] is fake_table
+    items = wb.call_args.args[1]
+    assert len(items) == 3
+    pks = sorted(i["PK"] for i in items)
+    assert pks == ["IMPACT#pmid_2001", "IMPACT#pmid_2002", "IMPACT#pmid_2003"]
+
+
+def test_dual_write_item_carries_full_contract_attributes(
+    fake_engine, fake_watermark, fake_writer
+):
+    """Each IMPACT# item carries pmid, impact_score, justification, model,
+    synopsis, synopsis_model, and a non-empty enriched_at timestamp.
+    `hierarchy_version` is intentionally absent (dropped during 3.1)."""
+    delta = _delta_rows([3001])
+    fake_table = MagicMock(name="injected_ddb_table")
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1) as wb:
+        run_daily_enrichment(
+            engine=fake_engine,
+            ddb_table=fake_table,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    item = wb.call_args.args[1][0]
+    assert item["PK"] == "IMPACT#pmid_3001"
+    assert item["SK"] == "SCORE"
+    assert item["pmid"] == "3001"
+    assert item["impact_score"] == 50
+    assert item["justification"] == "ok"
+    assert item["model"] == "gpt-5.1"
+    assert item["synopsis"] == "synopsis for 3001"
+    assert item["synopsis_model"] == "gpt-5.1"
+    assert item["enriched_at"]  # non-empty ISO 8601 string
+    assert "hierarchy_version" not in item  # explicitly dropped in 3.1
+
+
+def test_dual_write_failure_leaves_watermark_unadvanced(
+    fake_engine, fake_watermark, fake_writer
+):
+    """If the DDB batch raises after MariaDB succeeded, the orchestrator
+    must mark the run failed (watermark unadvanced) and return
+    STATUS_DDB_BATCH_FAILED. Next run retries the same delta — DDB
+    upserts are idempotent so this is safe."""
+    delta = _delta_rows([4001, 4002])
+    alert = MagicMock()
+    fake_table = MagicMock(name="injected_ddb_table")
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(
+             daily_job.ddb_writer,
+             "write_impact_batch",
+             side_effect=RuntimeError("provisioned throughput exceeded"),
+         ):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            ddb_table=fake_table,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+
+    assert result.status == STATUS_DDB_BATCH_FAILED
+    assert "provisioned throughput exceeded" in result.failure_reason
+    fake_watermark["complete"].assert_not_called()
+    fake_watermark["failed"].assert_called_once()
+    # Operator alert fires with the structured context.
+    alert.assert_called_once()
+    args, kwargs = alert.call_args
+    assert args[0] == "ERROR"
+    assert "DDB batch failed" in args[1]
+
+
+def test_dual_write_skipped_on_pmid_failure(
+    fake_engine, fake_watermark, fake_writer
+):
+    """If any pmid fails in the per-pmid loop, the run is already a
+    failure — the DDB batch must NOT run (no partial writes to DDB
+    when some pmids didn't make it to MariaDB)."""
+    delta = _delta_rows([5001])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch") as wb:
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_failing_synopsis,
+            score_impact=MagicMock(side_effect=AssertionError("impact must not be called")),
+            alert_fn=MagicMock(),
+        )
+    assert result.status == STATUS_FAILED
+    wb.assert_not_called()
+
+
+def test_dual_write_falls_back_to_default_table_when_none_injected(
+    fake_engine, fake_watermark, fake_writer, _stub_default_ddb_table
+):
+    """When the caller doesn't inject ddb_table, the orchestrator falls
+    back to utils.dynamodb_helpers.get_table() — the same fallback the
+    watermark module uses. Verified via the autouse stub."""
+    delta = _delta_rows([6001])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1) as wb:
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.status == STATUS_COMPLETE
+    _stub_default_ddb_table.assert_called_once()
+    # write_impact_batch got the fallback table the stub returned.
+    assert wb.call_args.args[0] is _stub_default_ddb_table.return_value
