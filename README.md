@@ -34,6 +34,7 @@ ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from
 - [docs/hierarchy-contract.md](docs/hierarchy-contract.md) — S3 hierarchy artifact consumer contract
 - [docs/spotlight-contract.md](docs/spotlight-contract.md) — spotlight artifact contract
 - [docs/data-model-and-queries.md](docs/data-model-and-queries.md) — DynamoDB schema reference
+- [docs/daily-enrichment.md](docs/daily-enrichment.md) — operator guide for the daily synopsis+impact job (#37); manually run from the operator's laptop pending org-managed OpenAI key
 - [.planning/](\.planning) — phase-by-phase design history (offline pipeline, subtopic system, hierarchy publishing, spotlight pipeline)
 
 ## Models (pinned)

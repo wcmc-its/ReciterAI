@@ -12,6 +12,11 @@ overlays.
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
   - `reciterai-spotlight-monthly` → Lambda `reciterai-spotlight-orchestrator` (1st of month, 13:00 UTC).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
+  - **Note:** the daily enrichment job (#37) is intentionally NOT scheduled here.
+    It runs as an operator-typed CLI from the operator's laptop until an
+    org-managed OpenAI API key replaces the current personal key. See
+    `docs/daily-enrichment.md` for the operator guide and the trigger for
+    revisiting automation.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role.
 - **`../scripts/deploy_cron.sh`** — `aws events put-rule` + `aws events put-targets` + `aws lambda add-permission` per rule. Supports `--dry-run` and `--rule <name>`.
 
