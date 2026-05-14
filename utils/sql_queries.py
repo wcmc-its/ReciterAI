@@ -19,6 +19,51 @@ from utils.db import get_engine
 # Publication extraction SQL (primary pipeline input)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Daily-enrichment delta query (#37 step 2)
+# ---------------------------------------------------------------------------
+
+NEW_PUBLICATIONS_FOR_ENRICHMENT_SQL = """
+SELECT
+    a.pmid,
+    a.articleTitle,
+    a.journalTitleVerbose,
+    a.articleYear,
+    a.datePublicationAddedToEntrez,
+    a.citationCountNIH,
+    a.percentileNIH,
+    a.relativeCitationRatioNIH,
+    r.abstractVarchar
+FROM analysis_summary_article a
+LEFT JOIN reporting_abstracts r ON r.pmid = a.pmid
+WHERE a.publicationTypeCanonical = 'Academic Article'
+  AND a.articleYear >= 2020
+  AND a.pmid > :last_max_pmid
+  AND EXISTS (
+      SELECT 1
+      FROM analysis_summary_author au
+      JOIN identity id ON id.cwid = au.personIdentifier
+      WHERE au.pmid = a.pmid
+        AND id.fullTimeFaculty = 'yes'
+  )
+ORDER BY a.pmid ASC
+LIMIT :limit_n
+"""
+# Returns the bibliometric+abstract row shape the impact prompt expects
+# (per `pipeline_enrichment/impact.py:9-13`) plus what the synopsis prompt
+# needs. The orchestrator uses this to fetch new PMIDs since the watermark;
+# the new watermark after a successful run is MAX(pmid) of the returned set.
+#
+# Why an EXISTS subquery for the faculty filter, not a JOIN: a paper can
+# have multiple WCM authors, and we want each PMID once. EXISTS short-
+# circuits as soon as one match is found.
+#
+# The :limit_n parameter is a safety valve, NOT a pagination handle. The
+# cost guard refuses anomalously large deltas before they hit the LLM, so
+# limit_n should be set well above the cost-guard trip count (~500 papers
+# at default rates). The orchestrator owns the value.
+
+
 PUBLICATION_EXTRACTION_SQL = """
 SELECT DISTINCT
     a1.pmid,
@@ -143,6 +188,30 @@ ORDER BY external_id
 # ---------------------------------------------------------------------------
 # DB connection functions
 # ---------------------------------------------------------------------------
+
+def fetch_new_publications(engine, *, last_max_pmid: int, limit: int = 1000) -> list[dict]:
+    """Fetch PMIDs eligible for daily enrichment, past the watermark (#37 step 2).
+
+    Args:
+        engine: sqlalchemy Engine (use get_engine()).
+        last_max_pmid: only return papers with pmid > this value. Pass 0
+            for first-ever runs.
+        limit: safety cap on rows returned. Set well above the cost-guard
+            trip count so the cost guard fires first on anomalies.
+
+    Returns:
+        List of dicts with the bibliometric + abstract columns required by
+        the synopsis and impact prompts. Ordered by pmid ASC; the new
+        watermark after a successful run is the last row's pmid.
+    """
+    from sqlalchemy import text as _text
+    with engine.connect() as conn:
+        rows = conn.execute(
+            _text(NEW_PUBLICATIONS_FOR_ENRICHMENT_SQL),
+            {"last_max_pmid": int(last_max_pmid), "limit_n": int(limit)},
+        ).mappings().all()
+    return [dict(r) for r in rows]
+
 
 def get_db_connection():
     """
