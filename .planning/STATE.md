@@ -65,10 +65,12 @@ Items acknowledged and deferred at v1.0 milestone close on 2026-05-13:
 
 | Category | Item | Status |
 |----------|------|--------|
-| context_question | Phase 10 Q2: Slack channel + env var name for hot-path alerting | open — decide when hot-path Step Functions work begins |
-| context_question | Phase 10 Q3: Bedrock Batch wait mechanism (Wait+Choice poll vs EventBridge Pipes) | open — decide in plan-phase for hot-path |
+| context_question | Phase 10 Q2: Slack channel + env var name for hot-path alerting | **resolved 2026-05-13** — replaced by Microsoft Teams Incoming Webhook + `RECITERAI_TEAMS_WEBHOOK_URL` env var; the hot-path Step Functions architecture itself was superseded by the daily ECS/EKS cron in #37 |
+| context_question | Phase 10 Q3: Bedrock Batch wait mechanism (Wait+Choice poll vs EventBridge Pipes) | **resolved 2026-05-13** — moot. The daily-job design (#37) handles 5–15 papers/run synchronously; Bedrock Batch isn't needed at this volume |
 
-Both questions are forward-looking design choices for the hot-path Step Functions wiring that was deferred out of v1.0; they are not blockers for any shipped capability.
+Both questions were originally framed as forward-looking design choices for the hot-path Step Functions wiring deferred out of v1.0. The 2026-05-13 design conversation collapsed the v1.1 orchestration story around #37 — a daily ECS Scheduled Task or EKS CronJob that does both upstream enrichment (synopsis + impact via GPT-5.1) and downstream scoring (topic / subtopic via Bedrock Sonnet + Haiku) in a single synchronous run. That architecture obviates both Phase 10 questions; see `docs/open-questions.md` Cluster A for the narrative.
+
+Related issues closed in the same demotion: **#3** (parent tracker for hot-path orchestration), **#19** (Phase 10 design questions), **#32** (`dateLastModified` column referenced by the now-dormant `pipeline_hot/orchestrator.py`). All closed with rationale pointing at #37 as the superseding work. **#26** (corpus first/last gate) also closed in the same conversation, with the boundary settled at "≥1 WCM full-time faculty author, any position."
 
 ## Session Continuity
 

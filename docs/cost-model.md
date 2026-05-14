@@ -1,6 +1,9 @@
 # Cost model — what each pipeline job costs
 
-> **Confidence level.** Numbers here are *reasoned estimates from prompt shape + published model pricing*, not measured spend. The in-repo Bedrock numbers are within roughly ±2× of reality; the upstream numbers (synopsis, impact) are wider than that because their pipeline lives outside this repo. To tighten any cell, see [Grounding the numbers](#grounding-the-numbers) at the end.
+> **Confidence level.** Numbers here are *reasoned estimates from prompt shape + published model pricing*, not measured spend. In-repo Bedrock numbers are within roughly ±2× of reality. Upstream synopsis + impact numbers were revised down on 2026-05-13 after grounding against the actual POC prompt shape (title + abstract, not full text) — earlier draft of this doc had them ~10× too high. To tighten any cell further, see [Grounding the numbers](#grounding-the-numbers) at the end.
+>
+> **Revision history.**
+> - 2026-05-13: corrected upstream synopsis + impact figures (was Sonnet-on-full-text assumption; actually GPT-5.1 on title+abstract via OpenAI Batch). #37 will measure real spend and pin these cells.
 >
 > All $ figures assume the current corpus: **~6,200 PMIDs**, **66 topics**, **1,541 subtopics** across **~600 WCM full-time faculty**. PMIDs are filtered to `publicationTypeCanonical = 'Academic Article'`, `articleYear >= 2020`. Author scope today is *all* positions (first / middle / last) of WCM full-time faculty.
 
@@ -59,29 +62,33 @@ Assumes ~20 new PMIDs/day enter the corpus = ~600/month, no taxonomy version bum
 
 Subtopic discovery / relabel / see-also re-run cold; they don't enter steady-state cost unless input_hash changes.
 
-## Per-stage cost — upstream (out of this repo)
+## Per-stage cost — upstream (will move in-repo via #37)
 
-These two are the cost drivers when expanding corpus scope. **Numbers are unknown from this repo's vantage point** — `reciterai_synopsis` and `reciterai_impact` rows are populated by another pipeline, and this repo has no visibility into per-row token cost or invocation cadence.
+The synopsis and impact pipelines currently live in `wcmc-its/ReCiterAI-POC` (`core/synopsis.py`, `core/impact.py`) and write to MariaDB (`reciterai_synopsis`, `reciterai_impact`). Issue #37 ports them into a scheduled daily job, switches the sink to DynamoDB, and brings them under this repo's observability substrate.
 
-| Stage | Output table | Model | Estimated unit cost | Confidence |
+**Inputs (corrected 2026-05-13):** title + abstract + (impact only) a handful of bibliometric fields. Not full text. Earlier estimates here assumed Sonnet on full text; that was wrong.
+
+| Stage | Model | Tokens (est.) in / out | Cost per PMID | Confidence |
 |---|---|---|---|---|
-| Synopsis generation | `reciterai_synopsis` | likely Sonnet 4.6, full-text → paragraph | ~$0.10–$0.30 per PMID | low |
-| Impact scoring | `reciterai_impact` | GPT-5.1 (per `docs/data-model-and-queries.md`) | ~$0.05–$0.15 per PMID | low |
+| Synopsis generation | GPT-5.1 via OpenAI Batch API (~50% off) | ~600 / ~100 | **~$0.005** | medium (grounded against POC prompt shape; price-card-derived) |
+| Impact scoring | GPT-5.1 via OpenAI Batch API | ~700 / ~100 | **~$0.010** | medium |
 
-For the current 6,200-PMID corpus, the upstream pipeline has already paid ~$900–$2,800 (estimated). For any **scope expansion**, the same per-PMID rate applies to whatever new PMIDs come in.
+Two daily cycles of real spend under #37 will pin the actual numbers and update this table.
+
+For the current 6,200-PMID corpus, the upstream pipeline has paid ~$90 one-time (estimated; was ~$900–$2,800 in the wrong-input-shape version of this doc). For scope expansion, ~$0.015 per new PMID applies.
 
 ## What different scope changes cost (deltas)
 
 | Change | Δ PMIDs | Upstream Δ (est.) | In-repo Bedrock Δ | DDB / infra Δ | Total Δ |
 |---|---|---|---|---|---|
 | Filter author rank to first/last only (corpus-wide) | −167 PMIDs | $0 (subtractive — saved spend was already paid) | ~$3 saved one-time | trivial | ~$3 saved |
-| Gate ingestion on ≥1 first/last WCM FT author | −167 PMIDs going forward | $25–$80/yr saved (no synopsis/impact spent on excluded papers) | $2–$5/yr saved | trivial | $30–$85/yr saved |
+| Gate ingestion on ≥1 first/last WCM FT author (#26 — rejected 2026-05-13) | −167 PMIDs going forward | ~$2/yr saved | <$1/yr saved | trivial | ~$3/yr saved — too small to bother |
 | Add author-rank weighting (middle × 0.3, etc.) | 0 | $0 | $0 | $0 | $0 — pure arithmetic change |
-| Drop pub-type filter (`Academic Article` only) | +20%? unknown | could be +$200–$700 one-time | +$40 one-time | trivial | $250–$750 one-time |
-| Expand to pre-2020 (2010–2019) | +~30,000 PMIDs | $3K–$9K one-time | ~$1K one-time | trivial | **$4K–$10K one-time** |
+| Drop pub-type filter (`Academic Article` only) | +20%? unknown | +$20–$60 one-time | +$40 one-time | trivial | $60–$100 one-time |
+| Expand to pre-2020 (2010–2019) | +~30,000 PMIDs | ~$450 one-time | ~$1K one-time | trivial | **~$1,500 one-time** |
 | Expand to all WCM faculty (not just full-time) | varies | depends on overlap | small | trivial | unknown |
 
-The pre-2020 expansion is the line item that dwarfs everything else. Author-rank changes are noise by comparison.
+With the corrected per-PMID figures, the pre-2020 expansion is no longer the dollar lever it appeared to be in the earlier draft — it's a ~$1.5K one-time cost rather than $4K–$10K. The signal-quality and ETL-coordination costs of expanding scope are probably larger than the dollar cost now.
 
 ## Infra cost (DynamoDB, S3, Step Functions)
 
