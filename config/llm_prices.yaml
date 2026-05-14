@@ -1,0 +1,52 @@
+# LLM price table — closes #35 scope for the daily enrichment job (#37).
+#
+# Prices are USD per million tokens. Updated whenever the provider price card
+# changes. Each model the daily job calls MUST have an entry; calls against
+# an unknown model fail loud rather than silently misattributing cost.
+#
+# Sources:
+# - OpenAI: https://openai.com/api/pricing (GPT-5.x via Batch API ~50% off)
+# - Anthropic via Bedrock: https://aws.amazon.com/bedrock/pricing/
+#
+# Conventions:
+# - `input` covers prompt tokens + cached-read tokens; we don't currently
+#   distinguish cache hits from misses. Worst-case overcount is bounded.
+# - `output` covers completion + reasoning tokens (GPT-5 reasoning effort
+#   bills as output tokens).
+# - Bedrock model IDs are the FULL inference-profile-style ID (matches
+#   utils/bedrock_client.py MODEL_IDS_BY_STAGE), not the short alias.
+#
+# Last reviewed: 2026-05-13 (#37 step 1 scaffolding).
+
+version: 1
+
+models:
+  # ---- OpenAI ----
+  # Used by pipeline_enrichment for synopsis + impact (daily job, #37).
+  # POC uses Batch API for ~50% cost reduction; figures below are
+  # batch-tier where available, sync-tier otherwise.
+  gpt-5.1:
+    input_per_mtok: 1.25
+    output_per_mtok: 10.00
+    notes: "Batch API tier. Sync tier is ~2x."
+
+  # ---- Anthropic via AWS Bedrock ----
+  # Used by ReciterAI's in-repo Bedrock stages (score_publications,
+  # assign_subtopics, discover_subtopics, relabel, taxonomy, see_also,
+  # spotlight). The daily job calls Haiku + Sonnet only; Opus is
+  # spotlight-only and listed here for completeness if/when broader
+  # cost-attribution work lands (deferred from #35).
+  us.anthropic.claude-haiku-4-5-20251001-v1:0:
+    input_per_mtok: 1.00
+    output_per_mtok: 5.00
+    notes: "Haiku 4.5. Used for screening + subtopic assignment + critic."
+
+  us.anthropic.claude-sonnet-4-6:
+    input_per_mtok: 3.00
+    output_per_mtok: 15.00
+    notes: "Sonnet 4.6. Used for dense scoring + subtopic discovery + relabel + see_also + taxonomy_generation."
+
+  us.anthropic.claude-opus-4-7:
+    input_per_mtok: 15.00
+    output_per_mtok: 75.00
+    notes: "Opus 4.7. Spotlight lede only. Not used by the daily enrichment job."
