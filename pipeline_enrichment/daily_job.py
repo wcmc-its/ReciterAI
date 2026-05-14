@@ -37,7 +37,7 @@ from typing import Any, Callable, Optional
 from openai import OpenAI
 from sqlalchemy.engine import Engine
 
-from pipeline_enrichment import cost_guard, mariadb_writer
+from pipeline_enrichment import alerting, cost_guard, mariadb_writer
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
@@ -92,6 +92,7 @@ def run_daily_enrichment(
     ddb_table: Any = None,
     generate_synopsis: Callable = _default_generate_synopsis,
     score_impact: Callable = _default_score_impact,
+    alert_fn: Callable = alerting.alert,
 ) -> RunResult:
     """Run one cycle of the daily enrichment job.
 
@@ -106,7 +107,9 @@ def run_daily_enrichment(
             lazy singleton in pipeline_enrichment.synopsis/impact.
         ddb_table: optional injected DDB Table resource for the
             watermark; defaults to utils.dynamodb_helpers.get_table().
-        generate_synopsis, score_impact: injectable for testing.
+        generate_synopsis, score_impact, alert_fn: injectable for
+            testing. Pass a no-op for alert_fn to suppress Teams posts
+            during local development without unsetting the webhook env.
 
     Returns:
         RunResult with status + per-pmid outcomes.
@@ -144,6 +147,20 @@ def run_daily_enrichment(
             wm.mark_run_started(table=ddb_table)
             wm.mark_run_failed(table=ddb_table)
             logger.warning("daily run: cost guard tripped — %s", e)
+            alert_fn(
+                "ERROR",
+                "Cost guard refused daily run",
+                f"Estimated cost ${e.estimate.estimated_usd} exceeds threshold "
+                f"${e.estimate.threshold_usd}. Run --full to bypass if intentional "
+                f"(annual rescore / cold-start backfill).",
+                context={
+                    "delta_size": e.estimate.delta_size,
+                    "per_paper_usd": str(e.estimate.per_paper_usd),
+                    "estimated_usd": str(e.estimate.estimated_usd),
+                    "threshold_usd": str(e.estimate.threshold_usd),
+                    "last_max_pmid": last_max_pmid,
+                },
+            )
             return RunResult(
                 status=STATUS_COST_GUARD_TRIPPED,
                 delta_size=delta_size,
@@ -205,6 +222,25 @@ def run_daily_enrichment(
     logger.error(
         "daily run: failed — %d/%d pmids failed, watermark NOT advanced",
         failures, delta_size,
+    )
+    failed_outcomes = [o for o in outcomes if not o.fully_succeeded]
+    sample_failures = ", ".join(
+        f"{o.pmid} ({o.synopsis_error or o.impact_error})"
+        for o in failed_outcomes[:3]
+    )
+    if len(failed_outcomes) > 3:
+        sample_failures += f", … (+{len(failed_outcomes) - 3} more)"
+    alert_fn(
+        "ERROR",
+        "Daily enrichment run failed",
+        f"{failures}/{delta_size} pmids failed. Watermark not advanced; next "
+        f"run will retry the same delta. Idempotent writes make this safe.",
+        context={
+            "run_id": run_id,
+            "delta_size": delta_size,
+            "failures": failures,
+            "sample_failures": sample_failures,
+        },
     )
     return RunResult(
         status=STATUS_FAILED,

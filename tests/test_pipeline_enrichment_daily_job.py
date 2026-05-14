@@ -21,6 +21,13 @@ from pipeline_enrichment.daily_job import (
 from pipeline_enrichment.watermark import Watermark
 
 
+# Defensive default: ensure tests never fire real Teams alerts even if a
+# developer happens to have RECITERAI_TEAMS_WEBHOOK_URL set in their shell.
+@pytest.fixture(autouse=True)
+def _no_real_webhook(monkeypatch):
+    monkeypatch.delenv("RECITERAI_TEAMS_WEBHOOK_URL", raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Fake Synopsis/Impact results — mirror the real dataclasses' relevant fields
 # ---------------------------------------------------------------------------
@@ -380,3 +387,96 @@ def test_run_id_from_mark_started_propagates_to_result(fake_engine, fake_waterma
             score_impact=_ok_impact,
         )
     assert result.run_id == "abcd-1234"
+
+
+# ---------------------------------------------------------------------------
+# Alerting behaviour
+# ---------------------------------------------------------------------------
+
+def test_alert_fires_on_cost_guard_trip(fake_engine, fake_watermark, fake_writer):
+    huge_delta = _delta_rows(list(range(1, 800)))  # 799 pmids → ~$47.94 > $30
+    alert_mock = MagicMock(return_value=True)
+    with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=MagicMock(side_effect=AssertionError),
+            score_impact=MagicMock(side_effect=AssertionError),
+            alert_fn=alert_mock,
+        )
+    assert result.status == "cost_guard_tripped"
+    alert_mock.assert_called_once()
+    severity, title, message = alert_mock.call_args.args[:3]
+    assert severity == "ERROR"
+    assert "Cost guard" in title
+    assert "--full" in message  # tells operator how to bypass
+    context = alert_mock.call_args.kwargs.get("context") or (
+        alert_mock.call_args.args[3] if len(alert_mock.call_args.args) > 3 else {}
+    )
+    assert context["delta_size"] == 799
+    assert "estimated_usd" in context
+    assert "threshold_usd" in context
+
+
+def test_alert_fires_on_run_failure(fake_engine, fake_watermark, fake_writer):
+    delta = _delta_rows([10, 20, 30])
+    alert_mock = MagicMock(return_value=True)
+
+    def syn_failing_on_20(*, pmid, **kwargs):
+        if pmid == "20":
+            return FakeSynopsisResult(pmid=pmid, synopsis=None, error="bad abstract")
+        return FakeSynopsisResult(pmid=pmid, synopsis=f"syn-{pmid}")
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=syn_failing_on_20,
+            score_impact=_ok_impact,
+            alert_fn=alert_mock,
+        )
+    assert result.status == "failed"
+    alert_mock.assert_called_once()
+    severity, title, _message = alert_mock.call_args.args[:3]
+    assert severity == "ERROR"
+    assert "failed" in title.lower()
+    context = alert_mock.call_args.kwargs.get("context") or {}
+    assert context["delta_size"] == 3
+    assert context["failures"] == 1
+    # Sample failures must name the offending pmid so the alert is actionable.
+    assert "20" in context["sample_failures"]
+
+
+def test_no_alert_on_full_success(fake_engine, fake_watermark, fake_writer):
+    """Successful runs don't ping the operator — silent success is the norm
+    for cron jobs."""
+    delta = _delta_rows([100, 200, 300])
+    alert_mock = MagicMock()
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=alert_mock,
+        )
+    assert result.status == "complete"
+    alert_mock.assert_not_called()
+
+
+def test_no_alert_on_no_op_empty_delta(fake_engine, fake_watermark, fake_writer):
+    """Empty delta = nothing happened. Operators don't need a daily 'all
+    quiet' notification."""
+    alert_mock = MagicMock()
+    with patch.object(daily_job, "fetch_new_publications", return_value=[]):
+        result = run_daily_enrichment(engine=fake_engine, alert_fn=alert_mock)
+    assert result.status == "no_op"
+    alert_mock.assert_not_called()
+
+
+def test_default_alert_fn_is_alerting_module_function():
+    """If the caller doesn't inject alert_fn, the orchestrator's default
+    points at pipeline_enrichment.alerting.alert (which is a no-op when
+    the webhook env is unset, so safe by default)."""
+    import inspect
+    from pipeline_enrichment import alerting as _alerting
+
+    sig = inspect.signature(run_daily_enrichment)
+    assert sig.parameters["alert_fn"].default is _alerting.alert
