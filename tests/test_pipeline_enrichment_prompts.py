@@ -70,7 +70,11 @@ def test_impact_v1_byte_stable():
 def test_synopsis_schema_shape():
     assert SYNOPSIS_SCHEMA["name"] == "synopsis_schema"
     assert SYNOPSIS_SCHEMA["schema"]["required"] == ["synopsis"]
-    assert SYNOPSIS_SCHEMA["schema"]["properties"]["synopsis"]["type"] == "string"
+    syn_prop = SYNOPSIS_SCHEMA["schema"]["properties"]["synopsis"]
+    assert syn_prop["type"] == "string"
+    # Added 2026-05-14 (#50): schema-level cap mirrors the SYNOPSIS_SYSTEM
+    # plain-language "<= 95 characters" rule.
+    assert syn_prop["maxLength"] == 95
 
 
 def test_synopsis_user_content_format():
