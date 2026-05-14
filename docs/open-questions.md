@@ -55,29 +55,37 @@ The open work falls into four buckets. Pick the cluster that matches the kind of
 
 This cluster collapsed on 2026-05-13 around **#37 — Recurring impact + synopsis + scoring daily job**. The original v1.1 plan was elaborate (rolling enrichment + hot-path Step Functions + Bedrock Batch + drift detector + incremental rollups + EventBridge wiring). It turned out to be massively over-engineered for the actual volume (1,200 papers/year, 5–15 papers/day).
 
-**The actual plan** — daily ECS Scheduled Task or EKS CronJob that does both halves of the work synchronously: read delta PMIDs since the last watermark; generate synopsis + impact (GPT-5.1 on title + abstract, ~600 in tokens); score topics + assign subtopics (existing in-repo modules); bump rollups; advance watermark. Total cost ~$265/year, well under the $400 ceiling.
+**What #37 actually is.** Not "productionize a laptop script." It's the **prompt-port half of a repo migration that's been ~80% complete for a while.** The model code crossed from `wcmc-its/ReCiterAI-POC` into this repo at v1.0; the synopsis + impact **prompts** never made the trip. The daily-job work is the forcing function that finally drags them across. The cron is the easy part; the prompts have semantic risk (does the ported version produce the same scores the laptop version did?). Confirmed 2026-05-13 that the POC prompts haven't drifted from what the laptop script runs, so the port is mechanical — but equivalence still needs verification because GPT-5.1 isn't bit-deterministic.
+
+**Repo decision.** All work lives in `wcmc-its/ReciterAI` (this repo). The earlier "schedule from POC" framing was a misread — POC's README explicitly marks it superseded, and the design conversation reconciled by following the README's intent. POC gets archived (via GitHub's repo-archive feature) once #37 completes; tracked at `ReCiterAI-POC#4`.
 
 **Decisions made** (recorded in #37):
 
-- Execution environment: ECS Scheduled Task or EKS CronJob (no new infra)
-- Cadence: daily delta (5-15 papers) + annual full rescore (`--full` flag)
+- Runtime: ECS Scheduled Task (batch-shaped workloads on ECS; application services stay on EKS — split-by-shape, not split-by-ecosystem-preference)
+- Cadence: daily delta (5–15 papers) + annual full rescore (`--full` flag)
 - Watermark: single DDB item, simple last-successful-run pattern
 - Failure mode: leave watermark, retry next run, no manual intervention
 - Sink: extend the existing `IMPACT#pmid_{pmid}` partition with synopsis attributes (one GetItem per pub for SPS)
-- Alerting: Microsoft Teams Incoming Webhook, not Slack
+- Alerting: Microsoft Teams Incoming Webhook (env var `RECITERAI_TEAMS_WEBHOOK_URL`)
 - Corpus boundary: ≥1 WCM full-time faculty author, any position (#26 closed)
+- Cost attribution scaffolding: built as step 1 of #37 (closes #35 scope for the daily job; broader retrofit is a follow-up)
+- Equivalence check: 10–20 recent PMIDs; eyeball synopsis equivalence; impact within ±5 points on ≥18/20. One-shot, attached to step-1 PR.
 
-**What's left to nail down before implementation starts:**
+**Open implementation questions** (small):
 
-- **Where the existing script gets ported.** The POC code lives in `wcmc-its/ReCiterAI-POC` (`core/synopsis.py`, `core/impact.py`, `pipeline_impact_scoring/batch_impact_scoring.py`). Recommendation in #37 is to port the publications path into this repo so the producer and downstream consumers share substrate (STAGE# rows, gate registry, alert dispatcher). Could equally be scheduled from the POC repo if cross-repo ownership is cleaner — that's an organizational question more than a technical one.
-- **ECS vs. EKS for runtime.** Whichever ecosystem WCM already operates. Don't stand up new infra.
-- **Per-paper cost ground-truth.** Spec uses ~$0.035/paper conservative. Two daily cycles of real spend will pin the actual number and update `docs/cost-model.md`.
+- Where the price table lives. `config/llm_prices.yaml` or similar — checked-in YAML, not Python.
+- Per-paper cost ground-truth. Spec uses ~$0.035/paper conservative; two daily cycles of real spend will pin the actual number and update `docs/cost-model.md`.
 
-**Issues demoted by this collapse:**
+**Sub-issues:**
 
-- **#3 (parent tracker for hot-path orchestration)** — not load-bearing for v1.1. The daily job closes the freshness story end-to-end. #3 stays open as a long-term tracker for any future high-volume scenario that genuinely needs Step Functions + Batch, but it's not blocking anything.
-- **#19 (Phase 10 design questions)** — Slack channel choice replaced by Teams (decided in #37). Bedrock Batch wait mechanism is moot — daily 5-15 papers doesn't need Batch. Can close once #37 ships.
-- **#32 (`dateLastModified` missing column)** — lives in `pipeline_hot/orchestrator.py`, which the daily job supersedes. Can close once the hot-path module is deleted or marked dormant.
+- **#38** — ReciterAI's internal read-path switch from MariaDB to DynamoDB. Step 4 of #37's sequencing. Don't start until step 3 dual-write has burned in.
+- **`ReCiterAI-POC#4`** — archive POC repo. Step 7 of #37's sequencing. Don't action until #37 has run cleanly for ≥4 weeks against the DDB sink.
+
+**Issues closed 2026-05-13 by this collapse:**
+
+- **#3** (parent tracker for hot-path orchestration) — daily job closes the freshness gap end-to-end at the actual volume.
+- **#19** (Phase 10 design questions) — Slack → Teams; Bedrock Batch wait → moot.
+- **#32** (`dateLastModified` missing column) — dormant `pipeline_hot/` module supersedes; will be deleted as part of #37 cleanup.
 
 **Issue still relevant:**
 
@@ -131,18 +139,21 @@ These don't need design input from you. They're queued for whenever someone has 
 | **#13** | End-to-end integration test against fixtures | medium-large (writing new tests) |
 | **#33** | `python3 utils/env_check.py` docstring + entrypoint mismatch | tiny |
 | **#34** | Decouple `backfill_all.py` / `backfill_spotlight.py` from `hierarchy_full.json` artifact | small |
-| **#35** | Wire real cost attribution into `STAGE#.cost_observed_usd` slot (would obsolete most of `docs/cost-model.md`) | medium |
+| **#35** | Wire real cost attribution into `STAGE#.cost_observed_usd` slot for in-repo Bedrock stages outside the daily job — the daily-job's calls are scaffolded in #37 step 1, so this is the broader-retrofit follow-up | medium |
 
 ---
 
 ## What I'd actually do next, if pressed
 
-1. **Start scoping #37** (the daily job). Decide ECS-vs-EKS, decide where the script lives (this repo vs. POC repo), then plan the port. The hard architectural decisions are made; this is implementation work.
-2. **Schedule the Axis 2 thinking session.** Independent of #37 and a different brain mode — needs domain input, not engineering hours.
-3. **Verify #17 convergence** opportunistically after the next clean nightly ETL cycle. One DB query.
-4. **Hygiene cluster** runs in parallel whenever someone has cycles. Low priority.
+1. **Execute #37 step 1** — port the synopsis + impact prompts from POC into this repo, build the cost-attribution scaffolding (`utils/llm_cost.py` + `config/llm_prices.yaml`), wire the OpenAI client. Gate to step 2 is the equivalence sanity check on 10–20 PMIDs.
+2. **Then #37 step 2** — scheduled ECS task writing to MariaDB only. Two clean cycles before step 3.
+3. **Then #37 steps 3–7** in sequence (DDB dual-write, consumer read-switches, MariaDB decom, POC archive).
+4. **In parallel with the above:**
+   - Schedule the Axis 2 thinking session (different brain mode — needs domain input).
+   - Verify #17 convergence opportunistically after the next clean nightly ETL cycle.
+   - Hygiene cluster (#33, #12, #34, #10, #13) whenever bandwidth allows.
 
-The v1.1 freshness story is now a single ticket (#37) rather than a four-cluster orchestration epic. That collapse is the most important strategic outcome of the 2026-05-13 design conversation.
+The v1.1 freshness story is a single ticket (#37) with a clear PR sequence rather than a four-cluster orchestration epic. That collapse is the most important strategic outcome of the 2026-05-13 design conversation.
 
 ---
 
