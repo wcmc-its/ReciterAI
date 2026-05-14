@@ -51,74 +51,37 @@ There are two execution modes:
 
 The open work falls into four buckets. Pick the cluster that matches the kind of decision being asked of you; the order within each cluster is what I'd suggest tackling first.
 
-### Cluster A — Hot path orchestration (blocks v1.1 freshness story)
+### Cluster A — v1.1 freshness pipeline
 
-This is the highest-leverage cluster: every day the hot path doesn't deploy, new WCM publications are invisible to scholars.weill.cornell.edu until the next operator-triggered cold run.
+This cluster collapsed on 2026-05-13 around **#37 — Recurring impact + synopsis + scoring daily job**. The original v1.1 plan was elaborate (rolling enrichment + hot-path Step Functions + Bedrock Batch + drift detector + incremental rollups + EventBridge wiring). It turned out to be massively over-engineered for the actual volume (1,200 papers/year, 5–15 papers/day).
 
-#### #19 — Phase 10 hot-path design decisions
+**The actual plan** — daily ECS Scheduled Task or EKS CronJob that does both halves of the work synchronously: read delta PMIDs since the last watermark; generate synopsis + impact (GPT-5.1 on title + abstract, ~600 in tokens); score topics + assign subtopics (existing in-repo modules); bump rollups; advance watermark. Total cost ~$265/year, well under the $400 ceiling.
 
-**What's blocked:** The hot-path Step Functions wiring can't enter plan-phase until these two questions have answers. Once answered, the wiring is implementable.
+**Decisions made** (recorded in #37):
 
-**Question 1: Which Slack channel receives WARN+ERROR alerts from the hot path, and what env var name does the alerter read the webhook URL from?**
+- Execution environment: ECS Scheduled Task or EKS CronJob (no new infra)
+- Cadence: daily delta (5-15 papers) + annual full rescore (`--full` flag)
+- Watermark: single DDB item, simple last-successful-run pattern
+- Failure mode: leave watermark, retry next run, no manual intervention
+- Sink: extend the existing `IMPACT#pmid_{pmid}` partition with synopsis attributes (one GetItem per pub for SPS)
+- Alerting: Microsoft Teams Incoming Webhook, not Slack
+- Corpus boundary: ≥1 WCM full-time faculty author, any position (#26 closed)
 
-- Options for channel:
-  - Dedicated `#reciterai-pipeline` — clean separation, easy to mute/route, but yet another channel to monitor.
-  - Piggyback on an existing WCM ITS infra channel — fewer channels, but alerts mix with unrelated noise.
-- Options for env var name:
-  - `SLACK_WEBHOOK_URL` — conventional but ambiguous if a second webhook ever arrives in this codebase.
-  - `RECITERAI_SLACK_WEBHOOK_URL` — uglier but explicit and forward-compatible.
+**What's left to nail down before implementation starts:**
 
-**What's needed to decide:** Just pick. Talk to whoever owns the WCM ITS Slack workspace if the answer is "piggyback."
+- **Where the existing script gets ported.** The POC code lives in `wcmc-its/ReCiterAI-POC` (`core/synopsis.py`, `core/impact.py`, `pipeline_impact_scoring/batch_impact_scoring.py`). Recommendation in #37 is to port the publications path into this repo so the producer and downstream consumers share substrate (STAGE# rows, gate registry, alert dispatcher). Could equally be scheduled from the POC repo if cross-repo ownership is cleaner — that's an organizational question more than a technical one.
+- **ECS vs. EKS for runtime.** Whichever ecosystem WCM already operates. Don't stand up new infra.
+- **Per-paper cost ground-truth.** Spec uses ~$0.035/paper conservative. Two daily cycles of real spend will pin the actual number and update `docs/cost-model.md`.
 
-**Question 2: How does the Step Functions state machine wait for a Bedrock Batch job to complete?**
+**Issues demoted by this collapse:**
 
-- Option A — **Wait + Choice poll loop.** State machine sleeps for N minutes, polls Bedrock for job status, branches on `complete/failed/in_progress`. Simple to reason about; cost is N state transitions per job (transition billing on Standard workflows is ~$0.025 per 1K transitions).
-- Option B — **EventBridge Pipes pattern.** Bedrock job completion fires an event, EventBridge resumes the state machine via callback token. More complex; cost is per-event rather than per-transition.
+- **#3 (parent tracker for hot-path orchestration)** — not load-bearing for v1.1. The daily job closes the freshness story end-to-end. #3 stays open as a long-term tracker for any future high-volume scenario that genuinely needs Step Functions + Batch, but it's not blocking anything.
+- **#19 (Phase 10 design questions)** — Slack channel choice replaced by Teams (decided in #37). Bedrock Batch wait mechanism is moot — daily 5-15 papers doesn't need Batch. Can close once #37 ships.
+- **#32 (`dateLastModified` missing column)** — lives in `pipeline_hot/orchestrator.py`, which the daily job supersedes. Can close once the hot-path module is deleted or marked dormant.
 
-At the volume implied by hot-path cadence (likely daily or every few hours, batch sizes ~tens of jobs), the cost delta is probably <$5/month either way. Decision is more about operational complexity than spend.
+**Issue still relevant:**
 
-**What's needed to decide:** A short comparison (~30 min of reading Bedrock + Step Functions docs) and a pick. Both options are well-trodden.
-
-**Where it ends up:** Each answer either goes into a phase CONTEXT.md when the hot-path plan-phase starts, or into an inline note in `docs/hot-cold-paths.md`. Either way, `.planning/STATE.md` Deferred Items entries get removed once decided.
-
----
-
-#### #3 — Parent tracker: end-to-end hot-path orchestration
-
-Open since pre-v1.0 and intentionally a *tracker*, not an implementable issue. Once #19 is decided, this gets decomposed into sub-issues for: drift evaluator, incremental rollups, EventBridge cron, hot-path failure handling, input-boundary thresholds, etc. Don't try to action it directly — answer #19 first, then break this down.
-
----
-
-#### #15 — Rolling synopsis + impact-score generation
-
-**The upstream half of the orchestration story.** The pipeline in this repo reads synopses + impact scores from MariaDB tables that are populated by a *different* pipeline (outside this repo). That upstream pipeline runs in batches. Until it has a rolling mode, new publications can't enter ReciterAI's scope no matter how often the cold or hot path runs.
-
-**Four design decisions in this issue:**
-
-1. **Execution environment** — EKS CronJob, Lambda on EventBridge schedule, or a third Step Function alongside the cold/hot SFNs?
-2. **Cadence** — daily (~18 pubs/run avg) or weekly (~125 pubs/run, aligns with current Monday cold-run cycle)?
-3. **Watermark mechanism** — `analysis_summary_article.created_at`, auto-increment id, or `ENRICHMENT_RUN#` STAGE-style record?
-4. **Failure-mode behavior** — explicit handling for Bedrock rate-limit, duplicate-key insert, mid-ETL reads, partial-run interruption.
-
-**Why this matters more than the hot path:** the hot path is a scheduler. If there's nothing new in the upstream tables, even a perfect hot path is a no-op. Rolling enrichment is what produces new rows for the hot path to find.
-
-**Coupled to #19:** the execution-environment choice will affect whether the hot path's state-machine wait pattern (Question 2 above) also serves the rolling enrichment workload.
-
----
-
-#### #17 — Tracking: ReCiter ETL cascade-wipe convergence
-
-Producer-side note about a downstream bug in the Publication Manager repo (now fixed in `wcmc-its/ReCiter-Publication-Manager#248`). The fix replaces a destructive `deleteMany()` with an `upsert` flow. After the fix runs through a clean nightly cycle, the `publication_topic` row count should converge back toward ~78K (matches the DynamoDB TOPIC# row count).
-
-**What's needed to decide:** Verify convergence after a clean nightly cycle. If it stays meaningfully under 78K, file a separate DDB↔MySQL drift issue. If it's at 78K, close this one. No ReciterAI code change needed.
-
----
-
-#### #32 — Hot-path delta query references a missing column
-
-Discovered by the preflight in PR #31. `pipeline_hot/orchestrator.py:301` queries `WHERE dateLastModified >= :since` against a table that has no `dateLastModified` column. Dormant today (hot path isn't deployed); becomes a blocker when the hot path wires up.
-
-**What's needed to decide:** Coordinate with the ReCiter ETL team to confirm which column actually carries "last modified" semantics. `datePublicationAddedToEntrez` is insertion time, not modification time — so this is a real semantic question, not just a rename. Either rename our SQL to a column that has the right meaning, or have upstream add a real `dateLastModified` column.
+- **#17 — ReCiter ETL cascade-wipe convergence verification.** Producer-side tracking for a downstream bug fixed in `wcmc-its/ReCiter-Publication-Manager#248`. Independent of #37. After the fix runs through a clean nightly cycle, verify `publication_topic` row count converges toward ~78K; close if it does, file a DDB↔MySQL drift issue if it doesn't. No ReciterAI code change required.
 
 ---
 
@@ -153,15 +116,7 @@ Phase 8 starts. ReciterAI gains a third scoring axis. Faculty profiles can answe
 
 ### Cluster C — Corpus boundary
 
-#### #26 — Gate corpus ingestion on ≥1 first/last WCM full-time faculty author
-
-**Tiny issue. Just needs a yes/no/later from you.**
-
-Today, a publication enters the corpus if it has *any* WCM full-time faculty author in any position (first, middle, or last). 167 of the 6,163 current PMIDs (2.7%) have only middle-author WCM links — no first or last author from WCM. The proposal is to add an `EXISTS` subquery to the corpus filter so those 167 get gated out going forward.
-
-**What's needed to decide:** A judgment call. Cost analysis (see `docs/cost-model.md`) shows the dollar impact is rounding error. The signal-quality argument is the real lever — narrowing the corpus to papers WCM is at least somewhat *leading* on, versus papers WCM is *participating in*.
-
-The spotlight feature already filters to first/last only. Adopting the same filter at the corpus level would unify the scope across all axes.
+**Resolved 2026-05-13.** Corpus stays at "≥1 WCM full-time faculty author, any position." #26 closed with rationale. Spotlight retains its independent first/last filter at the feature level. Documented in `docs/data-model-and-queries.md`.
 
 ---
 
@@ -182,14 +137,12 @@ These don't need design input from you. They're queued for whenever someone has 
 
 ## What I'd actually do next, if pressed
 
-1. **Half an hour to decide #19.** Two questions, both well-trodden territory. Hot-path wiring unblocks.
-2. **Then #15 design decisions.** Without rolling enrichment, the hot path is a no-op. This is the *actual* freshness gap.
-3. **Decide #26.** Five minutes; it's been hanging since the cost-economics conversation.
-4. **Schedule an hour-long Axis 2 session** (separate from the above — these are different brain modes).
-5. **Verify #17 convergence** opportunistically (just a DB query after the next clean nightly).
-6. Hygiene cluster runs in parallel whenever someone has cycles.
+1. **Start scoping #37** (the daily job). Decide ECS-vs-EKS, decide where the script lives (this repo vs. POC repo), then plan the port. The hard architectural decisions are made; this is implementation work.
+2. **Schedule the Axis 2 thinking session.** Independent of #37 and a different brain mode — needs domain input, not engineering hours.
+3. **Verify #17 convergence** opportunistically after the next clean nightly ETL cycle. One DB query.
+4. **Hygiene cluster** runs in parallel whenever someone has cycles. Low priority.
 
-The orchestration cluster (#19 → #15 → #3 → hot-path wiring) is where the user-visible value lives. Axis 2 is bigger in code volume but smaller in immediate user impact. Everything else is below the fold.
+The v1.1 freshness story is now a single ticket (#37) rather than a four-cluster orchestration epic. That collapse is the most important strategic outcome of the 2026-05-13 design conversation.
 
 ---
 
