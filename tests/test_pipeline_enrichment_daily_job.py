@@ -67,13 +67,19 @@ def _ok_impact(*, pub_data, client=None):
 
 
 def _failing_synopsis(*, pmid, title, journal=None, year=None, abstract=None, client=None):
-    return FakeSynopsisResult(pmid=pmid, synopsis=None, error="boom")
+    # Real synopsis.py sets tokens=0 on error (the call failed before usage
+    # was recorded). Mirror that here so cost accumulator tests are accurate.
+    return FakeSynopsisResult(
+        pmid=pmid, synopsis=None, input_tokens=0, output_tokens=0, error="boom",
+    )
 
 
 def _failing_impact(*, pub_data, client=None):
     return FakeImpactResult(
         pmid=str(pub_data["pmid"]),
         impact_score=None,
+        input_tokens=0,
+        output_tokens=0,
         error="boom",
     )
 
@@ -295,7 +301,10 @@ def test_one_failure_among_many_does_not_stop_iteration(fake_engine, fake_waterm
 
     def synopsis_failing_on_3(*, pmid, title, journal=None, year=None, abstract=None, client=None):
         if pmid == "3":
-            return FakeSynopsisResult(pmid=pmid, synopsis=None, error="bad abstract")
+            return FakeSynopsisResult(
+                pmid=pmid, synopsis=None,
+                input_tokens=0, output_tokens=0, error="bad abstract",
+            )
         return FakeSynopsisResult(pmid=pmid, synopsis=f"syn-{pmid}")
 
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
@@ -423,7 +432,10 @@ def test_alert_fires_on_run_failure(fake_engine, fake_watermark, fake_writer):
 
     def syn_failing_on_20(*, pmid, **kwargs):
         if pmid == "20":
-            return FakeSynopsisResult(pmid=pmid, synopsis=None, error="bad abstract")
+            return FakeSynopsisResult(
+                pmid=pmid, synopsis=None,
+                input_tokens=0, output_tokens=0, error="bad abstract",
+            )
         return FakeSynopsisResult(pmid=pmid, synopsis=f"syn-{pmid}")
 
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
@@ -480,3 +492,108 @@ def test_default_alert_fn_is_alerting_module_function():
 
     sig = inspect.signature(run_daily_enrichment)
     assert sig.parameters["alert_fn"].default is _alerting.alert
+
+
+# ---------------------------------------------------------------------------
+# CostAccumulator wiring
+# ---------------------------------------------------------------------------
+
+# GPT-5.1 prices from config/llm_prices.yaml (Batch tier, 2026-05-13):
+#   input  $1.25/Mtok   output $10.00/Mtok
+# FakeSynopsisResult: 100 in / 30 out → 100*1.25/1M + 30*10/1M = $0.000425
+# FakeImpactResult:   200 in / 80 out → 200*1.25/1M + 80*10/1M = $0.001050
+# Per-pmid total: $0.001475
+_EXPECTED_PER_PMID_USD = Decimal("0.001475")
+
+
+def test_cost_observed_usd_sums_across_pmids(fake_engine, fake_watermark, fake_writer):
+    delta = _delta_rows([1, 2, 3])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=MagicMock(),
+        )
+    assert result.status == "complete"
+    assert result.cost_observed_usd == _EXPECTED_PER_PMID_USD * 3
+
+
+def test_cost_summary_present_on_complete(fake_engine, fake_watermark, fake_writer):
+    delta = _delta_rows([1, 2])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=MagicMock(),
+        )
+    summary = result.cost_summary
+    assert summary is not None
+    # 2 pmids × 2 calls each = 4 calls.
+    assert summary["call_count"] == 4
+    assert summary["total_input_tokens"] == 2 * (100 + 200)
+    assert summary["total_output_tokens"] == 2 * (30 + 80)
+    # by_model groups under the price-table key, not the dated response model.
+    assert "gpt-5.1" in summary["by_model"]
+    assert "gpt-5.1-2025-11-13" not in summary["by_model"]
+
+
+def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, fake_writer):
+    """A pmid that succeeded its synopsis but failed its impact still cost
+    money. Cost reporting must reflect that — silent on-failure cost is
+    the worst kind of cost."""
+    delta = _delta_rows([1])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_failing_impact,  # returns error result; tokens=0
+            alert_fn=MagicMock(),
+        )
+    assert result.status == "failed"
+    # Synopsis succeeded → tokens recorded. Impact returned a result with
+    # tokens=0 (error path) → no impact tokens contributed.
+    assert result.cost_observed_usd == Decimal("0.000425")  # synopsis only
+
+
+def test_cost_observed_is_none_on_cost_guard_tripped(fake_engine, fake_watermark, fake_writer):
+    """Cost guard refuses BEFORE any LLM call. Nothing measured to report."""
+    huge_delta = _delta_rows(list(range(1, 800)))
+    with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=MagicMock(),
+            score_impact=MagicMock(),
+            alert_fn=MagicMock(),
+        )
+    assert result.status == "cost_guard_tripped"
+    assert result.cost_observed_usd is None
+    assert result.cost_summary is None
+
+
+def test_cost_observed_is_none_on_no_op(fake_engine, fake_watermark, fake_writer):
+    with patch.object(daily_job, "fetch_new_publications", return_value=[]):
+        result = run_daily_enrichment(engine=fake_engine, alert_fn=MagicMock())
+    assert result.status == "no_op"
+    assert result.cost_observed_usd is None
+    assert result.cost_summary is None
+
+
+def test_zero_token_results_do_not_record_to_accumulator(fake_engine, fake_watermark, fake_writer):
+    """Error-path SynopsisResult sets tokens=0; the accumulator must
+    not double-count them or charge a zero-token call."""
+    delta = _delta_rows([1])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_failing_synopsis,  # tokens=0 on error
+            score_impact=MagicMock(side_effect=AssertionError("impact must not be called")),
+            alert_fn=MagicMock(),
+        )
+    assert result.status == "failed"
+    # Synopsis errored with tokens=0; impact was skipped. No calls
+    # contributed cost.
+    assert result.cost_observed_usd == Decimal("0")
+    summary = result.cost_summary
+    assert summary["call_count"] == 0

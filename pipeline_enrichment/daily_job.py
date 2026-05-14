@@ -41,6 +41,8 @@ from pipeline_enrichment import alerting, cost_guard, mariadb_writer
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
+from utils.llm_cost import CostAccumulator
+from utils.openai_client import GPT5_MODEL
 from utils.sql_queries import fetch_new_publications
 
 logger = logging.getLogger(__name__)
@@ -72,6 +74,8 @@ class RunResult:
     delta_size: int
     outcomes: list[PmidOutcome] = field(default_factory=list)
     cost_estimate: Optional[cost_guard.CostEstimate] = None
+    cost_observed_usd: Optional[Decimal] = None
+    cost_summary: Optional[dict] = None
     run_id: Optional[str] = None
     new_watermark_pmid: Optional[int] = None
     failure_reason: Optional[str] = None
@@ -180,7 +184,10 @@ def run_daily_enrichment(
     run_id = wm.mark_run_started(table=ddb_table)
     logger.info("daily run: started run_id=%s", run_id)
 
-    # 5. Loop pmids.
+    # 5. Loop pmids. The accumulator tracks measured cost across all
+    # LLM calls — both successful and failed (token counts on failed
+    # SynopsisResult/ImpactResult are 0, so they contribute nothing).
+    accumulator = CostAccumulator()
     outcomes: list[PmidOutcome] = []
     for row in delta:
         outcome = _process_one_pmid(
@@ -189,6 +196,7 @@ def run_daily_enrichment(
             openai_client=openai_client,
             generate_synopsis=generate_synopsis,
             score_impact=score_impact,
+            accumulator=accumulator,
         )
         outcomes.append(outcome)
         if not outcome.fully_succeeded:
@@ -198,6 +206,11 @@ def run_daily_enrichment(
                 outcome.pmid, outcome.synopsis_ok, outcome.impact_ok,
                 outcome.synopsis_error, outcome.impact_error,
             )
+    logger.info(
+        "daily run: measured cost $%s across %d calls (input=%d, output=%d tokens)",
+        accumulator.total_usd, accumulator.call_count,
+        accumulator.total_input_tokens, accumulator.total_output_tokens,
+    )
 
     # 6. Advance watermark on all-success.
     all_succeeded = all(o.fully_succeeded for o in outcomes)
@@ -213,6 +226,8 @@ def run_daily_enrichment(
             delta_size=delta_size,
             outcomes=outcomes,
             cost_estimate=cost_estimate,
+            cost_observed_usd=accumulator.total_usd,
+            cost_summary=accumulator.summary(),
             run_id=run_id,
             new_watermark_pmid=new_max,
         )
@@ -247,6 +262,8 @@ def run_daily_enrichment(
         delta_size=delta_size,
         outcomes=outcomes,
         cost_estimate=cost_estimate,
+        cost_observed_usd=accumulator.total_usd,
+        cost_summary=accumulator.summary(),
         run_id=run_id,
         failure_reason=f"{failures}/{delta_size} pmids failed",
     )
@@ -259,12 +276,20 @@ def _process_one_pmid(
     openai_client: Optional[OpenAI],
     generate_synopsis: Callable,
     score_impact: Callable,
+    accumulator: CostAccumulator,
 ) -> PmidOutcome:
     """Synopsis → MariaDB → Impact → MariaDB for a single pmid.
 
     Synopsis is the gating step: if synopsis fails (LLM call OR MariaDB
     write), skip the impact call. Impact failure after synopsis success
     leaves the synopsis row in place — pmid is still a failed outcome.
+
+    Cost is recorded against the accumulator after each LLM call (success
+    OR failure — error-path results carry input_tokens=0 / output_tokens=0
+    so they contribute nothing). Recording uses the price-table model key
+    `GPT5_MODEL` ("gpt-5.1"), NOT the dated `response.model` that lands in
+    MariaDB. OpenAI prices by requested model; the dated snapshot is for
+    audit only.
     """
     pmid = str(row["pmid"])
     outcome = PmidOutcome(pmid=pmid)
@@ -286,6 +311,12 @@ def _process_one_pmid(
         abstract=row.get("abstractVarchar"),
         client=openai_client,
     )
+    if syn.input_tokens or syn.output_tokens:
+        accumulator.record(
+            model=GPT5_MODEL,
+            input_tokens=syn.input_tokens,
+            output_tokens=syn.output_tokens,
+        )
     if syn.synopsis is None:
         outcome.synopsis_error = syn.error or "synopsis call returned None"
         return outcome
@@ -304,6 +335,12 @@ def _process_one_pmid(
 
     # --- Impact (only on synopsis success) ---
     imp = score_impact(pub_data=row, client=openai_client)
+    if imp.input_tokens or imp.output_tokens:
+        accumulator.record(
+            model=GPT5_MODEL,
+            input_tokens=imp.input_tokens,
+            output_tokens=imp.output_tokens,
+        )
     if imp.impact_score is None:
         outcome.impact_error = imp.error or "impact call returned None"
         return outcome
