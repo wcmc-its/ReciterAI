@@ -39,6 +39,11 @@ from pipeline_enrichment.daily_job import (
 from utils.db import get_engine
 
 
+def _noop_alert(*args, **kwargs):
+    """Silent alert function for --no-alerts local iteration."""
+    return False
+
+
 def _result_to_json(result) -> str:
     """Serialize RunResult for log aggregators. Decimals → strings."""
     def _default(o):
@@ -78,6 +83,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Override cost-guard per-paper assumption (default: $0.060).",
     )
     p.add_argument(
+        "--no-alerts",
+        action="store_true",
+        help="Suppress Teams alerts (local iteration / dry-run). The "
+             "webhook env var is otherwise read at module-init.",
+    )
+    p.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -99,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         kwargs["threshold_usd"] = args.threshold_usd
     if args.per_paper_usd is not None:
         kwargs["per_paper_usd"] = args.per_paper_usd
+    if args.no_alerts:
+        kwargs["alert_fn"] = _noop_alert
 
     result = run_daily_enrichment(**kwargs)
     print(_result_to_json(result))
