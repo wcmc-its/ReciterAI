@@ -85,10 +85,20 @@
         "papers": {
           "type": "array",
           "minItems": 2,
-          "maxItems": 3,
+          "maxItems": 7,
           "items": {
             "$ref": "#/$defs/Paper"
           }
+        },
+        "lede_grounded_pmids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "description": "PMIDs the lede grounded against (editorial subset of papers). Must be a subset of papers[].pmid."
         }
       }
     },

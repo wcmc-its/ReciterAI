@@ -97,7 +97,6 @@ def build_artifact(
     selected: list[ValidatedLede],
     pool: list[PoolEntry],
     subtopic_metadata: dict[str, SubtopicMeta],
-    paper_metadata: dict[str, Paper],
     taxonomy_version: str = DEFAULT_TAXONOMY_VERSION,
 ) -> dict:
     """Compose the spotlight.json artifact dict.
@@ -112,17 +111,14 @@ def build_artifact(
     pool
         Top-50 PoolEntry rows from the rotation selector's input pool.
         Length is preserved in ``pool_snapshot``; the schema bounds it
-        between 1 and 50.
+        between 1 and 50. Each entry's ``papers`` tuple sources the
+        artifact's ``papers`` array for the matching spotlight (#49).
     subtopic_metadata
         Lookup ``subtopic_id`` → SubtopicMeta. Plan 06-04's slim shape
         (label, description, parent_topic_label) is sufficient. Plan
         06-07 may pass a richer object with ``display_name`` /
         ``short_description`` attributes; ``getattr`` falls back to the
         canonical label when those D-19 UI fields are absent.
-    paper_metadata
-        Lookup ``pmid`` → Paper for the papers carried into each lede.
-        Keys must include every PMID enumerated in
-        ``ValidatedLede.papers_used`` for the selected entries.
     taxonomy_version
         Stamped into the artifact root so consumers can pin against a
         specific hierarchy snapshot. Defaults to
@@ -138,7 +134,8 @@ def build_artifact(
     Raises
     ------
     ValueError
-        If any entry in ``selected`` has ``status != "pass"``.
+        If any entry in ``selected`` has ``status != "pass"``, or if any
+        selected subtopic_id is missing from ``pool``.
     """
     bad = [v.subtopic_id for v in selected if v.status != "pass"]
     if bad:
@@ -147,12 +144,23 @@ def build_artifact(
             f"non-pass entries for subtopic_ids: {bad}"
         )
 
+    # Index pool by subtopic_id so each spotlight's papers come from the
+    # subtopic's top-K pool (#49 contract: papers = consumer-facing top-7,
+    # not the 2-3 editorial grounding subset).
+    pool_by_subtopic: dict[str, PoolEntry] = {e.subtopic_id: e for e in pool}
+    missing = [v.subtopic_id for v in selected if v.subtopic_id not in pool_by_subtopic]
+    if missing:
+        raise ValueError(
+            f"build_artifact requires every selected subtopic_id to appear "
+            f"in pool; missing: {missing}"
+        )
+
     selected_ids = {v.subtopic_id for v in selected}
 
     spotlight_entries: list[dict] = []
     for vlede in selected:
         meta = subtopic_metadata[vlede.subtopic_id]
-        papers = [paper_metadata[pmid] for pmid in vlede.papers_used]
+        papers = pool_by_subtopic[vlede.subtopic_id].papers
         # D-19: display_name / short_description are UI-only. Fall back
         # to the canonical label / empty string if a slim SubtopicMeta
         # is passed (Plan 06-04's NamedTuple has no display_name field).
@@ -165,6 +173,7 @@ def build_artifact(
                 "parent_topic": vlede.parent_topic,
                 "lede": vlede.lede,
                 "papers": [_paper_to_json(p) for p in papers],
+                "lede_grounded_pmids": list(vlede.papers_used),
             }
         )
 

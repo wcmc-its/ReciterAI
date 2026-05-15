@@ -17,5 +17,5 @@
   "bootstrap_lookback_days": 14,
   "discover_min_cluster_size": 3,
   "target_failure_rate": 0.01,
-  "pool_top_papers_per_subtopic": 6
+  "pool_top_papers_per_subtopic": 7
 }
