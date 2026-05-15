@@ -2,10 +2,75 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "HierarchyPublish",
+      "Sid": "BedrockInvokeModelDirect",
       "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:HeadObject"],
+      "Action": ["bedrock:InvokeModel"],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-7"
+      ]
+    },
+    {
+      "Sid": "BedrockInvokeModelViaInferenceProfile",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel"],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-6",
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-opus-4-7"
+      ]
+    },
+    {
+      "Sid": "DynamoDBReciterTable",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:BatchGetItem",
+        "dynamodb:Scan",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/reciterai"
+      ]
+    },
+    {
+      "Sid": "DynamoDBCreateReciterTable",
+      "Effect": "Allow",
+      "Action": ["dynamodb:CreateTable"],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/reciterai"
+      ]
+    },
+    {
+      "Sid": "HierarchyBucketReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:HeadObject"
+      ],
       "Resource": "arn:aws:s3:::wcmc-reciterai-hierarchy/*"
+    },
+    {
+      "Sid": "ArtifactsBucketReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:HeadObject"
+      ],
+      "Resource": "arn:aws:s3:::wcmc-reciterai-artifacts/*"
+    },
+    {
+      "Sid": "StepFunctionsConcurrentRunGuard",
+      "Effect": "Allow",
+      "Action": ["states:ListExecutions"],
+      "Resource": "arn:aws:states:us-east-1:ACCOUNT_ID:stateMachine:reciterai-hot-*"
     }
   ]
 }
