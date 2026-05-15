@@ -18,8 +18,9 @@ env/
 .env.*.local
 
 # Working artifacts — regeneratable by the pipeline; canonical outputs go to S3
-# (wcmc-reciterai-hierarchy, wcmc-reciterai-artifacts)
-.planning/phases/04-subtopic-system/hierarchy_full.json
+# (wcmc-reciterai-hierarchy, wcmc-reciterai-artifacts). Backfill scripts now
+# write hierarchy_full.json under out/ (already gitignored below); the
+# repo-root pattern stays as a safety net against ad-hoc operator copies.
 hierarchy_full.json
 author_mapping.json
 faculty_metadata.json

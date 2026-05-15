@@ -54,14 +54,6 @@ logger = logging.getLogger(__name__)
 OUT_DIR = Path("./out")
 SCHEMA_PATH = Path("./docs/spotlight.schema.json")
 
-# Hierarchy lookup paths — try the canonical phase-04 location first, then
-# fall back to a repo-root convenience copy if an operator dropped one in
-# place for ad-hoc runs.
-_HIERARCHY_PATHS = (
-    Path(".planning/phases/04-subtopic-system/hierarchy_full.json"),
-    Path("./hierarchy_full.json"),
-)
-
 ARTIFACTS_BUCKET_NAME = "wcmc-reciterai-artifacts"
 LATEST_SPOTLIGHT_KEY = "spotlight/latest/spotlight.json"
 LATEST_MANIFEST_KEY = "spotlight/latest/manifest.json"
@@ -174,14 +166,18 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _load_hierarchy() -> dict:
-    """Load hierarchy_full.json; tries the canonical phase-04 path first."""
-    for p in _HIERARCHY_PATHS:
-        if p.exists():
-            return json.loads(p.read_text(encoding="utf-8"))
-    raise FileNotFoundError(
-        f"hierarchy_full.json not found at any of: "
-        f"{[str(p) for p in _HIERARCHY_PATHS]}"
-    )
+    """Assemble the hierarchy in-memory from per-topic augmented drafts.
+
+    Calls `pipeline_hierarchy.bundler.bundle()` directly rather than reading
+    a disk artifact: the publish path no longer writes `hierarchy_full.json`
+    to a stable consumer location, so reading from disk risked silent drift
+    against a stale local copy. Strict mode is off so a subtopic missing UI
+    fields surfaces as empty strings (the spotlight assembler already has
+    label-based fallbacks) rather than raising mid-pipeline.
+    """
+    from pipeline_hierarchy.bundler import bundle
+
+    return bundle(strict=False)
 
 
 def _build_parent_lookup(hierarchy: dict) -> dict[str, str]:
