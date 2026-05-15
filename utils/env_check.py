@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 # Repo root: two levels up from this file (utils/env_check.py -> utils/ -> root).
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+# Allow `python3 utils/env_check.py` to resolve sibling packages (e.g. `utils`)
+# the same way `python3 -m utils.env_check` would. Without this, the inline
+# `from utils.db import get_engine` below raises ModuleNotFoundError when
+# invoked as a script — the failure mode reported in issue #33.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 # --- G-1: Data-driven column expectations ---
 # Single source of truth for every ReciterDB column the ReciterAI pipeline
 # reads. Adding or renaming a column upstream becomes a one-line change here
@@ -182,9 +189,20 @@ def run_env_checks():
     results['DB_USERNAME'] = 'OK'
     print(f"[OK] DB_USERNAME is set: {db_user}")
 
-    # Get database connection
+    # Get database connection. Keep the import inside the function (rather than
+    # at module top) so callers that only need `load_thresholds()` don't pay
+    # the SQLAlchemy import cost. Separate the import failure from the connect
+    # failure so a missing dependency isn't reported as a credential problem.
     try:
         from utils.db import get_engine
+    except ImportError as e:
+        errors.append(
+            f"Cannot import utils.db: {e}. Run from the repo root "
+            "(`python3 utils/env_check.py` or `python3 -m utils.env_check`)."
+        )
+        _print_results(results, errors)
+        sys.exit(1)
+    try:
         engine = get_engine()
         conn = engine.connect()
     except Exception as e:
