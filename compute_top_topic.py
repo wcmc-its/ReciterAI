@@ -38,13 +38,17 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+import boto3
 from boto3.dynamodb.conditions import Key
+from botocore.config import Config
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -326,6 +330,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Hot-path mode: emit the STAGE# envelope to stdout instead "
              "of writing the STAGE# row directly to DynamoDB.",
     )
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Number of parallel worker threads for per-PMID processing. "
+             "Default 1 (serial). Higher values speed up --all backfills by "
+             "parallelizing DynamoDB I/O round-trips. Suggested 10-20 for "
+             "laptop->us-east-1 runs; keep at 1 for hot-path Lambda use.",
+    )
     args = parser.parse_args(argv)
 
     if not (args.pmid or args.pmids_file or args.all):
@@ -335,7 +346,16 @@ def main(argv: list[str] | None = None) -> int:
     score_floor = float(cfg["score_floor"])
     tie_epsilon = float(cfg["tie_epsilon"])
 
-    table = get_table(TABLE_NAME)
+    if args.workers > 1:
+        # Bump boto3 HTTP pool to match worker count; default 10 connections
+        # would otherwise queue threads on TLS connection reuse.
+        region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        boto_cfg = Config(max_pool_connections=args.workers + 5)
+        table = boto3.resource(
+            "dynamodb", region_name=region, config=boto_cfg
+        ).Table(TABLE_NAME)
+    else:
+        table = get_table(TABLE_NAME)
     stage_started_at = now_iso()
     t_start = time.monotonic()
 
@@ -348,20 +368,41 @@ def main(argv: list[str] | None = None) -> int:
     rows_written = 0
     pmids_assigned = 0
     pmids_no_above_floor = 0
-    for i, pmid in enumerate(pmids, 1):
-        top_topic_id, n = process_pmid(
+
+    def _process(pmid: str) -> tuple[str | None, int]:
+        return process_pmid(
             table, str(pmid),
             score_floor=score_floor,
             tie_epsilon=tie_epsilon,
         )
-        rows_written += n
-        if top_topic_id is not None:
-            pmids_assigned += 1
-        elif n > 0:
-            # Rows exist but none cleared the floor → top_topic_id removed.
-            pmids_no_above_floor += 1
-        if i % 1000 == 0:
-            logger.info(f"  processed {i}/{len(pmids)} pmids")
+
+    if args.workers > 1 and pmids:
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            futures = {pool.submit(_process, p): p for p in pmids}
+            for i, fut in enumerate(as_completed(futures), 1):
+                try:
+                    top_topic_id, n = fut.result()
+                except Exception as e:
+                    logger.error(f"failed pmid {futures[fut]}: {e}")
+                    continue
+                rows_written += n
+                if top_topic_id is not None:
+                    pmids_assigned += 1
+                elif n > 0:
+                    pmids_no_above_floor += 1
+                if i % 1000 == 0:
+                    logger.info(f"  processed {i}/{len(pmids)} pmids")
+    else:
+        for i, pmid in enumerate(pmids, 1):
+            top_topic_id, n = _process(pmid)
+            rows_written += n
+            if top_topic_id is not None:
+                pmids_assigned += 1
+            elif n > 0:
+                # Rows exist but none cleared the floor → top_topic_id removed.
+                pmids_no_above_floor += 1
+            if i % 1000 == 0:
+                logger.info(f"  processed {i}/{len(pmids)} pmids")
 
     logger.info(
         f"Done. pmids_total={len(pmids)} pmids_assigned={pmids_assigned} "
@@ -386,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
         started_at=stage_started_at,
         completed_at=completed_at,
         duration_ms=duration_ms,
+        cost_observed_usd=Decimal("0.0"),
         records_written=rows_written,
     )
     if args.emit_envelope:
