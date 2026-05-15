@@ -469,16 +469,10 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
 
     # Stage 5: assemble.
     selected_vledes = [vlede for _, vlede in publishable]
-    paper_metadata = {}
-    for sel, _ in publishable:
-        for p in sel.entry.papers:
-            paper_metadata[p.pmid] = p
-
     artifact = build_artifact(
         selected=selected_vledes,
         pool=pool,
         subtopic_metadata=subtopic_metadata,
-        paper_metadata=paper_metadata,
     )
 
     # --dry-run-full: write local artifact, no S3.

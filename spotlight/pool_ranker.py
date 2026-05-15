@@ -183,7 +183,7 @@ def rank_pool(
     ``(-score, subtopic_id)`` — score DESC, subtopic_id ASC.
 
     pool_score is the sum of the **top-K papers'** ``impact_score`` per
-    subtopic (default K=6). This anchors ranking to paper quality rather
+    subtopic (default K=7). This anchors ranking to paper quality rather
     than subtopic volume; large subtopics with many mediocre papers no
     longer dominate the pool.
 
@@ -284,9 +284,15 @@ def rank_pool(
 
     parent_lookup = parent_lookup or {}
 
+    # Tuple sort key: impact_score DESC, then PMID-as-int ASC, then year DESC.
+    # The PMID cast surfaces non-digit PMIDs as a TypeError at sort time,
+    # which is the right failure mode — the schema bans non-digit PMIDs.
     scored: list[tuple[str, float, tuple[Paper, ...]]] = []
     for sid, papers in by_subtopic.items():
-        top = sorted(papers, key=lambda p: -p.impact_score)[:top_papers_per_subtopic]
+        top = sorted(
+            papers,
+            key=lambda p: (-p.impact_score, int(p.pmid), -p.year),
+        )[:top_papers_per_subtopic]
         score = sum(p.impact_score for p in top)
         scored.append((sid, score, tuple(top)))
 

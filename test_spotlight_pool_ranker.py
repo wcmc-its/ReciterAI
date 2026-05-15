@@ -122,12 +122,12 @@ def test_score_aggregation_sums_per_subtopic():
 
 
 def test_score_uses_top_n_papers_per_subtopic():
-    """Subtopic with 10 papers: pool_score = sum of top-6 impact_scores, NOT all 10.
+    """Subtopic with 10 papers: pool_score = sum of top-7 impact_scores, NOT all 10.
 
     Regression test for the live-data smoke finding where summing every
     paper's impact_score let high-volume subtopics dominate over high-quality
-    ones. With default ``top_papers_per_subtopic=6``, 10 papers of impact
-    100..91 yield pool_score = 100+99+98+97+96+95 = 585 (not 955).
+    ones. With default ``top_papers_per_subtopic=7`` (#49 raised from 6),
+    10 papers of impact 100..91 yield pool_score = 100+99+98+97+96+95+94 = 679.
     """
     from spotlight.pool_ranker import rank_pool
 
@@ -140,10 +140,10 @@ def test_score_uses_top_n_papers_per_subtopic():
     result = rank_pool(client=StubDynamoClient(items))
 
     assert len(result) == 1
-    assert result[0].pool_score == sum(100 - i for i in range(6))  # 585.0
-    assert len(result[0].papers) == 6
-    # Top-6 papers ordered by impact_score DESC (PMID 700..705)
-    assert [p.pmid for p in result[0].papers] == [f"7{i:02d}" for i in range(6)]
+    assert result[0].pool_score == sum(100 - i for i in range(7))  # 679.0
+    assert len(result[0].papers) == 7
+    # Top-7 papers ordered by impact_score DESC (PMID 700..706)
+    assert [p.pmid for p in result[0].papers] == [f"7{i:02d}" for i in range(7)]
 
 
 def test_parent_lookup_overrides_regex():
@@ -305,3 +305,91 @@ def test_default_client_is_none_after_import():
         "pool_ranker._default_client must be None at import time (lazy init). "
         "Found a non-None client, which means boto3.client() was called eagerly."
     )
+
+
+# ---------------------------------------------------------------------------
+# #49 tiebreak determinism — (-impact_score, int(pmid), -year)
+# ---------------------------------------------------------------------------
+
+
+def test_intra_subtopic_tiebreak_pmid_then_year():
+    """Equal impact_score within a subtopic: ascending int(pmid) wins, then year DESC.
+
+    Builds 4 papers with the same impact_score where deterministic ordering
+    requires both PMID-asc and year-desc:
+
+      PMID      year   expected order key
+      ---------------- -----------------
+      "1000"    2024   (-50, 1000, -2024)
+      "999"     2024   (-50, 999,  -2024)  ← smaller PMID wins
+      "999"     —      (deduped against itself)
+      "1000"    2025   would beat "1000" 2024 on year DESC
+
+    The dedup at (subtopic, pmid) level means duplicate-PMID rows can't
+    co-occur in the output, so the year tiebreaker exercises a different
+    contract: distinct PMIDs with identical impact_score order by
+    int(pmid) ascending; year is the third-level tiebreak (DESC).
+    """
+    from spotlight.pool_ranker import rank_pool
+
+    year = date.today().year
+    # Three distinct PMIDs, identical impact_score, different years.
+    # Order should be int(pmid) ASC: 999, 1000, 10000 — even though
+    # "10000" lexicographically sorts before "999".
+    items = [
+        _topic_item(pmid="10000", subtopic_id="aging_001", impact_score=50.0, year=year),
+        _topic_item(pmid="999", subtopic_id="aging_001", impact_score=50.0, year=year - 1),
+        _topic_item(pmid="1000", subtopic_id="aging_001", impact_score=50.0, year=year),
+    ]
+    result = rank_pool(client=StubDynamoClient(items))
+
+    assert len(result) == 1
+    pmids = [p.pmid for p in result[0].papers]
+    # int cast: 999 < 1000 < 10000 (NOT lexicographic, which would be 10000 < 1000 < 999)
+    assert pmids == ["999", "1000", "10000"], (
+        f"int(pmid) ascending expected; got lexicographic-or-other order: {pmids}"
+    )
+
+
+def test_intra_subtopic_tiebreak_permutation_invariant():
+    """Permuting input order MUST NOT change the output paper ordering.
+
+    Builds 5 papers with overlapping impact_scores and runs the ranker
+    twice with the items list in reversed order. Output must be identical
+    bytes-for-bytes (PMID-list comparison is sufficient).
+    """
+    from spotlight.pool_ranker import rank_pool
+
+    year = date.today().year
+    items = [
+        _topic_item(pmid="2001", subtopic_id="aging_001", impact_score=80.0, year=year),
+        _topic_item(pmid="2002", subtopic_id="aging_001", impact_score=80.0, year=year),  # tie
+        _topic_item(pmid="2003", subtopic_id="aging_001", impact_score=75.0, year=year - 1),
+        _topic_item(pmid="2004", subtopic_id="aging_001", impact_score=75.0, year=year),  # tie + newer
+        _topic_item(pmid="2005", subtopic_id="aging_001", impact_score=70.0, year=year),
+    ]
+    forward = rank_pool(client=StubDynamoClient(items))
+    reversed_ = rank_pool(client=StubDynamoClient(list(reversed(items))))
+
+    assert [p.pmid for p in forward[0].papers] == [p.pmid for p in reversed_[0].papers]
+
+
+def test_non_digit_pmid_raises_at_sort():
+    """Non-digit PMID surfaces as a ValueError when int() casts the sort key.
+
+    The schema bans non-digit PMIDs (`pattern: "^[0-9]+$"`), so any malformed
+    PMID upstream is a contract violation that should fail loud at ranker time
+    rather than silently producing a non-deterministic ordering.
+    """
+    from spotlight.pool_ranker import rank_pool
+
+    year = date.today().year
+    items = [
+        _topic_item(pmid="PMC1234567", subtopic_id="aging_001", impact_score=50.0, year=year),
+        _topic_item(pmid="1234567", subtopic_id="aging_001", impact_score=50.0, year=year),
+    ]
+    try:
+        rank_pool(client=StubDynamoClient(items))
+    except ValueError:
+        return
+    raise AssertionError("non-digit PMID must raise ValueError at int() cast")
