@@ -79,6 +79,16 @@ Two-pass, offline, batch-processed. Lives in `score_publications.py`.
 
 Each publication carries a **vector of scores** across topics. There is **no single "primary topic"**. A cardiology paper that touches genomics and aging gets three records (one per topic), each above 0.3 — all three are persisted.
 
+### Floor vs display — two different decisions (#69)
+
+The 0.3 cutoff above is the *qualification* floor (`score_floor`): it decides whether a paper's score for a topic is high enough for the paper to be persisted as a topic-activity row at all. It is recall-oriented, screening-level.
+
+A separate *display* threshold (`display_threshold`, per-topic, default 0.5) governs what renders by default on the SPS Scholars Topic page (`/topics/<topic_id>`). Papers with `score[topic] >= display_threshold[topic]` appear in the strongly-relevant default view; papers with `score_floor <= score[topic] < display_threshold[topic]` appear only behind the "View additional articles that are relevant" affordance.
+
+- `score_floor` lives in `config/thresholds.json`.
+- `display_threshold` is carried per-topic on `taxonomy_v2.json` and republished in `hierarchy.json` for SPS to consume; the global fallback for untuned topics is `display_threshold_default` in `config/thresholds.json` (currently 0.5).
+- `display_threshold` is consumed at SPS read time only. It does **not** change qualification, does not change `subtopic_ids[]`, does not change §8 rollup arithmetic, and does not change which records are persisted. Per-topic tuning is a separate, paced workstream (see `docs/topic-page-inclusion-threshold.md`).
+
 ## 4. How Topic Scores Are Stored
 
 DynamoDB, topic-first key layout for the dominant query pattern ("give me all activities above threshold for topic X"):

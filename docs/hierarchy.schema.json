@@ -16,6 +16,12 @@
           "items": {
             "$ref": "#/$defs/SubtopicDef"
           }
+        },
+        "display_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Per-topic minimum score for default-view inclusion on the SPS Scholars Topic page (#69). Papers with score[topic] >= display_threshold render in the strongly-relevant section; papers with score_floor <= score[topic] < display_threshold render only behind a wider-net affordance. Falls back to config/thresholds.json display_threshold_default for any topic not individually tuned. Additive per D-11."
         }
       }
     },

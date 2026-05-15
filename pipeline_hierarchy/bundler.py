@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_AUGMENTED_DIR = REPO_ROOT / ".planning/phases/04-subtopic-system"
 DEFAULT_TAXONOMY_PATH = REPO_ROOT / "taxonomy_v2.json"
 DEFAULT_EXCLUDED_PATH = REPO_ROOT / "config/excluded_topics.json"
+DEFAULT_THRESHOLDS_PATH = REPO_ROOT / "config/thresholds.json"
 DEFAULT_OUT_PATH = REPO_ROOT / "out/hierarchy_full.json"
 
 # Fields copied from each augmented subtopic into the bundle.
@@ -58,6 +59,45 @@ def _read_taxonomy_version(taxonomy_path: Path) -> str:
             f"the bundled hierarchy)"
         )
     return tv
+
+
+def _read_topic_display_thresholds(
+    taxonomy_path: Path, thresholds_path: Path
+) -> tuple[dict[str, float], float]:
+    """Return ({topic_id: display_threshold}, global_default).
+
+    Per #69: each topic in `taxonomy_v2.json` carries an optional
+    `display_threshold`. Topics without an explicit value inherit the
+    global `display_threshold_default` from `config/thresholds.json`.
+    The returned dict carries only topics with an explicit, in-range
+    per-topic value; callers apply the default to absent topics.
+    """
+    with taxonomy_path.open() as f:
+        taxonomy = json.load(f)
+    with thresholds_path.open() as f:
+        thresholds = json.load(f)
+    default = thresholds.get("display_threshold_default")
+    if default is None:
+        raise ValueError(
+            f"{thresholds_path}: missing `display_threshold_default` (required for #69)"
+        )
+    default = float(default)
+    if not 0.0 <= default <= 1.0:
+        raise ValueError(
+            f"{thresholds_path}: display_threshold_default={default} outside [0, 1]"
+        )
+    per_topic: dict[str, float] = {}
+    for topic in taxonomy.get("topics", []):
+        tid = topic.get("id")
+        if not tid or "display_threshold" not in topic:
+            continue
+        v = float(topic["display_threshold"])
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(
+                f"{taxonomy_path}: topic {tid!r} display_threshold={v} outside [0, 1]"
+            )
+        per_topic[tid] = v
+    return per_topic, default
 
 
 def _read_excluded_topics(excluded_path: Path) -> list[dict[str, Any]]:
@@ -113,7 +153,11 @@ def _build_subtopic(
 
 
 def _build_topics(
-    augmented_files: list[Path], strict: bool
+    augmented_files: list[Path],
+    strict: bool,
+    *,
+    display_thresholds: dict[str, float],
+    display_threshold_default: float,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
     topics: dict[str, dict[str, Any]] = {}
     missing: list[dict[str, Any]] = []
@@ -132,7 +176,12 @@ def _build_topics(
             built = _build_subtopic(s, topic_id, strict, missing)
             if built is not None:
                 subs.append(built)
-        topics[topic_id] = {"subtopics": subs}
+        topics[topic_id] = {
+            "subtopics": subs,
+            "display_threshold": display_thresholds.get(
+                topic_id, display_threshold_default
+            ),
+        }
     return topics, missing
 
 
@@ -141,6 +190,7 @@ def bundle(
     augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
     taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
     excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
+    thresholds_path: Path = DEFAULT_THRESHOLDS_PATH,
     strict: bool = True,
 ) -> dict[str, Any]:
     """
@@ -165,7 +215,15 @@ def bundle(
         )
     taxonomy_version = _read_taxonomy_version(taxonomy_path)
     excluded = _read_excluded_topics(excluded_topics_path)
-    topics, missing = _build_topics(files, strict=strict)
+    display_thresholds, display_threshold_default = _read_topic_display_thresholds(
+        taxonomy_path, thresholds_path
+    )
+    topics, missing = _build_topics(
+        files,
+        strict=strict,
+        display_thresholds=display_thresholds,
+        display_threshold_default=display_threshold_default,
+    )
 
     if strict and missing:
         sample = ", ".join(
@@ -192,12 +250,14 @@ def write_bundle(
     augmented_dir: Path = DEFAULT_AUGMENTED_DIR,
     taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
     excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
+    thresholds_path: Path = DEFAULT_THRESHOLDS_PATH,
 ) -> Path:
     """Run bundle() in strict mode and write the result to `out_path`."""
     hierarchy = bundle(
         augmented_dir=augmented_dir,
         taxonomy_path=taxonomy_path,
         excluded_topics_path=excluded_topics_path,
+        thresholds_path=thresholds_path,
         strict=True,
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -16,6 +16,7 @@
     "tie_epsilon",
     "confidence_floor",
     "score_floor",
+    "display_threshold_default",
     "feedback_sweep_max_pmids",
     "recluster_persistence_days",
     "critic_reject_persistence_days",
@@ -82,6 +83,12 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Minimum relevance score for a publication to qualify as an activity row in assign_subtopics.py. Lifted from assign_subtopics.py:94 SCORE_FLOOR per G-18."
+    },
+    "display_threshold_default": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Global default for the topic-page display threshold (#69). SPS uses each topic's `display_threshold` (from `taxonomy_v2.json` / `hierarchy.json`) to render the topic page in two tiers; this value is the fallback applied to any topic that has not yet been individually tuned. Distinct from `score_floor` (which governs whether a paper is persisted at all). Per-topic values must be >= `score_floor`; tuning lives in `taxonomy_v2.json`."
     },
     "feedback_sweep_max_pmids": {
       "type": "integer",
