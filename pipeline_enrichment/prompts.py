@@ -38,7 +38,12 @@ SYNOPSIS_SCHEMA = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "synopsis": {"type": "string"},
+            # maxLength 95 mirrors the SYNOPSIS_SYSTEM "<= 95 characters" rule
+            # at the JSON-schema level. The plain-language prompt directive
+            # was insufficient on its own: the #37 step 2 bootstrap surfaced
+            # a 17.1% overrun rate (310/1,815 papers, worst 141 chars).
+            # See #50.
+            "synopsis": {"type": "string", "maxLength": 95},
         },
         "required": ["synopsis"],
     },

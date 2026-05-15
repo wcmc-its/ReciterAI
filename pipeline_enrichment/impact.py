@@ -35,6 +35,17 @@ from utils.openai_client import GPT5_MODEL, call_with_retry, get_default_client
 
 logger = logging.getLogger(__name__)
 
+# Justification length constraints from IMPACT_PROMPT_V2 + IMPACT_SCHEMA:
+# - schema: maxLength 120 chars (but impact uses {"type": "json_object"},
+#   not json_schema, so this is a Python-side postcondition only)
+# - prompt: "≤10 words summarizing the reasoning"
+# The #37 step 2 bootstrap surfaced 4.2% word-count violations (76/1,815);
+# char-count violations were 0/1,815. Validator retries once on either
+# violation; second overrun preserves model output with an error flag.
+# NEVER truncate — drops content the model considered necessary (see #50).
+JUSTIF_MAX_CHARS = 120
+JUSTIF_MAX_WORDS = 10
+
 
 @dataclass
 class ImpactResult:
@@ -97,77 +108,113 @@ def score_impact(
         + build_impact_user_content(pub_data)
     )
 
-    try:
-        response = call_with_retry(
-            client,
-            model=model,
-            system_prompt=system_prompt,
-            user_prompt=user_content,
-            response_format=_RESPONSE_FORMAT,
-            max_completion_tokens=max_completion_tokens,
-            reasoning_effort=reasoning_effort,
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning("impact call failed for pmid=%s: %s", pmid, e)
+    input_tokens_total = 0
+    output_tokens_total = 0
+    response_model: Optional[str] = None
+    score: Optional[int] = None
+    justification: Optional[str] = None
+
+    for attempt in range(2):  # initial call + 1 reinforcement retry on length violation
+        try:
+            response = call_with_retry(
+                client,
+                model=model,
+                system_prompt=system_prompt,
+                user_prompt=user_content,
+                response_format=_RESPONSE_FORMAT,
+                max_completion_tokens=max_completion_tokens,
+                reasoning_effort=reasoning_effort,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("impact call failed for pmid=%s: %s", pmid, e)
+            return ImpactResult(
+                pmid=pmid, impact_score=None, justification=None,
+                model=model, prompt_version=resolved_version,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=str(e),
+            )
+
+        input_tokens_total += _safe_input_tokens(response)
+        output_tokens_total += _safe_output_tokens(response)
+        response_model = response.model
+
+        raw = response.choices[0].message.content or ""
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as e:
+            return ImpactResult(
+                pmid=pmid, impact_score=None, justification=None,
+                model=response_model, prompt_version=resolved_version,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=f"json decode: {e}",
+            )
+
+        if not isinstance(payload, dict) or "impactScore" not in payload:
+            return ImpactResult(
+                pmid=pmid, impact_score=None, justification=None,
+                model=response_model, prompt_version=resolved_version,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=f"missing impactScore in response: {raw[:200]}",
+            )
+
+        # POC clamps to 0..100 and coerces to int; mirror exactly.
+        try:
+            score = max(0, min(100, int(payload["impactScore"])))
+        except (TypeError, ValueError) as e:
+            return ImpactResult(
+                pmid=pmid, impact_score=None, justification=None,
+                model=response_model, prompt_version=resolved_version,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=f"impactScore not int-coercible: {e}",
+            )
+        justification = str(payload.get("justification") or "").strip() or None
+
+        # Length postcondition. Retry once on violation; never truncate.
+        if justification:
+            word_count = len(justification.split())
+            char_count = len(justification)
+            over_chars = char_count > JUSTIF_MAX_CHARS
+            over_words = word_count > JUSTIF_MAX_WORDS
+            if over_chars or over_words:
+                if attempt == 0:
+                    logger.info(
+                        "impact justification violation for pmid=%s (chars=%d, words=%d); "
+                        "retrying with reinforcement",
+                        pmid, char_count, word_count,
+                    )
+                    user_content += (
+                        f"\n\nYour previous justification was {char_count} characters / "
+                        f"{word_count} words. Hard limits: ≤{JUSTIF_MAX_CHARS} characters "
+                        f"AND ≤{JUSTIF_MAX_WORDS} words. Re-score with a strictly shorter "
+                        f"justification. Count words and characters before answering."
+                    )
+                    continue
+                # Second overrun: preserve actual output, flag the violation.
+                violations = []
+                if over_chars:
+                    violations.append(f"{char_count} chars (limit {JUSTIF_MAX_CHARS})")
+                if over_words:
+                    violations.append(f"{word_count} words (limit {JUSTIF_MAX_WORDS})")
+                return ImpactResult(
+                    pmid=pmid, impact_score=score, justification=justification,
+                    model=response_model, prompt_version=resolved_version,
+                    input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                    error=f"length violation: {', '.join(violations)}",
+                )
+
         return ImpactResult(
-            pmid=pmid, impact_score=None, justification=None,
-            model=model, prompt_version=resolved_version,
-            input_tokens=0, output_tokens=0, error=str(e),
+            pmid=pmid, impact_score=score, justification=justification,
+            model=response_model, prompt_version=resolved_version,
+            input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+            error=None,
         )
 
-    raw = response.choices[0].message.content or ""
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as e:
-        return ImpactResult(
-            pmid=pmid, impact_score=None, justification=None,
-            model=response.model, prompt_version=resolved_version,
-            input_tokens=_safe_input_tokens(response),
-            output_tokens=_safe_output_tokens(response),
-            error=f"json decode: {e}",
-        )
-
-    if not isinstance(payload, dict) or "impactScore" not in payload:
-        return ImpactResult(
-            pmid=pmid, impact_score=None, justification=None,
-            model=response.model, prompt_version=resolved_version,
-            input_tokens=_safe_input_tokens(response),
-            output_tokens=_safe_output_tokens(response),
-            error=f"missing impactScore in response: {raw[:200]}",
-        )
-
-    # POC clamps to 0..100 and coerces to int; mirror exactly.
-    try:
-        score = max(0, min(100, int(payload["impactScore"])))
-    except (TypeError, ValueError) as e:
-        return ImpactResult(
-            pmid=pmid, impact_score=None, justification=None,
-            model=response.model, prompt_version=resolved_version,
-            input_tokens=_safe_input_tokens(response),
-            output_tokens=_safe_output_tokens(response),
-            error=f"impactScore not int-coercible: {e}",
-        )
-    justification = str(payload.get("justification") or "").strip() or None
-
-    # Post-hoc schema check: justification is supposed to be ≤120 chars.
-    # If it overruns, truncate + log; we'd rather store a truncated
-    # justification than fail the whole row.
-    if justification and len(justification) > 120:
-        logger.info(
-            "impact justification overran 120 chars for pmid=%s (len=%d); truncating",
-            pmid, len(justification),
-        )
-        justification = justification[:120]
-
+    # Unreachable (loop always returns), but keep type-checker happy.
     return ImpactResult(
-        pmid=pmid,
-        impact_score=score,
-        justification=justification,
-        model=response.model,
-        prompt_version=resolved_version,
-        input_tokens=_safe_input_tokens(response),
-        output_tokens=_safe_output_tokens(response),
-        error=None,
+        pmid=pmid, impact_score=score, justification=justification,
+        model=response_model, prompt_version=resolved_version,
+        input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+        error="unexpected: exited validator loop without return",
     )
 
 

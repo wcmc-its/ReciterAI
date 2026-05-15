@@ -29,6 +29,15 @@ from utils.openai_client import GPT5_MODEL, call_with_retry, get_default_client
 
 logger = logging.getLogger(__name__)
 
+# Defense-in-depth on the ≤95-char synopsis rule, in addition to the
+# schema-level maxLength on SYNOPSIS_SCHEMA. If the API ever returns a
+# longer string (maxLength is best-effort, not a hard refusal), retry
+# once with a reinforcement message; on second overrun, surface the
+# actual model output with a length-violation error. NEVER truncate —
+# truncation drops content the model considered necessary and is a
+# silent quality regression for user-facing faculty-page text. (See #50.)
+SYNOPSIS_MAX_CHARS = 95
+
 
 @dataclass
 class SynopsisResult:
@@ -92,42 +101,74 @@ def generate_synopsis(
         title=title, journal=journal, year=year, abstract=abstract
     )
 
-    try:
-        response = call_with_retry(
-            client,
-            model=model,
-            system_prompt=SYNOPSIS_SYSTEM,
-            user_prompt=user_content,
-            response_format=_RESPONSE_FORMAT,
-            max_completion_tokens=max_completion_tokens,
-            reasoning_effort=reasoning_effort,
+    input_tokens_total = 0
+    output_tokens_total = 0
+    response_model: Optional[str] = None
+    synopsis_text = ""
+
+    for attempt in range(2):  # initial call + 1 reinforcement retry
+        try:
+            response = call_with_retry(
+                client,
+                model=model,
+                system_prompt=SYNOPSIS_SYSTEM,
+                user_prompt=user_content,
+                response_format=_RESPONSE_FORMAT,
+                max_completion_tokens=max_completion_tokens,
+                reasoning_effort=reasoning_effort,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("synopsis call failed for pmid=%s: %s", pmid, e)
+            return SynopsisResult(
+                pmid=pmid, synopsis=None, model=model,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=str(e),
+            )
+
+        input_tokens_total += _safe_input_tokens(response)
+        output_tokens_total += _safe_output_tokens(response)
+        response_model = response.model
+
+        raw = response.choices[0].message.content or ""
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as e:
+            return SynopsisResult(
+                pmid=pmid, synopsis=None, model=response_model,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=f"json decode: {e}",
+            )
+
+        synopsis_text = (payload.get("synopsis") or "").strip() if isinstance(payload, dict) else ""
+        if not synopsis_text:
+            return SynopsisResult(
+                pmid=pmid, synopsis=None, model=response_model,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error="empty synopsis in response",
+            )
+        if len(synopsis_text) <= SYNOPSIS_MAX_CHARS:
+            return SynopsisResult(
+                pmid=pmid, synopsis=synopsis_text, model=response_model,
+                input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+                error=None,
+            )
+        # First overrun: reinforce the limit and retry once.
+        logger.info(
+            "synopsis length=%d > %d for pmid=%s (attempt %d); retrying with reinforcement",
+            len(synopsis_text), SYNOPSIS_MAX_CHARS, pmid, attempt + 1,
         )
-    except Exception as e:  # noqa: BLE001
-        logger.warning("synopsis call failed for pmid=%s: %s", pmid, e)
-        return SynopsisResult(
-            pmid=pmid, synopsis=None, model=model,
-            input_tokens=0, output_tokens=0, error=str(e),
+        user_content += (
+            f"\n\nYour previous attempt was {len(synopsis_text)} characters "
+            f"(hard limit {SYNOPSIS_MAX_CHARS}). Produce a strictly shorter version. "
+            f"Count characters before answering."
         )
 
-    raw = response.choices[0].message.content or ""
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as e:
-        return SynopsisResult(
-            pmid=pmid, synopsis=None, model=response.model,
-            input_tokens=_safe_input_tokens(response),
-            output_tokens=_safe_output_tokens(response),
-            error=f"json decode: {e}",
-        )
-
-    synopsis_text = (payload.get("synopsis") or "").strip() if isinstance(payload, dict) else ""
+    # Second overrun: preserve the model's actual output, flag the violation.
+    # NEVER truncate — drops content the model considered necessary (see #50).
     return SynopsisResult(
-        pmid=pmid,
-        synopsis=synopsis_text or None,
-        model=response.model,
-        input_tokens=_safe_input_tokens(response),
-        output_tokens=_safe_output_tokens(response),
-        error=None if synopsis_text else "empty synopsis in response",
+        pmid=pmid, synopsis=synopsis_text, model=response_model,
+        input_tokens=input_tokens_total, output_tokens=output_tokens_total,
+        error=f"length violation: {len(synopsis_text)} chars (limit {SYNOPSIS_MAX_CHARS})",
     )
 
 
