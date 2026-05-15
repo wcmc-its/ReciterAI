@@ -14,8 +14,10 @@ Schema oddity: reciterai_entities.entity_id and reciterai_synopsis.id are
 non-auto-increment PKs (NOT NULL DEFAULT 0). Tracked at #42. Workaround
 here: SELECT COALESCE(MAX(id), 0) + 1 ... FOR UPDATE inside a transaction
 to allocate the next id under single-writer assumption (the daily cron is
-the only expected writer to these tables). Remove this allocation once
-#42's ALTER TABLE ships.
+the only expected writer to these tables). The ALTER TABLE migration
+lives at docs/migrations/2026-05-15-auto-increment-entity-id-synopsis-id.sql
+and is applied by the operator; remove this allocation in a follow-up PR
+once the migration has been applied and verified in production.
 
 Synopsis and impact are written by separate functions, not bundled in one
 transaction (design decision 3). Synopsis is the upstream signal; if it
