@@ -53,8 +53,8 @@ pipeline.
 
 | File | Use for |
 |------|---------|
-| [`docs/aws-iam-pipeline-policy.json`](docs/aws-iam-pipeline-policy.json) | The runtime role for the pipeline itself — write access to `s3://wcmc-reciterai-hierarchy/` for hierarchy publishes and to `s3://wcmc-reciterai-artifacts/` for spotlight artifacts. Attach to the AWS identity that runs `backfill_spotlight.py` and the hierarchy publish stage. |
-| [`docs/aws-iam-pipeline-policy-artifacts.json`](docs/aws-iam-pipeline-policy-artifacts.json) | The artifacts-bucket policy — controls write access to `s3://wcmc-reciterai-artifacts/`. Attach to the publish-stage role and to any downstream-consumer role (e.g. the SPS service account that reads spotlight artifacts). |
+| [`docs/aws-iam-pipeline-policy.json`](docs/aws-iam-pipeline-policy.json) | The runtime role for the pipeline itself — Bedrock InvokeModel on the pinned model + inference-profile ARNs, DynamoDB read/write on the `reciterai` table, S3 read/write on both hierarchy and artifacts buckets, StepFunctions ListExecutions for the concurrent-run guard. See [`aws-iam-pipeline-policy.md`](docs/aws-iam-pipeline-policy.md) for the statement-by-statement rationale. Attach to the AWS identity that runs `backfill_all.py`, `backfill_spotlight.py`, and the hot orchestrator Lambda. |
+| [`docs/aws-iam-pipeline-policy-artifacts.json`](docs/aws-iam-pipeline-policy-artifacts.json) | The artifacts-bucket policy — controls write access to `s3://wcmc-reciterai-artifacts/`. Attach to any downstream-consumer role (e.g. the SPS service account that reads spotlight artifacts). The pipeline-runner role above already covers this bucket; this file is for consumers that should read artifacts without the broader pipeline-runner permissions. |
 
 Both files are versioned with the codebase so any IAM change goes
 through the same review path as code. Operators with AWS console
