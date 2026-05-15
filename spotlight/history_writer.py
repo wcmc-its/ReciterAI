@@ -113,7 +113,7 @@ def update_history(
             "v2026-06-01"). Operator/code-controlled; flows via PK key string.
     """
     client = client or _get_default_client()
-    now_iso = now_iso()
+    now = now_iso()
 
     for s in selections:
         client.update_item(
@@ -125,7 +125,7 @@ def update_history(
             UpdateExpression=_UPDATE_EXPRESSION,
             ExpressionAttributeValues={
                 ":one": {"N": "1"},
-                ":now": {"S": now_iso},
+                ":now": {"S": now},
                 ":pid": {"S": publish_id},
             },
         )
