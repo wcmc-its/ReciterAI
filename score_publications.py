@@ -73,8 +73,11 @@ logger = logging.getLogger(__name__)
 # Taxonomy file (taxonomy_v2 is the reviewed, approved taxonomy)
 TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
 
-# Screening threshold — topics below this score are excluded from dense scoring
-SCREENING_THRESHOLD = 0.3
+# Screening threshold — topics below this score are excluded from dense
+# scoring. Lifted to config/thresholds.json `score_floor` (G-18) so the
+# pre-dense filter and the assign_subtopics/backfill_topic filters share
+# one knob.
+SCREENING_THRESHOLD = load_thresholds()["score_floor"]
 
 # Target failure rate (D-11)
 TARGET_FAILURE_RATE = 0.01  # 1%

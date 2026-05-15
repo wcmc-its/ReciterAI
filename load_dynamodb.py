@@ -37,6 +37,7 @@ from utils.dynamodb_helpers import (
     to_decimal, create_chatbot_table, wait_for_table
 )
 from utils.sql_queries import TOOL_EXTRACTION_SQL, IMPACT_EXTRACTION_SQL, get_raw_db_connection
+from utils.env_check import load_thresholds
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,8 +46,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Minimum dense score to load into DynamoDB (filters noise from generous screening)
-DEFAULT_MIN_SCORE = 0.3
+# Minimum dense score to load into DynamoDB (filters noise from generous
+# screening). Lifted to config/thresholds.json `score_floor` (G-18) so the
+# DDB load floor matches the screening floor in score_publications and the
+# qualifying-activity floor in assign_subtopics/backfill_topic.
+DEFAULT_MIN_SCORE = load_thresholds()["score_floor"]
 
 
 # ---------------------------------------------------------------------------

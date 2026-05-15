@@ -79,6 +79,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from utils.env_check import load_thresholds  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -95,7 +97,10 @@ TAXONOMY_FILE = REPO_ROOT / "taxonomy_v2.json"
 PHASE_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
 ARTIFACTS_DIR = PHASE_DIR / "artifacts"
 SKIP_REVIEW_LOG = ARTIFACTS_DIR / "backfill_log.md"
-SCORE_FLOOR = 0.3  # Matches discover_subtopics.py / assign_subtopics.py
+# Lifted to config/thresholds.json `score_floor` (G-18) — replaces the
+# prior hardcoded 0.3 that had to be hand-synced with discover_subtopics
+# and assign_subtopics.
+SCORE_FLOOR = load_thresholds()["score_floor"]
 PER_TOPIC_LOG = PHASE_DIR / "backfill_log.md"
 
 

@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
 from utils.dynamodb_helpers import get_table, TABLE_NAME
+from utils.env_check import load_thresholds
 from prompts.subtopic_discovery import (
     DISCOVERY_SYSTEM_PROMPT,
     DISCOVERY_EXTENSION_PROMPT,
@@ -55,7 +56,10 @@ logger = logging.getLogger(__name__)
 
 # --- Constants ---
 TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
-SCORE_FLOOR = 0.3        # Activities below this relevance score are excluded
+# Lifted to config/thresholds.json `score_floor` (G-18) — same value the
+# rest of the pipeline (assign_subtopics, backfill_topic, backfill_all,
+# score_publications, load_dynamodb) consumes.
+SCORE_FLOOR = load_thresholds()["score_floor"]
 COVERAGE_TARGET = 0.85   # D-01: must assign ≥85% of activities
 MIN_CLUSTER_SIZE = 3     # Review item #1: no cluster smaller than 3 activities
 
