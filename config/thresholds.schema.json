@@ -20,7 +20,11 @@
     "recluster_persistence_days",
     "critic_reject_persistence_days",
     "critic_reject_subtopic_max",
-    "feedback_diagnostic_max_underlying"
+    "feedback_diagnostic_max_underlying",
+    "bootstrap_lookback_days",
+    "discover_min_cluster_size",
+    "target_failure_rate",
+    "pool_top_papers_per_subtopic"
   ],
   "properties": {
     "uncovered_score_floor": {
@@ -103,6 +107,27 @@
       "type": "integer",
       "minimum": 1,
       "description": "Maximum number of underlying CRITIC_REJECT# PK suffixes stored in a SPOTLIGHT_DIAGNOSTIC# row's underlying_rejects list per D-32."
+    },
+    "bootstrap_lookback_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hot orchestrator cold-start window (days). When the prior-watermark resolver finds no STAGE# row for cold-orchestrator (first run on a fresh deployment), seed the watermark from now() minus this many days. Lifted from pipeline_hot/orchestrator.py:_BOOTSTRAP_LOOKBACK_DAYS per #57 Tier B-1."
+    },
+    "discover_min_cluster_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Minimum seed_pmids per cluster in discover_subtopics Pass 1. Clusters below this floor are dropped during validation. Lifted from discover_subtopics.py:MIN_CLUSTER_SIZE per #57 Tier B-1."
+    },
+    "target_failure_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Score-publications stage target failure rate (per D-11). When the observed failure rate exceeds this fraction the stage prints a warning. Lifted from score_publications.py:TARGET_FAILURE_RATE per #57 Tier B-1."
+    },
+    "pool_top_papers_per_subtopic": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Spotlight pool ranker: pool_score is the sum of the top-N impact_scores per subtopic. Aggregation knob, distinct from output-shape knobs (SELECTION_SIZE etc., not yet lifted). Lifted from spotlight/pool_ranker.py:TOP_PAPERS_PER_SUBTOPIC per #57 Tier B-1."
     }
   }
 }

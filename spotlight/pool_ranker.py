@@ -22,6 +22,7 @@ from datetime import date
 import boto3
 
 from spotlight.types import Author, Paper, PoolEntry
+from utils.env_check import load_thresholds
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,9 @@ TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 POOL_SIZE = 50
 WINDOW_MONTHS = 24
-TOP_PAPERS_PER_SUBTOPIC = 6  # pool_score = sum of top-N impact_scores per subtopic
+# pool_score = sum of top-N impact_scores per subtopic. Lifted to
+# config/thresholds.json `pool_top_papers_per_subtopic` (#57 Tier B-1).
+TOP_PAPERS_PER_SUBTOPIC = int(load_thresholds()["pool_top_papers_per_subtopic"])
 
 
 # ---------------------------------------------------------------------------
