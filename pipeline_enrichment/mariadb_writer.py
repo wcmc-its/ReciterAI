@@ -10,14 +10,12 @@ discussion): when a pmid does not yet exist in reciterai_entities, this
 module inserts it before writing the synopsis + impact rows. Existing
 entities are reused.
 
-Schema oddity: reciterai_entities.entity_id and reciterai_synopsis.id are
-non-auto-increment PKs (NOT NULL DEFAULT 0). Tracked at #42. Workaround
-here: SELECT COALESCE(MAX(id), 0) + 1 ... FOR UPDATE inside a transaction
-to allocate the next id under single-writer assumption (the daily cron is
-the only expected writer to these tables). The ALTER TABLE migration
-lives at docs/migrations/2026-05-15-auto-increment-entity-id-synopsis-id.sql
-and is applied by the operator; remove this allocation in a follow-up PR
-once the migration has been applied and verified in production.
+Schema note: reciterai_entities.entity_id and reciterai_synopsis.id were
+non-auto-increment PKs (NOT NULL DEFAULT 0) until 2026-05-15, when the
+ALTER TABLE migration at docs/migrations/2026-05-15-auto-increment-entity-id-synopsis-id.sql
+landed on live ReciterDB (verified: AUTO_INCREMENT seeded past existing
+max for both tables). This module relies on AUTO_INCREMENT — inserts
+omit the PK column and read the allocated id via cursor.lastrowid.
 
 Synopsis and impact are written by separate functions, not bundled in one
 transaction (design decision 3). Synopsis is the upstream signal; if it
@@ -39,9 +37,8 @@ def ensure_entity(engine: Engine, pmid: str) -> int:
     """Look up or create a reciterai_entities row for the given pmid.
 
     Returns the entity_id (bigint). For an existing pmid, returns the
-    registry id. For a new pmid, allocates MAX(entity_id) + 1 under
-    FOR UPDATE and inserts. Always wrapped in a single transaction so
-    the read-modify-write is atomic.
+    registry id. For a new pmid, inserts and returns the AUTO_INCREMENT
+    id allocated by MariaDB.
 
     Idempotent: safe to call repeatedly for the same pmid.
     """
@@ -56,25 +53,15 @@ def ensure_entity(engine: Engine, pmid: str) -> int:
         if existing is not None:
             return int(existing[0])
 
-        next_id = conn.execute(
-            text(
-                "SELECT COALESCE(MAX(entity_id), 0) + 1 "
-                "FROM reciterai_entities FOR UPDATE"
-            )
-        ).scalar()
-        conn.execute(
+        result = conn.execute(
             text(
                 "INSERT INTO reciterai_entities "
-                "(entity_id, entity_type, external_id, is_active) "
-                "VALUES (:eid, :et, :ext, 1)"
+                "(entity_type, external_id, is_active) "
+                "VALUES (:et, :ext, 1)"
             ),
-            {
-                "eid": int(next_id),
-                "et": ENTITY_TYPE_PUBLICATION,
-                "ext": str(pmid),
-            },
+            {"et": ENTITY_TYPE_PUBLICATION, "ext": str(pmid)},
         )
-        return int(next_id)
+        return int(result.lastrowid)
 
 
 def upsert_synopsis(
@@ -87,7 +74,7 @@ def upsert_synopsis(
     """Upsert a reciterai_synopsis row keyed on (entity_type, external_id).
 
     Existing row: UPDATE synopsis + model (modifyTimestamp auto-bumps).
-    New row: allocate MAX(id) + 1 under FOR UPDATE and INSERT.
+    New row: INSERT (id allocated by AUTO_INCREMENT).
 
     The caller must have already obtained `entity_id` from ensure_entity().
     """
@@ -111,20 +98,13 @@ def upsert_synopsis(
             )
             return
 
-        next_id = conn.execute(
-            text(
-                "SELECT COALESCE(MAX(id), 0) + 1 "
-                "FROM reciterai_synopsis FOR UPDATE"
-            )
-        ).scalar()
         conn.execute(
             text(
                 "INSERT INTO reciterai_synopsis "
-                "(id, entity_type, entity_id, external_id, synopsis, model) "
-                "VALUES (:id, :et, :eid, :ext, :syn, :model)"
+                "(entity_type, entity_id, external_id, synopsis, model) "
+                "VALUES (:et, :eid, :ext, :syn, :model)"
             ),
             {
-                "id": int(next_id),
                 "et": ENTITY_TYPE_PUBLICATION,
                 "eid": int(entity_id),
                 "ext": str(pmid),
