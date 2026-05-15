@@ -19,6 +19,7 @@
 #   ORCHESTRATOR_LAMBDA_ARN      → resolves ${OrchestratorLambdaArn}
 #   SCORE_LAMBDA_ARN             → resolves ${ScoreLambdaArn}
 #   ASSIGN_LAMBDA_ARN            → resolves ${AssignLambdaArn}
+#   TOP_TOPIC_LAMBDA_ARN         → resolves ${TopTopicLambdaArn}  (#68)
 #   ROLLUP_LAMBDA_ARN            → resolves ${RollupLambdaArn}
 #   ALERT_DISPATCHER_LAMBDA_ARN  → resolves ${AlertDispatcherLambdaArn}
 #   STATE_MACHINE_ROLE_ARN       → IAM role assumed by Step Functions itself
@@ -56,6 +57,7 @@ REQUIRED=(
   ORCHESTRATOR_LAMBDA_ARN
   SCORE_LAMBDA_ARN
   ASSIGN_LAMBDA_ARN
+  TOP_TOPIC_LAMBDA_ARN
   ROLLUP_LAMBDA_ARN
   ALERT_DISPATCHER_LAMBDA_ARN
   STATE_MACHINE_ROLE_ARN
@@ -83,6 +85,7 @@ mapping = {
     "OrchestratorLambdaArn":     os.environ["ORCHESTRATOR_LAMBDA_ARN"],
     "ScoreLambdaArn":            os.environ["SCORE_LAMBDA_ARN"],
     "AssignLambdaArn":           os.environ["ASSIGN_LAMBDA_ARN"],
+    "TopTopicLambdaArn":         os.environ["TOP_TOPIC_LAMBDA_ARN"],
     "RollupLambdaArn":           os.environ["ROLLUP_LAMBDA_ARN"],
     "AlertDispatcherLambdaArn":  os.environ["ALERT_DISPATCHER_LAMBDA_ARN"],
 }

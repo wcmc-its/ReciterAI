@@ -207,10 +207,19 @@ def _check_publish_hierarchy(command: list[str]) -> None:
 
 # Map stage.name → checker function. Stages absent from this map are
 # explicitly skipped via STAGES_NO_PARSER.
+def _check_top_topic(command: list[str]) -> None:
+    """`python compute_top_topic.py --all` — top-level `main(argv)` parser."""
+    argv = _argv_after_python_script(command)
+    import compute_top_topic
+
+    _intercept_and_parse(lambda: compute_top_topic.main(argv), argv)
+
+
 _STAGE_CHECKERS: dict[str, Callable[[list[str]], None]] = {
     "score": _check_score,
     "assign": _check_assign,
     "relabel": _check_relabel,
+    "top_topic": _check_top_topic,
     "count": _check_count,
     "rollup": _check_rollup,
     "feedback_sweep": _check_feedback_sweep,
