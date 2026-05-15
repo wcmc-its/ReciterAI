@@ -3,8 +3,9 @@ Full-phase backfill runner (Plan 04-06, Task 2).
 
 Orchestrates `backfill_topic.py` across all 66 non-Aging topics in
 taxonomy_v2.json, in activity-count-descending order, then:
-  - assembles `.planning/phases/04-subtopic-system/hierarchy_full.json`
-    from per-topic `hierarchy_augmented_<id>.json` files
+  - assembles `out/hierarchy_full.json` from per-topic
+    `hierarchy_augmented_<id>.json` files (ephemeral local artifact —
+    `out/` is gitignored)
   - invokes `generate_see_also.py` against the full hierarchy
   - merges the bidirectional see_also[] back into hierarchy_full.json
   - copies the final artifact to
@@ -49,8 +50,8 @@ Usage:
     # Plan without spending money.
     python backfill_all.py --dry-run
 
-    # Emit hierarchy_full.json to this repo but skip the PM copy (useful
-    # when testing hierarchy assembly separately from the PM subrepo commit).
+    # Emit hierarchy_full.json to out/ but skip the PM copy (useful when
+    # testing hierarchy assembly separately from the PM subrepo commit).
     python backfill_all.py --skip-pm-copy
 
     # Tolerate per-topic failures; record and continue.
@@ -96,8 +97,13 @@ REPO_ROOT = Path(__file__).resolve().parent
 TAXONOMY_FILE = REPO_ROOT / "taxonomy_v2.json"
 PHASE_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
 AGING_PILOT_RESULTS = PHASE_DIR / "aging_pilot_results.md"
-HIERARCHY_FULL_OUT = PHASE_DIR / "hierarchy_full.json"
-SEE_ALSO_FULL_OUT = PHASE_DIR / "see_also_full.json"
+# Ephemeral working artifact — gitignored under `out/`. The canonical
+# hierarchy artifact lives in S3 (`wcmc-reciterai-hierarchy/{version,latest}/`);
+# this on-disk copy is only a multi-step pipeline intermediate (assemble →
+# see-also merge → validate → publish → PM copy) and must not be mistaken
+# for a tracked planning artifact.
+HIERARCHY_FULL_OUT = REPO_ROOT / "out" / "hierarchy_full.json"
+SEE_ALSO_FULL_OUT = REPO_ROOT / "out" / "see_also_full.json"
 PER_TOPIC_LOG = PHASE_DIR / "backfill_log.md"
 
 # Pilot topic — already processed by Plans 02/03/04/05, skip here.
@@ -844,7 +850,7 @@ def _parse_args():
         help=(
             "Skip the copy of hierarchy.json into the "
             "ReCiter-Publication-Manager worktree. Hierarchy is still "
-            "written to .planning/phases/04-subtopic-system/hierarchy_full.json."
+            "written to out/hierarchy_full.json (ephemeral, gitignored)."
         ),
     )
     parser.add_argument(
