@@ -28,6 +28,7 @@ interface HierarchyJson {
 
 interface TopicEntry {
   subtopics: SubtopicDef[];
+  display_threshold?: number;   // optional, [0, 1] — per-topic default-view threshold for SPS topic page (#69)
 }
 
 interface ExcludedTopicEntry {
@@ -211,6 +212,7 @@ use this array to emit the partial/fallback UX per SUB-16:
 - **D-15** Synthesis prompts inject subtopic label + description verbatim
 - **D-18** Legacy tolerance: absent fields = unassigned state
 - **D-19** `display_name` + `short_description` added as non-breaking additive fields for SPS card rendering
+- **#69** Optional `display_threshold` (number, [0, 1]) added to `TopicEntry` as a non-breaking additive field. Per-topic default-view threshold for the SPS Scholars Topic page; falls back to `display_threshold_default` in `config/thresholds.json` when absent. Read-time only — does not affect qualification, `subtopic_ids[]`, or rollup arithmetic.
 
 ---
 

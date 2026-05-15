@@ -80,6 +80,21 @@ Minimum relevance score for a publication to qualify as an activity row in `assi
 
 If you raise this: low-relevance publications are excluded from subtopic assignments and all downstream aggregations; coverage narrows but precision may improve.
 
+### `display_threshold_default` (float, default 0.5)
+
+Global default for the topic-page display threshold (#69). The per-topic value lives on each topic in `taxonomy_v2.json` (and is republished in `hierarchy.json`); this key in `thresholds.json` is the fallback applied to any topic that has not yet been individually tuned.
+
+**Floor vs display — two different decisions** (#69):
+
+- `score_floor` (0.3) governs *qualification*: whether a paper's score for a topic is high enough for the paper to be persisted as a topic-activity row at all. Recall-oriented screening threshold.
+- `display_threshold` (per-topic, default 0.5) governs *default-view inclusion* on the SPS Scholars Topic page (`/topics/<topic_id>`): papers with `score[topic] >= display_threshold[topic]` render in the strongly-relevant section; papers with `score_floor <= score[topic] < display_threshold[topic]` render only behind the "View additional articles that are relevant" affordance.
+
+`score_floor` is unchanged by this addition. `display_threshold` is consumed at SPS read time only — no producer behavior changes, no rollup arithmetic changes, no qualification semantics change.
+
+Per-topic tuning is a separate, paced workstream (head-of-distribution topics first; see `docs/topic-page-inclusion-threshold.md`). v1 ships the global default and the per-topic field plumbing; individual topics keep 0.5 until tuned.
+
+If you raise this: more papers fall below the default-view bar for any topic that still carries the default value; the wider-net affordance carries a larger pool. Per-topic overrides should be the tuning lever; this key is only a fallback.
+
 ### `feedback_sweep_max_pmids` (int, default 200)
 
 Maximum number of `UNCOVERED_PMID#` rows the feedback sweep processes per run. The sweep sorts unprocessed PMIDs by `top_topic_score` ascending (worst-fitting first per D-06) before applying the cap, ensuring the most-uncovered cases are not preferentially dropped. When the cap is hit, the sweep's output record carries `truncated: true` and `total_unprocessed_remaining: N`.

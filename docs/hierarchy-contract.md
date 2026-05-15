@@ -206,6 +206,16 @@ Entries are in reverse-chronological order (newest first). Each entry documents 
 
 ---
 
+### v2026-05-15 — Additive `display_threshold` on `TopicEntry` (#69)
+
+- **schema_version:** `1.1.0` (MINOR — additive field)
+- **taxonomy_version:** `taxonomy_v2` (unchanged)
+- **Type:** Additive — non-breaking per D-11
+- **Trigger:** Issue #69. Each topic now carries an optional `display_threshold` (`number`, `[0, 1]`) used by SPS to render the Scholars Topic page in two tiers: papers with `score[topic] >= display_threshold[topic]` render in the strongly-relevant default view; papers with `score_floor <= score[topic] < display_threshold[topic]` render only behind a wider-net affordance. Values are sourced from `taxonomy_v2.json` (default 0.5 globally; per-topic tuning is a separate workstream). When the field is absent, consumers SHOULD fall back to `display_threshold_default` in `config/thresholds.json` (currently 0.5).
+- **Migration notes:** None required. Consumers that existed before this change silently ignore the field. SPS consumes the field at topic-page render time to drive the two-tier display; no producer behavior, qualification, or rollup arithmetic changes.
+
+---
+
 ### v2026-05-06 — Inaugural publish (data-only ad-hoc re-publish, D-19 relabel)
 
 - **schema_version:** `1.0.0` (initial)

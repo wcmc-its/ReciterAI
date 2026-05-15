@@ -9,6 +9,7 @@
   "tie_epsilon": 0.001,
   "confidence_floor": 0.3,
   "score_floor": 0.3,
+  "display_threshold_default": 0.5,
   "feedback_sweep_max_pmids": 200,
   "recluster_persistence_days": 7,
   "critic_reject_persistence_days": 90,
