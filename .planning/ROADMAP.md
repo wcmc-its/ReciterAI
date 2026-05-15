@@ -101,6 +101,9 @@ Wave 2 (parallel, depend on wave 1):
 Wave 3 (depends on every other wave-1 + wave-2 plan, gated per D-20):
 - [x] `12-g37-e2e-PLAN.md` — G-37: one bounded E2E test through cold path + fixture corpus; precondition is pytest 0 on main for every other Phase 12 plan's tests (D-20 SHA-able gate)
 
+Carry-forward (post-Phase-12, no new phase):
+- [ ] Issue #13 — fixture-chained seam coverage for the full cold-path stage chain (defends Phase 11 UAT-3 bug class: CLI flag drift, dead scaffolding, missing intermediate stages). Plan: `.planning/issues/0003-issue-13-seam-coverage.md`. Branch: `test/13-cold-path-seam-coverage`.
+
 ### Phase 8: Tools / Axis 2 Pipeline
 
 Productionize the tool/method extraction pipeline (currently a placeholder). **Blocked on resolution of #5, #6, #7, #8.** Do not start producer implementation until all four `decision-deferred` issues close. See [docs/RECITERAI-SPEC.md §10](../docs/RECITERAI-SPEC.md#10-decision-axis-2-tools--commit-to-the-producer-model-not-a-date).
