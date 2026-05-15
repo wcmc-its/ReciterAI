@@ -34,6 +34,7 @@ def test_default_cold_stages_in_canonical_order():
         "assign",
         "discover",
         "relabel",
+        "top_topic",  # #68 — per-paper top_topic_id; must run after relabel so subtopic_confidences exist
         "count",  # Phase 12 D-13 — produces faculty_subtopic_counts CSVs for rollup
         "rollup",
         "feedback_sweep",  # Phase 12 non-gating stage (D-02, D-08)
@@ -141,8 +142,8 @@ def test_main_writes_complete_row_with_initiated_by(monkeypatch):
     assert row["status"] == "complete"
     assert row["initiated_by"] == "drift_alert"
     assert row["stage_names"] == [
-        "score", "assign", "discover", "relabel", "count", "rollup",
-        "feedback_sweep", "backfill_spotlight", "publish_hierarchy",
+        "score", "assign", "discover", "relabel", "top_topic", "count",
+        "rollup", "feedback_sweep", "backfill_spotlight", "publish_hierarchy",
     ]
 
 

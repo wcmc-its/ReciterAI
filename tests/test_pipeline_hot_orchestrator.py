@@ -370,6 +370,7 @@ def test_state_machine_asl_is_valid_json():
         "CheckLockOrProceed",
         "Score", "WriteScoreStageRow",
         "Assign", "WriteAssignStageRow",
+        "TopTopic", "WriteTopTopicStageRow",
         "Rollup", "WriteRollupStageRow",
         "WriteHotRunComplete", "WriteHotRunFailed", "NotifyError", "End",
     ]:
@@ -381,7 +382,7 @@ def test_state_machine_asl_has_catch_on_every_task():
     route failures to WriteHotRunFailed so completion never silently drops."""
     asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
     asl = json.loads(asl_path.read_text())
-    for name in ("Orchestrate", "Score", "Assign", "Rollup"):
+    for name in ("Orchestrate", "Score", "Assign", "TopTopic", "Rollup"):
         state = asl["States"][name]
         assert state["Type"] == "Task"
         catches = state.get("Catch") or []

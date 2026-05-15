@@ -43,6 +43,7 @@ EXPECTED_PLACEHOLDERS = {
     "${OrchestratorLambdaArn}",
     "${ScoreLambdaArn}",
     "${AssignLambdaArn}",
+    "${TopTopicLambdaArn}",
     "${RollupLambdaArn}",
     "${AlertDispatcherLambdaArn}",
 }
@@ -78,6 +79,8 @@ def test_required_states_present(asl):
         "WriteScoreStageRow",
         "Assign",
         "WriteAssignStageRow",
+        "TopTopic",
+        "WriteTopTopicStageRow",
         "Rollup",
         "WriteRollupStageRow",
         "WriteHotRunComplete",
@@ -91,7 +94,7 @@ def test_required_states_present(asl):
 def test_every_task_state_has_catch_to_write_hot_run_failed(asl):
     """A Python crash mid-handler must NOT lose the completion signal:
     every Lambda Task state has a Catch routing to WriteHotRunFailed."""
-    task_lambda_states = ("Orchestrate", "Score", "Assign", "Rollup")
+    task_lambda_states = ("Orchestrate", "Score", "Assign", "TopTopic", "Rollup")
     for name in task_lambda_states:
         state = asl["States"][name]
         catch = state.get("Catch") or []

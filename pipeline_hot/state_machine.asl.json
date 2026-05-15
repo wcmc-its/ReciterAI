@@ -104,6 +104,42 @@
         "Item.$": "$.assign_envelope"
       },
       "ResultPath": null,
+      "Next": "TopTopic"
+    },
+
+    "TopTopic": {
+      "Type": "Task",
+      "Resource": "${TopTopicLambdaArn}",
+      "Parameters": {
+        "delta_pmids.$": "$.orchestrate.input.delta.pmids"
+      },
+      "ResultPath": "$.top_topic_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "WriteTopTopicStageRow"
+    },
+
+    "WriteTopTopicStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.top_topic_envelope"
+      },
+      "ResultPath": null,
       "Next": "Rollup"
     },
 
@@ -159,6 +195,7 @@
           "delta_size.$": "$.orchestrate.input.delta.size",
           "score_input_hash.$": "$.score_envelope.input_hash",
           "assign_input_hash.$": "$.assign_envelope.input_hash",
+          "top_topic_input_hash.$": "$.top_topic_envelope.input_hash",
           "rollup_input_hash.$": "$.rollup_envelope.input_hash"
         }
       },

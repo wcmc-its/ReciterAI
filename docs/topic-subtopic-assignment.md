@@ -192,6 +192,26 @@ Exclusive aggregation rolls up each activity row's `primary_subtopic_id` only; i
 
 If no subtopic clears the confidence floor, the activity gets an empty `subtopic_ids[]` and no `primary_subtopic_id`. These are **not** errors — they're activities the LLM correctly refused to force-fit. Resume runs skip activities that already have a `primary_subtopic_id` set (`--resume` flag).
 
+### Per-paper `top_topic_id` — observational, not a designation (#68)
+
+Each activity record carries a derived `top_topic_id` field equal to the topic with the highest score in the paper's topic-score vector among topics that cleared `score_floor`. This is a **read-time convenience** for the SPS Scholars Topic page (`/topics/<topic_id>`), which is inclusive-multi-label by design (every above-floor topic shows the paper); `top_topic_id` lets the UI render an honest one-bit "Top topic: X" affordance inline.
+
+`top_topic_id` is **not** a designation, **not** a rollup input, and **not** an authoritative claim that the paper is "about" that topic. The system remains multi-label and continues to assert there is no single "primary topic" (§3). The §8 exclusive rollup is unaffected — it operates on `primary_subtopic_id`, not on `top_topic_id`.
+
+Tiebreak (mirrors the per-subtopic pattern above, at the topic level): when the top-2 topic scores fall within `tie_epsilon`, higher `sum(subtopic_confidences[topic])` wins (topic-level signal density); if still tied, alphabetically lowest `topic_id` wins. Deterministic, runs in Python, reproducible across runs given identical scores.
+
+Papers with no above-floor topic carry no `top_topic_id`. Producer: `compute_top_topic.py` (cold path: stage after `relabel`; hot path: state between `Assign` and `Rollup`).
+
+#### Three-fields disambiguation
+
+The taxonomy now has two notions of "primary" (both unchanged) plus one new observational field. They are categorically different concepts:
+
+| Field | Scope | Kind | Source |
+|---|---|---|---|
+| `primary_subtopic_id` | per paper, per topic | **Designation** — assignment-time, with deterministic tiebreak | `assign_subtopics.py:_resolve_primary_on_tie` |
+| §8 exclusive rollup aggregation | per CWID, per (sub)topic | **Aggregation rule** — operates on `primary_subtopic_id` | `aggregate_subtopic_scores.py` |
+| `top_topic_id` | per paper | **Observational** — argmax of topic-score vector, with deterministic tiebreak | `compute_top_topic.py` (#68) |
+
 ## 7. Mutual Exclusivity — The Honest Answer
 
 Neither layer is strictly mutually exclusive, despite the design doc (`RECITER_AI_CHATBOT_README.md:225`) claiming subtopics are. The implementation evolved past that. Here's the actual shape:

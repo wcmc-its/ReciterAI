@@ -134,6 +134,19 @@ def default_cold_stages() -> list[ColdStage]:
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
+            name="top_topic",
+            command=[sys.executable, "compute_top_topic.py", "--all"],
+            description=(
+                "Compute per-paper `top_topic_id` (#68): argmax of topic-score "
+                "vector across each PMID's activity rows, with deterministic "
+                "tiebreak on sum(subtopic_confidences) then alphabetical. "
+                "Read-only field for SPS topic-page UX; not a designation, "
+                "not a rollup input. Must run after `relabel` (i.e. after all "
+                "Pass 2 subtopic assignments are persisted) so the tiebreak "
+                "has subtopic_confidences to consume."
+            ),
+        ),
+        ColdStage(
             name="count",
             command=[sys.executable, "count_by_cwid.py"],
             description=(
