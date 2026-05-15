@@ -42,6 +42,14 @@ def _result_with_scalar(scalar):
     return result
 
 
+def _result_with_lastrowid(lastrowid):
+    """Mock execute result that exposes a specific ``lastrowid`` —
+    what AUTO_INCREMENT inserts return via the DBAPI cursor."""
+    result = MagicMock()
+    result.lastrowid = lastrowid
+    return result
+
+
 def _sql_of(call) -> str:
     """Extract the SQL text from a Connection.execute(text(...), {...}) call."""
     return str(call.args[0])
@@ -68,46 +76,44 @@ def test_ensure_entity_returns_existing_id_without_insert():
     }
 
 
-def test_ensure_entity_allocates_max_plus_one_and_inserts_when_missing():
+def test_ensure_entity_inserts_via_auto_increment_when_missing():
+    """Post-#42 migration, entity_id is AUTO_INCREMENT. The writer omits the
+    PK column from the INSERT and reads the allocated id off ``result.lastrowid``.
+    """
     engine, conn = _make_engine_with_conn()
     # 1st execute (SELECT existing) → no row
-    # 2nd execute (SELECT MAX+1) → 7104
-    # 3rd execute (INSERT) → ignored
+    # 2nd execute (INSERT) → result.lastrowid = 7104 (AUTO_INCREMENT allocation)
     conn.execute.side_effect = [
         _result_with_row(None),
-        _result_with_scalar(7104),
-        MagicMock(),
+        _result_with_lastrowid(7104),
     ]
 
     eid = ensure_entity(engine, pmid="40927852")
 
     assert eid == 7104
-    assert conn.execute.call_count == 3
+    assert conn.execute.call_count == 2
 
-    select_max_sql = _sql_of(conn.execute.call_args_list[1])
-    assert "COALESCE(MAX(entity_id), 0) + 1" in select_max_sql
-    assert "FOR UPDATE" in select_max_sql
+    # No MAX+1 dance should be present anywhere — the AUTO_INCREMENT migration
+    # made it redundant. If this assertion ever fails, someone reintroduced
+    # the workaround; check whether the migration was rolled back first.
+    for call in conn.execute.call_args_list:
+        sql = _sql_of(call)
+        assert "MAX(entity_id)" not in sql
+        assert "FOR UPDATE" not in sql
 
-    insert_sql = _sql_of(conn.execute.call_args_list[2])
+    insert_sql = _sql_of(conn.execute.call_args_list[1])
     assert "INSERT INTO reciterai_entities" in insert_sql
-    insert_params = conn.execute.call_args_list[2].args[1]
+    # The PK column must NOT be in the INSERT column list — AUTO_INCREMENT
+    # allocates it. Splitting on VALUES isolates the column list cleanly.
+    column_list = insert_sql.split("VALUES")[0]
+    assert "entity_id" not in column_list, (
+        f"entity_id appears in INSERT column list: {column_list!r}"
+    )
+    insert_params = conn.execute.call_args_list[1].args[1]
     assert insert_params == {
-        "eid": 7104,
         "et": ENTITY_TYPE_PUBLICATION,
         "ext": "40927852",
     }
-
-
-def test_ensure_entity_handles_empty_table():
-    """First-ever entity row: COALESCE returns 0+1 = 1."""
-    engine, conn = _make_engine_with_conn()
-    conn.execute.side_effect = [
-        _result_with_row(None),
-        _result_with_scalar(1),
-        MagicMock(),
-    ]
-    eid = ensure_entity(engine, pmid="12345")
-    assert eid == 1
 
 
 def test_ensure_entity_coerces_pmid_to_string():
@@ -151,12 +157,15 @@ def test_upsert_synopsis_updates_when_row_exists():
         assert "MAX(id)" not in _sql_of(call)
 
 
-def test_upsert_synopsis_inserts_with_max_plus_one_when_new():
+def test_upsert_synopsis_inserts_via_auto_increment_when_new():
+    """Post-#42 migration, reciterai_synopsis.id is AUTO_INCREMENT. The INSERT
+    omits ``id`` from the column list; we don't need ``lastrowid`` because
+    upsert_synopsis does not return the id to the caller.
+    """
     engine, conn = _make_engine_with_conn()
     conn.execute.side_effect = [
-        _result_with_row(None),      # no existing row
-        _result_with_scalar(12588),  # MAX+1
-        MagicMock(),                  # INSERT
+        _result_with_row(None),  # no existing row
+        MagicMock(),             # INSERT — id allocated by AUTO_INCREMENT
     ]
 
     upsert_synopsis(
@@ -167,18 +176,35 @@ def test_upsert_synopsis_inserts_with_max_plus_one_when_new():
         model="gpt-5.1",
     )
 
-    assert conn.execute.call_count == 3
-    insert_sql = _sql_of(conn.execute.call_args_list[2])
+    assert conn.execute.call_count == 2
+
+    # No MAX+1 dance.
+    for call in conn.execute.call_args_list:
+        sql = _sql_of(call)
+        assert "MAX(id)" not in sql
+        assert "FOR UPDATE" not in sql
+
+    insert_sql = _sql_of(conn.execute.call_args_list[1])
     assert "INSERT INTO reciterai_synopsis" in insert_sql
-    insert_params = conn.execute.call_args_list[2].args[1]
+    # PK column must NOT be in the INSERT column list. Use a word boundary
+    # so we don't false-positive on `entity_id`. \b doesn't fire between
+    # `_` and a word char (both \w), so `\bid\b` correctly skips `entity_id`.
+    import re
+    column_list = insert_sql.split("VALUES")[0]
+    assert not re.search(r"\bid\b", column_list), (
+        f"bare `id` appears in INSERT column list: {column_list!r}"
+    )
+    insert_params = conn.execute.call_args_list[1].args[1]
     assert insert_params == {
-        "id": 12588,
         "et": ENTITY_TYPE_PUBLICATION,
         "eid": 7104,
         "ext": "40999999",
         "syn": "Fresh synopsis text.",
         "model": "gpt-5.1",
     }
+    assert "id" not in insert_params, (
+        "id should not be in INSERT params — AUTO_INCREMENT allocates it"
+    )
 
 
 # ---------------------------------------------------------------------------
