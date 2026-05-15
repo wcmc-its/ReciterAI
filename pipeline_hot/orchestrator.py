@@ -32,6 +32,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.dynamodb_helpers import get_table, TABLE_NAME
+from utils.env_check import load_thresholds
 from utils.stage_records import (
     STATUS_COMPLETE,
     build_skipped_record,
@@ -90,8 +91,9 @@ def resolve_last_successful_hot_run(table: Any) -> str | None:
 # path is the right way to populate the corpus from scratch; the hot
 # path should never be asked to score "all of history" via cron. We
 # refuse to fall back further than this look-back window to keep the
-# delta-set query bounded.
-_BOOTSTRAP_LOOKBACK_DAYS = 14
+# delta-set query bounded. Lifted to config/thresholds.json
+# `bootstrap_lookback_days` per #57 Tier B-1.
+_BOOTSTRAP_LOOKBACK_DAYS = int(load_thresholds()["bootstrap_lookback_days"])
 
 
 def resolve_delta_pmids(

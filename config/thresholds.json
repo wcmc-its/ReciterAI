@@ -13,5 +13,9 @@
   "recluster_persistence_days": 7,
   "critic_reject_persistence_days": 90,
   "critic_reject_subtopic_max": 2,
-  "feedback_diagnostic_max_underlying": 20
+  "feedback_diagnostic_max_underlying": 20,
+  "bootstrap_lookback_days": 14,
+  "discover_min_cluster_size": 3,
+  "target_failure_rate": 0.01,
+  "pool_top_papers_per_subtopic": 6
 }

@@ -61,7 +61,8 @@ TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
 # score_publications, load_dynamodb) consumes.
 SCORE_FLOOR = load_thresholds()["score_floor"]
 COVERAGE_TARGET = 0.85   # D-01: must assign ≥85% of activities
-MIN_CLUSTER_SIZE = 3     # Review item #1: no cluster smaller than 3 activities
+# Lifted to config/thresholds.json `discover_min_cluster_size` (#57 Tier B-1).
+MIN_CLUSTER_SIZE = int(load_thresholds()["discover_min_cluster_size"])
 
 
 

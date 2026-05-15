@@ -79,8 +79,9 @@ TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
 # one knob.
 SCREENING_THRESHOLD = load_thresholds()["score_floor"]
 
-# Target failure rate (D-11)
-TARGET_FAILURE_RATE = 0.01  # 1%
+# Target failure rate (D-11). Lifted to config/thresholds.json
+# `target_failure_rate` (#57 Tier B-1).
+TARGET_FAILURE_RATE = float(load_thresholds()["target_failure_rate"])
 
 # Phase 10 STAGE# substrate (D-07). Run-level memoization uses GLOBAL scope;
 # per-PMID failure records use scope = "pmid:{pmid}" so a single bad PMID
