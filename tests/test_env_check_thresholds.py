@@ -88,6 +88,25 @@ def test_assign_subtopics_constants_pick_up_config_values(tmp_path: Path):
     importlib.reload(ats)
 
 
+# ---------- G-18 Tier A: score_floor wired across the pipeline ----------
+
+
+@pytest.mark.parametrize(
+    "module_name, attr_name",
+    [
+        ("discover_subtopics", "SCORE_FLOOR"),
+        ("backfill_topic", "SCORE_FLOOR"),
+        ("backfill_all", "SCORE_FLOOR"),
+        ("score_publications", "SCREENING_THRESHOLD"),
+        ("load_dynamodb", "DEFAULT_MIN_SCORE"),
+    ],
+)
+def test_pipeline_score_floor_constants_read_from_config(module_name, attr_name):
+    """Each script's score-floor constant resolves to thresholds.json `score_floor`."""
+    module = importlib.import_module(module_name)
+    assert getattr(module, attr_name) == env_check.load_thresholds()["score_floor"]
+
+
 # ---------- CLI flag override ----------
 
 

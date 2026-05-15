@@ -82,6 +82,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from utils.env_check import load_thresholds  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -113,7 +115,9 @@ PILOT_TOPIC_ID = "aging_geroscience"
 EST_SONNET_PASS1_PER_TOPIC_USD = 0.25
 EST_HAIKU_PASS2_PER_ACTIVITY_USD = 0.001
 
-SCORE_FLOOR = 0.3
+# Lifted to config/thresholds.json `score_floor` (G-18) — same gate the
+# rest of the pipeline applies when filtering qualifying activities.
+SCORE_FLOOR = load_thresholds()["score_floor"]
 
 # PM worktree destination
 PM_WORKTREE = REPO_ROOT / "ReCiter-Publication-Manager"
