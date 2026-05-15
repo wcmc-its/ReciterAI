@@ -27,7 +27,7 @@ half-row state.
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -148,7 +148,7 @@ def upsert_impact(
     KEY UPDATE is safe. impactScore is decimal(5,2); we quantize before
     sending to avoid lossy float→decimal round-trips at the DB.
     """
-    score = Decimal(str(impact_score)).quantize(Decimal("0.01"))
+    score = Decimal(str(impact_score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     with engine.begin() as conn:
         conn.execute(
             text(
