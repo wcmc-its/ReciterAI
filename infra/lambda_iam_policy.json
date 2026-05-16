@@ -82,12 +82,15 @@
       "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/reciterai-*"
     },
     {
-      "Sid": "SecretsManagerSlackWebhook",
+      "Sid": "SecretsManagerReciterAI",
       "Effect": "Allow",
       "Action": [
         "secretsmanager:GetSecretValue"
       ],
-      "Resource": "arn:aws:secretsmanager:*:*:secret:reciterai/slack-webhook-*"
+      "Resource": [
+        "arn:aws:secretsmanager:*:*:secret:reciterai/slack-webhook-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/reciter-analysis-db-*"
+      ]
     }
   ]
 }
