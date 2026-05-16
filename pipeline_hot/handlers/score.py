@@ -1,27 +1,31 @@
 """Hot-path Score Lambda handler.
 
 Wraps `score_publications.py --emit-envelope` and returns the STAGE#
-envelope dict — already converted to DynamoDB attribute-typed format —
-for the state machine's `arn:aws:states:::dynamodb:putItem` SDK
-integration to consume directly via `Item.$": "$.score_envelope"`.
+envelope — already converted to DynamoDB attribute-typed format — for the
+state machine's `arn:aws:states:::dynamodb:putItem` SDK integration to
+consume directly via `Item.$": "$.score_envelope"`.
 
-The optimized DynamoDB integration does NOT auto-type plain Python
-values; passing a bare dict like `{"PK": "..."}` raises
-`States.Runtime` ("Cannot construct instance of AttributeValue").
-`_to_ddb_typed_envelope` below is the load-bearing fix.
+Two event shapes are accepted (see `handler`):
+  - the hot-path date-delta event (`{"delta": {...}, ...}`), and
+  - the new-researcher onboarding CWID-scoped event (`{"pmids": [...]}`),
+    added for #80 Phase 2.
+
+The envelope parse + DDB-typing helpers live in `pipeline_common.envelope`
+— shared with the other hot handlers and the onboarding package.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 import sys
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from boto3.dynamodb.types import TypeSerializer
+from pipeline_common.envelope import (
+    parse_envelope_from_stdout,
+    to_ddb_typed_envelope,
+)
 
 # Populate DB_* env vars in Lambda before the subprocess to
 # `score_publications.py` runs — it queries ReciterDB at startup
@@ -34,89 +38,78 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-_serializer = TypeSerializer()
-
-# Envelope fields that arrive as JSON strings (because the upstream
-# script serializes via `json.dumps(..., default=str)` to handle
-# Decimal) but represent numeric attributes in DynamoDB. Without this
-# coercion `TypeSerializer` would emit `{"S": "0"}` for cost — wrong
-# DDB type, breaks numeric aggregation queries.
-_NUMERIC_STR_FIELDS = {"cost_observed_usd"}
-
-
-def _parse_envelope_from_stdout(stdout: str) -> dict:
-    """The envelope is the last JSON object on stdout. Everything else is
-    log noise from the script's `print` statements during scoring."""
-    # Walk lines bottom-up; the last `{...}` block is the envelope.
-    for line in reversed(stdout.splitlines()):
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            return json.loads(line)
-        except json.JSONDecodeError:
-            continue
-    raise RuntimeError(
-        "score handler: no JSON envelope found on upstream stdout"
-    )
-
-
-def _to_ddb_typed_envelope(envelope: dict) -> dict:
-    """Convert a parsed envelope dict to DDB attribute-typed format.
-
-    The state machine's `WriteXStageRow` states feed this return value
-    straight into `dynamodb:putItem` via `Item.$`, which requires every
-    value to be already wrapped (e.g. `{"S": "..."}`, `{"N": "5271"}`).
-
-    Handling for `cost_observed_usd`: serialized by `default=str` into
-    a JSON string, so re-cast to Decimal before TypeSerializer sees it
-    so the resulting attribute is `N`, not `S`.
-    """
-    canonical: dict[str, Any] = {}
-    for k, v in envelope.items():
-        if k in _NUMERIC_STR_FIELDS and isinstance(v, str):
-            try:
-                canonical[k] = Decimal(v)
-            except Exception:
-                # Fall through unchanged; TypeSerializer will fail loudly
-                # rather than silently mis-type.
-                canonical[k] = v
-        else:
-            canonical[k] = v
-    return {k: _serializer.serialize(v) for k, v in canonical.items()}
-
 
 def handler(event: dict, context: Any = None) -> dict:
     """Invoke score_publications --emit-envelope and return the envelope.
 
-    Expected event:
+    Two event shapes are accepted.
+
+    Hot-path date delta (the weekly hot run):
         {
           "delta": {"pmids": [...], "size": N,
                     "retry_pmids": [...], "retry_size": M},
           "last_successful_hot_run_at": "<iso8601>" | null
         }
-
     `delta.retry_pmids` is the orchestrator retry sweep's recovered-PMID
     list. When non-empty it is passed through as `--retry-pmids`, which
     `score_publications` unions onto the `--delta-since` date delta — this
     is the only path by which a PMID that aged out of the date window
     reaches the scorer (the scorer recomputes the date delta itself and
     otherwise never sees `delta.pmids`).
+
+    Onboarding CWID-scoped work set (#80 Phase 2):
+        {
+          "pmids": ["pmid1", "pmid2", ...],
+          "allow_cost_override": true | false   (optional, default false)
+        }
+    Routes to `score_publications --pmids …` — an explicit work set, an
+    ALTERNATIVE to `--delta-since` (the two are mutually exclusive). The
+    onboarding orchestrator invokes Score only with a non-empty work set,
+    so an empty `pmids` list is a contract violation and raises. When the
+    operator approved a cost-guard override, `allow_cost_override` is set
+    so the `score_publications` cost guard (defense-in-depth) does not
+    re-block a run the orchestrator already cleared.
     """
-    delta = event.get("delta", {})
-    delta_since = event.get("last_successful_hot_run_at")
-    retry_pmids = delta.get("retry_pmids", [])
+    pmids = event.get("pmids")
+    if pmids is not None:
+        # Onboarding CWID-scoped event (#80). `--pmids` is mutually
+        # exclusive with --delta-since / --retry-pmids in
+        # score_publications, so this branch builds a disjoint command.
+        if not pmids:
+            raise ValueError(
+                "score handler: onboarding event carries an empty 'pmids' "
+                "list; the onboarding orchestrator must invoke Score only "
+                "with a non-empty work set"
+            )
+        cmd = [
+            sys.executable, "-m", "score_publications", "--emit-envelope",
+            "--pmids", ",".join(str(p) for p in pmids),
+        ]
+        if event.get("allow_cost_override"):
+            cmd.append("--allow-cost-override")
+        override = (
+            " --allow-cost-override" if event.get("allow_cost_override") else ""
+        )
+        logger.info(
+            f"score handler invoking (onboarding): {len(pmids)} pmids{override}"
+        )
+    else:
+        # Hot-path date-delta event.
+        delta = event.get("delta", {})
+        delta_since = event.get("last_successful_hot_run_at")
+        retry_pmids = delta.get("retry_pmids", [])
 
-    cmd = [sys.executable, "-m", "score_publications", "--emit-envelope"]
-    if delta_since:
-        cmd += ["--delta-since", delta_since]
-    if retry_pmids:
-        cmd += ["--retry-pmids", ",".join(str(p) for p in retry_pmids)]
+        cmd = [sys.executable, "-m", "score_publications", "--emit-envelope"]
+        if delta_since:
+            cmd += ["--delta-since", delta_since]
+        if retry_pmids:
+            cmd += ["--retry-pmids", ",".join(str(p) for p in retry_pmids)]
 
-    logger.info(
-        f"score handler invoking: {' '.join(cmd)} "
-        f"({delta.get('size', 0)} delta pmids, {len(retry_pmids)} retry pmids)"
-    )
+        logger.info(
+            f"score handler invoking: {' '.join(cmd)} "
+            f"({delta.get('size', 0)} delta pmids, {len(retry_pmids)} retry pmids)"
+        )
+
     # Stream subprocess output to Lambda stdout (CloudWatch) line-by-line so
     # an operator watching live can see Bedrock progress / error spew. Earlier
     # capture_output=True buffered everything until proc.exit; a 900s timeout
@@ -142,4 +135,4 @@ def handler(event: dict, context: Any = None) -> dict:
         raise RuntimeError(
             f"score_publications exited {rc}; last lines:\n{tail}"
         )
-    return _to_ddb_typed_envelope(_parse_envelope_from_stdout("".join(captured)))
+    return to_ddb_typed_envelope(parse_envelope_from_stdout("".join(captured)))
