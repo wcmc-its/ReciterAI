@@ -31,6 +31,11 @@ from typing import Any
 # Ensure repo root is importable regardless of cwd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Populate DB_* env vars from Secrets Manager when running in Lambda.
+# Local dev / tests rely on `~/.zshrc` and skip the fetch. Must precede
+# `utils.sql_queries` so the SQLAlchemy engine factory finds creds.
+import utils.secrets_loader  # noqa: F401
+
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.env_check import load_thresholds
 from utils.stage_records import (
@@ -214,6 +219,15 @@ def build_state_machine_input(
         "delta": {
             "pmids": pmids,
             "size": len(pmids),
+            # T7 placeholders. The state machine's `CheckAssignNeeded`
+            # and `CheckRollupNeeded` Choice gates route around the
+            # Assign / Rollup tasks via Pass states that inject stub
+            # envelopes when these lists are empty. Real per-topic and
+            # per-CWID dirty-set computation is a follow-up tracked on
+            # issue #72; until then both lists stay empty and the
+            # smoke / weekly run exercises Score → TopTopic only.
+            "assign_topics": [],
+            "dirty_cwids": [],
         },
         "trace": {
             "orchestrator_version": "0.1.0",

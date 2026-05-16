@@ -227,6 +227,10 @@ def test_build_state_machine_input_shape():
     assert sm_input["last_successful_hot_run_at"] == "2026-05-05T12:00:00Z"
     assert sm_input["delta"]["pmids"] == ["1", "2", "3"]
     assert sm_input["delta"]["size"] == 3
+    # T7 placeholders consumed by state_machine.asl.json
+    # CheckAssignNeeded / CheckRollupNeeded gates.
+    assert sm_input["delta"]["assign_topics"] == []
+    assert sm_input["delta"]["dirty_cwids"] == []
 
 
 # ---------- handler stdout parser ----------
@@ -255,7 +259,7 @@ def test_score_handler_invokes_subprocess_and_returns_envelope(monkeypatch):
     completed = subprocess.CompletedProcess(
         args=["python", "..."],
         returncode=0,
-        stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc"}\n',
+        stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc","duration_ms":42,"cost_observed_usd":"0"}\n',
         stderr="",
     )
     captured_cmds = []
@@ -270,7 +274,15 @@ def test_score_handler_invokes_subprocess_and_returns_envelope(monkeypatch):
         "delta": {"pmids": ["1", "2"], "size": 2},
         "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
     })
-    assert env["input_hash"] == "abc"
+    # Returned envelope is DDB attribute-typed so the state machine's
+    # WriteScoreStageRow can consume it directly via Item.$.
+    assert env["PK"] == {"S": "STAGE#score_publications#GLOBAL"}
+    assert env["status"] == {"S": "complete"}
+    assert env["input_hash"] == {"S": "abc"}
+    assert env["duration_ms"] == {"N": "42"}
+    # cost_observed_usd arrives as a JSON string (Decimal serialized
+    # via default=str), but the typed envelope must carry N not S.
+    assert env["cost_observed_usd"] == {"N": "0"}
     cmd = captured_cmds[0]
     assert "--emit-envelope" in cmd
     assert "--delta-since" in cmd
@@ -312,7 +324,8 @@ def test_assign_handler_passes_topic_and_pmids(monkeypatch):
         "topic_id": "cardio",
         "delta_pmids": ["1", "2"],
     })
-    assert env["PK"] == "STAGE#assign_subtopics#topic:cardio"
+    # DDB attribute-typed return so WriteAssignStageRow can consume it.
+    assert env["PK"] == {"S": "STAGE#assign_subtopics#topic:cardio"}
     cmd = captured[0]
     assert "--topic" in cmd and "cardio" in cmd
     assert "--delta-pmids" in cmd and "1,2" in cmd
@@ -335,7 +348,8 @@ def test_rollup_handler_passes_cwids(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     env = rollup_handler.handler({"dirty_cwids": ["alice", "bob"]})
-    assert env["PK"] == "STAGE#rollup_by_cwid#GLOBAL"
+    # DDB attribute-typed return so WriteRollupStageRow can consume it.
+    assert env["PK"] == {"S": "STAGE#rollup_by_cwid#GLOBAL"}
     cmd = captured[0]
     assert "--cwids" in cmd and "alice,bob" in cmd
     assert "--emit-envelope" in cmd

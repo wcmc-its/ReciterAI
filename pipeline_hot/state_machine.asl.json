@@ -1,5 +1,5 @@
 {
-  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: delta-only score, assign, and rollup. NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5).",
+  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: delta-only score, assign, and rollup. NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5). CheckAssignNeeded / CheckRollupNeeded route around Assign / Rollup via Pass states that inject typed stub envelopes when the orchestrator's placeholder lists are empty (T7 follow-up: populate the lists from delta PMID metadata).",
   "StartAt": "Orchestrate",
   "States": {
     "Orchestrate": {
@@ -67,15 +67,43 @@
         "Item.$": "$.score_envelope"
       },
       "ResultPath": null,
-      "Next": "Assign"
+      "Next": "CheckAssignNeeded"
+    },
+
+    "CheckAssignNeeded": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.orchestrate.input.delta.assign_topics[0]",
+          "IsPresent": false,
+          "Next": "AssignSkipped"
+        }
+      ],
+      "Default": "Assign"
+    },
+
+    "AssignSkipped": {
+      "Type": "Pass",
+      "Comment": "Stub envelope when delta.assign_topics is empty. Already in DDB attribute-typed format so WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.",
+      "Result": {
+        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
+        "SK": {"S": "RUN#skipped-no-assign-topics"},
+        "stage": {"S": "assign_subtopics"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "skipped"},
+        "skip_reason": {"S": "delta.assign_topics empty (orchestrator T7 placeholder)"},
+        "input_hash": {"S": "skipped:no-assign-topics"}
+      },
+      "ResultPath": "$.assign_envelope",
+      "Next": "TopTopic"
     },
 
     "Assign": {
       "Type": "Task",
       "Resource": "${AssignLambdaArn}",
       "Parameters": {
-        "topic_id.$": "$.orchestrate.input.delta.assign_topic_id",
-        "delta_pmids.$": "$.orchestrate.input.delta.pmids"
+        "topic_id.$": "$.orchestrate.input.delta.assign_topics[0].topic_id",
+        "delta_pmids.$": "$.orchestrate.input.delta.assign_topics[0].delta_pmids"
       },
       "ResultPath": "$.assign_envelope",
       "Retry": [
@@ -140,7 +168,35 @@
         "Item.$": "$.top_topic_envelope"
       },
       "ResultPath": null,
-      "Next": "Rollup"
+      "Next": "CheckRollupNeeded"
+    },
+
+    "CheckRollupNeeded": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.orchestrate.input.delta.dirty_cwids[0]",
+          "IsPresent": false,
+          "Next": "RollupSkipped"
+        }
+      ],
+      "Default": "Rollup"
+    },
+
+    "RollupSkipped": {
+      "Type": "Pass",
+      "Comment": "Stub envelope when delta.dirty_cwids is empty. Same typing rationale as AssignSkipped.",
+      "Result": {
+        "PK": {"S": "STAGE#rollup_by_cwid#GLOBAL"},
+        "SK": {"S": "RUN#skipped-no-dirty-cwids"},
+        "stage": {"S": "rollup_by_cwid"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "skipped"},
+        "skip_reason": {"S": "delta.dirty_cwids empty (orchestrator T7 placeholder)"},
+        "input_hash": {"S": "skipped:no-dirty-cwids"}
+      },
+      "ResultPath": "$.rollup_envelope",
+      "Next": "WriteHotRunComplete"
     },
 
     "Rollup": {
@@ -192,11 +248,11 @@
           "status": {"S": "complete"},
           "started_at.$": "$.orchestrate.input.started_at",
           "run_id.$": "$.orchestrate.input.run_id",
-          "delta_size.$": "$.orchestrate.input.delta.size",
-          "score_input_hash.$": "$.score_envelope.input_hash",
-          "assign_input_hash.$": "$.assign_envelope.input_hash",
-          "top_topic_input_hash.$": "$.top_topic_envelope.input_hash",
-          "rollup_input_hash.$": "$.rollup_envelope.input_hash"
+          "delta_size": {"N.$": "States.Format('{}', $.orchestrate.input.delta.size)"},
+          "score_input_hash": {"S.$": "$.score_envelope.input_hash.S"},
+          "assign_input_hash": {"S.$": "$.assign_envelope.input_hash.S"},
+          "top_topic_input_hash": {"S.$": "$.top_topic_envelope.input_hash.S"},
+          "rollup_input_hash": {"S.$": "$.rollup_envelope.input_hash.S"}
         }
       },
       "ResultPath": null,
@@ -215,7 +271,7 @@
           "scope": {"S": "GLOBAL"},
           "status": {"S": "failed"},
           "run_id.$": "$$.Execution.Name",
-          "error.$": "$.error"
+          "error": {"S.$": "States.JsonToString($.error)"}
         }
       },
       "ResultPath": null,

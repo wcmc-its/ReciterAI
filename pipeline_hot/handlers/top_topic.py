@@ -16,7 +16,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pipeline_hot.handlers.score import _parse_envelope_from_stdout
+from pipeline_hot.handlers.score import (
+    _parse_envelope_from_stdout,
+    _to_ddb_typed_envelope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,4 +69,4 @@ def handler(event: dict, context: Any = None) -> dict:
             f"compute_top_topic exited {proc.returncode}: "
             f"stderr={proc.stderr[-2000:]}"
         )
-    return _parse_envelope_from_stdout(proc.stdout)
+    return _to_ddb_typed_envelope(_parse_envelope_from_stdout(proc.stdout))
