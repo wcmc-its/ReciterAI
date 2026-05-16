@@ -77,10 +77,14 @@ def test_required_states_present(asl):
         "CheckLockOrProceed",
         "Score",
         "WriteScoreStageRow",
+        "CheckAssignNeeded",
+        "AssignSkipped",
         "Assign",
         "WriteAssignStageRow",
         "TopTopic",
         "WriteTopTopicStageRow",
+        "CheckRollupNeeded",
+        "RollupSkipped",
         "Rollup",
         "WriteRollupStageRow",
         "WriteHotRunComplete",
@@ -119,7 +123,18 @@ def test_hot_run_failed_row_uses_correct_pk_and_carries_error(asl):
     item = write["Parameters"]["Item"]
     assert item["PK"] == {"S": "STAGE#hot_run#GLOBAL"}
     assert item["status"] == {"S": "failed"}
-    assert "error.$" in item, "failed row must carry the Catch error payload"
+    # The Catch payload at $.error is a Map ({Error, Cause}); the
+    # optimized DynamoDB integration will not auto-wrap a Map under
+    # an `error.$` top-level key (verified empirically — fails with
+    # "field Error is not supported by Step Functions"). Wrap as a
+    # JSON-stringified S attribute via States.JsonToString.
+    assert "error" in item, "failed row must carry the Catch error payload"
+    assert isinstance(item["error"], dict) and "S.$" in item["error"], (
+        "error must be wrapped as a typed DDB attribute (S.$)"
+    )
+    assert "JsonToString" in item["error"]["S.$"], (
+        "error must be JSON-stringified so the Map serializes to one S value"
+    )
 
 
 def test_notify_error_calls_alert_dispatcher_with_severity_error(asl):
@@ -147,6 +162,84 @@ def test_check_lock_skip_branch_routes_to_end(asl):
         if c.get("StringEquals") == "skipped"
     )
     assert skip_choice["Next"] == "End"
+
+
+def test_check_assign_needed_short_circuits_when_topics_empty(asl):
+    """When delta.assign_topics is empty the gate must route to AssignSkipped."""
+    choice = asl["States"]["CheckAssignNeeded"]
+    assert choice["Type"] == "Choice"
+    assert choice["Default"] == "Assign"
+    rule = choice["Choices"][0]
+    assert rule["IsPresent"] is False
+    assert rule["Variable"] == "$.orchestrate.input.delta.assign_topics[0]"
+    assert rule["Next"] == "AssignSkipped"
+
+
+def test_check_rollup_needed_short_circuits_when_dirty_cwids_empty(asl):
+    choice = asl["States"]["CheckRollupNeeded"]
+    assert choice["Type"] == "Choice"
+    assert choice["Default"] == "Rollup"
+    rule = choice["Choices"][0]
+    assert rule["IsPresent"] is False
+    assert rule["Variable"] == "$.orchestrate.input.delta.dirty_cwids[0]"
+    assert rule["Next"] == "RollupSkipped"
+
+
+def test_assign_skipped_injects_typed_envelope(asl):
+    """Pass state must inject a DDB attribute-typed stub so
+    WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.
+    """
+    state = asl["States"]["AssignSkipped"]
+    assert state["Type"] == "Pass"
+    assert state["ResultPath"] == "$.assign_envelope"
+    assert state["Next"] == "TopTopic"
+    result = state["Result"]
+    assert result["status"] == {"S": "skipped"}
+    assert result["input_hash"]["S"] == "skipped:no-assign-topics"
+
+
+def test_rollup_skipped_injects_typed_envelope(asl):
+    state = asl["States"]["RollupSkipped"]
+    assert state["Type"] == "Pass"
+    assert state["ResultPath"] == "$.rollup_envelope"
+    assert state["Next"] == "WriteHotRunComplete"
+    result = state["Result"]
+    assert result["status"] == {"S": "skipped"}
+    assert result["input_hash"]["S"] == "skipped:no-dirty-cwids"
+
+
+def test_write_hot_run_complete_uses_typed_numeric_for_delta_size(asl):
+    """delta_size is an int; the optimized DDB integration won't auto-type
+    integers (only strings). Must wrap as N via States.Format coercion.
+    """
+    item = asl["States"]["WriteHotRunComplete"]["Parameters"]["Item"]
+    assert "delta_size" in item
+    assert "N.$" in item["delta_size"], (
+        "delta_size must be N-typed; bare delta_size.$ would inject a raw int"
+    )
+    assert "States.Format" in item["delta_size"]["N.$"]
+
+
+def test_write_hot_run_complete_extracts_input_hashes_from_typed_envelopes(asl):
+    """After the handler-side typing change, $.X_envelope is itself
+    DDB-typed (e.g. {"input_hash": {"S": "abc"}}). To extract the
+    string for storage on the hot_run row we must read .S, not the
+    bare path (which would inject a Map and fail).
+    """
+    item = asl["States"]["WriteHotRunComplete"]["Parameters"]["Item"]
+    for key in ("score_input_hash", "assign_input_hash",
+                "top_topic_input_hash", "rollup_input_hash"):
+        assert key in item, f"missing {key}"
+        assert "S.$" in item[key], f"{key} must be wrapped as S.$"
+        assert item[key]["S.$"].endswith(".input_hash.S"), (
+            f"{key} must extract .S from the typed envelope"
+        )
+
+
+def test_write_score_stage_row_passes_typed_envelope_directly(asl):
+    """Lambda handler returns a typed envelope; Item.$ feeds it straight in."""
+    state = asl["States"]["WriteScoreStageRow"]
+    assert state["Parameters"]["Item.$"] == "$.score_envelope"
 
 
 def test_final_states_terminate(asl):
