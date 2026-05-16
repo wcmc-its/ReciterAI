@@ -963,12 +963,24 @@ async def main():
         taxonomy_version=taxonomy['taxonomy_version'],
         pmids=[str(p['pmid']) for p in unscored],
     )
-    skip, prior = should_skip(
-        stage_table,
-        stage=STAGE_NAME,
-        scope=STAGE_SCOPE_GLOBAL,
-        input_hash=input_hash,
-    )
+    if args.rescore_pmids:
+        # --rescore-pmids explicitly forces this run. Bypass the run-level
+        # skip cache, otherwise a prior `records_written=0` complete row
+        # (e.g. a smoke that finished after every PMID failed) collides
+        # with the same input_hash and blocks the rescore. Operator
+        # otherwise has to delete the offending STAGE# row by hand.
+        skip, prior = False, None
+        print(
+            "[--rescore-pmids] Bypassing STAGE# substrate skip cache "
+            f"(input_hash {input_hash[:12]})"
+        )
+    else:
+        skip, prior = should_skip(
+            stage_table,
+            stage=STAGE_NAME,
+            scope=STAGE_SCOPE_GLOBAL,
+            input_hash=input_hash,
+        )
     if skip:
         completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)

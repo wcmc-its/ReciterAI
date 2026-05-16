@@ -104,3 +104,79 @@ def test_cli_rejects_mutually_exclusive_flags(monkeypatch):
     # parser.error raises SystemExit
     with pytest.raises(SystemExit):
         asyncio.run(sp.main())
+
+
+# ---------------------------------------------------------------------------
+# STAGE# substrate skip-cache bypass when --rescore-pmids is set
+# ---------------------------------------------------------------------------
+
+
+def test_rescore_pmids_bypasses_stage_skip_cache(monkeypatch):
+    """When --rescore-pmids is set, the run-level should_skip check must
+    NOT be consulted. A prior `records_written=0` complete row for the
+    same PMID set would otherwise collide on input_hash and block recovery
+    via the substrate cache, forcing operator DDB hand-surgery.
+    """
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", [
+        "score_publications.py",
+        "--rescore-pmids", "41198049",
+    ])
+
+    # Patch out everything the main() loop needs except should_skip. We
+    # want to assert should_skip is NOT called, then short-circuit before
+    # any real scoring fires.
+    fake_table = MagicMock()
+    fake_table.put_item = MagicMock(return_value={})
+    monkeypatch.setattr(sp, "get_table", lambda: fake_table)
+    monkeypatch.setattr(sp, "load_thresholds", lambda: {
+        "score_floor": 0.3,
+        "target_failure_rate": 0.01,
+        "uncovered_score_floor": 0.5,
+    })
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    monkeypatch.setattr(sp, "extract_publications_by_pmids", lambda pmids: [])
+    monkeypatch.setattr(sp, "extract_author_mapping", lambda: {})
+    monkeypatch.setattr(sp, "extract_faculty_metadata", lambda: {})
+
+    should_skip_mock = MagicMock(return_value=(False, None))
+    monkeypatch.setattr(sp, "should_skip", should_skip_mock)
+
+    asyncio.run(sp.main())
+
+    # The contract: should_skip is bypassed entirely under --rescore-pmids,
+    # not consulted-and-overridden. Asserts the run-level cache cannot
+    # block a rescore even when the input_hash would match a prior row.
+    should_skip_mock.assert_not_called()
+
+
+def test_normal_run_still_consults_should_skip(monkeypatch):
+    """Sanity check: without --rescore-pmids, should_skip is still
+    consulted (we did not accidentally turn it off for everyone)."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["score_publications.py"])
+
+    fake_table = MagicMock()
+    fake_table.put_item = MagicMock(return_value={})
+    monkeypatch.setattr(sp, "get_table", lambda: fake_table)
+    monkeypatch.setattr(sp, "load_thresholds", lambda: {
+        "score_floor": 0.3,
+        "target_failure_rate": 0.01,
+        "uncovered_score_floor": 0.5,
+    })
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    monkeypatch.setattr(sp, "extract_publications", lambda delta_since=None: [])
+    monkeypatch.setattr(sp, "extract_author_mapping", lambda: {})
+    monkeypatch.setattr(sp, "extract_faculty_metadata", lambda: {})
+    monkeypatch.setattr(sp, "get_unscored_publications", lambda *a, **k: [])
+
+    should_skip_mock = MagicMock(return_value=(False, None))
+    monkeypatch.setattr(sp, "should_skip", should_skip_mock)
+
+    asyncio.run(sp.main())
+
+    should_skip_mock.assert_called_once()
