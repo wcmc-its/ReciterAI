@@ -256,3 +256,96 @@ def get_raw_db_connection():
         database=os.environ['DB_NAME'],
         cursorclass=pymysql.cursors.DictCursor,
     )
+
+
+# ---------------------------------------------------------------------------
+# New-researcher onboarding (#80 Phase 1) — CWID scoping + synopsis coverage
+# ---------------------------------------------------------------------------
+
+PMIDS_BY_CWID_SQL = """
+SELECT DISTINCT a.pmid
+FROM analysis_summary_article a
+JOIN analysis_summary_author au ON au.pmid = a.pmid
+WHERE au.personIdentifier = :cwid
+    AND a.publicationTypeCanonical = 'Academic Article'
+    AND a.articleYear >= 2020
+ORDER BY a.pmid DESC
+"""
+# Per-CWID accepted-publication set for the onboarding workflow (#80 R2).
+#
+# Deliberately NOT a variant of PUBLICATION_EXTRACTION_SQL. That query
+# INNER-joins reciterai_synopsis on a non-null synopsis — building the
+# CWID query on top of it would silently drop exactly the synopsis-less
+# PMIDs that the onboarding synopsis-precondition check (R3 step 1, see
+# check_synopsis_coverage) exists to surface. This query returns the
+# CWID's full Academic-Article set (articleYear >= 2020 per D4); synopsis
+# coverage is a separate, explicit check.
+#
+# `analysis_summary_author.personIdentifier` is the CWID column — the
+# same join AUTHOR_MAPPING_SQL uses. The spec's "reporting_authorships"
+# is this table.
+
+
+def get_pmids_for_cwid(cwid: str) -> list[str]:
+    """Return the accepted-publication PMID set for one CWID (#80 R2).
+
+    Academic Articles only, articleYear >= 2020 (the D4 cutoff). PMIDs are
+    returned as strings, newest first. Synopsis and score coverage are NOT
+    filtered here — callers run `check_synopsis_coverage` and the
+    PROCESSING# checkpoint separately.
+
+    An empty/blank CWID, or a CWID with no accepted publications, returns
+    an empty list.
+    """
+    if not cwid or not cwid.strip():
+        return []
+    from sqlalchemy import text
+
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(text(PMIDS_BY_CWID_SQL), {"cwid": cwid.strip()})
+        return [str(row[0]) for row in rows]
+    finally:
+        conn.close()
+
+
+SYNOPSIS_COVERAGE_SQL = """
+SELECT external_id
+FROM reciterai_synopsis
+WHERE entity_type = 'publication'
+    AND synopsis IS NOT NULL
+    AND synopsis != ''
+    AND external_id IN :pmid_list
+"""
+# Synopsis-precondition check for the onboarding workflow (#80 R3 step 1).
+# `external_id` holds the PMID as varchar (per the A6 correction noted on
+# PUBLICATION_EXTRACTION_SQL), so it is matched against stringified PMIDs.
+
+
+def check_synopsis_coverage(pmids: list[str]) -> dict[str, list[str]]:
+    """Partition `pmids` by whether a non-empty reciterai_synopsis row exists.
+
+    Returns ``{"present": [...], "missing": [...]}`` — both lists sorted
+    and stringified. The onboarding orchestrator (#80 R3 step 1) uses
+    `missing` to decide whether to defer a run pending synopsis backfill.
+
+    Empty input returns empty lists without opening a DB connection.
+    """
+    wanted = sorted({str(p) for p in pmids if str(p).strip()})
+    if not wanted:
+        return {"present": [], "missing": []}
+    from sqlalchemy import bindparam, text
+
+    stmt = text(SYNOPSIS_COVERAGE_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(stmt, {"pmid_list": wanted})
+        present = {str(row[0]) for row in rows}
+    finally:
+        conn.close()
+    return {
+        "present": sorted(present),
+        "missing": sorted(set(wanted) - present),
+    }

@@ -28,7 +28,8 @@
     "pool_top_papers_per_subtopic",
     "retry_sweep_max_pmids",
     "retry_sweep_quarantine_after",
-    "retry_sweep_min_age_days"
+    "retry_sweep_min_age_days",
+    "onboarding_cost_guard_max_pmids"
   ],
   "properties": {
     "uncovered_score_floor": {
@@ -153,6 +154,11 @@
       "type": "integer",
       "minimum": 1,
       "description": "A failed PROCESSING# row must be at least this many days old before the retry sweep picks it up, so the normal pipeline has a chance to settle before a forced retry."
+    },
+    "onboarding_cost_guard_max_pmids": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "New-researcher onboarding (#80): maximum net Bedrock/OpenAI-bound scoring work, in PMIDs, that a `score_publications.py --pmids` run will process without an explicit override. Counted AFTER per-PMID idempotency culling, so a near-complete re-run does not trip. Catches CWID collision / malformed queries / anomalously large publication histories."
     }
   }
 }
