@@ -21,6 +21,7 @@ rule. It is invoked by Step Functions as the first Task state of
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -36,7 +37,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # `utils.sql_queries` so the SQLAlchemy engine factory finds creds.
 import utils.secrets_loader  # noqa: F401
 
-from utils.dynamodb_helpers import get_table, TABLE_NAME
+from utils.dynamodb_helpers import (
+    get_dynamo_client,
+    get_processing_rows,
+    get_table,
+    quarantine_pmid,
+    query_failed_pmids,
+    TABLE_NAME,
+)
 from utils.env_check import load_thresholds
 from utils.stage_records import (
     STATUS_COMPLETE,
@@ -44,6 +52,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from pipeline_common import alert
+from pipeline_enrichment import alerting as teams_alerting
 from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
@@ -144,6 +153,137 @@ def resolve_delta_pmids(
 
 
 # ---------------------------------------------------------------------------
+# State-based retry sweep
+# ---------------------------------------------------------------------------
+
+# The current taxonomy version is the GSI hash key for the failed-PMID
+# query. taxonomy_v2.json is bundled into the orchestrator Lambda zip for
+# this reason — see the orchestrator row in scripts/build_lambda_zips.sh.
+_TAXONOMY_FILE = Path(__file__).parent.parent / "taxonomy_v2.json"
+
+
+def current_taxonomy_version() -> str:
+    """Return the active `taxonomy_version` string from taxonomy_v2.json."""
+    with open(_TAXONOMY_FILE) as f:
+        return json.load(f)["taxonomy_version"]
+
+
+def resolve_retry_sweep(
+    client: Any,
+    *,
+    table_name: str,
+    taxonomy_version: str,
+    thresholds: dict,
+    now_dt: datetime | None = None,
+) -> dict:
+    """Recover failed PMIDs that aged out of the date delta; quarantine the
+    un-fixable ones.
+
+    Each weekly orchestrator pass runs this after the publication-date
+    delta is computed. Without it, recovery of a failed PMID depends on an
+    operator noticing before the PMID falls out of the delta window — which
+    does not scale.
+
+    Every `status='failed'` PROCESSING# row under `taxonomy_version` is
+    partitioned:
+
+    - `retry_count >= retry_sweep_quarantine_after` → **quarantined**: a
+      QUARANTINE# row is written and the PROCESSING# row's status flips to
+      'quarantined', so it leaves the failed-GSI partition permanently and
+      no future sweep sees it. Returned in `quarantined_pmids` for the
+      caller to alert on. Prevents infinite retry loops on content that
+      both Sonnet and the OpenAI fallback filter.
+    - `failed_at` older than `retry_sweep_min_age_days`, retry_count below
+      the quarantine threshold → **retry candidate**.
+    - `failed_at` within the min-age window → skipped this week, so the
+      normal pipeline gets a chance to settle before a forced retry.
+
+    Retry candidates are sorted oldest-failure-first and capped at
+    `retry_sweep_max_pmids`; the overflow waits for the next sweep so one
+    bad week cannot blow up scoring cost.
+
+    Returns ``{"retry_pmids": [...], "quarantined_pmids": [...]}``.
+    """
+    max_pmids = int(thresholds["retry_sweep_max_pmids"])
+    quarantine_after = int(thresholds["retry_sweep_quarantine_after"])
+    min_age_days = int(thresholds["retry_sweep_min_age_days"])
+    now_dt = now_dt or datetime.now(timezone.utc)
+
+    failed_pmids = query_failed_pmids(client, table_name, taxonomy_version)
+    if not failed_pmids:
+        return {"retry_pmids": [], "quarantined_pmids": []}
+
+    rows = get_processing_rows(client, table_name, failed_pmids)
+
+    retry_candidates: list[tuple[str, str]] = []  # (sort_key, pmid)
+    quarantined: list[str] = []
+
+    for pmid in failed_pmids:
+        row = rows.get(pmid, {})
+        retry_count = int(row.get("retry_count", 0))
+        failed_at = row.get("failed_at")
+
+        if retry_count >= quarantine_after:
+            quarantine_pmid(
+                client, table_name, pmid,
+                retry_count=retry_count,
+                last_error=row.get("error", ""),
+                taxonomy_version=taxonomy_version,
+            )
+            quarantined.append(pmid)
+            continue
+
+        # Age filter. A legacy failed row carries no `failed_at` (the field
+        # predates mark_processing_failed) — it is certainly stale, so treat
+        # it as eligible and sort it first ("" sorts before any timestamp).
+        if not failed_at:
+            retry_candidates.append(("", pmid))
+            continue
+        try:
+            fa = datetime.fromisoformat(failed_at.replace("Z", "+00:00"))
+        except ValueError:
+            retry_candidates.append(("", pmid))
+            continue
+        if (now_dt - fa) >= timedelta(days=min_age_days):
+            retry_candidates.append((failed_at, pmid))
+
+    # Oldest failure first, then cap.
+    retry_candidates.sort()
+    retry_pmids = [pmid for _, pmid in retry_candidates[:max_pmids]]
+
+    logger.info(
+        "Retry sweep: %d failed row(s) — %d retry candidate(s) "
+        "(%d after the %d cap), %d quarantined.",
+        len(failed_pmids), len(retry_candidates),
+        len(retry_pmids), max_pmids, len(quarantined),
+    )
+    return {"retry_pmids": retry_pmids, "quarantined_pmids": quarantined}
+
+
+def _alert_quarantined(pmids: list[str], *, started_at: str) -> None:
+    """Surface newly-quarantined PMIDs to the operator via one batched Teams
+    alert (not one alert per PMID).
+
+    Teams is the operator-review channel. `pipeline_enrichment.alerting` is
+    best-effort and never raises, so a webhook outage cannot break the
+    orchestrator.
+    """
+    teams_alerting.alert(
+        "WARN",
+        "Retry sweep quarantined PMIDs",
+        f"{len(pmids)} PMID(s) exceeded the retry budget and were "
+        "quarantined. They are excluded from all future retry sweeps and "
+        "need manual review — e.g. both Sonnet and the OpenAI fallback "
+        "content-filtered the publication, or its synopsis is malformed.",
+        {
+            "quarantined_pmids": ", ".join(pmids),
+            "count": len(pmids),
+            "started_at": started_at,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Open Q5: prior-run-in-progress lock
 # ---------------------------------------------------------------------------
 
@@ -205,20 +345,41 @@ def build_state_machine_input(
     last_run_at: str | None,
     started_at: str,
     run_id: str,
+    retry_pmids: list[str] | None = None,
 ) -> dict:
     """Produce the dict the state machine's first Task receives.
 
     Downstream Task states read this via JSONPath to compose their
     envelopes. Kept small: the corpus itself stays in DynamoDB / S3;
     we pass identifiers, not bytes.
+
+    `retry_pmids` is the hot-path retry sweep's recovered-PMID list. It is
+    kept distinct from the date-delta `pmids` so:
+
+    - `delta.size` stays a pure date-delta count (the hot_run STAGE# row
+      reads it), and `delta.retry_size` carries the sweep count separately;
+    - the Score handler can pass exactly the retry list to
+      `score_publications --retry-pmids`;
+    - `delta.all_pmids` (the union) is what TopTopic consumes, so a retry
+      PMID that scores successfully also gets its top topic recomputed.
+
+    `run_kind` tags the run for the hot_run STAGE# row — "delta" vs.
+    "delta+retry" — so a retry-sweep run is distinguishable from a pure
+    delta run when auditing the substrate.
     """
+    retry_pmids = list(retry_pmids or [])
+    all_pmids = sorted(set(pmids) | set(retry_pmids))
     return {
         "run_id": run_id,
         "started_at": started_at,
         "last_successful_hot_run_at": last_run_at,
+        "run_kind": "delta+retry" if retry_pmids else "delta",
         "delta": {
             "pmids": pmids,
             "size": len(pmids),
+            "retry_pmids": retry_pmids,
+            "retry_size": len(retry_pmids),
+            "all_pmids": all_pmids,
             # T7 placeholders. The state machine's `CheckAssignNeeded`
             # and `CheckRollupNeeded` Choice gates route around the
             # Assign / Rollup tasks via Pass states that inject stub
@@ -230,7 +391,7 @@ def build_state_machine_input(
             "dirty_cwids": [],
         },
         "trace": {
-            "orchestrator_version": "0.1.0",
+            "orchestrator_version": "0.2.0",
         },
     }
 
@@ -328,6 +489,33 @@ def handler(event: dict, context: Any = None) -> dict:
 
     pmids = resolve_delta_pmids(last_run_at, query_fn=_ddb_to_pmid_query)
 
+    # 3. State-based retry sweep. Best-effort by design: the weekly delta
+    # scoring is the primary job, the sweep is recovery. A sweep failure
+    # (GSI query error, missing taxonomy file) must not block delta
+    # scoring — on failure we log, WARN-alert, and proceed delta-only.
+    retry_pmids: list[str] = []
+    try:
+        sweep = resolve_retry_sweep(
+            get_dynamo_client(),
+            table_name=TABLE_NAME,
+            taxonomy_version=current_taxonomy_version(),
+            thresholds=load_thresholds(),
+        )
+        retry_pmids = sweep["retry_pmids"]
+        if sweep["quarantined_pmids"]:
+            _alert_quarantined(sweep["quarantined_pmids"], started_at=started_at)
+    except Exception as exc:  # noqa: BLE001 — sweep is non-critical recovery
+        logger.exception("Retry sweep failed; proceeding with delta only.")
+        alert.dispatch(
+            "WARN",
+            "Hot path retry sweep failed — delta scoring proceeded",
+            {
+                "source": "pipeline_hot.orchestrator",
+                "error": str(exc),
+                "started_at": started_at,
+            },
+        )
+
     return {
         "status": "ready",
         "input": build_state_machine_input(
@@ -335,5 +523,6 @@ def handler(event: dict, context: Any = None) -> dict:
             last_run_at=last_run_at,
             started_at=started_at,
             run_id=run_id,
+            retry_pmids=retry_pmids,
         ),
     }

@@ -35,7 +35,7 @@ mkdir -p "$BUILD_DIR"
 # pipeline_common/ for the eventual real-dispatch swap.
 
 LAMBDAS=(
-  "orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py"
+  "orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json"
   "score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json"
   "assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts"
   "top-topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py pipeline_hot/handlers/top_topic.py compute_top_topic.py"

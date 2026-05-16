@@ -180,3 +180,78 @@ def test_normal_run_still_consults_should_skip(monkeypatch):
     asyncio.run(sp.main())
 
     should_skip_mock.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# --retry-pmids — hot-path retry sweep ingestion
+# ---------------------------------------------------------------------------
+
+
+def test_cli_rejects_retry_and_rescore_together(monkeypatch):
+    """--retry-pmids (additive sweep) and --rescore-pmids (operator force
+    recovery) are competing mechanisms and cannot be combined."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", [
+        "score_publications.py",
+        "--rescore-pmids", "1",
+        "--retry-pmids", "2",
+    ])
+    with pytest.raises(SystemExit):
+        asyncio.run(sp.main())
+
+
+def test_retry_pmids_unioned_onto_date_delta(monkeypatch):
+    """--retry-pmids extracts the failed PMIDs via extract_publications_by_pmids
+    and unions them onto the --delta-since date delta, deduplicating against
+    PMIDs already present in the delta."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", [
+        "score_publications.py",
+        "--delta-since", "2026-05-01T00:00:00Z",
+        "--retry-pmids", "111,222",
+    ])
+
+    fake_table = MagicMock()
+    fake_table.put_item = MagicMock(return_value={})
+    monkeypatch.setattr(sp, "get_table", lambda: fake_table)
+    monkeypatch.setattr(sp, "load_thresholds", lambda: {
+        "score_floor": 0.3,
+        "target_failure_rate": 0.01,
+        "uncovered_score_floor": 0.5,
+    })
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    # Date delta carries 999 and 111 — 111 is also a retry PMID.
+    monkeypatch.setattr(
+        sp, "extract_publications",
+        lambda delta_since=None: [{"pmid": "999"}, {"pmid": "111"}],
+    )
+    by_pmids_calls: list = []
+
+    def fake_by_pmids(pmids):
+        by_pmids_calls.append(list(pmids))
+        return [{"pmid": "111"}, {"pmid": "222"}]
+
+    monkeypatch.setattr(sp, "extract_publications_by_pmids", fake_by_pmids)
+    monkeypatch.setattr(sp, "extract_author_mapping", lambda: {})
+    monkeypatch.setattr(sp, "extract_faculty_metadata", lambda: {})
+
+    captured: dict = {}
+
+    def fake_unscored(pubs, *a, **k):
+        captured["pmids"] = sorted(str(p["pmid"]) for p in pubs)
+        return []
+
+    monkeypatch.setattr(sp, "get_unscored_publications", fake_unscored)
+    monkeypatch.setattr(sp, "should_skip", MagicMock(return_value=(False, None)))
+
+    asyncio.run(sp.main())
+
+    # extract_publications_by_pmids received exactly the retry list.
+    assert by_pmids_calls == [["111", "222"]]
+    # 999 + 111 from the delta, 222 unioned from the retry sweep;
+    # 111 is NOT double-counted.
+    assert captured["pmids"] == ["111", "222", "999"]

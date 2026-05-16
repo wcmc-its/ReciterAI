@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -414,3 +415,205 @@ def test_state_machine_asl_has_catch_on_every_task():
         assert any(
             c.get("Next") == "WriteHotRunFailed" for c in catches
         ), f"{name} missing Catch → WriteHotRunFailed"
+
+
+def test_state_machine_top_topic_consumes_all_pmids():
+    """TopTopic must score the union of date-delta + retry PMIDs so a retry
+    PMID that scores successfully also gets its top topic recomputed."""
+    asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
+    asl = json.loads(asl_path.read_text())
+    params = asl["States"]["TopTopic"]["Parameters"]
+    assert params["delta_pmids.$"] == "$.orchestrate.input.delta.all_pmids"
+
+
+def test_state_machine_hot_run_row_records_retry_metadata():
+    """The hot_run STAGE# row distinguishes a retry-sweep run from a pure
+    delta run via retry_size + run_kind."""
+    asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
+    asl = json.loads(asl_path.read_text())
+    item = asl["States"]["WriteHotRunComplete"]["Parameters"]["Item"]
+    assert "retry_size" in item
+    assert item["run_kind"]["S.$"] == "$.orchestrate.input.run_kind"
+
+
+# ---------- retry sweep: state-machine input shape ----------
+
+
+def test_build_state_machine_input_includes_retry_fields():
+    sm_input = orch.build_state_machine_input(
+        pmids=["1", "2"],
+        last_run_at=None,
+        started_at="2026-05-16T12:00:00Z",
+        run_id="run-x",
+        retry_pmids=["2", "9"],
+    )
+    assert sm_input["run_kind"] == "delta+retry"
+    assert sm_input["delta"]["retry_pmids"] == ["2", "9"]
+    assert sm_input["delta"]["retry_size"] == 2
+    # all_pmids is the deduplicated union — "2" is in both lists.
+    assert sm_input["delta"]["all_pmids"] == ["1", "2", "9"]
+    # delta.size stays a pure date-delta count (the hot_run row reads it).
+    assert sm_input["delta"]["size"] == 2
+
+
+def test_build_state_machine_input_run_kind_delta_when_no_retry():
+    sm_input = orch.build_state_machine_input(
+        pmids=["1"],
+        last_run_at=None,
+        started_at="2026-05-16T12:00:00Z",
+        run_id="run-x",
+    )
+    assert sm_input["run_kind"] == "delta"
+    assert sm_input["delta"]["retry_pmids"] == []
+    assert sm_input["delta"]["retry_size"] == 0
+    assert sm_input["delta"]["all_pmids"] == ["1"]
+
+
+def test_current_taxonomy_version_reads_taxonomy_file():
+    assert orch.current_taxonomy_version() == "taxonomy_v2"
+
+
+# ---------- resolve_retry_sweep ----------
+
+_SWEEP_THRESHOLDS = {
+    "retry_sweep_max_pmids": 2,
+    "retry_sweep_quarantine_after": 3,
+    "retry_sweep_min_age_days": 7,
+}
+_SWEEP_NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def _iso(dt: datetime) -> str:
+    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def test_retry_sweep_no_failed_rows_is_a_noop(monkeypatch):
+    monkeypatch.setattr(orch, "query_failed_pmids", lambda *a, **k: [])
+    rows_mock = MagicMock()
+    monkeypatch.setattr(orch, "get_processing_rows", rows_mock)
+    result = orch.resolve_retry_sweep(
+        MagicMock(), table_name="reciterai",
+        taxonomy_version="taxonomy_v2", thresholds=_SWEEP_THRESHOLDS,
+        now_dt=_SWEEP_NOW,
+    )
+    assert result == {"retry_pmids": [], "quarantined_pmids": []}
+    # No failed rows → no second round-trip for full row attributes.
+    rows_mock.assert_not_called()
+
+
+def test_retry_sweep_partitions_candidate_fresh_and_quarantine(monkeypatch):
+    monkeypatch.setattr(
+        orch, "query_failed_pmids",
+        lambda *a, **k: ["old1", "fresh1", "exhausted1"],
+    )
+    monkeypatch.setattr(orch, "get_processing_rows", lambda *a, **k: {
+        # 15 days old, under retry threshold → retry candidate
+        "old1": {"retry_count": 1,
+                 "failed_at": _iso(datetime(2026, 5, 1, tzinfo=timezone.utc)),
+                 "error": "transient"},
+        # 1 day old → too fresh, skipped this week
+        "fresh1": {"retry_count": 1,
+                   "failed_at": _iso(datetime(2026, 5, 15, tzinfo=timezone.utc)),
+                   "error": "transient"},
+        # retry_count == quarantine_after → quarantined
+        "exhausted1": {"retry_count": 3,
+                       "failed_at": _iso(datetime(2026, 5, 1, tzinfo=timezone.utc)),
+                       "error": "content-filtered"},
+    })
+    q_calls: list = []
+    monkeypatch.setattr(
+        orch, "quarantine_pmid",
+        lambda c, t, pmid, **kw: q_calls.append((pmid, kw)),
+    )
+    result = orch.resolve_retry_sweep(
+        MagicMock(), table_name="reciterai",
+        taxonomy_version="taxonomy_v2", thresholds=_SWEEP_THRESHOLDS,
+        now_dt=_SWEEP_NOW,
+    )
+    assert result["retry_pmids"] == ["old1"]
+    assert result["quarantined_pmids"] == ["exhausted1"]
+    # quarantine_pmid received the row's retry_count + last error.
+    assert q_calls == [("exhausted1", {
+        "retry_count": 3,
+        "last_error": "content-filtered",
+        "taxonomy_version": "taxonomy_v2",
+    })]
+
+
+def test_retry_sweep_caps_candidates_oldest_first(monkeypatch):
+    monkeypatch.setattr(
+        orch, "query_failed_pmids",
+        lambda *a, **k: ["p_new", "p_oldest", "p_mid"],
+    )
+    monkeypatch.setattr(orch, "get_processing_rows", lambda *a, **k: {
+        "p_new": {"retry_count": 0,
+                  "failed_at": _iso(datetime(2026, 5, 8, tzinfo=timezone.utc))},
+        "p_oldest": {"retry_count": 0,
+                     "failed_at": _iso(datetime(2026, 4, 1, tzinfo=timezone.utc))},
+        "p_mid": {"retry_count": 0,
+                  "failed_at": _iso(datetime(2026, 4, 20, tzinfo=timezone.utc))},
+    })
+    monkeypatch.setattr(orch, "quarantine_pmid", lambda *a, **k: None)
+    result = orch.resolve_retry_sweep(
+        MagicMock(), table_name="reciterai",
+        taxonomy_version="taxonomy_v2", thresholds=_SWEEP_THRESHOLDS,  # cap = 2
+        now_dt=_SWEEP_NOW,
+    )
+    # All three are >7d old; cap=2 keeps the two oldest, oldest first.
+    assert result["retry_pmids"] == ["p_oldest", "p_mid"]
+
+
+def test_retry_sweep_legacy_row_without_failed_at_is_eligible(monkeypatch):
+    monkeypatch.setattr(orch, "query_failed_pmids", lambda *a, **k: ["legacy"])
+    monkeypatch.setattr(orch, "get_processing_rows", lambda *a, **k: {
+        # No failed_at — the row predates mark_processing_failed.
+        "legacy": {"retry_count": 0},
+    })
+    monkeypatch.setattr(orch, "quarantine_pmid", lambda *a, **k: None)
+    result = orch.resolve_retry_sweep(
+        MagicMock(), table_name="reciterai",
+        taxonomy_version="taxonomy_v2", thresholds=_SWEEP_THRESHOLDS,
+        now_dt=_SWEEP_NOW,
+    )
+    assert result["retry_pmids"] == ["legacy"]
+
+
+# ---------- score handler: retry-pmids passthrough ----------
+
+
+def test_score_handler_passes_retry_pmids(monkeypatch):
+    captured_cmds: list = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmds.append(cmd)
+        return _FakePopen(
+            stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc","duration_ms":1,"cost_observed_usd":"0"}\n',
+            returncode=0,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    score_handler.handler({
+        "delta": {"pmids": ["1"], "size": 1,
+                  "retry_pmids": ["77", "88"], "retry_size": 2},
+        "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
+    })
+    cmd = captured_cmds[0]
+    assert "--retry-pmids" in cmd
+    assert "77,88" in cmd
+    # retry-pmids is additive — --delta-since is still passed.
+    assert "--delta-since" in cmd
+
+
+def test_score_handler_omits_retry_pmids_when_empty(monkeypatch):
+    captured_cmds: list = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmds.append(cmd)
+        return _FakePopen(
+            stdout='{"PK":"x","status":"complete","input_hash":"a","duration_ms":1,"cost_observed_usd":"0"}\n',
+            returncode=0,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    score_handler.handler({"delta": {"pmids": ["1"], "size": 1}})
+    assert "--retry-pmids" not in captured_cmds[0]

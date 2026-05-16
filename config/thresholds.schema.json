@@ -25,7 +25,10 @@
     "bootstrap_lookback_days",
     "discover_min_cluster_size",
     "target_failure_rate",
-    "pool_top_papers_per_subtopic"
+    "pool_top_papers_per_subtopic",
+    "retry_sweep_max_pmids",
+    "retry_sweep_quarantine_after",
+    "retry_sweep_min_age_days"
   ],
   "properties": {
     "uncovered_score_floor": {
@@ -135,6 +138,21 @@
       "type": "integer",
       "minimum": 1,
       "description": "Spotlight pool ranker: pool_score is the sum of the top-N impact_scores per subtopic. Aggregation knob, distinct from output-shape knobs (SELECTION_SIZE etc., not yet lifted). Lifted from spotlight/pool_ranker.py:TOP_PAPERS_PER_SUBTOPIC per #57 Tier B-1."
+    },
+    "retry_sweep_max_pmids": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of failed PMIDs the hot orchestrator's weekly retry sweep appends to the score set per run. Bounds the cost of a bad week; overflow candidates wait for the next sweep."
+    },
+    "retry_sweep_quarantine_after": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of failed scoring attempts (PROCESSING# retry_count) after which a PMID is quarantined — written to a QUARANTINE# row, excluded from future sweeps, and surfaced to the operator. Prevents infinite retry loops on un-fixable content."
+    },
+    "retry_sweep_min_age_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "A failed PROCESSING# row must be at least this many days old before the retry sweep picks it up, so the normal pipeline has a chance to settle before a forced retry."
     }
   }
 }

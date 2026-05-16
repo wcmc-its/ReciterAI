@@ -91,18 +91,32 @@ def handler(event: dict, context: Any = None) -> dict:
 
     Expected event:
         {
-          "delta": {"pmids": [...], "size": N},
+          "delta": {"pmids": [...], "size": N,
+                    "retry_pmids": [...], "retry_size": M},
           "last_successful_hot_run_at": "<iso8601>" | null
         }
+
+    `delta.retry_pmids` is the orchestrator retry sweep's recovered-PMID
+    list. When non-empty it is passed through as `--retry-pmids`, which
+    `score_publications` unions onto the `--delta-since` date delta — this
+    is the only path by which a PMID that aged out of the date window
+    reaches the scorer (the scorer recomputes the date delta itself and
+    otherwise never sees `delta.pmids`).
     """
     delta = event.get("delta", {})
     delta_since = event.get("last_successful_hot_run_at")
+    retry_pmids = delta.get("retry_pmids", [])
 
     cmd = [sys.executable, "-m", "score_publications", "--emit-envelope"]
     if delta_since:
         cmd += ["--delta-since", delta_since]
+    if retry_pmids:
+        cmd += ["--retry-pmids", ",".join(str(p) for p in retry_pmids)]
 
-    logger.info(f"score handler invoking: {' '.join(cmd)} ({delta.get('size', 0)} pmids)")
+    logger.info(
+        f"score handler invoking: {' '.join(cmd)} "
+        f"({delta.get('size', 0)} delta pmids, {len(retry_pmids)} retry pmids)"
+    )
     # Stream subprocess output to Lambda stdout (CloudWatch) line-by-line so
     # an operator watching live can see Bedrock progress / error spew. Earlier
     # capture_output=True buffered everything until proc.exit; a 900s timeout

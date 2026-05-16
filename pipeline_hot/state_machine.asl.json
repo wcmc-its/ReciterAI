@@ -1,5 +1,5 @@
 {
-  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: delta-only score, assign, and rollup. NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5). CheckAssignNeeded / CheckRollupNeeded route around Assign / Rollup via Pass states that inject typed stub envelopes when the orchestrator's placeholder lists are empty (T7 follow-up: populate the lists from delta PMID metadata).",
+  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: score, assign, and rollup the publication-date delta plus the orchestrator's state-based retry sweep (failed PMIDs that aged out of the delta window). NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5). CheckAssignNeeded / CheckRollupNeeded route around Assign / Rollup via Pass states that inject typed stub envelopes when the orchestrator's placeholder lists are empty (T7 follow-up: populate the lists from delta PMID metadata).",
   "StartAt": "Orchestrate",
   "States": {
     "Orchestrate": {
@@ -144,7 +144,7 @@
       "Type": "Task",
       "Resource": "${TopTopicLambdaArn}",
       "Parameters": {
-        "delta_pmids.$": "$.orchestrate.input.delta.pmids"
+        "delta_pmids.$": "$.orchestrate.input.delta.all_pmids"
       },
       "ResultPath": "$.top_topic_envelope",
       "Retry": [
@@ -254,6 +254,8 @@
           "started_at.$": "$.orchestrate.input.started_at",
           "run_id.$": "$.orchestrate.input.run_id",
           "delta_size": {"N.$": "States.Format('{}', $.orchestrate.input.delta.size)"},
+          "retry_size": {"N.$": "States.Format('{}', $.orchestrate.input.delta.retry_size)"},
+          "run_kind": {"S.$": "$.orchestrate.input.run_kind"},
           "score_input_hash": {"S.$": "$.score_envelope.input_hash.S"},
           "assign_input_hash": {"S.$": "$.assign_envelope.input_hash.S"},
           "top_topic_input_hash": {"S.$": "$.top_topic_envelope.input_hash.S"},
