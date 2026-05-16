@@ -2,16 +2,20 @@
 #
 # smoke_hot_path.sh — Phase 10 T14 smoke test
 #
-# Starts a Step Functions execution of reciterai-hot-path against a
-# sandbox environment, polls for completion, and verifies:
+# Starts a Step Functions execution of reciterai-hot-path, polls for
+# completion, and verifies:
 #
 #   1. Execution status == SUCCEEDED.
-#   2. A STAGE#hot_run#GLOBAL row with status="complete" exists for
-#      this execution's run_id.
+#   2. The STAGE#hot_run#GLOBAL row written by THIS execution (matched on
+#      run_id) has status="complete".
 #
-# Inputs: a tiny synthetic PMID set ([99999001, 99999002]). The handlers
-# detect synthetic mode via initiated_by=="smoke" and use stub Bedrock
-# responses (handler-level branch — see pipeline_hot/handlers/*.py).
+# Inputs: the execution input carries run_id / started_at, but no
+# synthetic PMID set is honored — the Orchestrate task is passed only
+# state_machine_arn / execution_arn / run_id, so the orchestrator always
+# computes the real publication-date delta from ReciterDB and runs the
+# retry sweep. A smoke is therefore a REAL hot-path run (real Bedrock
+# scoring, real DynamoDB writes); when the delta window holds no new
+# publications it still completes, against zero PMIDs.
 #
 # Usage:
 #   AWS_REGION=us-east-1 \
@@ -86,53 +90,52 @@ if [[ "$status" != "SUCCEEDED" ]]; then
   exit 1
 fi
 
-echo ">> verifying STAGE#hot_run#GLOBAL row"
+echo ">> verifying STAGE#hot_run#GLOBAL row for run_id=$RUN_ID"
 
-# Query the most recent hot_run row; verify it matches this run.
-LATEST=$(
+# Locate THIS run's hot_run row by run_id — never by "highest SK".
+# The state machine writes the execution name (== this smoke's RUN_ID)
+# as `run_id` on both the complete and the failed hot_run rows, so it
+# uniquely identifies this execution's outcome.
+#
+# Reading the lexicographically-highest SK instead is wrong: a failed
+# row's SK is `RUN#FAILED#{ts}` and a successful row's is `RUN#{ts}`,
+# and 'F' (0x46) > '2' (0x32) — so every `RUN#FAILED#...` sorts above
+# every `RUN#{iso-timestamp}`. One stale failed row from any past run
+# would therefore mask this run's real result. A filter on run_id is
+# immune to that.
+ROW=$(
   aws dynamodb query \
     --region "$REGION" \
     --table-name "$TABLE" \
     --key-condition-expression "PK = :pk" \
-    --expression-attribute-values '{":pk":{"S":"STAGE#hot_run#GLOBAL"}}' \
-    --no-scan-index-forward \
-    --limit 1 \
+    --filter-expression "run_id = :rid" \
+    --expression-attribute-values "{\":pk\":{\"S\":\"STAGE#hot_run#GLOBAL\"},\":rid\":{\"S\":\"${RUN_ID}\"}}" \
     --output json
 )
 
-status_val="$(echo "$LATEST" | python3 -c '
+verdict="$(echo "$ROW" | python3 -c '
 import json, sys
-data = json.load(sys.stdin)
-items = data.get("Items", [])
+items = json.load(sys.stdin).get("Items", [])
 if not items:
-    print("MISSING"); sys.exit(0)
+    print("MISSING|"); sys.exit(0)
 row = items[0]
-print(row.get("status", {}).get("S", ""))
+print(row.get("status", {}).get("S", "") + "|" + row.get("SK", {}).get("S", ""))
 ')"
-run_id_val="$(echo "$LATEST" | python3 -c '
-import json, sys
-data = json.load(sys.stdin)
-items = data.get("Items", [])
-if not items:
-    sys.exit(0)
-row = items[0]
-sk = row.get("SK", {}).get("S", "")
-print(sk)
-')"
+status_val="${verdict%%|*}"
+sk_val="${verdict#*|}"
 
-if [[ "$status_val" != "complete" ]]; then
-  echo "smoke_hot_path.sh: latest STAGE#hot_run#GLOBAL row has status='$status_val' (expected 'complete'). SK='$run_id_val'." >&2
+if [[ "$status_val" == "MISSING" ]]; then
+  echo "smoke_hot_path.sh: no STAGE#hot_run#GLOBAL row found with run_id='$RUN_ID'." >&2
+  echo "  The execution succeeded but wrote no hot_run row — inspect the state machine." >&2
   exit 1
 fi
 
-# SK is RUN#{started_at}; require our started_at to be the prefix.
-if [[ "$run_id_val" != "RUN#${STARTED_AT}"* ]]; then
-  echo "smoke_hot_path.sh: latest STAGE#hot_run#GLOBAL SK '$run_id_val' does not match expected RUN#${STARTED_AT}*." >&2
-  echo "  (Another hot run may have written more recently; re-run smoke test.)" >&2
+if [[ "$status_val" != "complete" ]]; then
+  echo "smoke_hot_path.sh: this run's STAGE#hot_run#GLOBAL row has status='$status_val' (expected 'complete'). SK='$sk_val'." >&2
   exit 1
 fi
 
 echo
 echo "smoke_hot_path.sh: PASS"
 echo "  execution arn: $EXEC_ARN"
-echo "  STAGE# row:    PK=STAGE#hot_run#GLOBAL  SK=$run_id_val  status=complete"
+echo "  STAGE# row:    PK=STAGE#hot_run#GLOBAL  SK=$sk_val  run_id=$RUN_ID  status=complete"
