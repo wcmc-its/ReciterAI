@@ -232,6 +232,12 @@ class ScoringResult:
     # serialized output and DDB PROCESSING# tracker so downstream consumers
     # (drift evaluator, ad-hoc query) can identify fallback-scored PMIDs.
     fallback_model: str | None = None
+    # True when the dense pass hit Sonnet's content filter, regardless of
+    # whether the OpenAI fallback then recovered the PMID. Distinct from
+    # `fallback_model`: a content-filter that the fallback ALSO failed leaves
+    # fallback_model None but content_filtered True. Aggregated into the
+    # run-level `content_filter_count` on the score STAGE# row.
+    content_filtered: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -521,19 +527,28 @@ def _dense_score(bedrock: BedrockClient, dense_prompt: str) -> tuple[dict, str |
             f"(stopReason={filter_err.stop_reason!r}); "
             f"falling back to {OPENAI_FALLBACK_MODEL}"
         )
-        openai = get_openai_client()
-        completion = openai_call_with_retry(
-            openai,
-            model=OPENAI_FALLBACK_MODEL,
-            system_prompt=_OPENAI_FALLBACK_SYSTEM_PROMPT,
-            user_prompt=dense_prompt,
-            response_format={"type": "json_object"},
-            max_completion_tokens=4096,
-        )
-        content = (completion.choices[0].message.content or "").strip()
-        cleaned = re.sub(r'```json\n?|\n?```', '', content).strip()
-        raw_dense = json.loads(cleaned)
-        return raw_dense, OPENAI_FALLBACK_MODEL
+        try:
+            openai = get_openai_client()
+            completion = openai_call_with_retry(
+                openai,
+                model=OPENAI_FALLBACK_MODEL,
+                system_prompt=_OPENAI_FALLBACK_SYSTEM_PROMPT,
+                user_prompt=dense_prompt,
+                response_format={"type": "json_object"},
+                max_completion_tokens=4096,
+            )
+            content = (completion.choices[0].message.content or "").strip()
+            cleaned = re.sub(r'```json\n?|\n?```', '', content).strip()
+            raw_dense = json.loads(cleaned)
+            return raw_dense, OPENAI_FALLBACK_MODEL
+        except Exception as fallback_err:
+            # The fallback also failed. Tag the exception so the caller can
+            # still count this PMID as a content-filter event — the
+            # run-level content_filter_count must see both outcomes, and a
+            # filtered-then-failed PMID is exactly the quarantine candidate
+            # the hot-path retry sweep cares about.
+            fallback_err.reciterai_content_filtered = True
+            raise
 
 
 # ---------------------------------------------------------------------------
@@ -632,6 +647,8 @@ def score_one_publication(
         raw_dense, fallback_used = _dense_score(bedrock, dense_prompt)
         if fallback_used:
             result.fallback_model = fallback_used
+            # Fallback fired ⇒ Sonnet content-filtered (and was recovered).
+            result.content_filtered = True
 
         # Parse dense result: map int IDs back to topic names
         dense_scores = {}
@@ -682,6 +699,11 @@ def score_one_publication(
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Failed to score pmid={pmid}: {error_msg}")
+        # A content-filter whose OpenAI fallback also failed: _dense_score
+        # tags the exception so this filtered-then-failed PMID still counts
+        # toward the run-level content_filter_count.
+        if getattr(e, "reciterai_content_filtered", False):
+            result.content_filtered = True
         try:
             # mark_processing_failed is an UpdateItem with ADD retry_count
             # :one — the counter survives across re-score attempts, which is
@@ -1053,6 +1075,7 @@ async def main():
         return
 
     scored_records: list = []
+    content_filter_count = 0
     scoring_results_path = Path(__file__).parent / 'scoring_results.json'
 
     if not unscored:
@@ -1073,12 +1096,14 @@ async def main():
         succeeded = sum(1 for r in results if r.status == 'complete')
         failed = sum(1 for r in results if r.status == 'failed')
         failure_rate = failed / total if total > 0 else 0.0
+        content_filter_count = sum(1 for r in results if r.content_filtered)
 
         print(f"\n--- Scoring Summary ---")
         print(f"  Total publications scored: {total}")
         print(f"  Successfully scored:       {succeeded}")
         print(f"  Failed:                    {failed}")
         print(f"  Failure rate:              {failure_rate * 100:.2f}%")
+        print(f"  Content-filtered (Sonnet): {content_filter_count}")
 
         if failure_rate > TARGET_FAILURE_RATE:
             print(f"\n  WARNING: Failure rate {failure_rate * 100:.2f}% exceeds "
@@ -1128,6 +1153,7 @@ async def main():
         output_pointer=str(scoring_results_path),
         records_written=len(scored_records),
         model_ids_snapshot=STAGE_MODEL_IDS,
+        content_filter_count=content_filter_count,
     )
     if args.emit_envelope:
         print(json.dumps(build_complete_record(**complete_kwargs), default=str))

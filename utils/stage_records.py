@@ -179,6 +179,7 @@ def build_complete_record(
     force_reason: str | None = None,
     run_id: str | None = None,
     tunable_inputs: dict[str, Any] | None = None,
+    content_filter_count: int | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# complete row dict. No I/O.
@@ -200,6 +201,13 @@ def build_complete_record(
     Convention: keys are tunable names (e.g., 'confidence_floor'), plus a
     parallel `<key>_source` discriminator with one of {'config','cli','default'}.
     Same backwards-compatible additive pattern as `run_id` (Phase 11 D-13) —
+    omitted when None.
+
+    `content_filter_count` is an optional run-level count of publications
+    whose dense-scoring pass hit the model content filter (Sonnet returned
+    empty content), regardless of whether the OpenAI fallback then recovered
+    them. Surfaces on the score_publications STAGE# row so a content-filter
+    rate spike is visible without a per-PMID scan. Same additive pattern —
     omitted when None.
     """
     item = _base_item(
@@ -224,6 +232,8 @@ def build_complete_record(
         item["run_id"] = run_id
     if tunable_inputs is not None:
         item["tunable_inputs"] = dict(tunable_inputs)
+    if content_filter_count is not None:
+        item["content_filter_count"] = content_filter_count
     return item
 
 
