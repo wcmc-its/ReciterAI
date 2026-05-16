@@ -13,8 +13,10 @@ from utils import secrets_loader as sl
 
 @pytest.fixture(autouse=True)
 def _scrub_env(monkeypatch):
-    """Each test starts with no DB_* and no AWS_LAMBDA_FUNCTION_NAME."""
+    """Each test starts with no DB_*, no OPENAI_API_KEY, and no AWS_LAMBDA_FUNCTION_NAME."""
     for k in sl.DB_ENV_KEYS:
+        monkeypatch.delenv(k, raising=False)
+    for k in sl.OPENAI_ENV_KEYS:
         monkeypatch.delenv(k, raising=False)
     monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
 
@@ -111,3 +113,54 @@ def test_secret_values_coerced_to_str(monkeypatch):
     sl.load_db_credentials_from_secret()
     import os
     assert os.environ["DB_NAME"] == "12345"
+
+
+# ---------------------------------------------------------------------------
+# OpenAI API key loader — mirrors the DB pattern (same shared helper)
+# ---------------------------------------------------------------------------
+
+
+def test_openai_loader_populates_key_when_unset(monkeypatch):
+    fake_client = _stub_boto3(monkeypatch, {"OPENAI_API_KEY": "sk-from-secret"})
+    assert sl.load_openai_api_key_from_secret() is True
+    import os
+    assert os.environ["OPENAI_API_KEY"] == "sk-from-secret"
+    fake_client.get_secret_value.assert_called_once_with(
+        SecretId="reciterai/openai-api-key"
+    )
+
+
+def test_openai_loader_short_circuits_when_already_set(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "preexisting")
+    fake_client = _stub_boto3(monkeypatch, {"OPENAI_API_KEY": "from-secret"})
+    assert sl.load_openai_api_key_from_secret() is False
+    fake_client.get_secret_value.assert_not_called()
+    import os
+    assert os.environ["OPENAI_API_KEY"] == "preexisting"
+
+
+def test_openai_loader_failure_does_not_raise(monkeypatch):
+    fake_client = MagicMock()
+    fake_client.get_secret_value.side_effect = RuntimeError("network down")
+    fake_boto3 = MagicMock()
+    fake_boto3.client.return_value = fake_client
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    assert sl.load_openai_api_key_from_secret() is False
+
+
+def test_openai_loader_accepts_custom_secret_id(monkeypatch):
+    fake_client = _stub_boto3(monkeypatch, {"OPENAI_API_KEY": "sk-x"})
+    sl.load_openai_api_key_from_secret(secret_id="custom/openai")
+    fake_client.get_secret_value.assert_called_once_with(SecretId="custom/openai")
+
+
+def test_db_and_openai_loaders_share_short_circuit_helper(monkeypatch):
+    """A single _populate_env_from_secret should handle both — verify the
+    DB loader still works after the refactor by re-running its happy path."""
+    _stub_boto3(monkeypatch, {
+        "DB_HOST": "h", "DB_USERNAME": "u",
+        "DB_PASSWORD": "p", "DB_NAME": "n",
+    })
+    assert sl.load_db_credentials_from_secret() is True
+    import os
+    assert os.environ["DB_HOST"] == "h"
