@@ -225,21 +225,45 @@ class ScoringResult:
 # Phase 1: Extract publications from ReciterDB
 # ---------------------------------------------------------------------------
 
-def extract_publications() -> list:
+def extract_publications(delta_since: str | None = None) -> list:
     """
     Extract publications from ReciterDB using PUBLICATION_EXTRACTION_SQL.
 
     Returns a list of dicts with keys: pmid, synopsis, abstract.
     Minimal — only what's needed for LLM scoring. Article metadata
     is looked up from ReciterDB at query time.
+
+    When `delta_since` is supplied (hot-path mode), restricts the result
+    set to publications added to Entrez on or after that ISO-8601
+    timestamp. Mirrors the orchestrator's delta query at
+    `pipeline_hot/orchestrator.py`. Without this filter, every hot-path
+    run extracts the entire scoreable corpus and the Lambda hits its
+    15-min wall before reaching the score loop.
     """
+    sql = PUBLICATION_EXTRACTION_SQL
+    params: dict[str, str] = {}
+    if delta_since:
+        # Inject the delta filter immediately before ORDER BY. The
+        # base SQL is a frozen constant in utils/sql_queries.py; this
+        # is a localized override for the hot path. `a1.` alias matches
+        # the SQL's table alias for analysis_summary_article.
+        sql = sql.replace(
+            "ORDER BY a1.pmid DESC",
+            "AND a1.datePublicationAddedToEntrez >= :since "
+            "ORDER BY a1.pmid DESC",
+        )
+        params["since"] = delta_since
     conn = get_db_connection()
     try:
         from sqlalchemy import text
-        result = conn.execute(text(PUBLICATION_EXTRACTION_SQL))
+        result = conn.execute(text(sql), params)
         rows = result.mappings().all()
         publications = [dict(row) for row in rows]
-        print(f"Extracted {len(publications)} publications from ReciterDB")
+        if delta_since:
+            print(f"Extracted {len(publications)} publications from ReciterDB "
+                  f"(delta-since={delta_since})")
+        else:
+            print(f"Extracted {len(publications)} publications from ReciterDB")
         return publications
     finally:
         conn.close()
@@ -761,7 +785,7 @@ async def main():
 
     # --- Phase 1: Extract from ReciterDB ---
     print("\n--- Phase 1: Extracting publications from ReciterDB ---")
-    publications = extract_publications()
+    publications = extract_publications(delta_since=args.delta_since)
     author_mapping = extract_author_mapping()
     faculty_metadata = extract_faculty_metadata()
 
