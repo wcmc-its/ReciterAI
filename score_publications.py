@@ -873,26 +873,30 @@ async def main():
         print("\n--- Phase 3: Saving outputs ---")
         scored_records = serialize_results(results)
 
-        output = {
-            'taxonomy_version': taxonomy['taxonomy_version'],
-            'scored_publications': scored_records,
-        }
-        with open(scoring_results_path, 'w') as f:
-            json.dump(output, f, indent=2, default=str)
-        print(f"Saved {len(scored_records)} scored publications -> {scoring_results_path}")
+        # Hot-path envelope mode emits the run record to stdout; the cold
+        # path / local CLI still writes JSON artifacts for load_dynamodb.py.
+        # Lambda's /var/task is read-only, so we must skip the writes there.
+        if not args.emit_envelope:
+            output = {
+                'taxonomy_version': taxonomy['taxonomy_version'],
+                'scored_publications': scored_records,
+            }
+            with open(scoring_results_path, 'w') as f:
+                json.dump(output, f, indent=2, default=str)
+            print(f"Saved {len(scored_records)} scored publications -> {scoring_results_path}")
 
-    # Always save author mapping and faculty metadata (needed by load_dynamodb.py)
     author_mapping_path = Path(__file__).parent / 'author_mapping.json'
-    with open(author_mapping_path, 'w') as f:
-        json.dump(author_mapping, f, indent=2)
-    print(f"Saved author mapping ({len(author_mapping)} publications) -> {author_mapping_path}")
-
     faculty_metadata_path = Path(__file__).parent / 'faculty_metadata.json'
-    with open(faculty_metadata_path, 'w') as f:
-        json.dump(faculty_metadata, f, indent=2)
-    print(f"Saved {len(faculty_metadata)} faculty profiles -> {faculty_metadata_path}")
+    if not args.emit_envelope:
+        with open(author_mapping_path, 'w') as f:
+            json.dump(author_mapping, f, indent=2)
+        print(f"Saved author mapping ({len(author_mapping)} publications) -> {author_mapping_path}")
 
-    print("\nResults saved. Run load_dynamodb.py next.")
+        with open(faculty_metadata_path, 'w') as f:
+            json.dump(faculty_metadata, f, indent=2)
+        print(f"Saved {len(faculty_metadata)} faculty profiles -> {faculty_metadata_path}")
+
+        print("\nResults saved. Run load_dynamodb.py next.")
 
     # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
     completed_at = now_iso()
