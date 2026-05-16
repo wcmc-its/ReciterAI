@@ -23,6 +23,13 @@ from typing import Any
 
 from boto3.dynamodb.types import TypeSerializer
 
+# Populate DB_* env vars in Lambda before the subprocess to
+# `score_publications.py` runs — it queries ReciterDB at startup
+# (extract_publications / extract_author_mapping / extract_faculty_
+# _metadata). Subprocesses inherit env vars, so importing here makes
+# them visible to the subprocess. No-op outside Lambda.
+import utils.secrets_loader  # noqa: F401, E402
+
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
