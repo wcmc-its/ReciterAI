@@ -304,18 +304,22 @@ def handler(event: dict, context: Any = None) -> dict:
     from utils.sql_queries import get_db_connection  # local import: tests stub
 
     def _ddb_to_pmid_query(since_iso: str) -> list[str]:
-        # Production query stub. The exact SQL depends on the ReciterDB
-        # schema column that flags "added since"; encoded here as a
-        # parameterized query the operator will wire to the right column
-        # at deploy time. Kept minimal in this phase — T8 / cold path
-        # exercises the same query path.
+        # Delta PMID resolution against ReciterDB. `analysis_summary_article`
+        # carries `datePublicationAddedToEntrez` as the only "added since"
+        # signal — there is no row-level last-modified column. The cold-path
+        # ETL uses the same column for the daily-enrichment watermark
+        # (utils.sql_queries.NEW_PUBLICATIONS_FOR_ENRICHMENT_SQL).
+        # Article-year + canonical-type filters mirror the cold path so the
+        # delta sees the same "scoreable" surface the cold corpus did.
         from sqlalchemy import text
 
         conn = get_db_connection()
         try:
             sql = text(
                 "SELECT DISTINCT pmid FROM analysis_summary_article "
-                "WHERE dateLastModified >= :since "
+                "WHERE datePublicationAddedToEntrez >= :since "
+                "  AND publicationTypeCanonical = 'Academic Article' "
+                "  AND articleYear >= 2020 "
                 "ORDER BY pmid DESC"
             )
             return [str(row[0]) for row in conn.execute(sql, {"since": since_iso})]
