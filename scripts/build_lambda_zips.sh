@@ -66,9 +66,17 @@ build_one() {
   mkdir -p "$stage"
 
   # 1. Pip install (in docker for runtime parity).
+  # `--platform linux/amd64` is load-bearing on Apple Silicon hosts:
+  # without it, Docker runs the image as ARM64 and pip installs the
+  # aarch64 wheels of any package with a compiled extension (notably
+  # pydantic_core, which openai 2.x depends on). Lambda functions in
+  # this account are x86_64, so an ARM-built zip crashes at cold
+  # start with `ModuleNotFoundError: No module named
+  # 'pydantic_core._pydantic_core'`. Caught in smoke 7 (2026-05-16).
   if [[ -n "$pip_deps" ]]; then
     echo ">> pip install: $pip_deps"
     docker run --rm \
+      --platform linux/amd64 \
       -v "$stage":/var/task \
       --entrypoint /var/lang/bin/pip \
       "$LAMBDA_IMAGE" \
@@ -123,7 +131,12 @@ build_one() {
     alert-dispatcher) handler_module="pipeline_hot.handlers.alert_dispatcher" ;;
   esac
   echo ">> import-check: $handler_module"
+  # Same `--platform linux/amd64` rationale as the pip install above —
+  # if we ran the import-check on the host arch, it would mask the
+  # ARM-vs-x86 wheel mismatch by happily importing under the wrong
+  # interpreter arch.
   docker run --rm \
+    --platform linux/amd64 \
     -v "$stage":/var/task \
     --entrypoint /var/lang/bin/python3 \
     "$LAMBDA_IMAGE" \
