@@ -282,6 +282,50 @@ def extract_publications(delta_since: str | None = None) -> list:
         conn.close()
 
 
+def extract_publications_by_pmids(pmids: list[str]) -> list:
+    """Extract publications for an explicit PMID list (no date filter).
+
+    Used by the `--rescore-pmids` CLI flag for targeted operator recovery
+    of PMIDs that fall outside the weekly hot-path delta window. The
+    `articleYear >= 2020` filter from PUBLICATION_EXTRACTION_SQL still
+    applies — pre-2020 PMIDs are silently excluded just as they are
+    elsewhere in the pipeline.
+
+    Args:
+        pmids: List of PMID strings. Empty list returns [].
+
+    Returns:
+        List of publication dicts (same shape as extract_publications).
+        PMIDs not present in `analysis_summary_article` (or filtered out
+        by the year cutoff / synopsis-existence requirement in
+        PUBLICATION_EXTRACTION_SQL) are silently omitted; caller should
+        compare the returned length against the input length to detect
+        missing PMIDs.
+    """
+    if not pmids:
+        return []
+    from sqlalchemy import bindparam, text
+
+    sql = PUBLICATION_EXTRACTION_SQL.replace(
+        "ORDER BY a1.pmid DESC",
+        "AND a1.pmid IN :pmid_list ORDER BY a1.pmid DESC",
+    )
+    conn = get_db_connection()
+    try:
+        stmt = text(sql).bindparams(bindparam("pmid_list", expanding=True))
+        result = conn.execute(stmt, {"pmid_list": pmids})
+        rows = result.mappings().all()
+        publications = [dict(row) for row in rows]
+        print(
+            f"Extracted {len(publications)} publications from ReciterDB "
+            f"(rescore-pmids: {len(pmids)} requested, "
+            f"{len(pmids) - len(publications)} not found / pre-2020 / no synopsis)"
+        )
+        return publications
+    finally:
+        conn.close()
+
+
 def extract_faculty_metadata() -> dict:
     """
     Extract faculty metadata from ReciterDB using FACULTY_METADATA_SQL.
@@ -829,7 +873,25 @@ async def main():
             'integration consumes the envelope and persists the row.'
         ),
     )
+    parser.add_argument(
+        '--rescore-pmids', metavar='PMID1,PMID2,...', default=None,
+        help=(
+            'Comma-separated list of PMIDs to rescore. Bypasses '
+            '--delta-since AND the PROCESSING# checkpoint cache so even '
+            'already-complete PMIDs get a fresh scoring pass. Useful for '
+            'targeted operator recovery — e.g. flipping content-filter '
+            'survivors after a fallback-path change, or nudging PMIDs '
+            'that aged out of the 14-day hot-path delta window. Mutually '
+            'exclusive with --delta-since.'
+        ),
+    )
     args = parser.parse_args()
+
+    if args.rescore_pmids and args.delta_since:
+        parser.error(
+            "--rescore-pmids and --delta-since are mutually exclusive — "
+            "they are competing scoping mechanisms (explicit list vs. date filter)"
+        )
 
     # --- STAGE# substrate setup (Phase 10 D-07) ---
     stage_started_at = now_iso()
@@ -867,13 +929,29 @@ async def main():
 
     # --- Phase 1: Extract from ReciterDB ---
     print("\n--- Phase 1: Extracting publications from ReciterDB ---")
-    publications = extract_publications(delta_since=args.delta_since)
+    if args.rescore_pmids:
+        rescore_pmids = [p.strip() for p in args.rescore_pmids.split(',') if p.strip()]
+        if not rescore_pmids:
+            print("--rescore-pmids supplied an empty list; nothing to do.")
+            return
+        print(f"[--rescore-pmids mode] {len(rescore_pmids)} PMIDs requested")
+        publications = extract_publications_by_pmids(rescore_pmids)
+    else:
+        publications = extract_publications(delta_since=args.delta_since)
     author_mapping = extract_author_mapping()
     faculty_metadata = extract_faculty_metadata()
 
-    # --- Checkpoint/resume: skip already-completed publications (D-09) ---
-    print("\n--- Checkpoint/resume: checking DynamoDB processing tracker ---")
-    unscored = get_unscored_publications(publications, dynamo_client, TABLE_NAME)
+    if args.rescore_pmids:
+        # Bypass the checkpoint — operator explicitly wants to rescore
+        # even already-complete PMIDs. PROCESSING# rows will be overwritten
+        # on success; STAGE# substrate appends new per-PMID rows alongside
+        # the prior history (audit trail preserved).
+        print("\n--- [--rescore-pmids] Bypassing PROCESSING# checkpoint cache ---")
+        unscored = publications
+    else:
+        # --- Checkpoint/resume: skip already-completed publications (D-09) ---
+        print("\n--- Checkpoint/resume: checking DynamoDB processing tracker ---")
+        unscored = get_unscored_publications(publications, dynamo_client, TABLE_NAME)
 
     # --- Apply --test flag (D-14) ---
     if args.test:
