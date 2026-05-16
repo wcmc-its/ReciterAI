@@ -107,6 +107,7 @@ def test_sonnet_succeeds_no_fallback_invoked(monkeypatch):
 
     assert result.status == "complete"
     assert result.fallback_model is None
+    assert result.content_filtered is False
     assert result.dense_scores
     assert openai_called.call_count == 0
 
@@ -132,6 +133,9 @@ def test_content_filter_falls_back_to_openai(monkeypatch):
 
     assert result.status == "complete"
     assert result.fallback_model == sp.OPENAI_FALLBACK_MODEL == "gpt-5.1"
+    # Content-filter happened (and was recovered) — counts toward the run's
+    # content_filter_count.
+    assert result.content_filtered is True
     assert result.dense_scores
     assert result.dense_scores["topic_a"]["score"] == 0.92
     assert result.dense_scores["topic_a"]["rationale"] == "Antibiotic study"
@@ -182,6 +186,9 @@ def test_openai_fallback_failure_marks_pmid_failed(monkeypatch):
     assert result.dense_scores == {}
     assert "openai temporarily unavailable" in result.error
     assert result.fallback_model is None  # Never set — fallback didn't complete
+    # content_filtered is True even though the fallback failed — a
+    # filtered-then-failed PMID must still count toward content_filter_count.
+    assert result.content_filtered is True
 
 
 def test_openai_fallback_malformed_json_marks_pmid_failed(monkeypatch):
@@ -203,6 +210,7 @@ def test_openai_fallback_malformed_json_marks_pmid_failed(monkeypatch):
 
     assert result.status == "failed"
     assert result.fallback_model is None
+    assert result.content_filtered is True
 
 
 def test_serialize_results_surfaces_fallback_model():

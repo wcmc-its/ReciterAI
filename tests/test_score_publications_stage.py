@@ -100,6 +100,24 @@ def test_envelope_complete_matches_build_complete_record_contract():
         MODEL_IDS_BY_STAGE["screening"],
         MODEL_IDS_BY_STAGE["scoring"],
     ]
+    # content_filter_count is additive — omitted when not supplied.
+    assert "content_filter_count" not in envelope
+
+
+def test_envelope_complete_carries_content_filter_count():
+    """When supplied, content_filter_count rides on the complete record so a
+    content-filter rate spike is visible on the score STAGE# row."""
+    envelope = sr.build_complete_record(
+        stage=sp.STAGE_NAME,
+        scope=sp.STAGE_SCOPE_GLOBAL,
+        input_hash="abc",
+        started_at="2026-05-16T12:00:00Z",
+        duration_ms=1000,
+        cost_observed_usd=sp.SCORE_COST_USD,
+        records_written=10,
+        content_filter_count=3,
+    )
+    assert envelope["content_filter_count"] == 3
 
 
 def test_envelope_skipped_carries_zero_cost_and_skip_reason():
