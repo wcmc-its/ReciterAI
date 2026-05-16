@@ -90,6 +90,13 @@ SCREENING_THRESHOLD = load_thresholds()["score_floor"]
 # `target_failure_rate` (#57 Tier B-1).
 TARGET_FAILURE_RATE = float(load_thresholds()["target_failure_rate"])
 
+# New-researcher onboarding cost guard (#80 R5). Bounds the net
+# Bedrock/OpenAI-bound work a `--pmids` run will process without an
+# explicit override. From config/thresholds.json.
+ONBOARDING_COST_GUARD_MAX_PMIDS = int(
+    load_thresholds()["onboarding_cost_guard_max_pmids"]
+)
+
 # Phase 10 STAGE# substrate (D-07). Run-level memoization uses GLOBAL scope;
 # per-PMID failure records use scope = "pmid:{pmid}" so a single bad PMID
 # does not pollute the run-level skip cache.
@@ -775,6 +782,30 @@ def get_unscored_publications(publications: list, dynamo_client, table_name: str
     return unscored
 
 
+def onboarding_cost_guard_tripped(
+    net_work_count: int,
+    *,
+    threshold: int,
+    override: bool,
+) -> bool:
+    """Return True if a `--pmids` onboarding run should be refused (#80 R5).
+
+    `net_work_count` is the size of the work set AFTER per-PMID checkpoint
+    culling (and any `--test` cap) — i.e. the actual count of PMIDs that
+    will hit Bedrock/OpenAI. Checking post-culling is the point: a
+    near-complete re-run (e.g. 295/300 already scored) nets ~5 PMIDs and
+    does not trip; only a genuinely large net delta does, which is the
+    CWID-collision / malformed-query / huge-history anomaly the guard
+    exists to catch.
+
+    `override` (the `--allow-cost-override` flag) unconditionally passes
+    the guard. A count at or below `threshold` always passes.
+    """
+    if override:
+        return False
+    return net_work_count > threshold
+
+
 async def score_batch_async(
     publications: list,
     bedrock: BedrockClient,
@@ -926,6 +957,28 @@ async def main():
             'exclusive with --rescore-pmids.'
         ),
     )
+    parser.add_argument(
+        '--pmids', metavar='PMID1,PMID2,...', default=None,
+        help=(
+            'Comma-separated explicit PMID work set, as an ALTERNATIVE to '
+            '--delta-since (not additive). Set by the new-researcher '
+            "onboarding workflow (#80) to score one CWID's backfilled "
+            'publications regardless of publication date. Unlike '
+            '--rescore-pmids it RESPECTS the PROCESSING# checkpoint and the '
+            'STAGE# skip cache, so re-runs are idempotent (already-complete '
+            'PMIDs are skipped). The onboarding cost guard (R5) applies in '
+            'this mode. Mutually exclusive with --delta-since, '
+            '--rescore-pmids, and --retry-pmids.'
+        ),
+    )
+    parser.add_argument(
+        '--allow-cost-override', action='store_true',
+        help=(
+            'Bypass the onboarding cost guard (#80 R5) for a --pmids run '
+            'whose net (post-checkpoint) work set exceeds '
+            'onboarding_cost_guard_max_pmids. No effect outside --pmids mode.'
+        ),
+    )
     args = parser.parse_args()
 
     if args.rescore_pmids and args.delta_since:
@@ -939,6 +992,12 @@ async def main():
             "--rescore-pmids and --retry-pmids are mutually exclusive — "
             "--rescore-pmids is operator force-recovery (bypasses caches); "
             "--retry-pmids is the orchestrator's additive sweep"
+        )
+
+    if args.pmids and (args.delta_since or args.rescore_pmids or args.retry_pmids):
+        parser.error(
+            "--pmids is a standalone explicit work set and cannot be "
+            "combined with --delta-since, --rescore-pmids, or --retry-pmids"
         )
 
     # --- STAGE# substrate setup (Phase 10 D-07) ---
@@ -984,6 +1043,18 @@ async def main():
             return
         print(f"[--rescore-pmids mode] {len(rescore_pmids)} PMIDs requested")
         publications = extract_publications_by_pmids(rescore_pmids)
+    elif args.pmids:
+        # Onboarding work set (#80): an explicit PMID list, scored
+        # regardless of publication date. Idempotency is preserved — the
+        # checkpoint and STAGE# skip cache below are consulted normally
+        # (args.rescore_pmids is false), so a re-run skips complete PMIDs.
+        onboarding_pmids = [p.strip() for p in args.pmids.split(',') if p.strip()]
+        if not onboarding_pmids:
+            print("--pmids supplied an empty list; nothing to do.")
+            return
+        print(f"[--pmids mode] {len(onboarding_pmids)} PMIDs requested "
+              "(onboarding work set)")
+        publications = extract_publications_by_pmids(onboarding_pmids)
     else:
         publications = extract_publications(delta_since=args.delta_since)
         if args.retry_pmids:
@@ -1023,6 +1094,24 @@ async def main():
     if args.test:
         unscored = unscored[:args.test]
         print(f"[--test mode] Limiting run to first {args.test} publications")
+
+    # --- #80 R5: onboarding cost guard (--pmids mode only) ---
+    # Checked against `unscored` — the net work set AFTER checkpoint
+    # culling — so a near-complete re-run does not trip. Only --pmids
+    # runs are guarded; the --delta-since path is implicitly bounded by
+    # the orchestrator's 14-day window.
+    if args.pmids and onboarding_cost_guard_tripped(
+        len(unscored),
+        threshold=ONBOARDING_COST_GUARD_MAX_PMIDS,
+        override=args.allow_cost_override,
+    ):
+        print(
+            f"[onboarding cost guard] net scoring work is {len(unscored)} "
+            f"PMIDs, above the {ONBOARDING_COST_GUARD_MAX_PMIDS}-PMID "
+            "threshold (#80 R5). Refusing to run — re-invoke with "
+            "--allow-cost-override to proceed."
+        )
+        sys.exit(1)
 
     # --- Phase 10 D-07: STAGE# input_hash + should_skip gate ---
     input_hash = compute_score_input_hash(
