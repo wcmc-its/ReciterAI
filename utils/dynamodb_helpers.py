@@ -20,6 +20,8 @@ from decimal import Decimal
 
 import boto3
 
+from utils.iso_clock import now_iso
+
 logger = logging.getLogger(__name__)
 
 # DynamoDB table name (DB-01)
@@ -371,3 +373,168 @@ def get_processing_status(client, table_name: str, pmids: list) -> dict:
                 result[pmid_key] = status_val
 
     return result
+
+
+def mark_processing_failed(client, table_name: str, pmid: str, *,
+                           error: str, taxonomy_version: str):
+    """
+    Record a failed scoring attempt for `pmid`, incrementing retry_count.
+
+    Unlike `mark_processing(..., 'failed', ...)` — a full PutItem that
+    overwrites the whole item — this is an UpdateItem with
+    `ADD retry_count :one`, so the retry counter survives across re-score
+    attempts instead of being reset to 0 on every failure. Without this the
+    hot-path retry sweep could never quarantine an un-fixable PMID; the
+    counter would read 0 forever.
+
+    Also stamps `failed_at` (ISO8601) so the sweep can age-filter failed
+    rows. `ADD` treats a missing retry_count as 0, and UpdateItem creates
+    the row when the PMID has never been processed.
+
+    Args:
+        client: boto3 DynamoDB client.
+        table_name: DynamoDB table name.
+        pmid: Publication PMID (numeric string).
+        error: Error message; truncated to 1000 chars for the DDB attribute.
+        taxonomy_version: Taxonomy version string (GSI hash key).
+    """
+    client.update_item(
+        TableName=table_name,
+        Key={'PK': {'S': f'PROCESSING#pmid_{pmid}'}, 'SK': {'S': 'STATUS'}},
+        UpdateExpression=(
+            'SET #s = :failed, #e = :err, failed_at = :ts, '
+            'taxonomy_version = :tv ADD retry_count :one'
+        ),
+        ExpressionAttributeNames={'#s': 'status', '#e': 'error'},
+        ExpressionAttributeValues={
+            ':failed': {'S': 'failed'},
+            ':err': {'S': str(error)[:1000]},
+            ':ts': {'S': now_iso()},
+            ':tv': {'S': taxonomy_version},
+            ':one': {'N': '1'},
+        },
+    )
+
+
+def query_failed_pmids(client, table_name: str, taxonomy_version: str) -> list:
+    """
+    Return PMIDs of every PROCESSING# row with status='failed' under
+    `taxonomy_version`.
+
+    Uses the `ProcessingByVersionIndex` GSI (taxonomy_version HASH + status
+    RANGE). The GSI projection is KEYS_ONLY, so callers that need
+    retry_count / failed_at must follow up with `get_processing_rows`.
+    Paginates on LastEvaluatedKey — failure volume is small at the 1%
+    target failure rate, but a backlog week could exceed one page.
+    """
+    pmids: list = []
+    kwargs: dict = {
+        'TableName': table_name,
+        'IndexName': 'ProcessingByVersionIndex',
+        'KeyConditionExpression': 'taxonomy_version = :tv AND #s = :failed',
+        'ExpressionAttributeNames': {'#s': 'status'},
+        'ExpressionAttributeValues': {
+            ':tv': {'S': taxonomy_version},
+            ':failed': {'S': 'failed'},
+        },
+    }
+    while True:
+        resp = client.query(**kwargs)
+        for item in resp.get('Items', []):
+            pk = item.get('PK', {}).get('S', '')
+            if pk.startswith('PROCESSING#pmid_'):
+                pmids.append(pk[len('PROCESSING#pmid_'):])
+        lek = resp.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return pmids
+
+
+def get_processing_rows(client, table_name: str, pmids: list) -> dict:
+    """
+    Batch-get full PROCESSING# rows for `pmids`.
+
+    Returns a dict mapping pmid -> {'status', 'retry_count' (int),
+    'failed_at' (str|None), 'error' (str)}. PMIDs without a row are omitted.
+
+    Unlike `get_processing_status` (status only), this projects the extra
+    attributes the retry sweep needs to age-filter and quarantine. Retries
+    BatchGetItem UnprocessedKeys so a throttled chunk is not silently lost.
+    """
+    if not pmids:
+        return {}
+
+    chunk_size = 100
+    result: dict = {}
+
+    for i in range(0, len(pmids), chunk_size):
+        chunk = pmids[i:i + chunk_size]
+        request = {
+            table_name: {
+                'Keys': [
+                    {'PK': {'S': f'PROCESSING#pmid_{pmid}'},
+                     'SK': {'S': 'STATUS'}}
+                    for pmid in chunk
+                ],
+                'ProjectionExpression': 'PK, #s, retry_count, failed_at, #e',
+                'ExpressionAttributeNames': {'#s': 'status', '#e': 'error'},
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get('Responses', {}).get(table_name, []):
+                pk = item.get('PK', {}).get('S', '')
+                if not pk.startswith('PROCESSING#pmid_'):
+                    continue
+                pmid_key = pk[len('PROCESSING#pmid_'):]
+                rc_raw = item.get('retry_count', {}).get('N')
+                result[pmid_key] = {
+                    'status': item.get('status', {}).get('S', ''),
+                    'retry_count': int(rc_raw) if rc_raw is not None else 0,
+                    'failed_at': item.get('failed_at', {}).get('S'),
+                    'error': item.get('error', {}).get('S', ''),
+                }
+            request = response.get('UnprocessedKeys') or None
+
+    return result
+
+
+def quarantine_pmid(client, table_name: str, pmid: str, *,
+                    retry_count: int, last_error: str, taxonomy_version: str):
+    """
+    Quarantine a PMID that has exhausted its retry budget.
+
+    Two writes:
+      1. PutItem a `QUARANTINE#pmid_{pmid}` / `STATUS` row — the
+         operator-facing record (retry_count, last_error, quarantined_at,
+         taxonomy_version) surfaced for manual review.
+      2. UpdateItem the PROCESSING# row's status to 'quarantined' so it
+         drops out of the `ProcessingByVersionIndex` status='failed'
+         partition. This is the mechanism that excludes the PMID from every
+         future sweep — no separate exclusion list is needed.
+    """
+    ts = now_iso()
+    client.put_item(
+        TableName=table_name,
+        Item={
+            'PK': {'S': f'QUARANTINE#pmid_{pmid}'},
+            'SK': {'S': 'STATUS'},
+            'pmid': {'S': str(pmid)},
+            'status': {'S': 'quarantined'},
+            'retry_count': {'N': str(retry_count)},
+            'last_error': {'S': str(last_error)[:1000]},
+            'taxonomy_version': {'S': taxonomy_version},
+            'quarantined_at': {'S': ts},
+        },
+    )
+    client.update_item(
+        TableName=table_name,
+        Key={'PK': {'S': f'PROCESSING#pmid_{pmid}'}, 'SK': {'S': 'STATUS'}},
+        UpdateExpression='SET #s = :q, quarantined_at = :ts',
+        ExpressionAttributeNames={'#s': 'status'},
+        ExpressionAttributeValues={
+            ':q': {'S': 'quarantined'},
+            ':ts': {'S': ts},
+        },
+    )

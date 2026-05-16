@@ -52,7 +52,7 @@ from utils.openai_client import (
 )
 from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
-    get_processing_status, to_decimal, make_score_sk
+    mark_processing_failed, get_processing_status, to_decimal, make_score_sk
 )
 from utils.sql_queries import (
     PUBLICATION_EXTRACTION_SQL, FACULTY_METADATA_SQL,
@@ -683,10 +683,15 @@ def score_one_publication(
         error_msg = str(e)
         logger.error(f"Failed to score pmid={pmid}: {error_msg}")
         try:
-            mark_processing(
-                dynamo_client, table_name, pmid, 'failed', taxonomy.get('taxonomy_version', 'unknown'),
-                error=error_msg[:1000],  # DynamoDB attribute size limit
-                retry_count=0,
+            # mark_processing_failed is an UpdateItem with ADD retry_count
+            # :one — the counter survives across re-score attempts, which is
+            # what lets the hot-path retry sweep quarantine an un-fixable
+            # PMID instead of retrying it forever. It also stamps failed_at
+            # for the sweep's age filter.
+            mark_processing_failed(
+                dynamo_client, table_name, pmid,
+                error=error_msg,
+                taxonomy_version=taxonomy.get('taxonomy_version', 'unknown'),
             )
         except Exception as dynamo_err:
             logger.error(f"Failed to write failed status to DynamoDB for pmid={pmid}: {dynamo_err}")
@@ -885,12 +890,33 @@ async def main():
             'exclusive with --delta-since.'
         ),
     )
+    parser.add_argument(
+        '--retry-pmids', metavar='PMID1,PMID2,...', default=None,
+        help=(
+            'Comma-separated list of PMIDs to union into the score set on '
+            'top of the --delta-since date delta. Set by the hot-path '
+            'orchestrator retry sweep so failed PMIDs that aged out of the '
+            'publication-date delta window still get re-scored. Additive '
+            '(compatible with --delta-since); unlike --rescore-pmids it '
+            'does NOT bypass the PROCESSING# checkpoint or the STAGE# skip '
+            'cache — a failed row is status != complete, so the normal '
+            'checkpoint re-scores it once it is in the set. Mutually '
+            'exclusive with --rescore-pmids.'
+        ),
+    )
     args = parser.parse_args()
 
     if args.rescore_pmids and args.delta_since:
         parser.error(
             "--rescore-pmids and --delta-since are mutually exclusive — "
             "they are competing scoping mechanisms (explicit list vs. date filter)"
+        )
+
+    if args.rescore_pmids and args.retry_pmids:
+        parser.error(
+            "--rescore-pmids and --retry-pmids are mutually exclusive — "
+            "--rescore-pmids is operator force-recovery (bypasses caches); "
+            "--retry-pmids is the orchestrator's additive sweep"
         )
 
     # --- STAGE# substrate setup (Phase 10 D-07) ---
@@ -938,6 +964,24 @@ async def main():
         publications = extract_publications_by_pmids(rescore_pmids)
     else:
         publications = extract_publications(delta_since=args.delta_since)
+        if args.retry_pmids:
+            # Hot-path retry sweep: union the orchestrator's failed-PMID
+            # list into the date delta. Deduplicate against the delta so a
+            # PMID that is both recent and failed is not extracted twice.
+            retry_pmids = [p.strip() for p in args.retry_pmids.split(',') if p.strip()]
+            if retry_pmids:
+                existing = {str(p['pmid']) for p in publications}
+                extra = [
+                    pub for pub in extract_publications_by_pmids(retry_pmids)
+                    if str(pub['pmid']) not in existing
+                ]
+                print(
+                    f"[--retry-pmids] hot-path retry sweep: {len(retry_pmids)} "
+                    f"requested, {len(extra)} unioned into the score set "
+                    "(rest already in the date delta, or not found / "
+                    "pre-2020 / no synopsis)"
+                )
+                publications = publications + extra
     author_mapping = extract_author_mapping()
     faculty_metadata = extract_faculty_metadata()
 
