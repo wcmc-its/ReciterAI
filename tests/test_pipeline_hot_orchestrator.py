@@ -234,25 +234,6 @@ def test_build_state_machine_input_shape():
     assert sm_input["delta"]["dirty_cwids"] == []
 
 
-# ---------- handler stdout parser ----------
-
-
-def test_parse_envelope_picks_last_json_object_on_stdout():
-    stdout = (
-        "Loaded taxonomy: taxonomy_v2 (50 topics)\n"
-        "Some log line\n"
-        '{"PK": "STAGE#score_publications#GLOBAL", "status": "complete"}\n'
-    )
-    env = score_handler._parse_envelope_from_stdout(stdout)
-    assert env["PK"] == "STAGE#score_publications#GLOBAL"
-    assert env["status"] == "complete"
-
-
-def test_parse_envelope_raises_when_no_json_found():
-    with pytest.raises(RuntimeError, match="no JSON envelope"):
-        score_handler._parse_envelope_from_stdout("just some text\nmore text\n")
-
-
 # ---------- score handler ----------
 
 
@@ -617,3 +598,56 @@ def test_score_handler_omits_retry_pmids_when_empty(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
     score_handler.handler({"delta": {"pmids": ["1"], "size": 1}})
     assert "--retry-pmids" not in captured_cmds[0]
+
+
+# ---------- score handler: onboarding {pmids} event (#80) ----------
+
+
+def test_score_handler_pmids_event_routes_to_pmids_flag(monkeypatch):
+    captured_cmds: list = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmds.append(cmd)
+        return _FakePopen(
+            stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc","duration_ms":1,"cost_observed_usd":"0"}\n',
+            returncode=0,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    env = score_handler.handler({"pmids": ["111", "222", "333"]})
+    # DDB attribute-typed return so WriteScoreStageRow can consume it.
+    assert env["PK"] == {"S": "STAGE#score_publications#GLOBAL"}
+    cmd = captured_cmds[0]
+    assert "--pmids" in cmd
+    assert "111,222,333" in cmd
+    assert "--emit-envelope" in cmd
+    # An onboarding event must NOT carry the hot-path delta flags.
+    assert "--delta-since" not in cmd
+    assert "--retry-pmids" not in cmd
+    assert "--allow-cost-override" not in cmd
+
+
+def test_score_handler_pmids_event_passes_cost_override(monkeypatch):
+    captured_cmds: list = []
+
+    def fake_popen(cmd, **kwargs):
+        captured_cmds.append(cmd)
+        return _FakePopen(
+            stdout='{"PK":"x","status":"complete","input_hash":"a","duration_ms":1,"cost_observed_usd":"0"}\n',
+            returncode=0,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    score_handler.handler({"pmids": ["1"], "allow_cost_override": True})
+    assert "--allow-cost-override" in captured_cmds[0]
+
+
+def test_score_handler_empty_pmids_event_raises(monkeypatch):
+    # The onboarding orchestrator only invokes Score with a non-empty work
+    # set; an empty 'pmids' list is a contract violation, not a no-op.
+    monkeypatch.setattr(
+        subprocess, "Popen",
+        lambda *a, **kw: pytest.fail("subprocess must not run for empty pmids"),
+    )
+    with pytest.raises(ValueError, match="empty 'pmids'"):
+        score_handler.handler({"pmids": []})
