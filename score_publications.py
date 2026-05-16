@@ -26,6 +26,7 @@ Security (T-03-01, T-03-02):
 
 import hashlib
 import json
+import re
 import sys
 import os
 import asyncio
@@ -41,7 +42,13 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.bedrock_client import (
-    BedrockClient, HAIKU_MODEL, SONNET_MODEL, MODEL_IDS_BY_STAGE,
+    BedrockClient, BedrockEmptyContentError,
+    HAIKU_MODEL, SONNET_MODEL, MODEL_IDS_BY_STAGE,
+)
+from utils.openai_client import (
+    GPT5_MODEL as OPENAI_FALLBACK_MODEL,
+    call_with_retry as openai_call_with_retry,
+    get_default_client as get_openai_client,
 )
 from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
@@ -219,6 +226,12 @@ class ScoringResult:
     dense_scores: dict = field(default_factory=dict)      # {topic_id: {score, rationale}}
     status: str = "pending"
     error: str = None
+    # Set to the fallback model ID when the dense pass fell back from Sonnet
+    # (e.g. on BedrockEmptyContentError from content_filtered). None when
+    # Sonnet handled the dense scoring directly. Surfaces in the per-PMID
+    # serialized output and DDB PROCESSING# tracker so downstream consumers
+    # (drift evaluator, ad-hoc query) can identify fallback-scored PMIDs.
+    fallback_model: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +433,66 @@ Rules:
 
 
 # ---------------------------------------------------------------------------
+# Phase 2: Dense scoring with content-filter fallback
+# ---------------------------------------------------------------------------
+
+_OPENAI_FALLBACK_SYSTEM_PROMPT = (
+    "You are a topic-classification assistant. Score the relevance of the "
+    "given publication against each topic on a 0.0-1.0 scale. Return ONLY "
+    "a JSON object — no markdown fences, no commentary."
+)
+
+
+def _dense_score(bedrock: BedrockClient, dense_prompt: str) -> tuple[dict, str | None]:
+    """Run the dense scoring pass for one publication.
+
+    Tries Sonnet 4.6 first. On BedrockEmptyContentError (Anthropic's safety
+    filter returning empty content for biomedical animal-model abstracts,
+    etc.), falls back once to OpenAI gpt-5.1 against the same prompt. The
+    fallback is the only mitigation that survived empirical testing — see
+    the sibling planning doc `sonnet-content-filter-on-dense-scoring.md`
+    for the chunking / Opus / system-framing probes that all failed.
+
+    Returns:
+        (raw_dense_dict, fallback_model) where:
+        - raw_dense_dict: JSON dict from the LLM with integer topic ID keys
+          and either a float score or a {"score": float, "rationale": str} value.
+        - fallback_model: None when Sonnet handled the call directly,
+          OPENAI_FALLBACK_MODEL when the fallback fired.
+
+    Raises:
+        Any exception from the OpenAI path (JSONDecodeError, openai.* errors)
+        if the fallback also fails. score_one_publication's outer except clause
+        catches and marks the PMID failed with the OpenAI error_code.
+    """
+    try:
+        raw_dense = bedrock.call_json(
+            model=SONNET_MODEL,
+            messages=[{"role": "user", "content": dense_prompt}],
+        )
+        return raw_dense, None
+    except BedrockEmptyContentError as filter_err:
+        logger.info(
+            "Sonnet content-filtered on dense scoring "
+            f"(stopReason={filter_err.stop_reason!r}); "
+            f"falling back to {OPENAI_FALLBACK_MODEL}"
+        )
+        openai = get_openai_client()
+        completion = openai_call_with_retry(
+            openai,
+            model=OPENAI_FALLBACK_MODEL,
+            system_prompt=_OPENAI_FALLBACK_SYSTEM_PROMPT,
+            user_prompt=dense_prompt,
+            response_format={"type": "json_object"},
+            max_completion_tokens=4096,
+        )
+        content = (completion.choices[0].message.content or "").strip()
+        cleaned = re.sub(r'```json\n?|\n?```', '', content).strip()
+        raw_dense = json.loads(cleaned)
+        return raw_dense, OPENAI_FALLBACK_MODEL
+
+
+# ---------------------------------------------------------------------------
 # Phase 2: Core scoring function
 # ---------------------------------------------------------------------------
 
@@ -510,12 +583,11 @@ def score_one_publication(
             result.status = 'complete'
             return result
 
-        # --- Dense scoring pass (Sonnet) — returns integer topic IDs ---
+        # --- Dense scoring pass (Sonnet, with OpenAI fallback on content_filter) ---
         dense_prompt = make_dense_prompt(pub, passed_topics, taxonomy, id_to_int)
-        raw_dense = bedrock.call_json(
-            model=SONNET_MODEL,
-            messages=[{"role": "user", "content": dense_prompt}],
-        )
+        raw_dense, fallback_used = _dense_score(bedrock, dense_prompt)
+        if fallback_used:
+            result.fallback_model = fallback_used
 
         # Parse dense result: map int IDs back to topic names
         dense_scores = {}
@@ -540,11 +612,18 @@ def score_one_publication(
 
         result.dense_scores = dense_scores
 
-        # Mark as complete
-        mark_processing(
-            dynamo_client, table_name, pmid, 'complete', taxonomy_version,
+        # Mark as complete; persist fallback_model when the OpenAI path
+        # produced these dense scores so the DDB tracker records which
+        # PMIDs were scored under the fallback contract.
+        complete_kwargs = dict(
             scored_at=datetime.now(timezone.utc).isoformat(),
             screening_passed_topics=list(passed_topics.keys()),
+        )
+        if result.fallback_model:
+            complete_kwargs['fallback_model'] = result.fallback_model
+        mark_processing(
+            dynamo_client, table_name, pmid, 'complete', taxonomy_version,
+            **complete_kwargs,
         )
         _maybe_write_uncovered_event(
             stage_table=stage_table,
@@ -705,11 +784,14 @@ def serialize_results(results: list) -> list:
     output = []
     for r in results:
         if r.status == 'complete' and r.dense_scores:
-            output.append({
+            entry = {
                 'pmid': r.pmid,
                 'screening_scores': r.screening_scores,
                 'dense_scores': r.dense_scores,
-            })
+            }
+            if r.fallback_model:
+                entry['fallback_model'] = r.fallback_model
+            output.append(entry)
     return output
 
 
