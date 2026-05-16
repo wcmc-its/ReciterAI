@@ -61,6 +61,25 @@ MODEL_IDS_BY_STAGE: dict[str, str] = {
 }
 
 
+class BedrockEmptyContentError(RuntimeError):
+    """Raised when Bedrock Converse returns no content blocks.
+
+    Happens when Bedrock's safety filter (stopReason='content_filtered' or
+    'guardrail_intervened') blocks the response, leaving `output.message.content`
+    as an empty list. Surfaces as a structured per-call failure with the
+    stopReason in the message, instead of an opaque `IndexError: list index
+    out of range` from `content[0]`.
+    """
+
+    def __init__(self, *, stop_reason: str, model: str):
+        self.stop_reason = stop_reason
+        self.model = model
+        super().__init__(
+            f"Bedrock returned empty content from model={model} "
+            f"(stopReason={stop_reason!r})"
+        )
+
+
 class BedrockClient:
     """
     Bedrock Converse API client with retry, JSON validation, and lazy initialization.
@@ -142,6 +161,10 @@ class BedrockClient:
 
         Raises:
             botocore.exceptions.ClientError: On non-retryable Bedrock errors.
+            BedrockEmptyContentError: If Bedrock returns no content blocks
+                (e.g. stopReason='content_filtered'). Caller can inspect
+                `stop_reason` to decide whether to retry or mark the unit
+                failed.
         """
         messages_converse, system_list = self._translate_messages(messages, system)
         response = self._call_with_retry(
@@ -151,7 +174,13 @@ class BedrockClient:
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        return response['output']['message']['content'][0]['text']
+        content_blocks = response.get('output', {}).get('message', {}).get('content') or []
+        if not content_blocks:
+            raise BedrockEmptyContentError(
+                stop_reason=response.get('stopReason', 'unknown'),
+                model=model,
+            )
+        return content_blocks[0]['text']
 
     def call_json(
         self,
