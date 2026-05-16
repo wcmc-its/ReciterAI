@@ -103,16 +103,29 @@ def handler(event: dict, context: Any = None) -> dict:
         cmd += ["--delta-since", delta_since]
 
     logger.info(f"score handler invoking: {' '.join(cmd)} ({delta.get('size', 0)} pmids)")
-    proc = subprocess.run(
+    # Stream subprocess output to Lambda stdout (CloudWatch) line-by-line so
+    # an operator watching live can see Bedrock progress / error spew. Earlier
+    # capture_output=True buffered everything until proc.exit; a 900s timeout
+    # then meant zero diagnostic data in CloudWatch (only START→TIMEOUT). We
+    # also keep a captured copy so the JSON envelope can be parsed from the
+    # tail at the end.
+    proc = subprocess.Popen(
         cmd,
         cwd=str(REPO_ROOT),
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
-        check=False,
+        bufsize=1,
     )
-    if proc.returncode != 0:
+    captured: list[str] = []
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+        captured.append(line)
+    rc = proc.wait()
+    if rc != 0:
+        tail = "".join(captured[-50:])
         raise RuntimeError(
-            f"score_publications exited {proc.returncode}: "
-            f"stderr={proc.stderr[-2000:]}"
+            f"score_publications exited {rc}; last lines:\n{tail}"
         )
-    return _to_ddb_typed_envelope(_parse_envelope_from_stdout(proc.stdout))
+    return _to_ddb_typed_envelope(_parse_envelope_from_stdout("".join(captured)))

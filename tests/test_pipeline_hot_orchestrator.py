@@ -255,20 +255,33 @@ def test_parse_envelope_raises_when_no_json_found():
 # ---------- score handler ----------
 
 
+class _FakePopen:
+    """Minimal stand-in for subprocess.Popen returned by tests.
+
+    The Score handler streams subprocess output line-by-line then waits
+    for the process to exit. Tests stub Popen with this class so they
+    don't actually spawn anything.
+    """
+
+    def __init__(self, stdout: str, returncode: int = 0):
+        self.stdout = iter(stdout.splitlines(keepends=True))
+        self._rc = returncode
+
+    def wait(self) -> int:
+        return self._rc
+
+
 def test_score_handler_invokes_subprocess_and_returns_envelope(monkeypatch):
-    completed = subprocess.CompletedProcess(
-        args=["python", "..."],
-        returncode=0,
-        stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc","duration_ms":42,"cost_observed_usd":"0"}\n',
-        stderr="",
-    )
-    captured_cmds = []
+    captured_cmds: list = []
 
-    def fake_run(cmd, **kwargs):
+    def fake_popen(cmd, **kwargs):
         captured_cmds.append(cmd)
-        return completed
+        return _FakePopen(
+            stdout='{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"abc","duration_ms":42,"cost_observed_usd":"0"}\n',
+            returncode=0,
+        )
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     env = score_handler.handler({
         "delta": {"pmids": ["1", "2"], "size": 2},
@@ -291,10 +304,8 @@ def test_score_handler_invokes_subprocess_and_returns_envelope(monkeypatch):
 
 def test_score_handler_raises_on_nonzero_exit(monkeypatch):
     monkeypatch.setattr(
-        subprocess, "run",
-        lambda cmd, **kw: subprocess.CompletedProcess(
-            args=cmd, returncode=42, stdout="", stderr="boom",
-        ),
+        subprocess, "Popen",
+        lambda cmd, **kw: _FakePopen(stdout="boom\n", returncode=42),
     )
     with pytest.raises(RuntimeError, match="exited 42"):
         score_handler.handler({"delta": {"pmids": []}})
