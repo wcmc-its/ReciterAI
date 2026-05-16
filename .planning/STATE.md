@@ -1,20 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 12
-current_phase_name: feedback-loops-both-aggregations-residual-hygiene
-current_plan: 1
-status: executing
-stopped_at: Phase 12 planning complete (8 PLAN files, ROADMAP + VALIDATION aligned); plan files renamed to match `gsd-sdk` discovery convention.
-last_updated: "2026-05-13T14:45:34.645Z"
+milestone_name: SPS-Feeding Service
+status: completed
+stopped_at: v1.0 milestone shipped 2026-05-13 (tag v1.0); STATE reconciled 2026-05-16 during #80 Phase 2 Wave 0c
+last_updated: "2026-05-16T21:16:59.000Z"
 last_activity: 2026-05-13
 progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 11
-  completed_plans: 8
-  percent: 73
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 14
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -24,36 +21,36 @@ progress:
 See: .planning/ROADMAP.md (PROJECT.md not present in this repo)
 
 **Core value:** ReciterAI service produces topic/subtopic hierarchy, publication scores, faculty rollups, and spotlight artifacts for SPS and any future downstream consumer.
-**Current focus:** Phase 12 — feedback-loops-both-aggregations-residual-hygiene
+**Current focus:** v1.0 milestone complete — shipped 2026-05-13. No GSD phase in progress.
 
 ## Current Position
 
-Phase: 12 (feedback-loops-both-aggregations-residual-hygiene) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 12
+Milestone: v1.0 (SPS-Feeding Service) — **COMPLETE**. Shipped 2026-05-13, tag `v1.0`; roadmap snapshot archived to `.planning/milestones/v1.0-ROADMAP.md`.
+Last phase completed: Phase 12 (feedback-loops-both-aggregations-residual-hygiene) — 8/8 plans, done 2026-05-13.
+Plan: none in progress.
+Status: Complete — no GSD phase executing.
 Last activity: 2026-05-13
-Last Activity Description: v1.0 milestone completed and archived
 
-Progress: [████░░░░░░] 43%
+Progress: [██████████] 100%  (v1.0 = phases 7, 9, 10, 11, 12; 14 plans)
 
-Total Plans in Phase: 8
-Current Phase: 12
-Current Phase Name: feedback-loops-both-aggregations-residual-hygiene
-Current Plan: 1
+**Deferred out of v1.0:** Phase 8 (Tools / Axis 2) — blocked on `decision-deferred` issues #5/#6/#7/#8. Carried forward in ROADMAP.md for a future milestone; not part of shipped v1.0.
+
+**Next thread:** New-researcher onboarding orchestrator (#80 Phase 2) — currently tracked as 6 GitHub PRs, not a GSD phase. Whether to promote it to a GSD phase (Phase 13) is the open **D-TRACKING** decision; reconciling this STATE file (Wave 0c) was its prerequisite.
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in `docs/RECITERAI-SPEC.md` and per-phase CONTEXT.md files.
-Recent decisions affecting current work:
+v1.0 milestone decision highlights:
 
+- Phase 10: hot/cold path split — four operational lanes, single-file EventBridge + IaC (D-10)
 - Phase 11: hierarchy_version stamping, REVIEW# state machine, diff.json contract
 - Phase 12: D-01..D-34 — feedback consumer/producer split, both aggregations side-by-side, D-33 in-stream invariant
 
 ### Pending Todos
 
-None tracked here.
+- Issue #13 — fixture-chained seam coverage for the full cold-path stage chain. Plan: `.planning/issues/0003-issue-13-seam-coverage.md`; branch `test/13-cold-path-seam-coverage`. Carry-forward from Phase 12, no dedicated phase.
 
 ### Blockers/Concerns
 
@@ -72,8 +69,10 @@ Both questions were originally framed as forward-looking design choices for the 
 
 Related issues closed in the same demotion: **#3** (parent tracker for hot-path orchestration), **#19** (Phase 10 design questions), **#32** (`dateLastModified` column referenced by the now-dormant `pipeline_hot/orchestrator.py`). All closed with rationale pointing at #37 as the superseding work. **#26** (corpus first/last gate) also closed in the same conversation, with the boundary settled at "≥1 WCM full-time faculty author, any position."
 
+> **Reconcile note (2026-05-16, Wave 0c):** the paragraphs above are preserved verbatim as the 2026-05-13 milestone-close record. They predate the hot-path build — the "superseded by a daily ECS/EKS cron" aside is now outdated. #72 (closed COMPLETED 2026-05-16) built the hot-path Step Functions lanes after all; `pipeline_hot/` is the live substrate that #80 Phase 2 onboarding reuses. The two deferred *context_questions* themselves remain resolved (Teams webhook; Bedrock Batch unneeded) — only the architectural aside is stale.
+
 ## Session Continuity
 
-Last session: 2026-05-12
-Stopped at: Phase 12 planning complete (8 PLAN files, ROADMAP + VALIDATION aligned); plan files renamed to match `gsd-sdk` discovery convention.
+Last session: 2026-05-16 — #80 Phase 2 Wave 0 pre-flight (0b cost-guard validation; 0c STATE reconcile).
+Stopped at: v1.0 complete and archived 2026-05-13. STATE.md reconciled 2026-05-16 — it had gone stale, showing `current_phase: 12 / status: executing` for an already-complete phase and a milestone that had already shipped.
 Resume file: None
