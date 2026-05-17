@@ -38,6 +38,7 @@ from utils.dynamodb_helpers import (
 )
 from utils.sql_queries import TOOL_EXTRACTION_SQL, IMPACT_EXTRACTION_SQL, get_raw_db_connection
 from utils.env_check import load_thresholds
+from utils.topic_records import build_topic_rows_for_pmid
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,37 +81,20 @@ def build_topic_records(
         if not authors:
             continue
 
-        has_scores = False
-        for topic_id, score_data in pub.get('dense_scores', {}).items():
-            score = score_data['score'] if isinstance(score_data, dict) else score_data
-            rationale = score_data.get('rationale', '') if isinstance(score_data, dict) else ''
-
-            if score < min_score:
+        pmid_rows = build_topic_rows_for_pmid(
+            pmid=pmid,
+            dense_scores=pub.get('dense_scores', {}),
+            authors=authors,
+            taxonomy_version=taxonomy_version,
+            min_score=min_score,
+        )
+        for row in pmid_rows:
+            key = (row['PK']['S'], row['SK']['S'])
+            if key in seen_keys:
                 continue
-
-            has_scores = True
-            # One record per author-publication-topic triple.
-            # SK includes cwid to avoid duplicates when multiple faculty co-author.
-            # Each record has its own faculty_uid for GSI 1 indexing.
-            for author in authors:
-                cwid = author['cwid']
-                sk = f'{make_score_sk(score, pmid)}#cwid_{cwid}'
-                key = (f'TOPIC#{topic_id}', sk)
-                if key in seen_keys:
-                    continue
-                seen_keys.add(key)
-
-                records.append({
-                    'PK': {'S': f'TOPIC#{topic_id}'},
-                    'SK': {'S': sk},
-                    'faculty_uid': {'S': f'cwid_{cwid}'},
-                    'score': {'N': str(to_decimal(score))},
-                    'rationale': {'S': rationale},
-                    'topic_scores_version': {'S': taxonomy_version},
-                    'pmid': {'S': pmid},
-                })
-
-        if has_scores:
+            seen_keys.add(key)
+            records.append(row)
+        if pmid_rows:
             pubs_with_scores += 1
 
     print(f'Built {len(records)} TOPIC# records from {pubs_with_scores} publications')

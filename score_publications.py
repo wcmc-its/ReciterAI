@@ -52,8 +52,10 @@ from utils.openai_client import (
 )
 from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
-    mark_processing_failed, get_processing_status, to_decimal, make_score_sk
+    mark_processing_failed, get_processing_status, to_decimal, make_score_sk,
+    batch_write,
 )
+from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
     PUBLICATION_EXTRACTION_SQL, FACULTY_METADATA_SQL,
     AUTHOR_MAPPING_SQL, get_db_connection,
@@ -229,6 +231,7 @@ class ScoringResult:
     pmid: str
     synopsis: str
     abstract: str
+    title: str = ""  # article title — TOPIC# materialization (#80 PR 4a)
     screening_scores: dict = field(default_factory=dict)  # {topic_id: score}
     dense_scores: dict = field(default_factory=dict)      # {topic_id: {score, rationale}}
     status: str = "pending"
@@ -255,7 +258,7 @@ def extract_publications(delta_since: str | None = None) -> list:
     """
     Extract publications from ReciterDB using PUBLICATION_EXTRACTION_SQL.
 
-    Returns a list of dicts with keys: pmid, synopsis, abstract.
+    Returns a list of dicts with keys: pmid, title, synopsis, abstract.
     Minimal — only what's needed for LLM scoring. Article metadata
     is looked up from ReciterDB at query time.
 
@@ -562,6 +565,84 @@ def _dense_score(bedrock: BedrockClient, dense_prompt: str) -> tuple[dict, str |
 # Phase 2: Core scoring function
 # ---------------------------------------------------------------------------
 
+def _delete_topic_rows_for_pmid(
+    dynamo_client, table_name: str, pmid: str, faculty_uids: set,
+) -> None:
+    """Delete the existing TOPIC# rows for `pmid` whose `faculty_uid` is in
+    `faculty_uids`.
+
+    Scoped by faculty_uid so a co-authored PMID's TOPIC# rows for OTHER
+    faculty are left untouched. Queries the PmidIndex GSI (pmid HASH,
+    PK RANGE); the GSI is eventually consistent, which is acceptable here —
+    a same-CWID re-run is operator-paced, not back-to-back.
+    """
+    keys_to_delete = []
+    start_key = None
+    while True:
+        kwargs = {
+            'TableName': table_name,
+            'IndexName': 'PmidIndex',
+            'KeyConditionExpression': 'pmid = :p AND begins_with(PK, :t)',
+            'ExpressionAttributeValues': {
+                ':p': {'S': str(pmid)},
+                ':t': {'S': 'TOPIC#'},
+            },
+        }
+        if start_key:
+            kwargs['ExclusiveStartKey'] = start_key
+        resp = dynamo_client.query(**kwargs)
+        for item in resp.get('Items', []):
+            if item.get('faculty_uid', {}).get('S') in faculty_uids:
+                keys_to_delete.append({'PK': item['PK'], 'SK': item['SK']})
+        start_key = resp.get('LastEvaluatedKey')
+        if not start_key:
+            break
+    for key in keys_to_delete:
+        dynamo_client.delete_item(TableName=table_name, Key=key)
+
+
+def _materialize_topic_rows(
+    dynamo_client,
+    table_name: str,
+    *,
+    pmid: str,
+    dense_scores: dict,
+    authors: list,
+    taxonomy_version: str,
+    synopsis: str,
+    title: str,
+) -> None:
+    """Persist one PMID's TOPIC# activity rows (#80 PR 4a — onboarding).
+
+    Delete-then-write, scoped to (pmid, each author CWID): the prior rows
+    for this PMID's faculty authors are removed before the fresh rows are
+    written, so a re-score under a changed taxonomy_version — which moves
+    the score-encoded SK — cannot leave orphan rows that would inflate the
+    per-CWID rollup's activity counts.
+
+    Called only in --pmids (onboarding) mode, BEFORE the PMID's 'complete'
+    PROCESSING# marker, so a crash mid-materialization leaves the PMID
+    re-scoreable. A no-op for a PMID with no faculty authors.
+    """
+    if not authors:
+        return
+    rows = build_topic_rows_for_pmid(
+        pmid=pmid,
+        dense_scores=dense_scores,
+        authors=authors,
+        taxonomy_version=taxonomy_version,
+        # SCREENING_THRESHOLD == config score_floor == the dense-score floor
+        # load_dynamodb.build_topic_records applies; keep them identical.
+        min_score=SCREENING_THRESHOLD,
+        synopsis=synopsis,
+        title=title,
+    )
+    faculty_uids = {f"cwid_{a['cwid']}" for a in authors}
+    _delete_topic_rows_for_pmid(dynamo_client, table_name, pmid, faculty_uids)
+    if rows:
+        batch_write(dynamo_client, table_name, rows)
+
+
 def score_one_publication(
     pub: dict,
     bedrock: BedrockClient,
@@ -572,6 +653,8 @@ def score_one_publication(
     id_to_int: dict,
     stage_table=None,
     thresholds: dict | None = None,
+    authors: list | None = None,
+    persist_topic_rows: bool = False,
 ) -> ScoringResult:
     """
     Score a single publication via two-pass Bedrock calls.
@@ -586,6 +669,7 @@ def score_one_publication(
         pmid=pmid,
         synopsis=str(pub.get('synopsis') or ''),
         abstract=str(pub.get('abstract') or ''),
+        title=str(pub.get('title') or ''),
     )
 
     t_pmid_start = time.monotonic()
@@ -633,6 +717,15 @@ def score_one_publication(
 
         # If no topics passed, this publication is not relevant — mark complete
         if not passed_topics:
+            # #80 PR 4a — onboarding: refresh TOPIC# rows before the
+            # 'complete' marker. With no passing topics this writes
+            # nothing; on a re-score it clears any now-stale rows.
+            if persist_topic_rows:
+                _materialize_topic_rows(
+                    dynamo_client, table_name, pmid=pmid, dense_scores={},
+                    authors=authors or [], taxonomy_version=taxonomy_version,
+                    synopsis=result.synopsis, title=result.title,
+                )
             mark_processing(
                 dynamo_client, table_name, pmid, 'complete', taxonomy_version,
                 scored_at=datetime.now(timezone.utc).isoformat(),
@@ -679,6 +772,17 @@ def score_one_publication(
                 logger.debug(f"Skipping malformed dense score for topic {topic_id}: {value}")
 
         result.dense_scores = dense_scores
+
+        # #80 PR 4a — onboarding: materialize this PMID's TOPIC# activity
+        # rows BEFORE the 'complete' PROCESSING# marker. The checkpoint
+        # only skips 'complete' PMIDs, so a crash between the two leaves
+        # the PMID re-scoreable and the rows are re-written idempotently.
+        if persist_topic_rows:
+            _materialize_topic_rows(
+                dynamo_client, table_name, pmid=pmid, dense_scores=dense_scores,
+                authors=authors or [], taxonomy_version=taxonomy_version,
+                synopsis=result.synopsis, title=result.title,
+            )
 
         # Mark as complete; persist fallback_model when the OpenAI path
         # produced these dense scores so the DDB tracker records which
@@ -817,6 +921,8 @@ async def score_batch_async(
     concurrency: int = 15,
     stage_table=None,
     thresholds: dict | None = None,
+    author_mapping: dict | None = None,
+    persist_topic_rows: bool = False,
 ) -> list:
     """
     Score publications concurrently using asyncio with a semaphore.
@@ -841,6 +947,8 @@ async def score_batch_async(
                 score_one_publication, pub, bedrock, taxonomy,
                 dynamo_client, table_name, int_to_id, id_to_int,
                 stage_table, thresholds,
+                (author_mapping or {}).get(str(pub['pmid']), []),
+                persist_topic_rows,
             )
             if result.status == 'failed':
                 failure_count += 1
@@ -1178,6 +1286,8 @@ async def main():
             int_to_id, id_to_int, concurrency=args.concurrency,
             stage_table=stage_table,
             thresholds=thresholds,
+            author_mapping=author_mapping,
+            persist_topic_rows=bool(args.pmids),
         )
 
         # --- Summary ---
