@@ -67,6 +67,7 @@ LIMIT :limit_n
 PUBLICATION_EXTRACTION_SQL = """
 SELECT DISTINCT
     a1.pmid,
+    a1.articleTitle AS title,
     s.synopsis,
     r.abstractVarchar AS abstract
 FROM analysis_summary_article a1
