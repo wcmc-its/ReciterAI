@@ -28,6 +28,17 @@ class _FakeBedrockScoring:
         return {"0": {"score": 0.9, "rationale": "r"}}
 
 
+class _FakeBedrockNoPass:
+    """Bedrock stub: topic int 0 scores below SCREENING_THRESHOLD (0.3),
+    so no topic clears screening — score_one_publication takes the
+    no-relevant-topics completion path."""
+
+    def call_json(self, *, model, messages):
+        if model == HAIKU_MODEL:
+            return {"0": 0.0}
+        return {"0": {"score": 0.0, "rationale": ""}}
+
+
 def _ddb_client(query_items=None):
     """Low-level DynamoDB client mock with real-dict returns so the
     helpers' .get(...) calls behave."""
@@ -196,3 +207,36 @@ def test_topic_rows_written_before_complete_marker(monkeypatch):
     assert "materialize" in calls
     assert "mark:complete" in calls
     assert calls.index("materialize") < calls.index("mark:complete")
+
+
+def test_no_passing_topics_branch_materializes_before_marker(monkeypatch):
+    """The no-relevant-topics completion path also materializes TOPIC#
+    rows — with empty dense_scores, so a re-score that drops a PMID below
+    threshold clears its now-stale rows — and does so before the
+    'complete' PROCESSING# marker, like the scored path."""
+    calls = []
+    monkeypatch.setattr(
+        sp, "_materialize_topic_rows",
+        lambda *a, **k: calls.append(("materialize", k.get("dense_scores"))),
+    )
+    monkeypatch.setattr(
+        sp, "mark_processing",
+        lambda client, table, pmid, status, tv, **k: calls.append(("mark", status)),
+    )
+    monkeypatch.setattr(sp, "_maybe_write_uncovered_event", lambda *a, **k: None)
+
+    result = sp.score_one_publication(
+        _PUB, _FakeBedrockNoPass(), _TAXONOMY, MagicMock(), "reciterai",
+        _INT_TO_ID, _ID_TO_INT,
+        authors=_AUTHORS, persist_topic_rows=True,
+    )
+    assert result.status == "complete"
+
+    materialized = [i for i, c in enumerate(calls) if c[0] == "materialize"]
+    completed = [i for i, c in enumerate(calls) if c == ("mark", "complete")]
+    assert materialized, "no-passing-topics branch did not materialize TOPIC# rows"
+    assert completed, "no 'complete' marker was written"
+    # materialized with empty dense_scores — clears stale rows on a re-score
+    assert calls[materialized[0]][1] == {}
+    # ...strictly before the 'complete' PROCESSING# marker (crash-safety)
+    assert materialized[0] < completed[0]
