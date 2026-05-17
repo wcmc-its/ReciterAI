@@ -86,7 +86,7 @@ def _finalize_event(pmids):
             "cost_observed_usd": {"N": "0.01"},
         },
         "assign_envelope": {
-            "input_hash": {"S": "skipped:onboarding-assign-stub"},
+            "input_hash": {"S": "assign-ih"},
         },
         "top_topic_envelope": {
             "input_hash": {"S": "tt-ih"},
@@ -134,7 +134,8 @@ def test_finalize_partial_alerts(monkeypatch):
 def test_finalize_sums_stage_cost(monkeypatch):
     _wire_finalize(monkeypatch, {"1": "complete"})
     env = fin.handler(_finalize_event(["1"]))
-    # 0.01 (score) + 0.02 (top_topic) + 0 (rollup); the assign stub none.
+    # 0.01 (score) + 0.02 (top_topic) + 0 (rollup); the assign fan-out
+    # summary envelope carries no cost_observed_usd (PLAN D-REDUCE).
     assert env["cost_observed_usd"] == {"N": "0.03"}
 
 
@@ -144,7 +145,7 @@ def test_finalize_records_stage_input_hashes(monkeypatch):
     hashes = env["stage_input_hashes"]["M"]
     assert hashes["score"] == {"S": "score-ih"}
     assert hashes["rollup"] == {"S": "ru-ih"}
-    assert hashes["assign"] == {"S": "skipped:onboarding-assign-stub"}
+    assert hashes["assign"] == {"S": "assign-ih"}
 
 
 def test_finalize_returns_ddb_typed_envelope(monkeypatch):

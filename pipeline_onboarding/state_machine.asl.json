@@ -1,5 +1,5 @@
 {
-  "Comment": "ReciterAI new-researcher onboarding workflow (#80 Phase 2). Operator-triggered per CWID via aws stepfunctions start-execution with input {\"cwid\": \"...\", \"allow_cost_override\": false}. Orchestrate scopes the CWID's full accepted-publication set, checks the synopsis precondition, culls the PROCESSING# checkpoint, and applies the cost guard; CheckProceed routes deferred/skipped/cost_exceeded to a known-status terminal writer or ready into the Score cascade. Mirrors the hot path's shape: per-stage STAGE# rows written by the dynamodb:putItem SDK integration (D-07 crash-safety), handlers return DDB-typed envelopes, every Lambda Task Catches States.ALL to WriteOnboardingFailed. AssignFanOut is a Pass-state stub in PR 3 (per-topic Step Functions Map is PR 4) so onboarding produces topic-level scoring + rollup without subtopics until then. No concurrency lock and no states:* calls — onboarding is operator-triggered per CWID and same-CWID races are absorbed by per-stage idempotency.",
+  "Comment": "ReciterAI new-researcher onboarding workflow (#80 Phase 2). Operator-triggered per CWID via aws stepfunctions start-execution with input {\"cwid\": \"...\", \"allow_cost_override\": false}. Orchestrate scopes the CWID's full accepted-publication set, checks the synopsis precondition, culls the PROCESSING# checkpoint, and applies the cost guard; CheckProceed routes deferred/skipped/cost_exceeded to a known-status terminal writer or ready into the Score cascade. Mirrors the hot path's shape: per-stage STAGE# rows written by the dynamodb:putItem SDK integration (D-07 crash-safety), handlers return DDB-typed envelopes, every Lambda Task Catches States.ALL to WriteOnboardingFailed. AssignFanOut is a per-topic Step Functions Map (PR 4): DeriveDirtyTopics groups the CWID's TOPIC# rows by topic, CheckAssignTopics routes an empty set past the Map, and the Map runs the reused assign Lambda once per topic that has an approved hierarchy draft. No concurrency lock and no states:* calls — onboarding is operator-triggered per CWID and same-CWID races are absorbed by per-stage idempotency.",
   "StartAt": "Orchestrate",
   "States": {
     "Orchestrate": {
@@ -145,20 +145,130 @@
         "Item.$": "$.score_envelope"
       },
       "ResultPath": null,
-      "Next": "AssignFanOut"
+      "Next": "DeriveDirtyTopics"
     },
 
-    "AssignFanOut": {
+    "DeriveDirtyTopics": {
+      "Type": "Task",
+      "Comment": "PR 4. Groups the CWID's TOPIC# activity rows (FacultyIndex GSI) by topic, restricted to the run's PMID set, dropping topics with no approved hierarchy draft. Produces the assign_topics array AssignFanOut's Map iterates and the assign_input_hash BuildAssignSummary stamps on the assign-stage row.",
+      "Resource": "${DeriveDirtyTopicsLambdaArn}",
+      "Parameters": {
+        "cwid.$": "$.orchestrate.input.cwid",
+        "pmids.$": "$.orchestrate.input.pmids"
+      },
+      "ResultPath": "$.assign",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "CheckAssignTopics"
+    },
+
+    "CheckAssignTopics": {
+      "Type": "Choice",
+      "Comment": "Empty dirty-topic set -> AssignSkipped; mirrors the hot ASL's CheckAssignNeeded so a CWID with no draft-covered topic activity does not enter an empty Map.",
+      "Choices": [
+        {
+          "Variable": "$.assign.assign_topics[0]",
+          "IsPresent": false,
+          "Next": "AssignSkipped"
+        }
+      ],
+      "Default": "AssignFanOut"
+    },
+
+    "AssignSkipped": {
       "Type": "Pass",
-      "Comment": "PR 3 Assign stub. PR 4 replaces this Pass with a per-topic Step Functions Map running assign_subtopics per dirty topic. Until then onboarding produces topic-level scoring + rollup with no subtopic assignment (PLAN section 6 degraded path). The injected envelope is DDB attribute-typed so finalize can read $.assign_envelope.input_hash.S like the real stage.",
+      "Comment": "No dirty topics with an approved draft — inject a typed skipped assign envelope so Finalize reads $.assign_envelope.input_hash.S exactly as for a real fan-out.",
       "Result": {
         "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
-        "SK": {"S": "RUN#onboarding-assign-stub"},
+        "SK": {"S": "RUN#onboarding-assign-no-topics"},
         "stage": {"S": "assign_subtopics"},
         "scope": {"S": "GLOBAL"},
         "status": {"S": "skipped"},
-        "skip_reason": {"S": "onboarding Assign stub (PR 3); per-topic fan-out is PR 4"},
-        "input_hash": {"S": "skipped:onboarding-assign-stub"}
+        "skip_reason": {"S": "onboarding run produced no dirty topics with an approved hierarchy draft"},
+        "input_hash": {"S": "skipped:onboarding-no-dirty-topics"}
+      },
+      "ResultPath": "$.assign_envelope",
+      "Next": "TopTopic"
+    },
+
+    "AssignFanOut": {
+      "Type": "Map",
+      "Comment": "PR 4 per-topic fan-out. One iteration per dirty topic: AssignOne runs the reused reciterai-hot-assign Lambda for that topic's PMIDs, then WriteAssignStageRowOne writes that topic's STAGE#assign_subtopics#topic row. The N per-topic rows are the assign-stage audit trail; BuildAssignSummary then synthesizes the single envelope Finalize reads. MaxConcurrency bounds concurrent Bedrock + DynamoDB load.",
+      "ItemsPath": "$.assign.assign_topics",
+      "MaxConcurrency": 4,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "AssignOne",
+        "States": {
+          "AssignOne": {
+            "Type": "Task",
+            "Comment": "Reused hot Lambda reciterai-hot-assign; its {topic_id, delta_pmids} event contract is exactly the Map item, so the handler is reused unchanged.",
+            "Resource": "${AssignLambdaArn}",
+            "Parameters": {
+              "topic_id.$": "$.topic_id",
+              "delta_pmids.$": "$.delta_pmids"
+            },
+            "ResultPath": "$.assign_one_envelope",
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                "IntervalSeconds": 10,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Next": "WriteAssignStageRowOne"
+          },
+          "WriteAssignStageRowOne": {
+            "Type": "Task",
+            "Comment": "Per-topic STAGE#assign_subtopics#topic:{topic} row, written inside the iteration so each topic's audit row lands as its assign completes (D-07 crash-safety).",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "reciterai",
+              "Item.$": "$.assign_one_envelope"
+            },
+            "ResultPath": null,
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.assign_map",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "BuildAssignSummary"
+    },
+
+    "BuildAssignSummary": {
+      "Type": "Pass",
+      "Comment": "Synthesizes the single $.assign_envelope Finalize reads (input_hash -> stage_input_hashes.assign). The real per-topic detail is the N STAGE#assign_subtopics#topic rows the Map wrote; topic_count is States.ArrayLength of the Map output.",
+      "Parameters": {
+        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
+        "SK": {"S": "RUN#onboarding-assign-fanout"},
+        "stage": {"S": "assign_subtopics"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "complete"},
+        "input_hash": {"S.$": "$.assign.assign_input_hash"},
+        "topic_count": {"N.$": "States.Format('{}', States.ArrayLength($.assign_map))"}
       },
       "ResultPath": "$.assign_envelope",
       "Next": "TopTopic"

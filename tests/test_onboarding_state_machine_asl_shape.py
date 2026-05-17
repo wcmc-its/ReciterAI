@@ -29,21 +29,35 @@ def asl(asl_raw) -> dict:
     return json.loads(asl_raw)
 
 
-# The deploy script (PR 6) substitutes exactly these. PR 3's Assign stage is
-# a Pass-state stub, so there is deliberately NO ${AssignLambdaArn} — PR 4
-# adds it with the real per-topic fan-out.
+# The deploy script (PR 6) substitutes exactly these. PR 4 adds the Assign
+# fan-out: ${DeriveDirtyTopicsLambdaArn} (the pre-Map group-by Task) and
+# ${AssignLambdaArn} (the reused reciterai-hot-assign Lambda the Map runs).
 EXPECTED_PLACEHOLDERS = {
     "${OnboardingOrchestratorLambdaArn}",
     "${ScoreLambdaArn}",
+    "${DeriveDirtyTopicsLambdaArn}",
+    "${AssignLambdaArn}",
     "${TopTopicLambdaArn}",
     "${RollupLambdaArn}",
     "${OnboardingFinalizeLambdaArn}",
     "${OnboardingNotifyLambdaArn}",
 }
 
-# Lambda Task states — each must Retry on Lambda service errors and Catch
-# States.ALL to the terminal failed-row writer.
-LAMBDA_TASK_STATES = ("Orchestrate", "Score", "TopTopic", "Rollup", "Finalize")
+# Top-level Lambda Task states — each must Retry on Lambda service errors and
+# Catch States.ALL to the terminal failed-row writer. (The Map's inner
+# AssignOne Task is checked separately — see the AssignFanOut Map tests.)
+LAMBDA_TASK_STATES = (
+    "Orchestrate", "Score", "DeriveDirtyTopics", "TopTopic", "Rollup", "Finalize"
+)
+
+
+def _iter_states(states: dict):
+    """Yield (name, state) for every state, recursing into Map ItemProcessors."""
+    for name, state in states.items():
+        yield name, state
+        processor = state.get("ItemProcessor") or state.get("Iterator")
+        if processor:
+            yield from _iter_states(processor.get("States", {}))
 
 
 def test_asl_placeholders_match_deploy_script(asl_raw):
@@ -51,12 +65,6 @@ def test_asl_placeholders_match_deploy_script(asl_raw):
     assert found == EXPECTED_PLACEHOLDERS, (
         f"placeholder drift: expected={EXPECTED_PLACEHOLDERS}, found={found}"
     )
-
-
-def test_no_assign_lambda_placeholder(asl_raw):
-    """Assign is a Pass-state stub in PR 3; the real per-topic Lambda
-    fan-out (and its placeholder) is PR 4."""
-    assert "${AssignLambdaArn}" not in asl_raw
 
 
 def test_asl_is_valid_json(asl):
@@ -80,7 +88,11 @@ def test_required_states_present(asl):
         "NotifyCostExceeded",
         "Score",
         "WriteScoreStageRow",
+        "DeriveDirtyTopics",
+        "CheckAssignTopics",
+        "AssignSkipped",
         "AssignFanOut",
+        "BuildAssignSummary",
         "TopTopic",
         "WriteTopTopicStageRow",
         "Rollup",
@@ -156,16 +168,93 @@ def test_deferred_and_cost_exceeded_route_to_notify(asl):
     )
 
 
-def test_assign_fan_out_is_pass_stub(asl):
-    """PR 3 ships Assign as a Pass-state stub injecting a typed skipped
-    envelope; PR 4 replaces it with a per-topic Map."""
-    state = asl["States"]["AssignFanOut"]
+def test_derive_dirty_topics_consumes_orchestrate_input(asl):
+    """The pre-Map group-by Task reads the CWID + run PMID set from the
+    orchestrator's work payload, and lands its result at $.assign."""
+    state = asl["States"]["DeriveDirtyTopics"]
+    assert state["Resource"] == "${DeriveDirtyTopicsLambdaArn}"
+    params = state["Parameters"]
+    assert params["cwid.$"] == "$.orchestrate.input.cwid"
+    assert params["pmids.$"] == "$.orchestrate.input.pmids"
+    assert state["ResultPath"] == "$.assign"
+    assert state["Next"] == "CheckAssignTopics"
+
+
+def test_check_assign_topics_routes_empty_to_skip(asl):
+    """No dirty topics -> AssignSkipped; otherwise the Map. Mirrors the hot
+    ASL's CheckAssignNeeded so an empty set never enters the Map."""
+    choice = asl["States"]["CheckAssignTopics"]
+    assert choice["Type"] == "Choice"
+    assert choice["Default"] == "AssignFanOut"
+    [rule] = choice["Choices"]
+    assert rule["Variable"] == "$.assign.assign_topics[0]"
+    assert rule["IsPresent"] is False
+    assert rule["Next"] == "AssignSkipped"
+
+
+def test_assign_skipped_injects_typed_envelope(asl):
+    """The empty-fan-out branch still sets a typed $.assign_envelope so
+    Finalize reads input_hash uniformly with the real fan-out."""
+    state = asl["States"]["AssignSkipped"]
     assert state["Type"] == "Pass"
     assert state["ResultPath"] == "$.assign_envelope"
     assert state["Next"] == "TopTopic"
-    result = state["Result"]
-    assert result["status"] == {"S": "skipped"}
-    assert result["input_hash"]["S"] == "skipped:onboarding-assign-stub"
+    assert state["Result"]["status"] == {"S": "skipped"}
+    assert (
+        state["Result"]["input_hash"]["S"] == "skipped:onboarding-no-dirty-topics"
+    )
+
+
+def test_assign_fan_out_is_map(asl):
+    """PR 4 replaces the PR 3 Pass stub with a per-topic Step Functions Map
+    over the dirty-topic set, Catching to the terminal failed-row writer."""
+    state = asl["States"]["AssignFanOut"]
+    assert state["Type"] == "Map"
+    assert state["ItemsPath"] == "$.assign.assign_topics"
+    assert state["MaxConcurrency"] == 4
+    assert state["ResultPath"] == "$.assign_map"
+    assert state["Next"] == "BuildAssignSummary"
+    catch_targets = [c.get("Next") for c in state.get("Catch") or []]
+    assert "WriteOnboardingFailed" in catch_targets
+
+
+def test_assign_map_iterator_runs_assign_lambda_then_writes_row(asl):
+    """The Map's ItemProcessor: AssignOne (the reused assign Lambda) -> the
+    per-topic STAGE#assign_subtopics row, written inside the iteration."""
+    processor = asl["States"]["AssignFanOut"]["ItemProcessor"]
+    assert processor["ProcessorConfig"]["Mode"] == "INLINE"
+    assert processor["StartAt"] == "AssignOne"
+    inner = processor["States"]
+
+    one = inner["AssignOne"]
+    assert one["Type"] == "Task"
+    assert one["Resource"] == "${AssignLambdaArn}"
+    assert one["Parameters"]["topic_id.$"] == "$.topic_id"
+    assert one["Parameters"]["delta_pmids.$"] == "$.delta_pmids"
+    assert one["Next"] == "WriteAssignStageRowOne"
+    # The Map's inner Lambda Task retries service errors like every other.
+    assert "Lambda.ServiceException" in (one.get("Retry") or [{}])[0].get(
+        "ErrorEquals", []
+    )
+
+    write = inner["WriteAssignStageRowOne"]
+    assert write["Resource"] == "arn:aws:states:::dynamodb:putItem"
+    assert write["Parameters"]["Item.$"] == "$.assign_one_envelope"
+    assert write["End"] is True
+
+
+def test_build_assign_summary_feeds_finalize(asl):
+    """After the Map, BuildAssignSummary synthesizes the single
+    $.assign_envelope Finalize reads — input_hash threaded from
+    DeriveDirtyTopics, topic_count from the Map output length."""
+    state = asl["States"]["BuildAssignSummary"]
+    assert state["Type"] == "Pass"
+    assert state["ResultPath"] == "$.assign_envelope"
+    assert state["Next"] == "TopTopic"
+    params = state["Parameters"]
+    assert params["status"] == {"S": "complete"}
+    assert params["input_hash"]["S.$"] == "$.assign.assign_input_hash"
+    assert "States.ArrayLength($.assign_map)" in params["topic_count"]["N.$"]
 
 
 def test_score_consumes_orchestrate_input(asl):
@@ -205,12 +294,17 @@ def test_stage_row_writers_pass_typed_envelopes(asl):
 
 
 def test_cascade_order(asl):
-    """The ready cascade: Score -> stage row -> AssignFanOut -> TopTopic ->
-    stage row -> Rollup -> stage row -> Finalize -> final row."""
+    """The ready cascade: Score -> stage row -> DeriveDirtyTopics ->
+    CheckAssignTopics -> (AssignSkipped | AssignFanOut -> BuildAssignSummary)
+    -> TopTopic -> stage row -> Rollup -> stage row -> Finalize -> final row."""
     states = asl["States"]
     assert states["Score"]["Next"] == "WriteScoreStageRow"
-    assert states["WriteScoreStageRow"]["Next"] == "AssignFanOut"
-    assert states["AssignFanOut"]["Next"] == "TopTopic"
+    assert states["WriteScoreStageRow"]["Next"] == "DeriveDirtyTopics"
+    assert states["DeriveDirtyTopics"]["Next"] == "CheckAssignTopics"
+    # Both Assign branches converge on TopTopic.
+    assert states["AssignSkipped"]["Next"] == "TopTopic"
+    assert states["AssignFanOut"]["Next"] == "BuildAssignSummary"
+    assert states["BuildAssignSummary"]["Next"] == "TopTopic"
     assert states["TopTopic"]["Next"] == "WriteTopTopicStageRow"
     assert states["WriteTopTopicStageRow"]["Next"] == "Rollup"
     assert states["Rollup"]["Next"] == "WriteRollupStageRow"
@@ -235,8 +329,9 @@ def test_write_onboarding_failed_builds_inline_row(asl):
 
 
 def test_dynamodb_writes_target_reciterai_table(asl):
-    """Every inline DynamoDB:PutItem state writes to the production table."""
-    for name, state in asl["States"].items():
+    """Every inline DynamoDB:PutItem state — including the Map's per-topic
+    WriteAssignStageRowOne — writes to the production table."""
+    for name, state in _iter_states(asl["States"]):
         if state.get("Resource") == "arn:aws:states:::dynamodb:putItem":
             assert state["Parameters"]["TableName"] == "reciterai", (
                 f"{name} writes to a non-canonical table"
