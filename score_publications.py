@@ -1287,7 +1287,13 @@ async def main():
             stage_table=stage_table,
             thresholds=thresholds,
             author_mapping=author_mapping,
-            persist_topic_rows=bool(args.pmids),
+            # #98: materialize TOPIC# activity rows for every --emit-envelope
+            # run (the hot path + onboarding). Envelope mode skips the JSON
+            # writes the cold loader (load_dynamodb) turns into TOPIC# rows,
+            # so otherwise the Assign / TopTopic stages read empty partitions
+            # for newly-scored PMIDs. PR 4a gated this on --pmids; the cold
+            # path (no --emit-envelope) writes JSON and stays byte-unchanged.
+            persist_topic_rows=args.emit_envelope,
         )
 
         # --- Summary ---
