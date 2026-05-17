@@ -14,10 +14,12 @@ machine drives the cascade:
                                 -> Rollup -> Finalize
 
 mirroring the hot path's proven shape (`pipeline_hot/`). It reuses the four
-hot per-stage Lambdas (`reciterai-hot-score / -top-topic / -rollup`; assign
-is a Pass-state stub until PR 4) and adds onboarding-specific entry points:
+hot per-stage Lambdas (`reciterai-hot-score / -assign / -top-topic /
+-rollup`; the Assign stage fans `-assign` out per topic, PR 4) and adds
+onboarding-specific entry points:
 
     orchestrator.py   first Task — scope, synopsis precondition, cost guard
+    assign_fanout.py  DeriveDirtyTopics Task — per-topic Assign Map fan-out
     finalize.py       last Task — decide complete|partial; the notify Lambda
     state_machine.asl.json   the cascade, with ${...Arn} deploy placeholders
 

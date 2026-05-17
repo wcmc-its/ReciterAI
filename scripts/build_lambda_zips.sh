@@ -37,6 +37,11 @@ mkdir -p "$BUILD_DIR"
 LAMBDAS=(
   "orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json"
   "score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json"
+  # assign also bundles the approved hierarchy_draft_*.json files (step 3b
+  # below) as of #80 Phase 2 / PR 4: the onboarding Assign fan-out runs
+  # assign_subtopics per topic, which loads hierarchy_draft_<topic>.json. The
+  # hot path's own assign is still a Pass stub, so the drafts are additive —
+  # the zip carries data it does not yet exercise. Redeployed in PR 6.
   "assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts"
   "top-topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/top_topic.py compute_top_topic.py"
   # rollup gets pymysql + sqlalchemy as of #80 Phase 2 / #90: the onboarding
@@ -114,6 +119,26 @@ build_one() {
       cp "${REPO_ROOT}/${src}" "${stage}/${src}"
     fi
   done
+
+  # 3b. assign Lambda only — bundle the approved hierarchy drafts (#80 PR 4).
+  #     assign_subtopics resolves .planning/phases/04-subtopic-system/
+  #     hierarchy_draft_<topic>.json relative to cwd (= the zip root, the
+  #     handler's REPO_ROOT), so the drafts are copied preserving that path.
+  #     Only the hierarchy_draft_*.json files are copied — not the 130+
+  #     PLAN/SUMMARY .md siblings in that planning directory.
+  if [[ "$name" == "assign" ]]; then
+    local draft_rel=".planning/phases/04-subtopic-system"
+    [[ -d "${REPO_ROOT}/${draft_rel}" ]] \
+      || { echo "hierarchy draft dir missing: ${draft_rel}" >&2; exit 1; }
+    mkdir -p "${stage}/${draft_rel}"
+    rsync -a --include='hierarchy_draft_*.json' --exclude='*' \
+      "${REPO_ROOT}/${draft_rel}/" "${stage}/${draft_rel}/"
+    local n_drafts
+    n_drafts=$(find "${stage}/${draft_rel}" -name 'hierarchy_draft_*.json' | wc -l | tr -d ' ')
+    [[ "$n_drafts" -gt 0 ]] \
+      || { echo "no hierarchy drafts bundled into assign zip" >&2; exit 1; }
+    echo ">> bundled ${n_drafts} hierarchy drafts"
+  fi
 
   # 4. Strip pre-compiled bytecode from staging (smaller zip + cleaner).
   find "$stage" -name '__pycache__' -prune -exec rm -rf {} +
