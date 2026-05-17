@@ -1,10 +1,19 @@
-"""Tests for #80 PR 4a — TOPIC# row materialization in score_publications:
-the _materialize_topic_rows / _delete_topic_rows_for_pmid helpers and the
-score_one_publication --pmids gating + rows-before-marker ordering."""
+"""Tests for TOPIC# row materialization in score_publications.
+
+#80 PR 4a — the _materialize_topic_rows / _delete_topic_rows_for_pmid
+helpers and score_one_publication's persist_topic_rows gating +
+rows-before-marker ordering.
+
+#98 — main()'s persist_topic_rows gate: ON for every --emit-envelope run
+(the hot path + onboarding), OFF for the cold path."""
 
 from __future__ import annotations
 
+import asyncio
+import sys
 from unittest.mock import MagicMock
+
+import pytest
 
 import score_publications as sp
 from utils.bedrock_client import HAIKU_MODEL
@@ -240,3 +249,107 @@ def test_no_passing_topics_branch_materializes_before_marker(monkeypatch):
     assert calls[materialized[0]][1] == {}
     # ...strictly before the 'complete' PROCESSING# marker (crash-safety)
     assert materialized[0] < completed[0]
+
+
+# --- main(): the persist_topic_rows gate (#98) -------------------------------
+#
+# PR 4a gated TOPIC# materialization on --pmids; #98 widens the gate to
+# args.emit_envelope so the hot path materializes rows too. These tests drive
+# score_publications.main() with stubbed I/O far enough to capture the
+# persist_topic_rows kwarg it hands score_batch_async, then abort before any
+# real scoring runs.
+
+
+class _GateProbe(Exception):
+    """Raised by the score_batch_async stub once it has captured the
+    persist_topic_rows gate value — aborts main() before real scoring."""
+
+
+def _persist_topic_rows_for_argv(monkeypatch, argv):
+    """Run score_publications.main() with the given argv and stubbed I/O;
+    return the persist_topic_rows value main() passed to score_batch_async.
+
+    extract_* are stubbed to a one-PMID work set so main() reaches
+    score_batch_async rather than the 'nothing to score' short-circuit.
+    """
+    monkeypatch.setattr(sys, "argv", argv)
+
+    work_set = [{"pmid": "111"}]
+    fake_table = MagicMock()
+    fake_table.put_item = MagicMock(return_value={})
+    monkeypatch.setattr(sp, "get_table", lambda: fake_table)
+    monkeypatch.setattr(sp, "load_thresholds", lambda: {
+        "score_floor": 0.3,
+        "target_failure_rate": 0.01,
+        "uncovered_score_floor": 0.5,
+    })
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    monkeypatch.setattr(
+        sp, "extract_publications", lambda delta_since=None: list(work_set)
+    )
+    monkeypatch.setattr(
+        sp, "extract_publications_by_pmids", lambda pmids: list(work_set)
+    )
+    monkeypatch.setattr(sp, "extract_author_mapping", lambda: {})
+    monkeypatch.setattr(sp, "extract_faculty_metadata", lambda: {})
+    monkeypatch.setattr(
+        sp, "get_unscored_publications", lambda pubs, *a, **k: list(pubs)
+    )
+    monkeypatch.setattr(sp, "should_skip", MagicMock(return_value=(False, None)))
+
+    captured = {}
+
+    async def _fake_score_batch_async(*args, **kwargs):
+        captured["persist_topic_rows"] = kwargs.get("persist_topic_rows")
+        raise _GateProbe
+
+    monkeypatch.setattr(sp, "score_batch_async", _fake_score_batch_async)
+
+    with pytest.raises(_GateProbe):
+        asyncio.run(sp.main())
+    return captured["persist_topic_rows"]
+
+
+def test_hot_delta_run_enables_persist_topic_rows(monkeypatch):
+    """The hot path's normal weekly invocation
+    (`--emit-envelope --delta-since ...`) turns persist_topic_rows ON, so
+    Score materializes TOPIC# rows for the delta PMIDs (#98)."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch,
+        ["score_publications.py", "--emit-envelope",
+         "--delta-since", "2026-05-01T00:00:00Z"],
+    )
+    assert gate is True
+
+
+def test_hot_envelope_run_without_delta_since_enables_persist_topic_rows(monkeypatch):
+    """A hot Score invocation with no --delta-since — bare --emit-envelope,
+    the first-ever run or a post-state-loss retry sweep — still materializes
+    TOPIC# rows. Gating on args.emit_envelope rather than --delta-since is
+    what closes this residual gap (#98)."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch, ["score_publications.py", "--emit-envelope"],
+    )
+    assert gate is True
+
+
+def test_onboarding_pmids_run_still_enables_persist_topic_rows(monkeypatch):
+    """Regression guard: the onboarding path (`--emit-envelope --pmids ...`)
+    keeps persist_topic_rows ON. #98 widened the gate — it must not narrow
+    PR 4a's onboarding behavior."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch,
+        ["score_publications.py", "--emit-envelope", "--pmids", "111"],
+    )
+    assert gate is True
+
+
+def test_cold_path_run_keeps_persist_topic_rows_off(monkeypatch):
+    """The cold path (no --emit-envelope) leaves persist_topic_rows OFF —
+    its TOPIC# rows are written by the cold loader (load_dynamodb) from the
+    JSON score artifact. PR 4a's cold-path byte-unchanged guarantee holds
+    after #98."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch, ["score_publications.py"],
+    )
+    assert gate is False
