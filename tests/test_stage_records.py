@@ -610,3 +610,65 @@ def test_tunable_inputs_source_discriminator_values():
         assert item["tunable_inputs"]["confidence_floor_source"] == source, (
             f"Source discriminator '{source}' not preserved in tunable_inputs"
         )
+
+
+# --- #80 Phase 2 / #90: input_pmid_set + rollup_counts ----------------------
+
+
+def test_build_complete_record_omits_cwid_rollup_fields_when_none():
+    """#90: input_pmid_set / rollup_counts absent when not passed —
+    backwards-compatible with every non-rollup STAGE# producer."""
+    item = sr.build_complete_record(
+        stage="rollup_by_cwid",
+        scope="cwid:abc123",
+        input_hash="abc",
+        started_at="2026-05-16T00:00:00Z",
+        completed_at="2026-05-16T00:00:01Z",
+        duration_ms=1000,
+        cost_observed_usd=Decimal("0"),
+    )
+    assert "input_pmid_set" not in item
+    assert "rollup_counts" not in item
+
+
+def test_build_complete_record_carries_input_pmid_set():
+    """#90: the onboarding detector reads input_pmid_set off the most
+    recent STAGE#rollup_by_cwid#cwid:{cwid} complete row (R9 churn check)."""
+    pmids = ["111", "222", "333"]
+    item = sr.build_complete_record(
+        stage="rollup_by_cwid",
+        scope="cwid:abc123",
+        input_hash="abc",
+        started_at="2026-05-16T00:00:00Z",
+        completed_at="2026-05-16T00:00:01Z",
+        duration_ms=1000,
+        cost_observed_usd=Decimal("0"),
+        input_pmid_set=pmids,
+    )
+    assert item["input_pmid_set"] == pmids
+    # Stored as an independent list, not an alias of the caller's.
+    assert item["input_pmid_set"] is not pmids
+
+
+def test_build_complete_record_carries_rollup_counts():
+    """#90: the per-CWID rollup records its four tallies on the STAGE# row
+    (it has no shared cwid_rollup.csv to write the per-CWID numbers to)."""
+    counts = {
+        "n_activities": 80,
+        "n_distinct_topics": 12,
+        "n_subtopic_activities": 71,
+        "n_distinct_subtopics": 25,
+    }
+    item = sr.build_complete_record(
+        stage="rollup_by_cwid",
+        scope="cwid:abc123",
+        input_hash="abc",
+        started_at="2026-05-16T00:00:00Z",
+        completed_at="2026-05-16T00:00:01Z",
+        duration_ms=1000,
+        cost_observed_usd=Decimal("0"),
+        rollup_counts=counts,
+    )
+    assert item["rollup_counts"] == counts
+    # Stored as an independent dict, not an alias of the caller's.
+    assert item["rollup_counts"] is not counts

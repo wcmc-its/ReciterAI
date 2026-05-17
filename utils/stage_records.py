@@ -180,6 +180,8 @@ def build_complete_record(
     run_id: str | None = None,
     tunable_inputs: dict[str, Any] | None = None,
     content_filter_count: int | None = None,
+    input_pmid_set: list[str] | None = None,
+    rollup_counts: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """
     Pure builder for a STAGE# complete row dict. No I/O.
@@ -209,6 +211,21 @@ def build_complete_record(
     them. Surfaces on the score_publications STAGE# row so a content-filter
     rate spike is visible without a per-PMID scan. Same additive pattern —
     omitted when None.
+
+    `input_pmid_set` (#80 Phase 2 / #90) is the optional list of PMIDs a
+    CWID-scoped rollup run consumed — the live `analysis_summary_author`
+    snapshot for the CWID at rollup time. The onboarding detector reads it
+    off the most recent `STAGE#rollup_by_cwid#cwid:{cwid}` complete row to
+    detect ReCiter attribution drift (R9 churn): a current accepted set that
+    no longer matches the recorded set means the CWID needs re-onboarding.
+    Same additive pattern — omitted when None.
+
+    `rollup_counts` (#80 Phase 2 / #90) is the optional per-CWID rollup
+    result map — `n_activities`, `n_distinct_topics`,
+    `n_subtopic_activities`, `n_distinct_subtopics`. The CWID-scoped rollup
+    path records it on the STAGE# row because, unlike the GLOBAL CSV path,
+    it has no shared `cwid_rollup.csv` to write the per-CWID numbers to.
+    Same additive pattern — omitted when None.
     """
     item = _base_item(
         stage=stage,
@@ -234,6 +251,10 @@ def build_complete_record(
         item["tunable_inputs"] = dict(tunable_inputs)
     if content_filter_count is not None:
         item["content_filter_count"] = content_filter_count
+    if input_pmid_set is not None:
+        item["input_pmid_set"] = list(input_pmid_set)
+    if rollup_counts is not None:
+        item["rollup_counts"] = dict(rollup_counts)
     return item
 
 

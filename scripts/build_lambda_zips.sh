@@ -39,7 +39,11 @@ LAMBDAS=(
   "score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json"
   "assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts"
   "top-topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/top_topic.py compute_top_topic.py"
-  "rollup||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py"
+  # rollup gets pymysql + sqlalchemy as of #80 Phase 2 / #90: the onboarding
+  # `--cwid` rollup path queries ReciterDB (get_pmids_for_cwid) for the
+  # CWID's accepted PMID set. The hot-path `--cwids` CSV rollup never opens a
+  # DB connection, but the one Lambda serves both modes. Redeployed in PR 6.
+  "rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py"
   "alert-dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py"
 )
 
