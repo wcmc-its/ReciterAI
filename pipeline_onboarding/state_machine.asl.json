@@ -1,0 +1,328 @@
+{
+  "Comment": "ReciterAI new-researcher onboarding workflow (#80 Phase 2). Operator-triggered per CWID via aws stepfunctions start-execution with input {\"cwid\": \"...\", \"allow_cost_override\": false}. Orchestrate scopes the CWID's full accepted-publication set, checks the synopsis precondition, culls the PROCESSING# checkpoint, and applies the cost guard; CheckProceed routes deferred/skipped/cost_exceeded to a known-status terminal writer or ready into the Score cascade. Mirrors the hot path's shape: per-stage STAGE# rows written by the dynamodb:putItem SDK integration (D-07 crash-safety), handlers return DDB-typed envelopes, every Lambda Task Catches States.ALL to WriteOnboardingFailed. AssignFanOut is a Pass-state stub in PR 3 (per-topic Step Functions Map is PR 4) so onboarding produces topic-level scoring + rollup without subtopics until then. No concurrency lock and no states:* calls — onboarding is operator-triggered per CWID and same-CWID races are absorbed by per-stage idempotency.",
+  "StartAt": "Orchestrate",
+  "States": {
+    "Orchestrate": {
+      "Type": "Task",
+      "Resource": "${OnboardingOrchestratorLambdaArn}",
+      "Parameters": {
+        "execution_input.$": "$",
+        "run_id.$": "$$.Execution.Name"
+      },
+      "ResultPath": "$.orchestrate",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "CheckProceed"
+    },
+
+    "CheckProceed": {
+      "Type": "Choice",
+      "Comment": "Routes the orchestrator's routing status. ready -> Score cascade; the other three -> a known-status terminal writer.",
+      "Choices": [
+        {
+          "Variable": "$.orchestrate.status",
+          "StringEquals": "deferred",
+          "Next": "WriteOnboardingDeferred"
+        },
+        {
+          "Variable": "$.orchestrate.status",
+          "StringEquals": "skipped",
+          "Next": "WriteOnboardingSkipped"
+        },
+        {
+          "Variable": "$.orchestrate.status",
+          "StringEquals": "cost_exceeded",
+          "Next": "WriteOnboardingCostExceeded"
+        }
+      ],
+      "Default": "Score"
+    },
+
+    "WriteOnboardingDeferred": {
+      "Type": "Task",
+      "Comment": "Inline putItem of the orchestrator's pre-typed deferred STAGE#onboarding#cwid row (D-07: a Lambda crash cannot lose a known-status terminal).",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.orchestrate.terminal_envelope"
+      },
+      "ResultPath": null,
+      "Next": "NotifyDeferred"
+    },
+
+    "NotifyDeferred": {
+      "Type": "Task",
+      "Resource": "${OnboardingNotifyLambdaArn}",
+      "Parameters": {
+        "kind": "deferred",
+        "cwid.$": "$.orchestrate.terminal_envelope.cwid.S",
+        "reason.$": "$.orchestrate.terminal_envelope.deferred_reason.S",
+        "run_id.$": "$.orchestrate.terminal_envelope.run_id.S"
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "WriteOnboardingSkipped": {
+      "Type": "Task",
+      "Comment": "Inline putItem of the pre-typed skipped row. skipped is an idempotent no-op — silent, no operator notification.",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.orchestrate.terminal_envelope"
+      },
+      "ResultPath": null,
+      "Next": "End"
+    },
+
+    "WriteOnboardingCostExceeded": {
+      "Type": "Task",
+      "Comment": "Inline putItem of the pre-typed cost-guard terminal — status=failed, error_code=CostGuardExceeded (D-COSTSTATUS).",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.orchestrate.terminal_envelope"
+      },
+      "ResultPath": null,
+      "Next": "NotifyCostExceeded"
+    },
+
+    "NotifyCostExceeded": {
+      "Type": "Task",
+      "Resource": "${OnboardingNotifyLambdaArn}",
+      "Parameters": {
+        "kind": "cost_exceeded",
+        "cwid.$": "$.orchestrate.terminal_envelope.cwid.S",
+        "reason.$": "$.orchestrate.terminal_envelope.error_message.S",
+        "run_id.$": "$.orchestrate.terminal_envelope.run_id.S"
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "Score": {
+      "Type": "Task",
+      "Comment": "Reused hot Lambda reciterai-hot-score; the {pmids} event routes to score_publications --pmids (PR 1).",
+      "Resource": "${ScoreLambdaArn}",
+      "InputPath": "$.orchestrate.input",
+      "ResultPath": "$.score_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "WriteScoreStageRow"
+    },
+
+    "WriteScoreStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.score_envelope"
+      },
+      "ResultPath": null,
+      "Next": "AssignFanOut"
+    },
+
+    "AssignFanOut": {
+      "Type": "Pass",
+      "Comment": "PR 3 Assign stub. PR 4 replaces this Pass with a per-topic Step Functions Map running assign_subtopics per dirty topic. Until then onboarding produces topic-level scoring + rollup with no subtopic assignment (PLAN section 6 degraded path). The injected envelope is DDB attribute-typed so finalize can read $.assign_envelope.input_hash.S like the real stage.",
+      "Result": {
+        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
+        "SK": {"S": "RUN#onboarding-assign-stub"},
+        "stage": {"S": "assign_subtopics"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "skipped"},
+        "skip_reason": {"S": "onboarding Assign stub (PR 3); per-topic fan-out is PR 4"},
+        "input_hash": {"S": "skipped:onboarding-assign-stub"}
+      },
+      "ResultPath": "$.assign_envelope",
+      "Next": "TopTopic"
+    },
+
+    "TopTopic": {
+      "Type": "Task",
+      "Comment": "Reused hot Lambda reciterai-hot-top-topic; takes a plain PMID list, reused unchanged.",
+      "Resource": "${TopTopicLambdaArn}",
+      "Parameters": {
+        "delta_pmids.$": "$.orchestrate.input.pmids"
+      },
+      "ResultPath": "$.top_topic_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "WriteTopTopicStageRow"
+    },
+
+    "WriteTopTopicStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.top_topic_envelope"
+      },
+      "ResultPath": null,
+      "Next": "Rollup"
+    },
+
+    "Rollup": {
+      "Type": "Task",
+      "Comment": "Reused hot Lambda reciterai-hot-rollup; the {cwid} event routes to the PMID-aware rollup_by_cwid --cwid path (PR 2 / #90).",
+      "Resource": "${RollupLambdaArn}",
+      "Parameters": {
+        "cwid.$": "$.orchestrate.input.cwid"
+      },
+      "ResultPath": "$.rollup_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "WriteRollupStageRow"
+    },
+
+    "WriteRollupStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.rollup_envelope"
+      },
+      "ResultPath": null,
+      "Next": "Finalize"
+    },
+
+    "Finalize": {
+      "Type": "Task",
+      "Comment": "Decides the workflow terminal status complete|partial from the PROCESSING# checkpoint and returns the DDB-typed STAGE#onboarding#cwid row for WriteOnboardingFinal.",
+      "Resource": "${OnboardingFinalizeLambdaArn}",
+      "Parameters": {
+        "cwid.$": "$.orchestrate.input.cwid",
+        "pmids.$": "$.orchestrate.input.pmids",
+        "run_id.$": "$.orchestrate.input.run_id",
+        "started_at.$": "$.orchestrate.input.started_at",
+        "input_hash.$": "$.orchestrate.input.input_hash",
+        "net_work_count.$": "$.orchestrate.input.net_work_count",
+        "projected_cost_usd.$": "$.orchestrate.input.projected_cost_usd",
+        "score_envelope.$": "$.score_envelope",
+        "assign_envelope.$": "$.assign_envelope",
+        "top_topic_envelope.$": "$.top_topic_envelope",
+        "rollup_envelope.$": "$.rollup_envelope"
+      },
+      "ResultPath": "$.finalize_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "WriteOnboardingFinal"
+    },
+
+    "WriteOnboardingFinal": {
+      "Type": "Task",
+      "Comment": "Inline putItem of finalize's complete|partial STAGE#onboarding#cwid row.",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.finalize_envelope"
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "WriteOnboardingFailed": {
+      "Type": "Task",
+      "Comment": "Catch target for every Lambda Task. Builds the failed STAGE#onboarding#cwid row inline from the original execution input ($.cwid survives Orchestrate's ResultPath) and the Catch payload — the orchestrator's pre-typed envelope is unavailable when Orchestrate itself crashed. The optimized DynamoDB integration auto-types bare string values; the Map Catch payload is JSON-stringified into one S attribute.",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item": {
+          "PK.$": "States.Format('STAGE#onboarding#cwid:{}', $.cwid)",
+          "SK.$": "States.Format('RUN#FAILED#{}', $$.Execution.StartTime)",
+          "stage": {"S": "onboarding"},
+          "scope.$": "States.Format('cwid:{}', $.cwid)",
+          "status": {"S": "failed"},
+          "run_id.$": "$$.Execution.Name",
+          "cwid.$": "$.cwid",
+          "error_code": {"S": "WorkflowTaskFailed"},
+          "error": {"S.$": "States.JsonToString($.error)"}
+        }
+      },
+      "ResultPath": null,
+      "Next": "NotifyFailed"
+    },
+
+    "NotifyFailed": {
+      "Type": "Task",
+      "Resource": "${OnboardingNotifyLambdaArn}",
+      "Parameters": {
+        "kind": "failed",
+        "cwid.$": "$.cwid",
+        "reason.$": "States.JsonToString($.error)",
+        "run_id.$": "$$.Execution.Name"
+      },
+      "ResultPath": null,
+      "End": true
+    },
+
+    "End": {
+      "Type": "Succeed"
+    }
+  }
+}

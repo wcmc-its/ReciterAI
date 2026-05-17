@@ -49,6 +49,17 @@ STATUS_COMPLETE = "complete"
 STATUS_SKIPPED = "skipped"
 STATUS_FAILED = "failed"
 
+# #80 Phase 2 — the new-researcher onboarding workflow surfaces a 5-state
+# terminal taxonomy (R7): complete | partial | deferred | skipped | failed.
+# `complete` / `skipped` / `failed` are shared with the per-stage records
+# above; `partial` (the workflow ran but some PMIDs did not reach a scored
+# state) and `deferred` (a synopsis precondition was unmet, so the run was
+# postponed) are unique to the `STAGE#onboarding#cwid` workflow row written
+# by `pipeline_onboarding`. Defined here so the substrate has one status
+# vocabulary rather than a second enum drifting in the onboarding package.
+STATUS_PARTIAL = "partial"
+STATUS_DEFERRED = "deferred"
+
 
 
 
