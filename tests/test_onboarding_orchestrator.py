@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pipeline_onboarding.orchestrator as orch
+import score_publications
 
 # Shared kwargs for the decision-logic tests (allow_cost_override False).
 _BASE = dict(
@@ -64,7 +65,7 @@ def test_all_scored_routes_skipped():
 
 
 def test_cost_guard_trips_above_threshold():
-    big = [str(i) for i in range(orch.ONBOARDING_COST_GUARD_MAX_PMIDS + 1)]
+    big = [str(i) for i in range(score_publications.ONBOARDING_COST_GUARD_MAX_PMIDS + 1)]
     result = orch.evaluate_onboarding(
         **_BASE, pmids=big, synopsis_missing=[], processing_status={},
     )
@@ -77,7 +78,7 @@ def test_cost_guard_trips_above_threshold():
 
 
 def test_cost_guard_override_routes_ready():
-    big = [str(i) for i in range(orch.ONBOARDING_COST_GUARD_MAX_PMIDS + 1)]
+    big = [str(i) for i in range(score_publications.ONBOARDING_COST_GUARD_MAX_PMIDS + 1)]
     result = orch.evaluate_onboarding(
         cwid="abc1234",
         run_id="run-1",
@@ -112,7 +113,7 @@ def test_ready_returns_work_payload():
 def test_synopsis_check_precedes_cost_guard():
     """A run that is both synopsis-incomplete and oversized defers — the
     synopsis precondition is evaluated before the cost guard."""
-    big = [str(i) for i in range(orch.ONBOARDING_COST_GUARD_MAX_PMIDS + 50)]
+    big = [str(i) for i in range(score_publications.ONBOARDING_COST_GUARD_MAX_PMIDS + 50)]
     result = orch.evaluate_onboarding(
         **_BASE, pmids=big, synopsis_missing=["7"], processing_status={},
     )

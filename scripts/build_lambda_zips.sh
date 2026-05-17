@@ -66,23 +66,33 @@ LAMBDAS=(
   "reciterai-hot-rollup|pipeline_hot.handlers.rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py|utils.sql_queries"
   "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py|"
   # ---- New-researcher onboarding (4) — #80 Phase 2 / PR 6 -----------------
-  # orchestrator imports score_publications at module scope, which pulls
-  # tqdm + openai (via utils.openai_client) + pymysql/sqlalchemy (via
-  # utils.sql_queries) — the hot-score dep set, not the lighter hot-orchestrator
-  # one. No taxonomy_v2.json: no onboarding code path reads the taxonomy.
-  "reciterai-onboarding-orchestrator|pipeline_onboarding.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_onboarding/__init__.py pipeline_onboarding/orchestrator.py score_publications.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
+  # orchestrator.py imports score_publications inside evaluate_onboarding —
+  # function-local since #102, so importing the orchestrator module stays
+  # lightweight (that is what lets the lean detector zip below bundle
+  # orchestrator.py). The orchestrator Lambda still runs evaluate_onboarding,
+  # so this zip still bundles score_publications.py + its full scoring dep set
+  # (tqdm + openai + pymysql/sqlalchemy). score_publications AND the cost
+  # preview's utils.llm_cost are now reached only via function-local imports —
+  # extra_imports build-verifies both (a plain handler-module import loads
+  # neither). pyyaml: utils.llm_cost parses config/llm_prices.yaml. No
+  # taxonomy_v2.json: no onboarding code path reads the taxonomy.
+  "reciterai-onboarding-orchestrator|pipeline_onboarding.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0 pyyaml>=6.0.1|pipeline_onboarding/__init__.py pipeline_onboarding/orchestrator.py score_publications.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|score_publications utils.llm_cost"
   # finalize.py hosts two handlers — `handler` (Finalize) and `notify_handler`
   # (Notify). One zip, deployed as TWO Lambda functions —
   # reciterai-onboarding-finalize and reciterai-onboarding-notify — with
   # different --handler. DynamoDB + urllib alerting only, so no pip deps.
   "reciterai-onboarding-finalize|pipeline_onboarding.finalize||pipeline_onboarding/__init__.py pipeline_onboarding/finalize.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
-  # detector's faculty gap scan does a function-local
-  # `from utils.sql_queries import scan_faculty_publication_gaps` — invisible
-  # to a plain `import pipeline_onboarding.detector`; extra_imports makes the
-  # pymysql/sqlalchemy requirement build-verified. Lean (D-DETECTOR-COST
-  # option B) — the issue-body cost preview reads "unavailable" until its
-  # follow-up restores it.
-  "reciterai-onboarding-detector|pipeline_onboarding.detector|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_onboarding/__init__.py pipeline_onboarding/detector.py pipeline_onboarding/github_issues.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.sql_queries"
+  # The detector reaches two dependency chains only through function-local
+  # imports — both build-verified by extra_imports, since a plain `import
+  # pipeline_onboarding.detector` loads neither:
+  #   - faculty gap scan -> `from utils.sql_queries import ...` (pymysql/sqlalchemy)
+  #   - issue-body cost preview -> pipeline_onboarding.orchestrator ->
+  #     utils.llm_cost (parses config/llm_prices.yaml — needs pyyaml).
+  # The cost preview is why orchestrator.py is bundled here: #102
+  # (D-DETECTOR-COST option C) made `import pipeline_onboarding.orchestrator`
+  # lightweight — it no longer drags in the score_publications tree — so this
+  # lean zip can carry it. score_publications.py itself is NOT bundled.
+  "reciterai-onboarding-detector|pipeline_onboarding.detector|pymysql>=1.1.0 sqlalchemy>=2.0.0 pyyaml>=6.0.1|pipeline_onboarding/__init__.py pipeline_onboarding/detector.py pipeline_onboarding/github_issues.py pipeline_onboarding/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.sql_queries pipeline_onboarding.orchestrator utils.llm_cost"
   # derive-topics bundles rollup_by_cwid.py for fetch_cwid_topic_activity;
   # DynamoDB-only (no ReciterDB call on this path), so no pip deps.
   "reciterai-onboarding-derive-topics|pipeline_onboarding.assign_fanout||pipeline_onboarding/__init__.py pipeline_onboarding/assign_fanout.py rollup_by_cwid.py|"
