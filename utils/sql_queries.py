@@ -349,3 +349,77 @@ def check_synopsis_coverage(pmids: list[str]) -> dict[str, list[str]]:
         "present": sorted(present),
         "missing": sorted(set(wanted) - present),
     }
+
+
+# ---------------------------------------------------------------------------
+# Onboarding detector — global faculty gap scan (#80 Phase 2, PR 5)
+# ---------------------------------------------------------------------------
+
+FACULTY_GAP_SCAN_SQL = """
+SELECT DISTINCT
+    au.personIdentifier AS cwid,
+    a.pmid AS pmid,
+    CASE WHEN s.external_id IS NOT NULL THEN 1 ELSE 0 END AS has_synopsis
+FROM analysis_summary_author au
+JOIN identity id ON id.cwid = au.personIdentifier
+JOIN analysis_summary_article a ON a.pmid = au.pmid
+LEFT JOIN reciterai_synopsis s
+    ON s.external_id = CAST(a.pmid AS CHAR) COLLATE utf8mb4_unicode_ci
+    AND s.entity_type = 'publication'
+    AND s.synopsis IS NOT NULL
+    AND s.synopsis != ''
+WHERE id.fullTimeFaculty = 'yes'
+    AND a.publicationTypeCanonical = 'Academic Article'
+    AND a.articleYear >= 2020
+ORDER BY au.personIdentifier, a.pmid
+"""
+# The onboarding detector's R1 "global gap scan" (#80 PR 5). One row per
+# (CWID, PMID) across every full-time-faculty accepted publication, each
+# tagged with whether a non-empty reciterai_synopsis row exists.
+#
+# This is the SQL "outer loop" of the cross-store join R1 specifies: SQL is
+# authoritative for "what publications should exist" for a CWID; the detector
+# then BatchGetItems PROCESSING# rows in DynamoDB for the "what is scored"
+# inner check. Score coverage is deliberately NOT joined here — it lives in
+# DynamoDB, not MariaDB.
+#
+# Faculty scope (identity.fullTimeFaculty = 'yes') mirrors AUTHOR_MAPPING_SQL
+# and resolves the spec's OQ-2. Publication scope (Academic Article,
+# articleYear >= 2020) matches PMIDS_BY_CWID_SQL / D4, so a CWID's row set
+# here is identical to what get_pmids_for_cwid would return for it.
+#
+# The synopsis LEFT JOIN repeats PUBLICATION_EXTRACTION_SQL's
+# external_id = CAST(pmid AS CHAR) COLLATE utf8mb4_unicode_ci join (the A6
+# correction): reciterai_synopsis.external_id is a varchar PMID.
+
+
+def scan_faculty_publication_gaps() -> list[dict]:
+    """Return every full-time-faculty accepted publication with a synopsis flag.
+
+    Drives the onboarding detector's global gap scan (#80 R1, PR 5). One dict
+    per (CWID, PMID): ``{"cwid": str, "pmid": str, "has_synopsis": bool}``.
+
+    `has_synopsis` reflects only the MariaDB synopsis precondition; score
+    coverage is a separate DynamoDB PROCESSING# check the detector runs after
+    this query. A CWID appears once per accepted PMID; a PMID appears once per
+    co-authoring faculty CWID (the cross-institution co-authorship case is
+    fine — each CWID is evaluated independently).
+
+    Returns an empty list only when no full-time faculty have post-2020
+    Academic Articles — never the normal case.
+    """
+    from sqlalchemy import text
+
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(text(FACULTY_GAP_SCAN_SQL)).mappings().all()
+    finally:
+        conn.close()
+    return [
+        {
+            "cwid": str(r["cwid"]),
+            "pmid": str(r["pmid"]),
+            "has_synopsis": bool(r["has_synopsis"]),
+        }
+        for r in rows
+    ]
