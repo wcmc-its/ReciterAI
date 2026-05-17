@@ -53,14 +53,6 @@ from pipeline_onboarding import (
     ONBOARDING_STAGE,
     build_onboarding_record,
 )
-# `onboarding_cost_guard_tripped` is the canonical cost-guard decision
-# delivered in #80 Phase 1; reuse it so the orchestrator (the primary
-# decision point) and `score_publications --pmids` (defense-in-depth) cannot
-# drift. ONBOARDING_COST_GUARD_MAX_PMIDS resolves config/thresholds.json.
-from score_publications import (
-    ONBOARDING_COST_GUARD_MAX_PMIDS,
-    onboarding_cost_guard_tripped,
-)
 from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL
 from utils.dynamodb_helpers import (
     TABLE_NAME,
@@ -193,6 +185,22 @@ def evaluate_onboarding(
     The unused key is an empty dict; the state machine only dereferences the
     one the taken branch needs.
     """
+    # score_publications is imported here, not at module scope, so a plain
+    # `import pipeline_onboarding.orchestrator` stays lightweight — it does
+    # not drag in score_publications' scoring dependency tree (tqdm, openai,
+    # pymysql/sqlalchemy). That lets the lean onboarding-detector Lambda zip
+    # bundle orchestrator.py for its cost-preview chain without the ~30-40 MB
+    # of scoring wheels (#80 PR 6 D-DETECTOR-COST option C; #102). Keep this
+    # import function-local.
+    # onboarding_cost_guard_tripped is the canonical #80-Phase-1 cost-guard
+    # decision, reused so the orchestrator (the primary decision point) and
+    # `score_publications --pmids` (defense-in-depth) cannot drift;
+    # ONBOARDING_COST_GUARD_MAX_PMIDS resolves config/thresholds.json.
+    from score_publications import (
+        ONBOARDING_COST_GUARD_MAX_PMIDS,
+        onboarding_cost_guard_tripped,
+    )
+
     input_hash = compute_onboarding_input_hash(cwid, pmids)
 
     def _terminal(status: str, **record_kwargs: Any) -> dict[str, Any]:

@@ -93,9 +93,41 @@ def test_onboarding_finalize_has_no_pip_deps(specs):
 
 
 def test_onboarding_orchestrator_bundles_score_publications(specs):
-    """orchestrator.py imports score_publications at module scope, so its zip
-    bundles it and carries the full scoring dep set."""
+    """orchestrator.py imports score_publications function-locally (inside
+    evaluate_onboarding, since #102); the orchestrator Lambda still runs that
+    path, so its zip still bundles score_publications.py + the full scoring
+    dep set."""
     row = specs["reciterai-onboarding-orchestrator"]
     assert "score_publications.py" in row["first_party"].split()
     for dep in ("tqdm", "openai", "pymysql", "sqlalchemy"):
         assert dep in row["pip_deps"], f"orchestrator pip_deps missing {dep}"
+
+
+def test_onboarding_orchestrator_build_verifies_function_local_deps(specs):
+    """#102: orchestrator.py reaches score_publications + the cost preview's
+    utils.llm_cost only via function-local imports — a plain import of the
+    handler module loads neither — so both must be in extra_imports for the
+    build-check to verify them, and pyyaml must be a pip dep (utils.llm_cost
+    parses config/llm_prices.yaml)."""
+    row = specs["reciterai-onboarding-orchestrator"]
+    extra = row["extra_imports"].split()
+    assert "score_publications" in extra
+    assert "utils.llm_cost" in extra
+    assert "pyyaml" in row["pip_deps"]
+
+
+def test_onboarding_detector_bundles_lightweight_cost_preview_chain(specs):
+    """#102 (D-DETECTOR-COST option C): the detector's issue-body cost preview
+    reaches utils.llm_cost via pipeline_onboarding.orchestrator. The zip
+    bundles orchestrator.py + pyyaml and extra_imports build-verifies the
+    chain — but score_publications.py stays unbundled, which is option C's
+    whole point: orchestrator.py is lightweight, so the lean detector zip
+    carries it without the score_publications scoring tree."""
+    row = specs["reciterai-onboarding-detector"]
+    first_party = row["first_party"].split()
+    extra = row["extra_imports"].split()
+    assert "pipeline_onboarding/orchestrator.py" in first_party
+    assert "score_publications.py" not in first_party
+    assert "pyyaml" in row["pip_deps"]
+    assert "pipeline_onboarding.orchestrator" in extra
+    assert "utils.llm_cost" in extra
