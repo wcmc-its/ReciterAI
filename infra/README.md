@@ -8,10 +8,11 @@ overlays.
 
 ## Files
 
-- **`eventbridge.json`** — three cron rules and their targets:
+- **`eventbridge.json`** — four cron rules and their targets:
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
   - `reciterai-spotlight-monthly` → Lambda `reciterai-spotlight-orchestrator` (1st of month, 13:00 UTC).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
+  - `reciterai-onboarding-detector-daily` → Lambda `reciterai-onboarding-detector` (daily 13:00 UTC; #80 Phase 2).
   - **Note:** the daily enrichment job (#37) is intentionally NOT scheduled here.
     It runs as an operator-typed CLI from the operator's laptop until an
     org-managed OpenAI API key replaces the current personal key. See
@@ -41,11 +42,13 @@ aws events list-rules --region "$AWS_REGION" \
 
 The Lambda functions and the Step Functions state machine are deployed
 separately. This script wires the cron triggers; it does not create the
-target resources. The Step Functions deployment is in
-`scripts/deploy_state_machine.sh` (T14); Lambda function deployment is
-managed by `scripts/deploy_lambda.sh` (out of scope for Phase 10 — current
-practice is manual `aws lambda update-function-code` until a function
-boundary changes frequently enough to justify automation).
+target resources. The hot-path Step Functions deployment is in
+`scripts/deploy_state_machine.sh` (T14); the onboarding state machine
+(`reciterai-onboarding`, #80 Phase 2) has its own near-clone
+`scripts/deploy_onboarding_state_machine.sh`. Lambda function deployment
+stays manual `aws lambda create-function` / `update-function-code` — there
+is no `deploy_lambda.sh` (current practice until a function boundary
+changes frequently enough to justify automation).
 
 ## D-10 migration trigger — when to adopt CDK
 
@@ -64,6 +67,14 @@ binding on future operators:
 > `wcmc-reciterai-hierarchy` (S3), `wcmc-reciterai-artifacts` (S3),
 > `reciterai-hot-path` (Step Functions), plus Lambda functions per
 > handler. The Lambda count alone will likely cross the threshold first.
+
+**#80 Phase 2 update (2026-05) — triggers (a) and (b) have fired.**
+Onboarding adds a second Step Function (`reciterai-onboarding`) and a fourth
+cron rule (`reciterai-onboarding-detector-daily`). Per **D-INFRA** (the
+onboarding PLAN), the CDK migration is *deliberately deferred*: onboarding
+declares its infra in this directory alongside the hot path, and the two
+migrate together in one batch. Revisit trigger: ReCiter-CDK#11 closing with
+a named, deployable hosting path.
 
 When the threshold fires, file the migration as its own Phase. Reciter-
 CDK (the existing IaC repo for the Java retrieval services) is the
@@ -87,6 +98,51 @@ they are the rollback path.
 - **Lambda permissions are idempotent on re-run.** `add-permission`
   uses a deterministic statement-id; re-running prints a notice but
   does not fail.
+
+## Onboarding state-machine role (#80 Phase 2)
+
+`scripts/deploy_onboarding_state_machine.sh` takes a `STATE_MACHINE_ROLE_ARN`
+— the IAM role **assumed by Step Functions itself** to run the
+`reciterai-onboarding` workflow. Like the hot path's state-machine role and
+the Lambda execution roles, it is created out-of-band (this directory does
+not create IAM roles). Its minimum policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeOnboardingAndReusedHotLambdas",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": [
+        "arn:aws:lambda:*:*:function:reciterai-onboarding-orchestrator",
+        "arn:aws:lambda:*:*:function:reciterai-onboarding-finalize",
+        "arn:aws:lambda:*:*:function:reciterai-onboarding-notify",
+        "arn:aws:lambda:*:*:function:reciterai-onboarding-derive-topics",
+        "arn:aws:lambda:*:*:function:reciterai-hot-score",
+        "arn:aws:lambda:*:*:function:reciterai-hot-assign",
+        "arn:aws:lambda:*:*:function:reciterai-hot-top-topic",
+        "arn:aws:lambda:*:*:function:reciterai-hot-rollup"
+      ]
+    },
+    {
+      "Sid": "WriteStageRows",
+      "Effect": "Allow",
+      "Action": "dynamodb:PutItem",
+      "Resource": "arn:aws:dynamodb:*:*:table/reciterai"
+    }
+  ]
+}
+```
+
+`lambda:InvokeFunction` covers the 8 functions the ASL invokes — the four
+onboarding Lambdas plus the four reused hot per-stage Lambdas.
+`reciterai-onboarding-detector` is **not** in the list: EventBridge invokes
+it, not the state machine. `dynamodb:PutItem` covers the ASL's inline
+`arn:aws:states:::dynamodb:putItem` states (the terminal `STAGE#onboarding`
+row and the per-stage `STAGE#` rows). This mirrors the hot path's
+state-machine role.
 
 ## Related
 

@@ -11,6 +11,7 @@ common failures.
 | **Cold path** | Manual / on demand | Operator runs `python -m pipeline_cold.run` | **Yes** — taxonomy + hierarchy versions | Full pipeline mint: rescore, reassign, rediscover subtopics, relabel, full rollup, spotlight backfill, hierarchy publish. |
 | **Spotlight refresh** | 1st of each month, 13:00 UTC | EventBridge → Lambda | No | Dirty-check gate; if dirty enough, regenerates the spotlight; otherwise writes a `skipped` STAGE# row. |
 | **Drift evaluator** | Daily 14:00 UTC | EventBridge → Lambda | No | Writes one `DRIFT#evaluation` row; dispatches WARN/ERROR alerts. |
+| **Onboarding** | Per-CWID, operator-triggered; detector daily 13:00 UTC | `aws stepfunctions start-execution` (workflow); EventBridge → Lambda (detector) | No | Full CWID-scoped backfill — score, subtopic-assign, top-topic, rollup for a researcher's whole accepted-publication set, regardless of publication date. The daily detector files GitHub issues for CWIDs needing a run. |
 
 Cron schedules are defined in `infra/eventbridge.json` and applied by
 `scripts/deploy_cron.sh`. All schedules are tunable in JSON without
@@ -252,6 +253,172 @@ defaults are conservative.
 
 ---
 
+## Onboarding — `pipeline_onboarding`
+
+**Cadence**: operator-triggered, per CWID, on demand. A daily detector
+(13:00 UTC) finds CWIDs that need a run and files a GitHub issue for each.
+
+**Why it exists**: the hot path is a *delta* over publication recency, so a
+researcher who joins WCM with a substantial prior publication history has
+most of those papers fall outside every weekly delta window. Onboarding is
+the CWID-scoped backfill that closes the gap — it scores, subtopic-assigns,
+top-topics, and rolls up one researcher's *whole* accepted-publication set
+(Academic Article, `articleYear >= 2020`) regardless of date.
+
+**Invocation**: start the `reciterai-onboarding` Step Functions execution
+for one CWID (substitute the CWID):
+
+```bash
+aws stepfunctions start-execution \
+  --state-machine-arn arn:aws:states:us-east-1:$AWS_ACCOUNT_ID:stateMachine:reciterai-onboarding \
+  --name "onboarding-abc1234-$(date -u +%Y%m%dT%H%M%SZ)" \
+  --input '{"cwid":"abc1234","allow_cost_override":false}'
+```
+
+The daily detector embeds this command, pre-filled, in every issue it files.
+
+**State machine** (`pipeline_onboarding/state_machine.asl.json`):
+
+```
+Orchestrate → CheckProceed ─(deferred|skipped|cost_exceeded)→ terminal row
+                          └(ready)→ Score → DeriveDirtyTopics
+                                  → AssignFanOut (Map, one iteration per topic)
+                                  → TopTopic → Rollup → Finalize
+```
+
+`Orchestrate` scopes the CWID's accepted PMID set, checks the synopsis
+precondition, culls the `PROCESSING#` checkpoint, and applies the cost
+guard. The `ready` cascade reuses the four hot per-stage Lambdas
+(`reciterai-hot-score / -assign / -top-topic / -rollup`); the Assign stage
+fans `-assign` out per topic via a Step Functions `Map`. Every Lambda Task
+`Catch`-es to a terminal `failed`-row writer (D-07 crash-safety).
+
+**5-state terminal status** (R7): every run writes exactly one
+`STAGE#onboarding#cwid:{cwid}` row whose `status` is one of —
+
+| Status | Meaning | Operator action |
+|---|---|---|
+| `complete` | All PMIDs scored; the full cascade ran. | None. |
+| `partial` | The cascade ran; some PMIDs did not reach a scored state. | Re-run — onboarding retries only the gaps (idempotent). A WARN Teams alert fires. |
+| `deferred` | One or more PMIDs lack a synopsis; onboarding does not generate synopses. | Re-run after the enrichment job backfills synopses (#92). |
+| `skipped` | Nothing to do — no accepted publications, or all already scored. | None. |
+| `failed` | A Lambda/Task crashed, **or** the cost guard tripped (`error_code=CostGuardExceeded`). | Inspect; for a cost-guard trip, re-run with `allow_cost_override`. |
+
+**Cost guard**: a run whose net scoring work exceeds
+`onboarding_cost_guard_max_pmids` (300, in `config/thresholds.json`) with no
+override terminates `failed` / `error_code=CostGuardExceeded` — nothing is
+broken; re-run with `{"cwid":"...","allow_cost_override":true}`. The
+orchestrator posts a Teams cost preview before any model call.
+
+**Verifying a run**: query the workflow row, matched on `run_id` (the
+execution name) — never the highest SK, since a `failed` row's
+`RUN#FAILED#...` SK sorts above a clean `RUN#{iso}` row:
+
+```bash
+aws dynamodb query --table-name reciterai \
+  --key-condition-expression "PK = :pk" \
+  --filter-expression "run_id = :rid" \
+  --expression-attribute-values \
+    '{":pk":{"S":"STAGE#onboarding#cwid:abc1234"},":rid":{"S":"<run_id>"}}'
+```
+
+`scripts/smoke_onboarding.sh` is the scripted version of this check.
+
+### Onboarding detector
+
+**Cadence**: daily 13:00 UTC — EventBridge `reciterai-onboarding-detector-daily`
+→ Lambda `reciterai-onboarding-detector`.
+
+A faculty-scoped scan: for every full-time-faculty CWID it compares the
+accepted publication set against what is synopsis-covered and scored, and
+against the last CWID-scoped rollup's `input_pmid_set` (ReCiter attribution
+churn, R9). Each flagged CWID gets a GitHub issue (created or refreshed,
+labelled `onboarding`) carrying the gap detail + the pre-filled
+`start-execution` command; a Teams digest summarises the run. It writes one
+`STAGE#onboarding_detector#GLOBAL` row per run. It does **not** trigger the
+state machine — issue-filing only (D1).
+
+A manual dry scan (scan + STAGE# row + Teams digest, no GitHub writes):
+
+```bash
+aws lambda invoke --function-name reciterai-onboarding-detector \
+  --payload '{"file_issues":false}' /tmp/detector.json
+```
+
+### Deploying onboarding
+
+Onboarding declares its infra in `infra/` alongside the hot path (D-INFRA).
+The deploy is operator-run, in order.
+
+**Gate 0 — verify the hot path is live *and* configured.** Onboarding
+reuses the four hot per-stage Lambda ARNs; existence alone is not enough —
+they are invoked by the onboarding state machine, so their env-var state
+must be sound.
+
+```bash
+for fn in reciterai-hot-score reciterai-hot-assign reciterai-hot-top-topic reciterai-hot-rollup; do
+  aws lambda get-function-configuration --function-name "$fn" \
+    --query '[FunctionName,Runtime,Environment.Variables]'
+done
+aws stepfunctions describe-state-machine \
+  --state-machine-arn arn:aws:states:us-east-1:$AWS_ACCOUNT_ID:stateMachine:reciterai-hot-path
+```
+
+Any miss → stop and resolve before proceeding.
+
+1. **Build the zips** — `scripts/build_lambda_zips.sh` (builds all 10; note each `du -h`).
+2. **Create the 5 onboarding Lambda functions** — `python3.12`, `x86_64`,
+   the Lambda execution role with `lambda_iam_policy.json` attached:
+
+   | Function | Zip | `--handler` |
+   |---|---|---|
+   | `reciterai-onboarding-orchestrator` | `reciterai-onboarding-orchestrator.zip` | `pipeline_onboarding.orchestrator.handler` |
+   | `reciterai-onboarding-finalize` | `reciterai-onboarding-finalize.zip` | `pipeline_onboarding.finalize.handler` |
+   | `reciterai-onboarding-notify` | `reciterai-onboarding-finalize.zip` *(same zip)* | `pipeline_onboarding.finalize.notify_handler` |
+   | `reciterai-onboarding-detector` | `reciterai-onboarding-detector.zip` | `pipeline_onboarding.detector.handler` |
+   | `reciterai-onboarding-derive-topics` | `reciterai-onboarding-derive-topics.zip` | `pipeline_onboarding.assign_fanout.handler` |
+
+   Env vars: orchestrator / finalize / notify / detector each take
+   `RECITERAI_TEAMS_WEBHOOK_URL` (best-effort alerting — absent = alerts
+   silently skipped, not broken); notify + detector take
+   `RECITERAI_ONBOARDING_STATE_MACHINE_ARN`; orchestrator + detector
+   auto-load DB creds via `utils.secrets_loader`. `derive-topics` takes none.
+3. **Provision the GitHub secret** — a fine-grained PAT scoped to
+   `wcmc-its/ReciterAI`, Issues read+write only:
+   `aws secretsmanager create-secret --name reciterai/github-token --secret-string "<PAT>"`.
+4. **Redeploy `reciterai-hot-assign`** — PR 4 taught `build_lambda_zips.sh`
+   to bundle the 66 hierarchy drafts; the live function predates that, and
+   the onboarding Assign `Map` invokes it. Determine the live hierarchy
+   version (the latest `STAGE#hierarchy_version_cutover` row, or
+   `hierarchy_version` on a recent live `TOPIC#` row), confirm it matches
+   the bundled drafts, then:
+   ```bash
+   aws lambda update-function-code --function-name reciterai-hot-assign \
+     --zip-file fileb://build/reciterai-hot-assign.zip
+   aws lambda update-function-configuration --function-name reciterai-hot-assign \
+     --environment "Variables={RECITERAI_HIERARCHY_VERSION=<version>,...existing...}"
+   ```
+   Additive for the hot path (its `CheckAssignNeeded` keeps the always-empty
+   `assign_topics` on the `AssignSkipped` branch — it never reaches the
+   assign Lambda today). Re-run `scripts/smoke_hot_path.sh` after.
+5. **Deploy the state machine** — export the 8 ARN env vars +
+   `STATE_MACHINE_ROLE_ARN`, run `scripts/deploy_onboarding_state_machine.sh`
+   (`--dry-run` first).
+6. **Deploy the cron rule** —
+   `scripts/deploy_cron.sh --rule reciterai-onboarding-detector-daily`.
+7. **Smoke** — `scripts/smoke_onboarding.sh` with `SMOKE_EXPECT=skipped`
+   (a zero-cost plumbing check on an already-scored CWID), then
+   `SMOKE_EXPECT=complete` on a small unscored CWID — the real cascade, and
+   the gate that closes Phase 2. Then a `file_issues:false` detector invoke.
+
+**Rollback**: diagnose first (`get-execution-history` / CloudWatch logs).
+Teardown order: disable `reciterai-onboarding-detector-daily` → delete the
+state machine → delete the 5 Lambdas → delete the secret. The hot path needs
+no rollback — onboarding is all-new resources except the additive
+`reciterai-hot-assign` redeploy, which can be left in place.
+
+---
+
 ## Related references
 
 - `infra/eventbridge.json` — cron rules + targets.
@@ -260,4 +427,5 @@ defaults are conservative.
 - `docs/severity.md` — D-11 alert severity table.
 - `docs/data-model-and-queries.md` — full DynamoDB record-type reference.
 - `docs/stage-records-and-gates.md` — Phase 9 STAGE# substrate this phase builds on.
-- `pipeline_hot/state_machine.asl.json` — Step Functions definition.
+- `pipeline_hot/state_machine.asl.json` — the hot-path Step Functions definition.
+- `pipeline_onboarding/state_machine.asl.json` — the onboarding Step Functions definition.

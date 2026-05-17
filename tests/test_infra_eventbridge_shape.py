@@ -5,9 +5,10 @@ This test pins those paths so future edits to the config can't
 silently break deploy_cron without a test failure.
 
 We also verify:
-- The three expected rules are present (hot weekly, spotlight monthly,
-  drift daily) with the cron expressions locked in plan-phase (Open Q
-  10.1 → hot path = `cron(0 12 ? * MON *)`).
+- The four expected rules are present (hot weekly, spotlight monthly,
+  drift daily, onboarding-detector daily) with the cron expressions
+  locked in plan-phase (Open Q 10.1 → hot path = `cron(0 12 ? * MON *)`;
+  onboarding detector daily = `cron(0 13 * * ? *)`, #80 Phase 2).
 - Each rule's target_arn template uses {account_id} + {region}
   placeholders so the deploy script's substitution is the only place
   account/region are bound.
@@ -47,12 +48,13 @@ def test_eventbridge_has_region(eventbridge_config):
     assert eventbridge_config["region"]
 
 
-def test_eventbridge_defines_three_rules(eventbridge_config):
+def test_eventbridge_defines_four_rules(eventbridge_config):
     names = [r["name"] for r in eventbridge_config["rules"]]
     assert names == [
         "reciterai-hot-weekly",
         "reciterai-spotlight-monthly",
         "reciterai-drift-daily",
+        "reciterai-onboarding-detector-daily",
     ]
 
 
@@ -62,6 +64,7 @@ def test_eventbridge_defines_three_rules(eventbridge_config):
         ("reciterai-hot-weekly", "cron(0 12 ? * MON *)"),
         ("reciterai-spotlight-monthly", "cron(0 13 1 * ? *)"),
         ("reciterai-drift-daily", "cron(0 14 * * ? *)"),
+        ("reciterai-onboarding-detector-daily", "cron(0 13 * * ? *)"),
     ],
 )
 def test_cron_expressions_match_plan(eventbridge_config, rule_name, expected_schedule):
@@ -172,3 +175,25 @@ def test_iam_policy_scopes_s3_to_wcmc_reciterai_buckets(iam_policy):
         assert all("wcmc-reciterai-" in r for r in resources), (
             f"S3 statement leaks beyond wcmc-reciterai-*: {resources}"
         )
+
+
+def test_iam_policy_grants_github_token_secret(iam_policy):
+    """The onboarding detector reads its GitHub PAT from the
+    reciterai/github-token Secrets Manager secret (#80 Phase 2 / PR 6)."""
+    secret_resources: set[str] = set()
+    for stmt in iam_policy["Statement"]:
+        actions = (
+            stmt["Action"] if isinstance(stmt["Action"], list) else [stmt["Action"]]
+        )
+        if not any(a.startswith("secretsmanager:") for a in actions):
+            continue
+        resources = (
+            stmt["Resource"]
+            if isinstance(stmt["Resource"], list)
+            else [stmt["Resource"]]
+        )
+        secret_resources.update(resources)
+    assert any("reciterai/github-token" in r for r in secret_resources), (
+        "no Secrets Manager resource grants reciterai/github-token "
+        f"(the detector's PAT secret): {sorted(secret_resources)}"
+    )

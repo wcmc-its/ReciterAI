@@ -19,6 +19,8 @@
 | UNCOVERED_PMID# | `UNCOVERED_PMID#{pmid}` | `GLOBAL` | event-volume | Phase 10: PMID whose top topic score is below the uncovered floor |
 | LOW_CONFIDENCE_ASSIGNMENT# | `LOW_CONFIDENCE_ASSIGNMENT#{pmid}` | `GLOBAL` | event-volume | Phase 10: PMID whose subtopic-assignment confidence is below floor across all candidates |
 | DRIFT# | `DRIFT#evaluation` | `DAY#YYYY-MM-DD` | one per day | Phase 10: drift evaluator output (rolling-window thresholds, severity, cold-run recommendation) |
+| STAGE#onboarding | `STAGE#onboarding#cwid:{cwid}` | `RUN#{started_at}` | one per onboarding run | #80 Phase 2: new-researcher onboarding workflow row — 5-state terminal status |
+| STAGE#onboarding_detector | `STAGE#onboarding_detector#GLOBAL` | `RUN#{started_at}` | one per detector run | #80 Phase 2: daily onboarding detector — faculty publication-gap scan + ReCiter churn |
 
 ### Global Secondary Indexes
 
@@ -265,6 +267,83 @@ Per spec §9. Written by `pipeline_drift.evaluator` once per daily evaluation. S
 | "Did any evaluation in the last week recommend a cold run?" | Query `PK = DRIFT#evaluation` with `SK >= DAY#{cutoff}`, filter `cold_run_recommended == true`. |
 
 The four Phase 10 record types are write-only this phase. Phase 12 wires consumption: the UNCOVERED_PMID# events feed a Sonnet sweep for taxonomy expansion, and the LOW_CONFIDENCE_ASSIGNMENT# events feed a subtopic split/merge decision.
+
+---
+
+## Onboarding Records (#80 Phase 2)
+
+Two record types land with the new-researcher onboarding workflow
+(`pipeline_onboarding`). Both use the existing `reciterai` table; no new
+table or GSI. See `docs/hot-cold-paths.md` for the operator guide.
+
+### `STAGE#onboarding#cwid:{cwid}` — onboarding workflow row
+
+One row per onboarding run, written by the `reciterai-onboarding` state
+machine — by the orchestrator (`deferred` / `skipped` / cost-guard
+`failed`), by `Finalize` (`complete` / `partial`), or by the inline
+catch-all (`failed`). Built by `pipeline_onboarding.build_onboarding_record`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `STAGE#onboarding#cwid:{cwid}`. |
+| `SK` | string | `RUN#{started_at}` for clean terminals; `RUN#FAILED#{started_at}` for the catch-all `failed` writer. |
+| `stage` | string | `"onboarding"`. |
+| `scope` | string | `cwid:{cwid}`. |
+| `status` | string enum | The 5-state terminal taxonomy (R7): `complete` \| `partial` \| `deferred` \| `skipped` \| `failed`. Exactly one per run. |
+| `cwid`, `run_id` | string | `run_id` is the Step Functions execution name — the correct key for locating a specific run's row (never the highest SK). |
+| `input_hash` | string | Content hash over `{cwid, pmid set}`; labels the run, not a skip gate. |
+| `started_at`, `completed_at` | ISO 8601 | |
+| `duration_ms` | number | |
+| `cost_observed_usd` | Decimal | Summed observed per-stage cost; `0` for the non-`ready` terminals. |
+| `pmid_count`, `net_work_count` | number \| null | Accepted-set size; net work after the `PROCESSING#` cull. |
+| `projected_cost_usd` | string \| null | Pre-formatted cost estimate (display string, not measured spend). |
+| `partial_failure_count`, `failed_pmids` | number / list \| null | Set on `partial` — PMIDs that did not reach a scored state. |
+| `deferred_reason`, `deferred_pmids` | string / list \| null | Set on `deferred` — the synopsis-gap PMIDs. |
+| `skip_reason` | string \| null | Set on `skipped`. |
+| `error_code`, `error_message`, `failure_details` | mixed \| null | Set on `failed`. A cost-guard trip is `error_code=CostGuardExceeded`, `failure_details` carrying `{net_work_count, projected_cost_usd, threshold}` (D-COSTSTATUS). |
+| `stage_input_hashes` | map \| null | Per-stage `input_hash` (score / assign / top_topic / rollup), recorded by `Finalize`. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "What happened on onboarding run X?" | Query `PK = STAGE#onboarding#cwid:{cwid}`, filter `run_id == X`. Scripted: `scripts/smoke_onboarding.sh`. |
+| "What is this CWID's latest onboarding outcome?" | Same query, `ScanIndexForward=False` — but a stale `RUN#FAILED#...` SK sorts above clean `RUN#{iso}` rows, so prefer the `run_id` filter when a specific run is meant. |
+| "Which CWIDs ended `partial` / `failed` recently?" | Scan `begins_with(PK, "STAGE#onboarding#cwid:")`, filter `status` + `started_at >= cutoff`. |
+
+### `STAGE#onboarding_detector#GLOBAL` — daily detector run row
+
+One row per detector run, written by `reciterai-onboarding-detector` (R8) —
+on every run, including quiet days. Built by
+`DetectorEvaluation.to_stage_record`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `PK` | string | `STAGE#onboarding_detector#GLOBAL` (constant). |
+| `SK` | string | `RUN#{started_at}`. |
+| `record_type` | string | `"ONBOARDING_DETECTOR_RUN"`. |
+| `stage`, `scope` | string | `"onboarding_detector"`, `"GLOBAL"`. |
+| `status` | string | `complete` on a normal run; a crash writes a `failed` row via `write_failed`. |
+| `run_id`, `input_hash` | string | |
+| `started_at`, `completed_at` | ISO 8601 | |
+| `duration_ms` | number | |
+| `cost_observed_usd` | Decimal | Pinned `0` — the detector spends no model budget. |
+| `scanned_cwid_count` | number | Faculty CWIDs scanned. |
+| `flagged_cwid_count` | number | CWIDs with a gap and/or attribution churn. |
+| `gap_cwid_count`, `churn_cwid_count` | number | Flagged CWIDs by reason (a CWID can be both). |
+| `total_missing_synopsis`, `total_missing_score` | number | Gapped-PMID totals across all flagged CWIDs. |
+| `total_churn_added`, `total_churn_removed` | number | ReCiter attribution-drift PMID totals. |
+| `flagged_cwids` | list[string] \| null | The flagged CWIDs (capped at 200); omitted when none flagged. |
+
+**Query patterns**
+
+| Question | Access |
+|---|---|
+| "What did the most recent detector run find?" | Query `PK = STAGE#onboarding_detector#GLOBAL`, `ScanIndexForward=False`, limit 1. |
+| "Is the onboarding backlog growing or shrinking?" | Same query, no limit; trend `flagged_cwid_count` across runs. |
+
+The GitHub issues the detector files (labelled `onboarding`) carry the full
+per-CWID PMID detail; these rows are the run-level summary.
 
 ---
 

@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Build the 6 hot-path Lambda zips per the issue-72 addendum manifests.
+# Build the 10 ReciterAI Lambda zips — 6 hot-path + 4 new-researcher
+# onboarding (#80 Phase 2 / PR 6).
 #
 # Each zip is built in a clean staging dir under build/, with pip deps
 # installed via the public.ecr.aws/lambda/python:3.12 image so any
 # compiled extensions match Lambda's runtime ABI. Pure-Python deps
 # would work without docker, but using the image is safer and makes
-# this script reusable for future Lambdas that pull in C extensions.
+# this script reusable for Lambdas that pull in C extensions.
 #
 # Usage:
-#   scripts/build_lambda_zips.sh                # build all 6
-#   scripts/build_lambda_zips.sh orchestrator   # build just one
+#   scripts/build_lambda_zips.sh                                # build all 10
+#   scripts/build_lambda_zips.sh reciterai-onboarding-detector  # build just one
 #
-# Output: build/<lambda-name>.zip for each Lambda.
+# Output: build/<zip_basename>.zip for each Lambda.
 
 set -euo pipefail
 
@@ -24,32 +25,67 @@ mkdir -p "$BUILD_DIR"
 # ---------------------------------------------------------------------------
 # Per-Lambda specs
 # ---------------------------------------------------------------------------
-# Spec encoding (one row per Lambda, pipe-separated):
-#   name | pip_deps | first_party_paths
-# - pip_deps: space-separated. Empty = no extras beyond Lambda runtime.
+# Spec encoding (one row per Lambda, pipe-separated, 5 fields):
+#   zip_basename | handler_module | pip_deps | first_party_paths | extra_imports
+#
+# - zip_basename: the full zip / function name, e.g. reciterai-hot-score or
+#   reciterai-onboarding-orchestrator. Output is build/<zip_basename>.zip; the
+#   `ONLY` positional arg matches this exactly.
+# - handler_module: the importable module the import-check loads and asserts a
+#   `handler` attribute on (e.g. pipeline_hot.handlers.score).
+# - pip_deps: space-separated. Empty = no extras beyond the Lambda runtime.
 # - first_party_paths: space-separated, repo-relative. Files copied as-is,
 #   directories copied recursively (excluding __pycache__, .pytest_cache).
+# - extra_imports: space-separated extra modules the import-check also loads.
+#   For Lambdas whose runtime deps are reached only via *function-local*
+#   imports — a plain `import <handler_module>` would not load them, so a zip
+#   missing their wheels builds green and crashes at runtime. The detector and
+#   the hot rollup both `from utils.sql_queries import ...` inside a function.
+#   Empty for most rows (note the trailing `|`).
 #
-# All Lambdas (except alert-dispatcher) get utils/ + pipeline_common/ +
-# config/ as common baselines. alert-dispatcher is the stub — only
-# pipeline_common/ for the eventual real-dispatch swap.
+# All Lambdas (except reciterai-hot-alert-dispatcher) get utils/ +
+# pipeline_common/ + config/ as common baselines. alert-dispatcher is the
+# stub — only pipeline_common/ for the eventual real-dispatch swap.
 
 LAMBDAS=(
-  "orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json"
-  "score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json"
+  # ---- Hot path (6) -------------------------------------------------------
+  "reciterai-hot-orchestrator|pipeline_hot.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json|"
+  "reciterai-hot-score|pipeline_hot.handlers.score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json|"
   # assign also bundles the approved hierarchy_draft_*.json files (step 3b
   # below) as of #80 Phase 2 / PR 4: the onboarding Assign fan-out runs
   # assign_subtopics per topic, which loads hierarchy_draft_<topic>.json. The
   # hot path's own assign is still a Pass stub, so the drafts are additive —
   # the zip carries data it does not yet exercise. Redeployed in PR 6.
-  "assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts"
-  "top-topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/top_topic.py compute_top_topic.py"
+  "reciterai-hot-assign|pipeline_hot.handlers.assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts|"
+  "reciterai-hot-top-topic|pipeline_hot.handlers.top_topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/top_topic.py compute_top_topic.py|"
   # rollup gets pymysql + sqlalchemy as of #80 Phase 2 / #90: the onboarding
-  # `--cwid` rollup path queries ReciterDB (get_pmids_for_cwid) for the
-  # CWID's accepted PMID set. The hot-path `--cwids` CSV rollup never opens a
-  # DB connection, but the one Lambda serves both modes. Redeployed in PR 6.
-  "rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py"
-  "alert-dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py"
+  # `--cwid` rollup path queries ReciterDB (get_pmids_for_cwid). That
+  # ReciterDB import is function-local, so extra_imports=utils.sql_queries
+  # makes the import-check load it — otherwise a missing pymysql wheel would
+  # build green and crash only on the first `--cwid` invocation.
+  "reciterai-hot-rollup|pipeline_hot.handlers.rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py|utils.sql_queries"
+  "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py|"
+  # ---- New-researcher onboarding (4) — #80 Phase 2 / PR 6 -----------------
+  # orchestrator imports score_publications at module scope, which pulls
+  # tqdm + openai (via utils.openai_client) + pymysql/sqlalchemy (via
+  # utils.sql_queries) — the hot-score dep set, not the lighter hot-orchestrator
+  # one. No taxonomy_v2.json: no onboarding code path reads the taxonomy.
+  "reciterai-onboarding-orchestrator|pipeline_onboarding.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_onboarding/__init__.py pipeline_onboarding/orchestrator.py score_publications.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
+  # finalize.py hosts two handlers — `handler` (Finalize) and `notify_handler`
+  # (Notify). One zip, deployed as TWO Lambda functions —
+  # reciterai-onboarding-finalize and reciterai-onboarding-notify — with
+  # different --handler. DynamoDB + urllib alerting only, so no pip deps.
+  "reciterai-onboarding-finalize|pipeline_onboarding.finalize||pipeline_onboarding/__init__.py pipeline_onboarding/finalize.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
+  # detector's faculty gap scan does a function-local
+  # `from utils.sql_queries import scan_faculty_publication_gaps` — invisible
+  # to a plain `import pipeline_onboarding.detector`; extra_imports makes the
+  # pymysql/sqlalchemy requirement build-verified. Lean (D-DETECTOR-COST
+  # option B) — the issue-body cost preview reads "unavailable" until its
+  # follow-up restores it.
+  "reciterai-onboarding-detector|pipeline_onboarding.detector|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_onboarding/__init__.py pipeline_onboarding/detector.py pipeline_onboarding/github_issues.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.sql_queries"
+  # derive-topics bundles rollup_by_cwid.py for fetch_cwid_topic_activity;
+  # DynamoDB-only (no ReciterDB call on this path), so no pip deps.
+  "reciterai-onboarding-derive-topics|pipeline_onboarding.assign_fanout||pipeline_onboarding/__init__.py pipeline_onboarding/assign_fanout.py rollup_by_cwid.py|"
 )
 
 # Common dirs included in every zip except where commented otherwise.
@@ -60,15 +96,17 @@ COMMON_DIRS_ALERT=("pipeline_common")
 ONLY="${1:-}"
 
 build_one() {
-  local name="$1"
-  local pip_deps="$2"
-  local first_party="$3"
+  local zip_basename="$1"
+  local handler_module="$2"
+  local pip_deps="$3"
+  local first_party="$4"
+  local extra_imports="$5"
 
-  local stage="${BUILD_DIR}/${name}"
-  local zip_out="${BUILD_DIR}/${name}.zip"
+  local stage="${BUILD_DIR}/${zip_basename}"
+  local zip_out="${BUILD_DIR}/${zip_basename}.zip"
 
   echo "=========================================="
-  echo "Building reciterai-hot-${name} → ${zip_out}"
+  echo "Building ${zip_basename} → ${zip_out}"
   echo "=========================================="
 
   rm -rf "$stage"
@@ -97,7 +135,7 @@ build_one() {
 
   # 2. Copy common dirs.
   local common_dirs=("${COMMON_DIRS_DEFAULT[@]}")
-  if [[ "$name" == "alert-dispatcher" ]]; then
+  if [[ "$zip_basename" == "reciterai-hot-alert-dispatcher" ]]; then
     common_dirs=("${COMMON_DIRS_ALERT[@]}")
   fi
   for d in "${common_dirs[@]}"; do
@@ -120,13 +158,13 @@ build_one() {
     fi
   done
 
-  # 3b. assign Lambda only — bundle the approved hierarchy drafts (#80 PR 4).
+  # 3b. hot-assign only — bundle the approved hierarchy drafts (#80 PR 4).
   #     assign_subtopics resolves .planning/phases/04-subtopic-system/
   #     hierarchy_draft_<topic>.json relative to cwd (= the zip root, the
   #     handler's REPO_ROOT), so the drafts are copied preserving that path.
   #     Only the hierarchy_draft_*.json files are copied — not the 130+
   #     PLAN/SUMMARY .md siblings in that planning directory.
-  if [[ "$name" == "assign" ]]; then
+  if [[ "$zip_basename" == "reciterai-hot-assign" ]]; then
     local draft_rel=".planning/phases/04-subtopic-system"
     [[ -d "${REPO_ROOT}/${draft_rel}" ]] \
       || { echo "hierarchy draft dir missing: ${draft_rel}" >&2; exit 1; }
@@ -150,16 +188,20 @@ build_one() {
 
   # 6. Verify the handler module imports cleanly under python3.12 in the
   #    Lambda image (catches missing transitive deps before upload).
-  local handler_module
-  case "$name" in
-    orchestrator) handler_module="pipeline_hot.orchestrator" ;;
-    score)        handler_module="pipeline_hot.handlers.score" ;;
-    assign)       handler_module="pipeline_hot.handlers.assign" ;;
-    top-topic)    handler_module="pipeline_hot.handlers.top_topic" ;;
-    rollup)       handler_module="pipeline_hot.handlers.rollup" ;;
-    alert-dispatcher) handler_module="pipeline_hot.handlers.alert_dispatcher" ;;
-  esac
-  echo ">> import-check: $handler_module"
+  #    `extra_imports` additionally loads modules the handler reaches only
+  #    via function-local imports — invisible to a plain `import
+  #    <handler_module>`, so a zip missing their wheels would build green and
+  #    crash at runtime (the detector / hot rollup both do a function-local
+  #    `from utils.sql_queries import ...`).
+  local extra_check=""
+  for m in $extra_imports; do
+    extra_check+="import ${m}; "
+  done
+  if [[ -n "$extra_imports" ]]; then
+    echo ">> import-check: $handler_module (+ extra: $extra_imports)"
+  else
+    echo ">> import-check: $handler_module"
+  fi
   # Same `--platform linux/amd64` rationale as the pip install above —
   # if we ran the import-check on the host arch, it would mask the
   # ARM-vs-x86 wheel mismatch by happily importing under the wrong
@@ -169,7 +211,7 @@ build_one() {
     -v "$stage":/var/task \
     --entrypoint /var/lang/bin/python3 \
     "$LAMBDA_IMAGE" \
-    -c "import sys; sys.path.insert(0, '/var/task'); import ${handler_module} as h; print('OK', h.__name__, 'handler=' + (h.handler.__qualname__ if hasattr(h, 'handler') else '<missing>'))"
+    -c "import sys; sys.path.insert(0, '/var/task'); import ${handler_module} as h; ${extra_check}print('OK', h.__name__, 'handler=' + (h.handler.__qualname__ if hasattr(h, 'handler') else '<missing>'))"
 
   local size=$(du -h "$zip_out" | cut -f1)
   echo ">> built ${zip_out} (${size})"
@@ -177,11 +219,11 @@ build_one() {
 
 # Iterate.
 for spec in "${LAMBDAS[@]}"; do
-  IFS='|' read -r name pip_deps first_party <<< "$spec"
-  if [[ -n "$ONLY" && "$ONLY" != "$name" ]]; then
+  IFS='|' read -r zip_basename handler_module pip_deps first_party extra_imports <<< "$spec"
+  if [[ -n "$ONLY" && "$ONLY" != "$zip_basename" ]]; then
     continue
   fi
-  build_one "$name" "$pip_deps" "$first_party"
+  build_one "$zip_basename" "$handler_module" "$pip_deps" "$first_party" "$extra_imports"
 done
 
 echo ""

@@ -35,6 +35,9 @@ synopses_cache.json
 out/
 .clone/
 
+# Lambda zip build artifacts — scripts/build_lambda_zips.sh staging + zips
+build/
+
 # Editor / OS noise
 .DS_Store
 .idea/

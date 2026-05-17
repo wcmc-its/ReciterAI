@@ -51,12 +51,28 @@
           "trigger": "eventbridge:reciterai-drift-daily"
         }
       }
+    },
+    {
+      "name": "reciterai-onboarding-detector-daily",
+      "description": "Onboarding detector: daily Lambda invocation (#80 Phase 2). Faculty-scoped publication gap scan + ReCiter attribution-churn check; files a GitHub issue per flagged CWID and posts a Teams digest. Does NOT invoke the onboarding state machine (#80 D1 — issue-filing only).",
+      "schedule_expression": "cron(0 13 * * ? *)",
+      "schedule_comment": "Daily 13:00 UTC = 09:00 EDT. Morning business hours after the overnight ReciterDB refresh, so filed issues + the Teams digest land at the operator's day-start. No ordering dependency on the weekly hot run or the 14:00 drift run — a standalone faculty scan over ReciterDB + DynamoDB PROCESSING#/rollup rows. Override: edit this rule + redeploy via scripts/deploy_cron.sh.",
+      "state": "ENABLED",
+      "target": {
+        "id": "onboarding-detector",
+        "kind": "lambda",
+        "arn_template": "arn:aws:lambda:{region}:{account_id}:function:reciterai-onboarding-detector",
+        "input": {
+          "initiated_by": "scheduled",
+          "trigger": "eventbridge:reciterai-onboarding-detector-daily"
+        }
+      }
     }
   ],
 
   "deploy_notes": {
     "templating": "{account_id} is read from $AWS_ACCOUNT_ID at deploy time. {region} resolves from the top-level region field. scripts/deploy_cron.sh handles substitution before passing to aws CLI.",
-    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, and the Lambda execution role attached to the named function for the two Lambda targets. Minimum policies are documented in infra/lambda_iam_policy.json.",
+    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, and the Lambda execution role attached to the named function for the three Lambda targets. Minimum policies are documented in infra/lambda_iam_policy.json.",
     "override_cadence": "All cron expressions are tunable here without code changes. Change the schedule_expression, re-run scripts/deploy_cron.sh, and EventBridge picks up the new schedule within ~1 minute."
   }
 }

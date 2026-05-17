@@ -21,8 +21,16 @@ Scripts here are **one-shot by default**: they exist to be run a handful of time
 
 | File | Purpose |
 |---|---|
-| `deploy_cron.sh` | EventBridge cron deploy for hot-path scheduler |
-| `deploy_state_machine.sh` | Step Functions state-machine deploy for hot path |
+| `build_lambda_zips.sh` | Build the 10 Lambda zips — 6 hot-path + 4 onboarding |
+| `deploy_cron.sh` | EventBridge cron deploy (hot / spotlight / drift / onboarding-detector) |
+| `deploy_state_machine.sh` | Step Functions deploy — hot path (`reciterai-hot-path`) |
+| `deploy_onboarding_state_machine.sh` | Step Functions deploy — onboarding (`reciterai-onboarding`) |
 | `smoke_hot_path.sh` | Manual hot-path end-to-end smoke against live infra |
+| `smoke_onboarding.sh` | Manual onboarding end-to-end smoke against live infra |
 
 Anything else added here should justify itself against the lifecycle rule above.
+
+## Notes (#80 Phase 2 / PR 6)
+
+- **`deploy_state_machine.sh` and `deploy_onboarding_state_machine.sh` are intentional near-clones.** The onboarding ASL has its own 8-placeholder set, and generalizing the hot script would edit the tool that deploys the *live* hot path. Both retire together at the CDK migration. **Fix bugs in both.**
+- **The `finalize` zip is deployed as two functions.** `build_lambda_zips.sh` produces `build/reciterai-onboarding-finalize.zip`; it is deployed as `reciterai-onboarding-finalize` (`--handler pipeline_onboarding.finalize.handler`) *and* `reciterai-onboarding-notify` (`--handler pipeline_onboarding.finalize.notify_handler`). A future `update-function-code` against that zip must update **both** functions.
