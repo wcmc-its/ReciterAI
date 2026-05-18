@@ -437,3 +437,129 @@ def scan_faculty_publication_gaps() -> list[dict]:
         }
         for r in rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Enrichment backfill — explicit-PMID synopsis + impact (#112 / onboarding)
+# ---------------------------------------------------------------------------
+
+PUBLICATIONS_BY_PMIDS_FOR_ENRICHMENT_SQL = """
+SELECT
+    a.pmid,
+    a.articleTitle,
+    a.journalTitleVerbose,
+    a.articleYear,
+    a.datePublicationAddedToEntrez,
+    a.citationCountNIH,
+    a.percentileNIH,
+    a.relativeCitationRatioNIH,
+    r.abstractVarchar
+FROM analysis_summary_article a
+LEFT JOIN reporting_abstracts r ON r.pmid = a.pmid
+WHERE a.publicationTypeCanonical = 'Academic Article'
+  AND a.articleYear >= 2020
+  AND a.pmid IN :pmid_list
+ORDER BY a.pmid ASC
+"""
+# Explicit-PMID variant of NEW_PUBLICATIONS_FOR_ENRICHMENT_SQL for the
+# enrichment backfill (#112). The SELECT column list is byte-identical: the
+# backfill reuses `pipeline_enrichment.daily_job._process_one_pmid`, so the
+# row must carry everything the synopsis AND impact prompts read (the impact
+# prompt needs the bibliometric columns — see `pipeline_enrichment/impact.py`).
+#
+# Two deliberate differences from NEW_PUBLICATIONS_FOR_ENRICHMENT_SQL:
+#   1. `pmid IN :pmid_list` replaces the `pmid > :last_max_pmid` watermark
+#      window. The backfill targets an explicit historical work set — which
+#      is the whole point, since the watermark cannot reach below itself.
+#   2. No `fullTimeFaculty` EXISTS filter. The work set is already faculty-
+#      and first/last-author-scoped (it comes from scan_faculty_publication_
+#      gaps, or an operator's explicit list); the query trusts its input, the
+#      same way score_publications' `extract_publications_by_pmids` does.
+#
+# `Academic Article` + `articleYear >= 2020` stay as the pipeline-wide
+# invariant (D4): a pre-2020 or non-existent PMID is silently dropped, and
+# the caller detects that by comparing returned vs requested counts.
+
+
+def fetch_publications_for_enrichment(engine, pmids: list[str]) -> list[dict]:
+    """Fetch the synopsis+impact input rows for an explicit PMID list (#112).
+
+    Mirrors `fetch_new_publications`'s row shape, but scoped to `pmids`
+    rather than the watermark window — backs `run_enrichment_backfill`.
+
+    Args:
+        engine: sqlalchemy Engine (use get_engine()).
+        pmids: PMID strings. An empty list returns [] without a DB call.
+
+    Returns:
+        List of dicts with the bibliometric + abstract columns the synopsis
+        and impact prompts require. PMIDs absent from
+        `analysis_summary_article`, or filtered out by the
+        `articleYear >= 2020` / Academic-Article cutoff, are silently
+        omitted; the caller compares returned vs requested to find them.
+    """
+    if not pmids:
+        return []
+    from sqlalchemy import bindparam, text
+
+    stmt = text(PUBLICATIONS_BY_PMIDS_FOR_ENRICHMENT_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(
+            stmt, {"pmid_list": [str(p) for p in pmids]}
+        ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+IMPACT_COVERAGE_SQL = """
+SELECT external_id
+FROM reciterai_impact
+WHERE entity_type = 'publication'
+    AND impactScore IS NOT NULL
+    AND external_id IN :pmid_list
+"""
+# Impact-coverage check for the enrichment backfill's idempotency cull
+# (#112) — the impact-side mirror of SYNOPSIS_COVERAGE_SQL. `external_id`
+# holds the PMID as varchar (per the A6 correction noted on
+# PUBLICATION_EXTRACTION_SQL), so it is matched against stringified PMIDs.
+
+
+def check_enrichment_coverage(pmids: list[str]) -> dict[str, list[str]]:
+    """Partition `pmids` by enrichment completeness (#112).
+
+    A PMID is ``complete`` iff it has BOTH a non-empty `reciterai_synopsis`
+    row AND a non-null `reciterai_impact` row; ``incomplete`` is missing
+    either. `run_enrichment_backfill` uses ``incomplete`` as its idempotency
+    cull — only those PMIDs are sent to the LLM (unless --force).
+
+    Returns ``{"complete": [...], "incomplete": [...]}`` — both lists
+    sorted, stringified, de-duplicated. Empty input returns empty lists
+    without opening a DB connection.
+    """
+    wanted = sorted({str(p) for p in pmids if str(p).strip()})
+    if not wanted:
+        return {"complete": [], "incomplete": []}
+    from sqlalchemy import bindparam, text
+
+    syn_stmt = text(SYNOPSIS_COVERAGE_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    imp_stmt = text(IMPACT_COVERAGE_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    conn = get_db_connection()
+    try:
+        synopsis_present = {
+            str(row[0]) for row in conn.execute(syn_stmt, {"pmid_list": wanted})
+        }
+        impact_present = {
+            str(row[0]) for row in conn.execute(imp_stmt, {"pmid_list": wanted})
+        }
+    finally:
+        conn.close()
+    complete = synopsis_present & impact_present
+    return {
+        "complete": sorted(complete),
+        "incomplete": sorted(set(wanted) - complete),
+    }
