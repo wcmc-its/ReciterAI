@@ -69,6 +69,13 @@ def test_get_pmids_for_cwid_blank_cwid_skips_db(monkeypatch):
     get_conn.assert_not_called()
 
 
+def test_pmids_by_cwid_sql_scopes_to_first_last_author():
+    """First/last is the v1 faculty-facing author scope (matches
+    spotlight/author_resolver.py). Shape test — the get_pmids_for_cwid
+    tests mock the connection, so nothing else guards the SQL filter."""
+    assert "authorPosition IN ('first', 'last')" in sq.PMIDS_BY_CWID_SQL
+
+
 # ---------------------------------------------------------------------------
 # check_synopsis_coverage — synopsis precondition (#80 R3 step 1)
 # ---------------------------------------------------------------------------

@@ -268,6 +268,7 @@ SELECT DISTINCT a.pmid
 FROM analysis_summary_article a
 JOIN analysis_summary_author au ON au.pmid = a.pmid
 WHERE au.personIdentifier = :cwid
+    AND au.authorPosition IN ('first', 'last')
     AND a.publicationTypeCanonical = 'Academic Article'
     AND a.articleYear >= 2020
 ORDER BY a.pmid DESC
@@ -279,8 +280,14 @@ ORDER BY a.pmid DESC
 # CWID query on top of it would silently drop exactly the synopsis-less
 # PMIDs that the onboarding synopsis-precondition check (R3 step 1, see
 # check_synopsis_coverage) exists to surface. This query returns the
-# CWID's full Academic-Article set (articleYear >= 2020 per D4); synopsis
-# coverage is a separate, explicit check.
+# CWID's first/last-author Academic-Article set (articleYear >= 2020 per
+# D4); synopsis coverage is a separate, explicit check.
+#
+# Author scope: first/last position only (`authorPosition IN ('first',
+# 'last')`) — the v1 faculty-facing scope. spotlight/author_resolver.py
+# applies the same SQL filter; the cold path scopes AUTHOR_MAPPING_SQL's
+# output to first/last at load. `analysis_summary_author.authorPosition`
+# is {first, last, NULL}; NULL is a middle author, excluded by the filter.
 #
 # `analysis_summary_author.personIdentifier` is the CWID column — the
 # same join AUTHOR_MAPPING_SQL uses. The spec's "reporting_authorships"
@@ -290,8 +297,9 @@ ORDER BY a.pmid DESC
 def get_pmids_for_cwid(cwid: str) -> list[str]:
     """Return the accepted-publication PMID set for one CWID (#80 R2).
 
-    Academic Articles only, articleYear >= 2020 (the D4 cutoff). PMIDs are
-    returned as strings, newest first. Synopsis and score coverage are NOT
+    Academic Articles only, articleYear >= 2020 (the D4 cutoff), first/last
+    author position only (the v1 faculty-facing scope). PMIDs are returned
+    as strings, newest first. Synopsis and score coverage are NOT
     filtered here — callers run `check_synopsis_coverage` and the
     PROCESSING# checkpoint separately.
 
@@ -370,6 +378,7 @@ LEFT JOIN reciterai_synopsis s
     AND s.synopsis IS NOT NULL
     AND s.synopsis != ''
 WHERE id.fullTimeFaculty = 'yes'
+    AND au.authorPosition IN ('first', 'last')
     AND a.publicationTypeCanonical = 'Academic Article'
     AND a.articleYear >= 2020
 ORDER BY au.personIdentifier, a.pmid
@@ -385,9 +394,12 @@ ORDER BY au.personIdentifier, a.pmid
 # DynamoDB, not MariaDB.
 #
 # Faculty scope (identity.fullTimeFaculty = 'yes') mirrors AUTHOR_MAPPING_SQL
-# and resolves the spec's OQ-2. Publication scope (Academic Article,
-# articleYear >= 2020) matches PMIDS_BY_CWID_SQL / D4, so a CWID's row set
-# here is identical to what get_pmids_for_cwid would return for it.
+# and resolves the spec's OQ-2. Author scope is first/last position only
+# (`authorPosition IN ('first', 'last')`) — the v1 faculty-facing scope, the
+# same filter spotlight/author_resolver.py and PMIDS_BY_CWID_SQL apply.
+# Publication scope (Academic Article, articleYear >= 2020) matches
+# PMIDS_BY_CWID_SQL / D4; with the matching position filter, a CWID's row
+# set here is identical to what get_pmids_for_cwid would return for it.
 #
 # The synopsis LEFT JOIN repeats PUBLICATION_EXTRACTION_SQL's
 # external_id = CAST(pmid AS CHAR) COLLATE utf8mb4_unicode_ci join (the A6
@@ -395,7 +407,8 @@ ORDER BY au.personIdentifier, a.pmid
 
 
 def scan_faculty_publication_gaps() -> list[dict]:
-    """Return every full-time-faculty accepted publication with a synopsis flag.
+    """Return every full-time-faculty first/last-author accepted publication
+    with a synopsis flag.
 
     Drives the onboarding detector's global gap scan (#80 R1, PR 5). One dict
     per (CWID, PMID): ``{"cwid": str, "pmid": str, "has_synopsis": bool}``.
@@ -403,11 +416,11 @@ def scan_faculty_publication_gaps() -> list[dict]:
     `has_synopsis` reflects only the MariaDB synopsis precondition; score
     coverage is a separate DynamoDB PROCESSING# check the detector runs after
     this query. A CWID appears once per accepted PMID; a PMID appears once per
-    co-authoring faculty CWID (the cross-institution co-authorship case is
-    fine — each CWID is evaluated independently).
+    first/last-author faculty CWID (the cross-institution co-authorship case
+    is fine — each CWID is evaluated independently).
 
     Returns an empty list only when no full-time faculty have post-2020
-    Academic Articles — never the normal case.
+    first/last-author Academic Articles — never the normal case.
     """
     from sqlalchemy import text
 
