@@ -33,6 +33,12 @@ Failure model (per #37's "Failed runs leave watermark untouched" spec):
 Bootstrap: per #37, the annual rescore uses `--full` to bypass the cost
 guard. The same flag bootstraps the first daily run on a stale watermark
 (the ~1,865-paper backlog as of 2026-05-14).
+
+Enrichment backfill (#112): this module also hosts `run_enrichment_backfill`,
+the watermark-free sibling of `run_daily_enrichment`. It enriches an explicit
+PMID work set rather than a watermark-scoped delta — for the historical
+publications a newly-onboarded researcher brings that the daily delta can
+never reach (#80). It reuses `_process_one_pmid` unchanged.
 """
 
 from __future__ import annotations
@@ -53,7 +59,11 @@ from utils.dynamodb_helpers import get_table as _default_get_table
 from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
 from utils.openai_client import GPT5_MODEL
-from utils.sql_queries import fetch_new_publications
+from utils.sql_queries import (
+    check_enrichment_coverage,
+    fetch_new_publications,
+    fetch_publications_for_enrichment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +100,7 @@ class PmidOutcome:
         return self.synopsis_ok and self.impact_ok
 
 
-# Status values returned in RunResult.
+# Status values for RunResult (most are reused by EnrichmentBackfillResult).
 STATUS_COMPLETE = "complete"               # All pmids processed cleanly.
 STATUS_FAILED = "failed"                    # ≥1 pmid failed.
 STATUS_NO_OP = "no_op"                      # Empty delta, nothing to do.
@@ -452,3 +462,307 @@ def _process_one_pmid(
     outcome.enriched_at = now_iso()
 
     return outcome
+
+
+# ---------------------------------------------------------------------------
+# Enrichment backfill — explicit-PMID synopsis + impact (#112 / onboarding)
+# ---------------------------------------------------------------------------
+#
+# `run_enrichment_backfill` is the watermark-free sibling of
+# `run_daily_enrichment`. The daily job is structurally watermark-forward-only
+# and cannot reach the historical publications a newly-onboarded researcher
+# brings (#80 / #112); this entry point enriches an explicit PMID work set
+# instead. It reuses `_process_one_pmid` unchanged — a backfilled PMID gets
+# byte-identical synopsis + impact + IMPACT# treatment to a daily-enriched
+# one — and drops only the watermark machinery. Unlike the daily job it is
+# partial-tolerant: with no watermark to protect, PMIDs that succeed are
+# committed and IMPACT#-batched even when others in the set fail.
+
+STATUS_PARTIAL = "partial"  # Backfill: ≥1 PMID succeeded AND ≥1 failed.
+
+
+@dataclass
+class EnrichmentBackfillResult:
+    """Outcome of one `run_enrichment_backfill` invocation.
+
+    `requested` is the de-duplicated input size; `already_complete` the
+    count culled by the synopsis+impact idempotency check (skipped under
+    --force); `unresolved` PMIDs that survived the cull but are absent from
+    `analysis_summary_article` / pre-2020; `attempted` the count actually
+    sent through `_process_one_pmid`; `succeeded` / `failed` partition it.
+    """
+
+    status: str
+    requested: int = 0
+    already_complete: int = 0
+    unresolved: int = 0
+    attempted: int = 0
+    succeeded: int = 0
+    failed: int = 0
+    dry_run: bool = False
+    forced: bool = False
+    outcomes: list[PmidOutcome] = field(default_factory=list)
+    unresolved_pmids: list[str] = field(default_factory=list)
+    cost_estimate_usd: Optional[Decimal] = None
+    cost_observed_usd: Optional[Decimal] = None
+    cost_summary: Optional[dict] = None
+    impact_rows_written: Optional[int] = None
+    failure_reason: Optional[str] = None
+
+
+def run_enrichment_backfill(
+    *,
+    pmids: list[str],
+    engine: Engine,
+    openai_client: Optional[OpenAI] = None,
+    ddb_table: Any = None,
+    generate_synopsis: Callable = _default_generate_synopsis,
+    score_impact: Callable = _default_score_impact,
+    alert_fn: Callable = alerting.alert,
+    per_paper_usd: Decimal = cost_guard.DEFAULT_PER_PAPER_USD,
+    dry_run: bool = False,
+    force: bool = False,
+) -> EnrichmentBackfillResult:
+    """Backfill synopsis + impact for an explicit PMID set (#112).
+
+    The watermark-free sibling of `run_daily_enrichment`, for the historical
+    publications the daily delta cannot reach. Per PMID it produces the same
+    three writes the daily job does — `reciterai_synopsis` + `reciterai_impact`
+    (MariaDB) and an end-of-run `IMPACT#` row (DynamoDB).
+
+    Args:
+        pmids: the work set; de-duplicated internally.
+        engine: sqlalchemy Engine for MariaDB (required).
+        openai_client, ddb_table, generate_synopsis, score_impact, alert_fn:
+            injectable for testing, as in `run_daily_enrichment`.
+        per_paper_usd: per-paper rate for the surfaced cost ESTIMATE only.
+            The backfill is bootstrap-class — it surfaces the estimate but
+            enforces no threshold (an intentionally large historical set is
+            the point; this mirrors `run_daily_enrichment`'s `--full`).
+        dry_run: resolve the work set, cull, and surface the cost estimate,
+            but generate nothing.
+        force: bypass the synopsis+impact idempotency cull and reprocess
+            every requested PMID (operator recovery — every write is an
+            idempotent upsert, so reprocessing is safe).
+
+    Returns:
+        EnrichmentBackfillResult. `status` is `complete` (all attempted
+        succeeded), `partial` (some succeeded, some failed), `failed` (all
+        attempted failed), `no_op` (empty work set, or everything already
+        enriched), or `ddb_batch_failed` (per-PMID MariaDB writes succeeded
+        but the end-of-run IMPACT# batch raised — re-run with --force).
+    """
+    requested = sorted({str(p).strip() for p in pmids if str(p).strip()})
+    if not requested:
+        logger.info("enrichment backfill: empty work set — nothing to do")
+        return EnrichmentBackfillResult(status=STATUS_NO_OP)
+
+    # 1. Idempotency cull — skip PMIDs already carrying BOTH synopsis and
+    #    impact, unless --force. A --from-gap-scan work set is entirely
+    #    synopsis-less, so nothing is culled on a first run; the cull matters
+    #    for re-runs and operator-supplied --pmids sets.
+    if force:
+        work_pmids, already_complete = requested, 0
+    else:
+        coverage = check_enrichment_coverage(requested)
+        work_pmids = coverage["incomplete"]
+        already_complete = len(coverage["complete"])
+    if not work_pmids:
+        logger.info(
+            "enrichment backfill: all %d requested PMID(s) already have "
+            "synopsis + impact — no-op", len(requested),
+        )
+        return EnrichmentBackfillResult(
+            status=STATUS_NO_OP, requested=len(requested),
+            already_complete=already_complete, forced=force,
+        )
+
+    # 2. Resolve the publication rows. PMIDs absent from
+    #    analysis_summary_article (or pre-2020) drop out here.
+    rows = fetch_publications_for_enrichment(engine, work_pmids)
+    resolved = {str(r["pmid"]) for r in rows}
+    unresolved = sorted(set(work_pmids) - resolved)
+    if unresolved:
+        logger.warning(
+            "enrichment backfill: %d PMID(s) not in analysis_summary_article "
+            "/ pre-2020 cutoff — skipped: %s%s",
+            len(unresolved), ", ".join(unresolved[:10]),
+            " …" if len(unresolved) > 10 else "",
+        )
+
+    # 3. Cost estimate — surfaced, never enforced (bootstrap-class work).
+    cost_estimate = cost_guard.estimate_run_cost(len(rows), per_paper_usd)
+    logger.info(
+        "enrichment backfill: %d PMID(s) to enrich "
+        "(requested=%d, already_complete=%d, unresolved=%d), "
+        "estimated cost ~$%s%s",
+        len(rows), len(requested), already_complete, len(unresolved),
+        cost_estimate, " [dry-run]" if dry_run else "",
+    )
+
+    base = dict(
+        requested=len(requested),
+        already_complete=already_complete,
+        unresolved=len(unresolved),
+        unresolved_pmids=unresolved,
+        forced=force,
+        cost_estimate_usd=cost_estimate,
+    )
+
+    # 4. Dry run — preview only, no LLM calls.
+    if dry_run:
+        return EnrichmentBackfillResult(
+            status=STATUS_COMPLETE if rows else STATUS_NO_OP,
+            dry_run=True, **base,
+        )
+    if not rows:
+        # Every work PMID was unresolved — nothing to enrich.
+        return EnrichmentBackfillResult(status=STATUS_NO_OP, **base)
+
+    # 5. Per-PMID synopsis + impact, reusing the daily job's worker.
+    accumulator = CostAccumulator()
+    outcomes: list[PmidOutcome] = []
+    for row in rows:
+        outcome = _process_one_pmid(
+            row,
+            engine=engine,
+            openai_client=openai_client,
+            generate_synopsis=generate_synopsis,
+            score_impact=score_impact,
+            accumulator=accumulator,
+        )
+        outcomes.append(outcome)
+        if not outcome.fully_succeeded:
+            logger.warning(
+                "enrichment backfill: pmid=%s failed (synopsis_ok=%s, "
+                "impact_ok=%s, synopsis_err=%s, impact_err=%s)",
+                outcome.pmid, outcome.synopsis_ok, outcome.impact_ok,
+                outcome.synopsis_error, outcome.impact_error,
+            )
+    succeeded = [o for o in outcomes if o.fully_succeeded]
+    failed = [o for o in outcomes if not o.fully_succeeded]
+
+    # 6. End-of-run IMPACT# dual-write for the succeeded PMIDs. Partial-
+    #    tolerant: run_daily_enrichment writes the batch only on all-success
+    #    (to protect the watermark); the backfill has no watermark, so it
+    #    commits the IMPACT# rows it can and reports the rest.
+    impact_rows_written = 0
+    ddb_batch_error: Optional[str] = None
+    if succeeded:
+        ddb_target = ddb_table if ddb_table is not None else _default_get_table()
+        impact_items = [
+            ddb_writer.build_impact_item(
+                pmid=o.pmid,
+                impact_score=o.impact_score,
+                justification=o.justification,
+                impact_model=o.impact_model,
+                synopsis=o.synopsis,
+                synopsis_model=o.synopsis_model,
+                enriched_at=o.enriched_at,
+            )
+            for o in succeeded
+        ]
+        try:
+            impact_rows_written = ddb_writer.write_impact_batch(
+                ddb_target, impact_items
+            )
+        except Exception as e:  # noqa: BLE001
+            ddb_batch_error = str(e)
+            logger.error(
+                "enrichment backfill: IMPACT# batch failed after MariaDB "
+                "writes — %d PMID(s) have synopsis+impact in MariaDB but no "
+                "IMPACT# row. Re-run with --force. error=%s",
+                len(succeeded), e,
+            )
+
+    # 7. Terminal status + operator alert.
+    if ddb_batch_error is not None:
+        status = STATUS_DDB_BATCH_FAILED
+        failure_reason = f"IMPACT# batch failed: {ddb_batch_error}"
+    elif not failed:
+        status, failure_reason = STATUS_COMPLETE, None
+    elif succeeded:
+        status = STATUS_PARTIAL
+        failure_reason = f"{len(failed)}/{len(rows)} PMID(s) failed"
+    else:
+        status = STATUS_FAILED
+        failure_reason = f"all {len(rows)} PMID(s) failed"
+
+    result = EnrichmentBackfillResult(
+        status=status,
+        attempted=len(rows),
+        succeeded=len(succeeded),
+        failed=len(failed),
+        outcomes=outcomes,
+        cost_observed_usd=accumulator.total_usd,
+        cost_summary=accumulator.summary(),
+        impact_rows_written=impact_rows_written,
+        failure_reason=failure_reason,
+        **base,
+    )
+    if status in (STATUS_PARTIAL, STATUS_FAILED, STATUS_DDB_BATCH_FAILED):
+        _alert_backfill(alert_fn, result, failed)
+    logger.info(
+        "enrichment backfill: status=%s succeeded=%d failed=%d "
+        "impact_rows_written=%d",
+        status, len(succeeded), len(failed), impact_rows_written,
+    )
+    return result
+
+
+def _alert_backfill(
+    alert_fn: Callable,
+    result: EnrichmentBackfillResult,
+    failed_outcomes: list[PmidOutcome],
+) -> None:
+    """Send the operator a Teams alert for a non-clean backfill run.
+
+    `complete` / `no_op` runs do not alert (silent success, as in the daily
+    job); `partial` / `failed` / `ddb_batch_failed` do.
+    """
+    if result.status == STATUS_DDB_BATCH_FAILED:
+        alert_fn(
+            "ERROR",
+            "Enrichment backfill — IMPACT# batch failed",
+            f"{result.succeeded} PMID(s) were written to MariaDB "
+            "(reciterai_synopsis + reciterai_impact) but the end-of-run "
+            "IMPACT# DynamoDB batch failed, so their impact scores are not "
+            "yet in DynamoDB. Re-run the backfill with --force to retry — "
+            "every write is an idempotent upsert.",
+            context={
+                "succeeded": result.succeeded,
+                "failure_reason": result.failure_reason,
+            },
+        )
+        return
+    sample = ", ".join(
+        f"{o.pmid} ({o.synopsis_error or o.impact_error})"
+        for o in failed_outcomes[:3]
+    )
+    if len(failed_outcomes) > 3:
+        sample += f", … (+{len(failed_outcomes) - 3} more)"
+    if result.status == STATUS_PARTIAL:
+        severity = "WARN"
+        title = "Enrichment backfill completed with gaps"
+        message = (
+            f"{result.failed} of {result.attempted} PMID(s) did not reach a "
+            f"fully-enriched state; the other {result.succeeded} were "
+            "synopsized, impact-scored, and IMPACT#-written. Re-running the "
+            "backfill retries only the gaps (every write is idempotent)."
+        )
+    else:  # STATUS_FAILED
+        severity = "ERROR"
+        title = "Enrichment backfill failed"
+        message = (
+            f"All {result.attempted} PMID(s) failed — no synopsis or impact "
+            "was written. Check the run log for the cause."
+        )
+    alert_fn(
+        severity, title, message,
+        context={
+            "attempted": result.attempted,
+            "succeeded": result.succeeded,
+            "failed": result.failed,
+            "sample_failures": sample,
+        },
+    )

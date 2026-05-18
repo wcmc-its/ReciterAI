@@ -15,9 +15,12 @@ from pipeline_enrichment.daily_job import (
     STATUS_DDB_BATCH_FAILED,
     STATUS_FAILED,
     STATUS_NO_OP,
+    STATUS_PARTIAL,
+    EnrichmentBackfillResult,
     PmidOutcome,
     RunResult,
     run_daily_enrichment,
+    run_enrichment_backfill,
 )
 from pipeline_enrichment.watermark import Watermark
 
@@ -744,3 +747,259 @@ def test_dual_write_falls_back_to_default_table_when_none_injected(
     _stub_default_ddb_table.assert_called_once()
     # write_impact_batch got the fallback table the stub returned.
     assert wb.call_args.args[0] is _stub_default_ddb_table.return_value
+
+
+# ---------------------------------------------------------------------------
+# #112 — run_enrichment_backfill (watermark-free explicit-PMID enrichment)
+# ---------------------------------------------------------------------------
+
+def test_backfill_all_succeed_writes_synopsis_impact_and_ddb_batch(
+    fake_engine, fake_writer
+):
+    """Happy path: every PMID gets synopsis + impact in MariaDB and one
+    IMPACT# item in the end-of-run DynamoDB batch."""
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2", "3"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2, 3])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      return_value=3) as wb:
+        result = run_enrichment_backfill(
+            pmids=["1", "2", "3"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.status == STATUS_COMPLETE
+    assert (result.requested, result.attempted) == (3, 3)
+    assert (result.succeeded, result.failed) == (3, 0)
+    assert result.impact_rows_written == 3
+    wb.assert_called_once()
+    items = wb.call_args.args[1]
+    assert sorted(i["PK"] for i in items) == [
+        "IMPACT#pmid_1", "IMPACT#pmid_2", "IMPACT#pmid_3",
+    ]
+    # Cost is both estimated (pre-run, conservative) and observed (post-run).
+    assert result.cost_estimate_usd == Decimal("0.010") * 3
+    assert result.cost_observed_usd == _EXPECTED_PER_PMID_USD * 3
+
+
+def test_backfill_idempotency_cull_skips_already_complete(fake_engine, fake_writer):
+    """check_enrichment_coverage's `complete` set is culled — only the
+    `incomplete` PMIDs are fetched and enriched."""
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": ["1", "2"], "incomplete": ["3"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([3])) as fetch, \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1):
+        result = run_enrichment_backfill(
+            pmids=["1", "2", "3"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.status == STATUS_COMPLETE
+    assert result.requested == 3
+    assert result.already_complete == 2
+    assert result.attempted == 1
+    # Only the incomplete PMID reached the publication fetch.
+    assert fetch.call_args.args[1] == ["3"]
+
+
+def test_backfill_force_bypasses_the_idempotency_cull(fake_engine, fake_writer):
+    """--force: check_enrichment_coverage is never consulted; every
+    requested PMID is reprocessed."""
+    with patch.object(daily_job, "check_enrichment_coverage") as cov, \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=2):
+        result = run_enrichment_backfill(
+            pmids=["1", "2"],
+            engine=fake_engine,
+            force=True,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    cov.assert_not_called()
+    assert result.forced is True
+    assert result.attempted == 2
+    assert result.already_complete == 0
+
+
+def test_backfill_partial_failure_commits_succeeded_and_alerts(
+    fake_engine, fake_writer
+):
+    """A failed PMID does not block the rest: the succeeded PMIDs are still
+    IMPACT#-batched, status is `partial`, and the operator is alerted."""
+    def syn_failing_on_2(*, pmid, **kwargs):
+        if pmid == "2":
+            return FakeSynopsisResult(
+                pmid=pmid, synopsis=None,
+                input_tokens=0, output_tokens=0, error="bad abstract",
+            )
+        return FakeSynopsisResult(pmid=pmid, synopsis=f"syn-{pmid}")
+
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2", "3"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2, 3])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      return_value=2) as wb:
+        result = run_enrichment_backfill(
+            pmids=["1", "2", "3"],
+            engine=fake_engine,
+            generate_synopsis=syn_failing_on_2,
+            score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    assert result.status == STATUS_PARTIAL
+    assert (result.succeeded, result.failed) == (2, 1)
+    # Only the 2 succeeded PMIDs are batched to DynamoDB.
+    items = wb.call_args.args[1]
+    assert sorted(i["PK"] for i in items) == ["IMPACT#pmid_1", "IMPACT#pmid_3"]
+    alert.assert_called_once()
+    assert alert.call_args.args[0] == "WARN"
+
+
+def test_backfill_all_fail_skips_ddb_batch_and_alerts_error(
+    fake_engine, fake_writer
+):
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch") as wb:
+        result = run_enrichment_backfill(
+            pmids=["1"],
+            engine=fake_engine,
+            generate_synopsis=_failing_synopsis,
+            score_impact=MagicMock(side_effect=AssertionError("impact skipped")),
+            alert_fn=alert,
+        )
+    assert result.status == STATUS_FAILED
+    assert (result.succeeded, result.failed) == (0, 1)
+    wb.assert_not_called()  # nothing succeeded → no IMPACT# batch
+    assert alert.call_args.args[0] == "ERROR"
+
+
+def test_backfill_empty_work_set_is_no_op(fake_engine):
+    result = run_enrichment_backfill(pmids=[], engine=fake_engine)
+    assert result.status == STATUS_NO_OP
+    assert result.requested == 0
+
+
+def test_backfill_all_already_complete_is_no_op(fake_engine):
+    """Every requested PMID already has synopsis + impact — no publication
+    fetch, no LLM calls."""
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": ["1", "2"], "incomplete": []}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment") as fetch:
+        result = run_enrichment_backfill(pmids=["1", "2"], engine=fake_engine)
+    assert result.status == STATUS_NO_OP
+    assert result.already_complete == 2
+    fetch.assert_not_called()
+
+
+def test_backfill_dry_run_generates_nothing(fake_engine):
+    """--dry-run resolves the work set and surfaces the cost estimate but
+    makes no LLM call and writes no IMPACT# batch."""
+    syn = MagicMock(side_effect=AssertionError("dry-run must not call the LLM"))
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch") as wb:
+        result = run_enrichment_backfill(
+            pmids=["1", "2"],
+            engine=fake_engine,
+            dry_run=True,
+            generate_synopsis=syn,
+            score_impact=syn,
+        )
+    assert result.dry_run is True
+    assert result.attempted == 0
+    assert result.cost_estimate_usd == Decimal("0.010") * 2
+    syn.assert_not_called()
+    wb.assert_not_called()
+
+
+def test_backfill_reports_unresolved_pmids(fake_engine, fake_writer):
+    """A PMID in the work set but absent from analysis_summary_article
+    (pre-2020 / typo) is reported as unresolved, not silently dropped."""
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2", "999"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=2):
+        result = run_enrichment_backfill(
+            pmids=["1", "2", "999"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.status == STATUS_COMPLETE
+    assert result.unresolved == 1
+    assert result.unresolved_pmids == ["999"]
+    assert result.attempted == 2
+
+
+def test_backfill_ddb_batch_failure_is_ddb_batch_failed(fake_engine, fake_writer):
+    """If write_impact_batch raises after the MariaDB writes, the run is
+    `ddb_batch_failed` — the operator must re-run with --force."""
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      side_effect=RuntimeError("provisioned throughput exceeded")):
+        result = run_enrichment_backfill(
+            pmids=["1", "2"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    assert result.status == STATUS_DDB_BATCH_FAILED
+    assert "provisioned throughput exceeded" in result.failure_reason
+    assert alert.call_args.args[0] == "ERROR"
+
+
+def test_backfill_uses_an_injected_ddb_table(fake_engine, fake_writer):
+    """An injected ddb_table is used for the IMPACT# batch instead of the
+    default get_table()."""
+    fake_table = MagicMock(name="injected_table")
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      return_value=1) as wb:
+        run_enrichment_backfill(
+            pmids=["1"],
+            engine=fake_engine,
+            ddb_table=fake_table,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert wb.call_args.args[0] is fake_table
+
+
+def test_backfill_dedupes_requested_pmids(fake_engine, fake_writer):
+    """Duplicate / whitespace-padded input PMIDs collapse to one work item."""
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1"]}) as cov, \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1):
+        result = run_enrichment_backfill(
+            pmids=["1", "1", " 1 ", "1"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.requested == 1
+    # check_enrichment_coverage receives the de-duplicated set.
+    assert cov.call_args.args[0] == ["1"]
