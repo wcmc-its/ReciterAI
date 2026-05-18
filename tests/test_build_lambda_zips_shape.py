@@ -39,6 +39,7 @@ EXPECTED_ZIPS = {
     "reciterai-onboarding-finalize",
     "reciterai-onboarding-detector",
     "reciterai-onboarding-derive-topics",
+    "reciterai-onboarding-enrich",
 }
 
 
@@ -63,7 +64,7 @@ def specs() -> dict[str, dict[str, str]]:
     return _parse_specs()
 
 
-def test_all_ten_zips_present(specs):
+def test_all_eleven_zips_present(specs):
     assert set(specs) == EXPECTED_ZIPS, (
         f"zip drift: missing={EXPECTED_ZIPS - set(specs)}, "
         f"unexpected={set(specs) - EXPECTED_ZIPS}"

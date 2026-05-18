@@ -6,7 +6,7 @@
 # `reciterai-onboarding` from pipeline_onboarding/state_machine.asl.json.
 #
 # A deliberate near-clone of deploy_state_machine.sh (the hot-path deploy):
-# the onboarding ASL has its own 8-placeholder set, and generalizing the hot
+# the onboarding ASL has its own 9-placeholder set, and generalizing the hot
 # script would edit the tool that deploys the live hot path. Both scripts
 # retire together at the CDK migration (infra/README.md). Fix bugs in BOTH.
 #
@@ -25,6 +25,7 @@
 #   ONBOARDING_FINALIZE_LAMBDA_ARN     → ${OnboardingFinalizeLambdaArn}
 #   ONBOARDING_NOTIFY_LAMBDA_ARN       → ${OnboardingNotifyLambdaArn}
 #   DERIVE_DIRTY_TOPICS_LAMBDA_ARN     → ${DeriveDirtyTopicsLambdaArn}
+#   ONBOARDING_ENRICH_LAMBDA_ARN       → ${OnboardingEnrichLambdaArn}
 #   SCORE_LAMBDA_ARN                   → ${ScoreLambdaArn}     (reused hot)
 #   ASSIGN_LAMBDA_ARN                  → ${AssignLambdaArn}    (reused hot)
 #   TOP_TOPIC_LAMBDA_ARN               → ${TopTopicLambdaArn}  (reused hot)
@@ -65,6 +66,7 @@ REQUIRED=(
   ONBOARDING_FINALIZE_LAMBDA_ARN
   ONBOARDING_NOTIFY_LAMBDA_ARN
   DERIVE_DIRTY_TOPICS_LAMBDA_ARN
+  ONBOARDING_ENRICH_LAMBDA_ARN
   SCORE_LAMBDA_ARN
   ASSIGN_LAMBDA_ARN
   TOP_TOPIC_LAMBDA_ARN
@@ -95,6 +97,7 @@ mapping = {
     "OnboardingFinalizeLambdaArn":     os.environ["ONBOARDING_FINALIZE_LAMBDA_ARN"],
     "OnboardingNotifyLambdaArn":       os.environ["ONBOARDING_NOTIFY_LAMBDA_ARN"],
     "DeriveDirtyTopicsLambdaArn":      os.environ["DERIVE_DIRTY_TOPICS_LAMBDA_ARN"],
+    "OnboardingEnrichLambdaArn":       os.environ["ONBOARDING_ENRICH_LAMBDA_ARN"],
     "ScoreLambdaArn":                  os.environ["SCORE_LAMBDA_ARN"],
     "AssignLambdaArn":                 os.environ["ASSIGN_LAMBDA_ARN"],
     "TopTopicLambdaArn":               os.environ["TOP_TOPIC_LAMBDA_ARN"],
