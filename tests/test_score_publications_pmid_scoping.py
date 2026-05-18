@@ -1,10 +1,16 @@
-"""Tests for the --rescore-pmids flag on score_publications.py.
+"""Tests for the --pmids work-set flags on score_publications.py.
 
-Provides a CLI handle for targeted operator recovery of PMIDs outside
-the weekly hot-path delta window (e.g. content-filter survivors after
-a fallback-path change, or PMIDs that ReCiter newly attributed to a
-CWID). Bypasses both --delta-since and the PROCESSING# checkpoint
-cache.
+`--pmids` is the explicit PMID work set — an alternative to the
+`--delta-since` date delta. Two orthogonal modifiers compose with it (#89,
+consolidating the former --rescore-pmids / --retry-pmids / --pmids flags):
+
+- ``--additive`` — union the work set onto the --delta-since delta instead
+  of replacing it (the hot-path retry sweep); caches respected.
+- ``--force`` — bypass the PROCESSING# checkpoint and the STAGE# skip
+  cache (operator force-recovery).
+
+Also covers ``extract_publications_by_pmids``, the explicit-list extraction
+SQL that backs every --pmids variant.
 """
 
 from __future__ import annotations
@@ -87,42 +93,77 @@ def test_db_connection_closed_even_on_exception():
 
 
 # ---------------------------------------------------------------------------
-# CLI argument behavior
+# CLI — scoping-flag validation (#89)
 # ---------------------------------------------------------------------------
 
 
-def test_cli_rejects_mutually_exclusive_flags(monkeypatch):
-    """--rescore-pmids and --delta-since cannot be used together."""
+def test_cli_rejects_pmids_with_delta_since(monkeypatch):
+    """--pmids replaces --delta-since; combining them without --additive is
+    rejected — they are competing work sets."""
     import asyncio
     import sys
 
     monkeypatch.setattr(sys, "argv", [
         "score_publications.py",
-        "--rescore-pmids", "1,2,3",
+        "--pmids", "1,2,3",
         "--delta-since", "2026-05-01T00:00:00Z",
     ])
-    # parser.error raises SystemExit
+    with pytest.raises(SystemExit):
+        asyncio.run(sp.main())
+
+
+def test_cli_rejects_force_with_additive(monkeypatch):
+    """--force (operator force-recovery) and --additive (orchestrator sweep)
+    are competing modifiers and cannot be combined."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", [
+        "score_publications.py",
+        "--pmids", "1",
+        "--force", "--additive",
+    ])
+    with pytest.raises(SystemExit):
+        asyncio.run(sp.main())
+
+
+def test_cli_rejects_additive_without_pmids(monkeypatch):
+    """--additive is a --pmids modifier; on its own it has nothing to union."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["score_publications.py", "--additive"])
+    with pytest.raises(SystemExit):
+        asyncio.run(sp.main())
+
+
+def test_cli_rejects_force_without_pmids(monkeypatch):
+    """--force is a --pmids modifier; on its own it has no work set to force."""
+    import asyncio
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["score_publications.py", "--force"])
     with pytest.raises(SystemExit):
         asyncio.run(sp.main())
 
 
 # ---------------------------------------------------------------------------
-# STAGE# substrate skip-cache bypass when --rescore-pmids is set
+# CLI — --force bypasses the STAGE# substrate skip cache
 # ---------------------------------------------------------------------------
 
 
-def test_rescore_pmids_bypasses_stage_skip_cache(monkeypatch):
-    """When --rescore-pmids is set, the run-level should_skip check must
-    NOT be consulted. A prior `records_written=0` complete row for the
-    same PMID set would otherwise collide on input_hash and block recovery
-    via the substrate cache, forcing operator DDB hand-surgery.
+def test_force_bypasses_stage_skip_cache(monkeypatch):
+    """With --pmids ... --force, the run-level should_skip check must NOT be
+    consulted. A prior `records_written=0` complete row for the same PMID
+    set would otherwise collide on input_hash and block recovery via the
+    substrate cache, forcing operator DDB hand-surgery.
     """
     import asyncio
     import sys
 
     monkeypatch.setattr(sys, "argv", [
         "score_publications.py",
-        "--rescore-pmids", "41198049",
+        "--pmids", "41198049", "--force",
     ])
 
     # Patch out everything the main() loop needs except should_skip. We
@@ -146,15 +187,15 @@ def test_rescore_pmids_bypasses_stage_skip_cache(monkeypatch):
 
     asyncio.run(sp.main())
 
-    # The contract: should_skip is bypassed entirely under --rescore-pmids,
-    # not consulted-and-overridden. Asserts the run-level cache cannot
-    # block a rescore even when the input_hash would match a prior row.
+    # The contract: should_skip is bypassed entirely under --force, not
+    # consulted-and-overridden. The run-level cache cannot block a forced
+    # rescore even when the input_hash would match a prior row.
     should_skip_mock.assert_not_called()
 
 
 def test_normal_run_still_consults_should_skip(monkeypatch):
-    """Sanity check: without --rescore-pmids, should_skip is still
-    consulted (we did not accidentally turn it off for everyone)."""
+    """Sanity check: a plain --delta-since run (no --force) still consults
+    should_skip — the bypass did not leak to everyone."""
     import asyncio
     import sys
 
@@ -183,36 +224,21 @@ def test_normal_run_still_consults_should_skip(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# --retry-pmids — hot-path retry sweep ingestion
+# CLI — --additive unions the work set onto the date delta
 # ---------------------------------------------------------------------------
 
 
-def test_cli_rejects_retry_and_rescore_together(monkeypatch):
-    """--retry-pmids (additive sweep) and --rescore-pmids (operator force
-    recovery) are competing mechanisms and cannot be combined."""
-    import asyncio
-    import sys
-
-    monkeypatch.setattr(sys, "argv", [
-        "score_publications.py",
-        "--rescore-pmids", "1",
-        "--retry-pmids", "2",
-    ])
-    with pytest.raises(SystemExit):
-        asyncio.run(sp.main())
-
-
-def test_retry_pmids_unioned_onto_date_delta(monkeypatch):
-    """--retry-pmids extracts the failed PMIDs via extract_publications_by_pmids
-    and unions them onto the --delta-since date delta, deduplicating against
-    PMIDs already present in the delta."""
+def test_additive_unions_onto_date_delta(monkeypatch):
+    """--pmids ... --additive extracts the explicit set via
+    extract_publications_by_pmids and unions it onto the --delta-since date
+    delta, deduplicating against PMIDs already present in the delta."""
     import asyncio
     import sys
 
     monkeypatch.setattr(sys, "argv", [
         "score_publications.py",
         "--delta-since", "2026-05-01T00:00:00Z",
-        "--retry-pmids", "111,222",
+        "--pmids", "111,222", "--additive",
     ])
 
     fake_table = MagicMock()
@@ -224,7 +250,7 @@ def test_retry_pmids_unioned_onto_date_delta(monkeypatch):
         "uncovered_score_floor": 0.5,
     })
     monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
-    # Date delta carries 999 and 111 — 111 is also a retry PMID.
+    # Date delta carries 999 and 111 — 111 is also an additive PMID.
     monkeypatch.setattr(
         sp, "extract_publications",
         lambda delta_since=None: [{"pmid": "999"}, {"pmid": "111"}],
@@ -250,8 +276,8 @@ def test_retry_pmids_unioned_onto_date_delta(monkeypatch):
 
     asyncio.run(sp.main())
 
-    # extract_publications_by_pmids received exactly the retry list.
+    # extract_publications_by_pmids received exactly the --pmids list.
     assert by_pmids_calls == [["111", "222"]]
-    # 999 + 111 from the delta, 222 unioned from the retry sweep;
+    # 999 + 111 from the delta, 222 unioned from the additive set;
     # 111 is NOT double-counted.
     assert captured["pmids"] == ["111", "222", "999"]

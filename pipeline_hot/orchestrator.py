@@ -359,7 +359,7 @@ def build_state_machine_input(
     - `delta.size` stays a pure date-delta count (the hot_run STAGE# row
       reads it), and `delta.retry_size` carries the sweep count separately;
     - the Score handler can pass exactly the retry list to
-      `score_publications --retry-pmids`;
+      `score_publications --pmids … --additive`;
     - `delta.all_pmids` (the union) is what TopTopic consumes, so a retry
       PMID that scores successfully also gets its top topic recomputed.
 

@@ -51,11 +51,11 @@ def handler(event: dict, context: Any = None) -> dict:
           "last_successful_hot_run_at": "<iso8601>" | null
         }
     `delta.retry_pmids` is the orchestrator retry sweep's recovered-PMID
-    list. When non-empty it is passed through as `--retry-pmids`, which
-    `score_publications` unions onto the `--delta-since` date delta — this
-    is the only path by which a PMID that aged out of the date window
-    reaches the scorer (the scorer recomputes the date delta itself and
-    otherwise never sees `delta.pmids`).
+    list. When non-empty it is passed through as `--pmids … --additive`,
+    which `score_publications` unions onto the `--delta-since` date delta
+    — this is the only path by which a PMID that aged out of the date
+    window reaches the scorer (the scorer recomputes the date delta itself
+    and otherwise never sees `delta.pmids`).
 
     Onboarding CWID-scoped work set (#80 Phase 2):
         {
@@ -72,9 +72,10 @@ def handler(event: dict, context: Any = None) -> dict:
     """
     pmids = event.get("pmids")
     if pmids is not None:
-        # Onboarding CWID-scoped event (#80). `--pmids` is mutually
-        # exclusive with --delta-since / --retry-pmids in
-        # score_publications, so this branch builds a disjoint command.
+        # Onboarding CWID-scoped event (#80). Plain `--pmids` is the
+        # onboarding work set — it replaces --delta-since and takes no
+        # --additive / --force modifier, so this branch builds a command
+        # disjoint from the hot-path date-delta branch below.
         if not pmids:
             raise ValueError(
                 "score handler: onboarding event carries an empty 'pmids' "
@@ -103,7 +104,12 @@ def handler(event: dict, context: Any = None) -> dict:
         if delta_since:
             cmd += ["--delta-since", delta_since]
         if retry_pmids:
-            cmd += ["--retry-pmids", ",".join(str(p) for p in retry_pmids)]
+            # The retry sweep's recovered PMIDs union onto the date delta:
+            # --pmids + --additive (cache-respecting), never --force.
+            cmd += [
+                "--pmids", ",".join(str(p) for p in retry_pmids),
+                "--additive",
+            ]
 
         logger.info(
             f"score handler invoking: {' '.join(cmd)} "
