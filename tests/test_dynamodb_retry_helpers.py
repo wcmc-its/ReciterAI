@@ -1,6 +1,7 @@
 """Tests for the retry-sweep DynamoDB helpers.
 
-Covers the four helpers added for the hot-path state-based retry sweep:
+Covers the helpers behind the hot-path state-based retry sweep (#84) and
+the operator quarantine-release path (#86):
 
 - ``mark_processing_failed`` — UpdateItem that *increments* retry_count
   (so the counter survives across re-score attempts) and stamps failed_at.
@@ -9,6 +10,9 @@ Covers the four helpers added for the hot-path state-based retry sweep:
 - ``get_processing_rows`` — BatchGet of full PROCESSING# rows.
 - ``quarantine_pmid`` — writes a QUARANTINE# row and flips the PROCESSING#
   row's status to 'quarantined'.
+- ``release_quarantine`` — the inverse of quarantine_pmid: deletes the
+  QUARANTINE# row and the PROCESSING# checkpoint so a reviewed PMID is
+  re-scored fresh.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from utils.dynamodb_helpers import (
     mark_processing_failed,
     quarantine_pmid,
     query_failed_pmids,
+    release_quarantine,
 )
 
 
@@ -168,3 +173,96 @@ def test_quarantine_pmid_writes_row_and_flips_processing_status():
     upd = client.update_item.call_args.kwargs
     assert upd["Key"]["PK"] == {"S": "PROCESSING#pmid_999"}
     assert upd["ExpressionAttributeValues"][":q"] == {"S": "quarantined"}
+
+
+# ---------------------------------------------------------------------------
+# release_quarantine
+# ---------------------------------------------------------------------------
+
+
+def test_release_quarantine_deletes_quarantine_and_processing_rows():
+    """A quarantined PMID: both the QUARANTINE# review row and the
+    PROCESSING# checkpoint are deleted, and the cleared retry_count is
+    reported back."""
+    client = MagicMock()
+    client.get_item.side_effect = [
+        {"Item": {  # QUARANTINE# row
+            "PK": {"S": "QUARANTINE#pmid_999"},
+            "status": {"S": "quarantined"},
+            "retry_count": {"N": "3"},
+            "last_error": {"S": "content-filtered"},
+        }},
+        {"Item": {  # PROCESSING# row, stuck at 'quarantined'
+            "PK": {"S": "PROCESSING#pmid_999"},
+            "status": {"S": "quarantined"},
+            "retry_count": {"N": "3"},
+        }},
+    ]
+    result = release_quarantine(client, "reciterai", "999")
+
+    assert result == {
+        "pmid": "999",
+        "was_quarantined": True,
+        "retry_count": 3,
+        "last_error": "content-filtered",
+    }
+    # Both rows deleted, on the right PK/SK.
+    deleted = [c.kwargs["Key"]["PK"]["S"] for c in client.delete_item.call_args_list]
+    assert deleted == ["QUARANTINE#pmid_999", "PROCESSING#pmid_999"]
+    for c in client.delete_item.call_args_list:
+        assert c.kwargs["Key"]["SK"] == {"S": "STATUS"}
+
+
+def test_release_quarantine_recovers_stuck_processing_row():
+    """The QUARANTINE# row was hand-deleted but the PROCESSING# row is
+    stuck at status='quarantined'. Release must still clear it — otherwise
+    the PMID can never re-enter processing."""
+    client = MagicMock()
+    client.get_item.side_effect = [
+        {},  # no QUARANTINE# row
+        {"Item": {
+            "PK": {"S": "PROCESSING#pmid_777"},
+            "status": {"S": "quarantined"},
+            "retry_count": {"N": "5"},
+            "error": {"S": "boom"},
+        }},
+    ]
+    result = release_quarantine(client, "reciterai", "777")
+
+    assert result["was_quarantined"] is True
+    assert result["retry_count"] == 5
+    assert result["last_error"] == "boom"
+    deleted = [c.kwargs["Key"]["PK"]["S"] for c in client.delete_item.call_args_list]
+    assert deleted == ["QUARANTINE#pmid_777", "PROCESSING#pmid_777"]
+
+
+def test_release_quarantine_leaves_non_quarantined_pmid_untouched():
+    """A PMID with no QUARANTINE# row and a non-quarantined PROCESSING#
+    status (an operator typo) is reported, never mutated — releasing it
+    would needlessly drop a healthy checkpoint."""
+    client = MagicMock()
+    client.get_item.side_effect = [
+        {},  # no QUARANTINE# row
+        {"Item": {"PK": {"S": "PROCESSING#pmid_5"}, "status": {"S": "complete"}}},
+    ]
+    result = release_quarantine(client, "reciterai", "5")
+
+    assert result["was_quarantined"] is False
+    client.delete_item.assert_not_called()
+
+
+def test_release_quarantine_idempotent_when_no_state_exists():
+    """Releasing a PMID with no quarantine state at all — already released,
+    or never quarantined — deletes nothing and reports was_quarantined
+    False."""
+    client = MagicMock()
+    client.get_item.side_effect = [{}, {}]  # neither row exists
+    result = release_quarantine(client, "reciterai", "123")
+
+    assert result == {
+        "pmid": "123",
+        "was_quarantined": False,
+        "retry_count": 0,
+        "last_error": "",
+    }
+    client.delete_item.assert_not_called()

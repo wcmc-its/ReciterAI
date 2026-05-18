@@ -53,7 +53,7 @@ from utils.openai_client import (
 from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
     mark_processing_failed, get_processing_status, to_decimal, make_score_sk,
-    batch_write,
+    batch_write, release_quarantine,
 )
 from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
@@ -1087,6 +1087,19 @@ async def main():
             'onboarding_cost_guard_max_pmids. No effect outside --pmids mode.'
         ),
     )
+    parser.add_argument(
+        '--release-quarantine', metavar='PMID1,PMID2,...', default=None,
+        help=(
+            'Operator maintenance mode: release the given quarantined '
+            'PMIDs back into normal processing. Per PMID, deletes the '
+            'QUARANTINE# row and the PROCESSING# checkpoint so the PMID is '
+            're-scored fresh — with a reset retry budget — the next time a '
+            'run includes it. Runs no scoring; mutually exclusive with '
+            'every scoping flag. Use after reviewing a QUARANTINE# row and '
+            'fixing the underlying cause (a prompt change, a corrected '
+            'synopsis, a cleared model outage).'
+        ),
+    )
     args = parser.parse_args()
 
     if args.rescore_pmids and args.delta_since:
@@ -1107,6 +1120,51 @@ async def main():
             "--pmids is a standalone explicit work set and cannot be "
             "combined with --delta-since, --rescore-pmids, or --retry-pmids"
         )
+
+    if args.release_quarantine and (
+        args.delta_since or args.rescore_pmids or args.retry_pmids or args.pmids
+    ):
+        parser.error(
+            "--release-quarantine is a standalone maintenance mode (it "
+            "clears quarantine state and runs no scoring); it cannot be "
+            "combined with --delta-since, --rescore-pmids, --retry-pmids, "
+            "or --pmids"
+        )
+
+    # --- Operator maintenance: release quarantined PMIDs (#86) ---
+    # Standalone mode — no taxonomy, no Bedrock, no STAGE# substrate. The
+    # inverse of the retry sweep's quarantine_pmid: a reviewed PMID re-enters
+    # normal processing once its QUARANTINE# row and PROCESSING# checkpoint
+    # are cleared.
+    if args.release_quarantine:
+        release_pmids = [
+            p.strip() for p in args.release_quarantine.split(',') if p.strip()
+        ]
+        if not release_pmids:
+            print("--release-quarantine supplied an empty list; nothing to do.")
+            return
+        dynamo_client = get_dynamo_client()
+        print(f"[--release-quarantine mode] {len(release_pmids)} PMIDs requested")
+        released = 0
+        for pmid in release_pmids:
+            result = release_quarantine(dynamo_client, TABLE_NAME, pmid)
+            if result['was_quarantined']:
+                released += 1
+                print(
+                    f"  {pmid}: released — cleared quarantine and retry_count "
+                    f"({result['retry_count']}); eligible for re-scoring on "
+                    "the next run that includes it"
+                )
+            else:
+                print(
+                    f"  {pmid}: not quarantined — skipped "
+                    "(typo, or already released)"
+                )
+        print(
+            f"[--release-quarantine] {released} released, "
+            f"{len(release_pmids) - released} skipped"
+        )
+        return
 
     # --- STAGE# substrate setup (Phase 10 D-07) ---
     stage_started_at = now_iso()
