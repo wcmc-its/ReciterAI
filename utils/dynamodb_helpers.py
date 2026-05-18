@@ -538,3 +538,69 @@ def quarantine_pmid(client, table_name: str, pmid: str, *,
             ':ts': {'S': ts},
         },
     )
+
+
+def release_quarantine(client, table_name: str, pmid: str) -> dict:
+    """Release a quarantined PMID back into normal processing.
+
+    The inverse of `quarantine_pmid`. A PMID counts as quarantined when a
+    `QUARANTINE#pmid_{pmid}` row exists *or* its `PROCESSING#` row carries
+    status='quarantined'; the second clause recovers the messy case where
+    an operator hand-deleted the QUARANTINE# row but left the PROCESSING#
+    row stuck at 'quarantined'. For a quarantined PMID this:
+
+      1. deletes the `QUARANTINE#pmid_{pmid}` operator-review row, and
+      2. deletes the `PROCESSING#pmid_{pmid}` checkpoint row.
+
+    Deleting the PROCESSING# row (rather than flipping its status) clears
+    retry_count, failed_at, error and quarantined_at in a single write — so
+    the next hot-path run finds no checkpoint, re-extracts the PMID, and
+    scores it fresh. A surviving non-zero retry_count would otherwise let
+    the next failure re-quarantine the PMID immediately, with no fresh
+    retry budget.
+
+    Returns a report dict so the caller can tell the operator what
+    happened: `pmid`, `was_quarantined` (bool), `retry_count` (int — the
+    count being cleared) and `last_error` (str). When `was_quarantined` is
+    False the PMID had no quarantine state — a typo, or an already-released
+    PMID — and nothing is deleted. Idempotent: DeleteItem on an absent key
+    is a no-op, so a repeated release simply reports was_quarantined=False.
+    """
+    quarantine_key = {
+        'PK': {'S': f'QUARANTINE#pmid_{pmid}'}, 'SK': {'S': 'STATUS'},
+    }
+    processing_key = {
+        'PK': {'S': f'PROCESSING#pmid_{pmid}'}, 'SK': {'S': 'STATUS'},
+    }
+
+    quarantine_row = client.get_item(
+        TableName=table_name, Key=quarantine_key
+    ).get('Item')
+    processing_row = client.get_item(
+        TableName=table_name, Key=processing_key
+    ).get('Item')
+
+    processing_status = (processing_row or {}).get('status', {}).get('S', '')
+    was_quarantined = (
+        quarantine_row is not None or processing_status == 'quarantined'
+    )
+
+    # The QUARANTINE# row is the authoritative operator record; fall back to
+    # the PROCESSING# row only when it is missing (the hand-deleted case).
+    source = quarantine_row or processing_row or {}
+    retry_count = int(source.get('retry_count', {}).get('N', '0'))
+    last_error = (
+        source.get('last_error', {}).get('S')
+        or source.get('error', {}).get('S', '')
+    )
+
+    if was_quarantined:
+        client.delete_item(TableName=table_name, Key=quarantine_key)
+        client.delete_item(TableName=table_name, Key=processing_key)
+
+    return {
+        'pmid': str(pmid),
+        'was_quarantined': was_quarantined,
+        'retry_count': retry_count,
+        'last_error': last_error,
+    }
