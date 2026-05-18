@@ -150,6 +150,42 @@ def should_skip(
     return (prior is not None, prior)
 
 
+def find_latest_complete(
+    table: Any,
+    *,
+    stage: str,
+    scope: str,
+) -> dict | None:
+    """
+    Return the most recent `complete` row under (stage, scope), or None.
+
+    The `input_hash`-agnostic companion to `find_existing_complete`: that
+    function answers "has *this exact input* completed?"; this one answers
+    "what is the latest completed run, whatever its input?".
+
+    The #80 onboarding recovery check (issue #115) uses it to read the
+    `input_pmid_set` off a CWID's most recent `STAGE#rollup_by_cwid#cwid:`
+    row without knowing that rollup's input_hash — a missing or stale
+    rollup means a prior cascade scored the CWID but never finished
+    rolling it up.
+
+    Same query shape as `find_existing_complete` — a partition-key query,
+    newest-first — and `failed` / `skipped` rows are ignored the same way:
+    only a real completion is returned.
+    """
+    pk = _pk(stage, scope)
+    resp = table.query(
+        KeyConditionExpression="#pk = :pk",
+        ExpressionAttributeNames={"#pk": "PK"},
+        ExpressionAttributeValues={":pk": pk},
+        ScanIndexForward=False,  # newest first
+    )
+    for item in resp.get("Items", []):
+        if item.get("status") == STATUS_COMPLETE:
+            return item
+    return None
+
+
 def _base_item(
     *,
     stage: str,
