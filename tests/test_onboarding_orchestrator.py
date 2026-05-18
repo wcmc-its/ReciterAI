@@ -1,7 +1,10 @@
-"""#80 Phase 2 (PR 3) — pipeline_onboarding.orchestrator tests.
+"""#80 Phase 2 — pipeline_onboarding.orchestrator tests.
 
 Covers the pure routing decision (`evaluate_onboarding`), the input-hash
-and cost-estimate helpers, and the Lambda handler's I/O wiring.
+and cost-estimate helpers, and the Lambda handler's I/O wiring. The synopsis
+precondition is retired (#112) — onboarding generates synopses inline in the
+Enrich stage — so the orchestrator routes only `ready` / `skipped` /
+`cost_exceeded`.
 """
 
 from __future__ import annotations
@@ -29,9 +32,7 @@ _BASE = dict(
 
 
 def test_no_pmids_routes_skipped():
-    result = orch.evaluate_onboarding(
-        **_BASE, pmids=[], synopsis_missing=[], processing_status={},
-    )
+    result = orch.evaluate_onboarding(**_BASE, pmids=[], processing_status={})
     assert result["status"] == orch.ROUTE_SKIPPED
     assert result["input"] == {}
     env = result["terminal_envelope"]
@@ -39,25 +40,10 @@ def test_no_pmids_routes_skipped():
     assert "no accepted publications" in env["skip_reason"]["S"]
 
 
-def test_synopsis_missing_routes_deferred():
-    result = orch.evaluate_onboarding(
-        **_BASE,
-        pmids=["1", "2", "3"],
-        synopsis_missing=["2"],
-        processing_status={},
-    )
-    assert result["status"] == orch.ROUTE_DEFERRED
-    env = result["terminal_envelope"]
-    assert env["status"] == {"S": "deferred"}
-    assert env["deferred_pmids"] == {"L": [{"S": "2"}]}
-    assert "synopsis" in env["deferred_reason"]["S"].lower()
-
-
 def test_all_scored_routes_skipped():
     result = orch.evaluate_onboarding(
         **_BASE,
         pmids=["1", "2"],
-        synopsis_missing=[],
         processing_status={"1": "complete", "2": "complete"},
     )
     assert result["status"] == orch.ROUTE_SKIPPED
@@ -66,12 +52,10 @@ def test_all_scored_routes_skipped():
 
 def test_cost_guard_trips_above_threshold():
     big = [str(i) for i in range(score_publications.ONBOARDING_COST_GUARD_MAX_PMIDS + 1)]
-    result = orch.evaluate_onboarding(
-        **_BASE, pmids=big, synopsis_missing=[], processing_status={},
-    )
+    result = orch.evaluate_onboarding(**_BASE, pmids=big, processing_status={})
     assert result["status"] == orch.ROUTE_COST_EXCEEDED
     env = result["terminal_envelope"]
-    # Modelled as status=failed + error_code (D-COSTSTATUS), not a 6th status.
+    # Modelled as status=failed + error_code (D-COSTSTATUS), not a 5th status.
     assert env["status"] == {"S": "failed"}
     assert env["error_code"] == {"S": orch.ERROR_CODE_COST_GUARD}
     assert "failure_details" in env
@@ -85,7 +69,6 @@ def test_cost_guard_override_routes_ready():
         started_at="2026-05-17T00:00:00Z",
         allow_cost_override=True,
         pmids=big,
-        synopsis_missing=[],
         processing_status={},
     )
     assert result["status"] == orch.ROUTE_READY
@@ -95,7 +78,6 @@ def test_ready_returns_work_payload():
     result = orch.evaluate_onboarding(
         **_BASE,
         pmids=["1", "2", "3"],
-        synopsis_missing=[],
         processing_status={"1": "complete"},  # 2 of 3 are net work
     )
     assert result["status"] == orch.ROUTE_READY
@@ -110,14 +92,15 @@ def test_ready_returns_work_payload():
     assert result["terminal_envelope"] == {}
 
 
-def test_synopsis_check_precedes_cost_guard():
-    """A run that is both synopsis-incomplete and oversized defers — the
-    synopsis precondition is evaluated before the cost guard."""
-    big = [str(i) for i in range(score_publications.ONBOARDING_COST_GUARD_MAX_PMIDS + 50)]
+def test_un_synopsized_pmids_route_ready_not_deferred():
+    """The synopsis precondition is retired: a CWID whose PMIDs lack a
+    synopsis still routes `ready` — the Enrich stage generates them. The
+    orchestrator no longer inspects synopsis coverage at all."""
     result = orch.evaluate_onboarding(
-        **_BASE, pmids=big, synopsis_missing=["7"], processing_status={},
+        **_BASE, pmids=["1", "2", "3"], processing_status={}
     )
-    assert result["status"] == orch.ROUTE_DEFERRED
+    assert result["status"] == orch.ROUTE_READY
+    assert not hasattr(orch, "ROUTE_DEFERRED")
 
 
 # ---------------------------------------------------------------------------
@@ -158,13 +141,9 @@ def test_cost_estimate_positive_and_scales():
 # ---------------------------------------------------------------------------
 
 
-def _wire(monkeypatch, *, pmids, missing=None, status_map=None):
+def _wire(monkeypatch, *, pmids, status_map=None):
     """Stub the orchestrator's ReciterDB / DynamoDB / Teams dependencies."""
     monkeypatch.setattr(orch, "get_pmids_for_cwid", lambda cwid: list(pmids))
-    monkeypatch.setattr(
-        orch, "check_synopsis_coverage",
-        lambda ps: {"present": [], "missing": list(missing or [])},
-    )
     monkeypatch.setattr(orch, "get_dynamo_client", lambda: MagicMock())
     monkeypatch.setattr(
         orch, "get_processing_status", lambda *a, **k: dict(status_map or {}),
@@ -193,17 +172,6 @@ def test_handler_ready_path_and_cost_preview(monkeypatch):
     assert len(alert_calls) == 1
     assert alert_calls[0][0][0] == "WARN"
     assert alert_calls[0][1].get("mention") is False
-
-
-def test_handler_deferred_path_emits_no_orchestrator_alert(monkeypatch):
-    alert_calls = _wire(monkeypatch, pmids=["1", "2"], missing=["2"])
-    result = orch.handler(
-        {"execution_input": {"cwid": "abc1234"}, "run_id": "r"}
-    )
-    assert result["status"] == orch.ROUTE_DEFERRED
-    # The deferred operator alert is the state machine's NotifyDeferred Task,
-    # not the orchestrator — the orchestrator must not also alert.
-    assert alert_calls == []
 
 
 def test_handler_strips_cwid_whitespace(monkeypatch):

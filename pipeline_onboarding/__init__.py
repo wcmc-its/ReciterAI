@@ -24,11 +24,10 @@ onboarding-specific entry points:
     state_machine.asl.json   the cascade, with ${...Arn} deploy placeholders
 
 The workflow writes one `STAGE#onboarding#cwid:{cwid}` row per run carrying
-the 5-state terminal taxonomy (R7): ``complete | partial | deferred |
-skipped | failed``. `build_onboarding_record` below is the single builder
-for that row — shared by the orchestrator (deferred / skipped / cost-guard
-terminals) and finalize (complete / partial) so the row schema lives in one
-place.
+the 4-state terminal taxonomy (R7): ``complete | partial | skipped |
+failed``. `build_onboarding_record` below is the single builder for that
+row — shared by the orchestrator (skipped / cost-guard terminals) and
+finalize (complete / partial) so the row schema lives in one place.
 """
 
 from __future__ import annotations
@@ -39,7 +38,6 @@ from typing import Any
 from utils.iso_clock import now_iso
 from utils.stage_records import (
     STATUS_COMPLETE,
-    STATUS_DEFERRED,
     STATUS_FAILED,
     STATUS_PARTIAL,
     STATUS_SKIPPED,
@@ -50,9 +48,9 @@ from utils.stage_records import (
 # keep their own stage names; `onboarding` is the umbrella workflow row.
 ONBOARDING_STAGE = "onboarding"
 
-# The 5-state terminal taxonomy (R7). A workflow run ends in exactly one.
+# The 4-state terminal taxonomy (R7). A workflow run ends in exactly one.
 ONBOARDING_STATUSES = frozenset(
-    {STATUS_COMPLETE, STATUS_PARTIAL, STATUS_DEFERRED, STATUS_SKIPPED, STATUS_FAILED}
+    {STATUS_COMPLETE, STATUS_PARTIAL, STATUS_SKIPPED, STATUS_FAILED}
 )
 
 # Cost-guard refusal error code (D-COSTSTATUS). A cost-guard trip is modelled
@@ -93,8 +91,6 @@ def build_onboarding_record(
     projected_cost_usd: str | None = None,
     partial_failure_count: int | None = None,
     failed_pmids: list[str] | None = None,
-    deferred_reason: str | None = None,
-    deferred_pmids: list[str] | None = None,
     skip_reason: str | None = None,
     error_code: str | None = None,
     error_message: str | None = None,
@@ -108,13 +104,13 @@ def build_onboarding_record(
         PK  STAGE#onboarding#cwid:{cwid}
         SK  RUN#{started_at}
 
-    `status` must be one of the 5-state taxonomy (R7). All status-specific
+    `status` must be one of the 4-state taxonomy (R7). All status-specific
     fields are optional and additive — omitted when None, the same pattern
     `utils.stage_records.build_complete_record` uses — so a `complete` row
-    carries no `deferred_reason`, a `deferred` row no `error_code`, etc.
+    carries no `skip_reason`, a `skipped` row no `error_code`, etc.
 
-    The orchestrator builds the `deferred` / `skipped` / cost-guard `failed`
-    rows from this; finalize builds the `complete` / `partial` row. Both
+    The orchestrator builds the `skipped` / cost-guard `failed` rows from
+    this; finalize builds the `complete` / `partial` row. Both
     convert the result with `pipeline_common.envelope.to_ddb_typed_envelope`
     before handing it to the state machine's `dynamodb:putItem` integration.
 
@@ -153,10 +149,6 @@ def build_onboarding_record(
         item["partial_failure_count"] = int(partial_failure_count)
     if failed_pmids is not None:
         item["failed_pmids"] = [str(p) for p in failed_pmids]
-    if deferred_reason is not None:
-        item["deferred_reason"] = deferred_reason
-    if deferred_pmids is not None:
-        item["deferred_pmids"] = [str(p) for p in deferred_pmids]
     if skip_reason is not None:
         item["skip_reason"] = skip_reason
     if error_code is not None:
