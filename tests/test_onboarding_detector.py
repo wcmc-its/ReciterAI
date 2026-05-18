@@ -13,6 +13,7 @@ from decimal import Decimal
 import pytest
 
 import pipeline_onboarding.detector as det
+from utils.sql_queries import FACULTY_GAP_SCAN_SQL
 
 
 NOW = datetime(2026, 5, 17, 6, 0, 0, tzinfo=timezone.utc)
@@ -52,6 +53,18 @@ class _FakeTable:
     def put_item(self, Item):
         self.put_items.append(Item)
         return {}
+
+
+# ---------------------------------------------------------------------------
+# FACULTY_GAP_SCAN_SQL — author-position scope
+# ---------------------------------------------------------------------------
+
+
+def test_faculty_gap_scan_sql_scopes_to_first_last_author():
+    """First/last is the v1 faculty-facing author scope (matches
+    spotlight/author_resolver.py). Shape test — no behavioral test here
+    executes the SQL, so nothing else guards the filter against silent loss."""
+    assert "authorPosition IN ('first', 'last')" in FACULTY_GAP_SCAN_SQL
 
 
 # ---------------------------------------------------------------------------
