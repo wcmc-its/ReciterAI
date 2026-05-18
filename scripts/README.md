@@ -27,6 +27,7 @@ Scripts here are **one-shot by default**: they exist to be run a handful of time
 | `deploy_onboarding_state_machine.sh` | Step Functions deploy — onboarding (`reciterai-onboarding`) |
 | `smoke_hot_path.sh` | Manual hot-path end-to-end smoke against live infra |
 | `smoke_onboarding.sh` | Manual onboarding end-to-end smoke against live infra |
+| `verify_98_topic_rows.sh` | One-shot — verify #98's hot-path `TOPIC#` materialization in prod; delete when #98 closes |
 
 Anything else added here should justify itself against the lifecycle rule above.
 
