@@ -338,6 +338,15 @@ labelled `onboarding`) carrying the gap detail + the pre-filled
 `STAGE#onboarding_detector#GLOBAL` row per run. It does **not** trigger the
 state machine — issue-filing only (D1).
 
+**Cold-start guard (#106).** When a run flags more CWIDs than the
+`onboarding_detector_cold_start_threshold` in `config/thresholds.json`
+(default 100), per-CWID issue filing is suppressed and a single
+`[onboarding] Detector backlog digest` issue is filed instead — a cold-start
+backlog (onboarding has not yet run for most faculty) cannot flood the repo
+with hundreds of issues. Per-CWID filing resumes automatically once the
+flagged count drops back below the threshold, at which point the digest issue
+is marked cleared. The run's `STAGE#` row carries `cold_start_mode`.
+
 A manual dry scan (scan + STAGE# row + Teams digest, no GitHub writes):
 
 ```bash

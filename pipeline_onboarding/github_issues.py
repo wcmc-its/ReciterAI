@@ -357,6 +357,17 @@ def find_issues_for_cwid(issues: Iterable[dict], cwid: str) -> list[dict]:
     return [i for i in issues if pattern.search(i.get("title") or "")]
 
 
+def find_issue_by_title(issues: Iterable[dict], title: str) -> list[dict]:
+    """Open issues whose title exactly equals `title` (compared stripped).
+
+    Used to locate a fixed-title singleton issue — e.g. the onboarding
+    detector's cold-start backlog digest (#106) — for upsert. An exact match,
+    unlike `find_issues_for_cwid`'s word-boundary `CWID {cwid}` search.
+    """
+    want = (title or "").strip()
+    return [i for i in issues if (i.get("title") or "").strip() == want]
+
+
 # ---------------------------------------------------------------------------
 # High-level: upsert + resolution comment
 # ---------------------------------------------------------------------------
@@ -450,6 +461,7 @@ __all__ = [
     "list_comments",
     "cwid_from_title",
     "find_issues_for_cwid",
+    "find_issue_by_title",
     "upsert_onboarding_issue",
     "post_resolution_comment",
 ]

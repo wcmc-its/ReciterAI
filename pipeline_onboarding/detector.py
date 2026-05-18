@@ -25,6 +25,14 @@ pure evaluator (`evaluate_detector`) plus a thin I/O `handler`:
   an empty baseline would flag every faculty CWID on the detector's first
   run, before any onboarding has happened.
 
+**Cold-start guard (#106).** Onboarding has not yet run for most faculty, so
+the detector's first runs flag hundreds of CWIDs — one GitHub issue each
+would flood the repo. When a run flags more CWIDs than the
+`config/thresholds.json` cold-start threshold, per-CWID filing is suppressed
+and a single digest issue is filed instead; per-CWID filing — the
+steady-state behaviour — resumes automatically once the flagged count drops
+back below the threshold.
+
 The detector writes one `STAGE#onboarding_detector#GLOBAL` row per run (R8)
 and posts a Teams digest when it flags >= 1 CWID (R10 #1). A quiet day —
 zero flagged CWIDs — writes the row and sends no alert.
@@ -86,6 +94,7 @@ _DEFAULT_STATE_MACHINE_ARN = (
 _FLAGGED_CWIDS_CAP = 200      # cwid list on the STAGE# row
 _PMID_DISPLAY_CAP = 150       # PMIDs listed per section in an issue body
 _DIGEST_CWID_CAP = 15         # CWIDs itemised in the Teams digest
+_DIGEST_ISSUE_CWID_CAP = 50   # CWIDs itemised in the cold-start digest issue
 
 _RESOLUTION_BODY = (
     "**Safe to close** — the onboarding detector's most recent pass found no "
@@ -93,6 +102,24 @@ _RESOLUTION_BODY = (
     "CWID. The faculty profile is fully onboarded. Close this issue when "
     "convenient; the detector does not auto-close (spec OQ-3)."
 )
+
+# Cold-start guard (#106). On the detector's first runs onboarding has not yet
+# run for most faculty, so hundreds of CWIDs flag at once. Above this many
+# flagged CWIDs in a run, per-CWID issue filing is suppressed and one digest
+# issue is filed instead. The threshold lives in config/thresholds.json so an
+# operator can tune it without a code change; the default sits well above any
+# plausible steady-state day and well below the cold-start backlog.
+_DEFAULT_COLD_START_THRESHOLD = 100
+
+# The cold-start digest is a single, fixed-title issue refreshed in place each
+# run — the exact title is its idempotency key. It carries no `CWID {cwid}`
+# token, so neither the per-CWID matcher nor the OQ-3 resolution pass touches
+# it.
+_DIGEST_ISSUE_TITLE = "[onboarding] Detector backlog digest"
+
+# Embedded in the digest body once the backlog clears, so a normal-mode run
+# marks a lingering digest issue cleared exactly once, not on every run after.
+_DIGEST_CLEARED_MARKER = "<!-- onboarding-detector:digest-cleared -->"
 
 
 # ---------------------------------------------------------------------------
@@ -183,13 +210,20 @@ class DetectorEvaluation:
         return sum(1 for f in self.findings if f.drift_count)
 
     def to_stage_record(
-        self, *, run_id: str, input_hash: str, duration_ms: int
+        self,
+        *,
+        run_id: str,
+        input_hash: str,
+        duration_ms: int,
+        cold_start: bool = False,
     ) -> dict[str, Any]:
         """Render the `STAGE#onboarding_detector#GLOBAL` row for this run (R8).
 
         One row per detector run, SK `RUN#{started_at}`. Counts stay `int`
         (DynamoDB's TypeSerializer types them `N`); `cost_observed_usd` is a
         pinned `Decimal("0")` — the detector spends no model budget.
+        `cold_start_mode` records whether the cold-start guard fired this run
+        (a digest issue filed instead of per-CWID issues — #106).
         """
         record: dict[str, Any] = {
             "PK": DETECTOR_PK,
@@ -214,6 +248,7 @@ class DetectorEvaluation:
             "total_missing_score": sum(len(f.missing_score) for f in self.findings),
             "total_churn_added": sum(len(f.churn_added) for f in self.findings),
             "total_churn_removed": sum(len(f.churn_removed) for f in self.findings),
+            "cold_start_mode": bool(cold_start),
         }
         if self.findings:
             record["flagged_cwids"] = [
@@ -314,6 +349,27 @@ def _cost_guard_threshold() -> int:
         return int(load_thresholds().get("onboarding_cost_guard_max_pmids", 300))
     except Exception:  # noqa: BLE001 — a display detail must never break filing
         return 300
+
+
+def _cold_start_threshold() -> int:
+    """The cold-start guard's flagged-CWID ceiling, from config/thresholds.json.
+
+    Above this many flagged CWIDs in one run the detector files a single
+    digest issue rather than one issue per CWID (#106). Guarded like
+    `_cost_guard_threshold` — a misconfigured or unreadable threshold degrades
+    to the default, it never breaks a run.
+    """
+    try:
+        from utils.env_check import load_thresholds
+
+        return int(
+            load_thresholds().get(
+                "onboarding_detector_cold_start_threshold",
+                _DEFAULT_COLD_START_THRESHOLD,
+            )
+        )
+    except Exception:  # noqa: BLE001 — a tuning knob must never break a run
+        return _DEFAULT_COLD_START_THRESHOLD
 
 
 def _estimate_cost(net_score_pmids: int) -> Decimal | None:
@@ -493,15 +549,34 @@ def _build_digest(
     issues_by_cwid: dict[str, dict],
     *,
     issues_available: bool,
+    cold_start: bool = False,
+    threshold: int = 0,
+    digest_url: str = "",
 ) -> tuple[str, str, dict[str, Any]]:
-    """Title / message / context for the R10 #1 Teams digest."""
+    """Title / message / context for the R10 #1 Teams digest.
+
+    In cold-start mode (#106) per-CWID issue links are absent — one digest
+    issue stood in for the flood — so the message flags the suppressed state
+    and points at that digest issue instead.
+    """
     n = evaluation.flagged_cwid_count
-    title = f"Onboarding detector flagged {n} CWID(s)"
+    if cold_start:
+        title = f"Onboarding detector — cold-start backlog: {n} CWID(s) flagged"
+    else:
+        title = f"Onboarding detector flagged {n} CWID(s)"
     lines = [
         f"The daily onboarding detector flagged **{n}** CWID(s) "
         f"(scanned {evaluation.scanned_cwid_count}).",
         "",
     ]
+    if cold_start:
+        pointer = f" — {digest_url}" if digest_url else ""
+        lines += [
+            f"**Cold-start guard active** (threshold {threshold}): per-CWID "
+            f"issue filing is suppressed this run; a single digest issue "
+            f"stands in for the backlog{pointer}.",
+            "",
+        ]
     for finding in evaluation.findings[:_DIGEST_CWID_CAP]:
         bits: list[str] = []
         if finding.missing_synopsis:
@@ -517,7 +592,8 @@ def _build_digest(
         link = f" — {url}" if url else ""
         lines.append(f"- CWID {finding.cwid}: {', '.join(bits)}{link}")
     if n > _DIGEST_CWID_CAP:
-        lines.append(f"- ...and {n - _DIGEST_CWID_CAP} more — see the filed issues.")
+        tail = "the digest issue" if cold_start else "the filed issues"
+        lines.append(f"- ...and {n - _DIGEST_CWID_CAP} more — see {tail}.")
     if not issues_available:
         lines += [
             "",
@@ -529,8 +605,108 @@ def _build_digest(
         "gap_cwid_count": evaluation.gap_cwid_count,
         "churn_cwid_count": evaluation.churn_cwid_count,
         "scanned_cwid_count": evaluation.scanned_cwid_count,
+        "cold_start_mode": cold_start,
     }
     return title, "\n".join(lines), context
+
+
+def _digest_issue_body(
+    evaluation: DetectorEvaluation, *, now: datetime, threshold: int
+) -> str:
+    """The cold-start digest issue body — one issue standing in for the whole
+    flagged-CWID backlog while per-CWID filing is suppressed (#106).
+
+    Refreshed in place each run. A summary, not a worklist: run totals, the
+    worst CWIDs by flagged-PMID count, and the full flagged-CWID list. The
+    actionable per-CWID detail (trigger command, projected cost) returns on
+    the individual issues once the backlog drops below the threshold.
+    """
+    n = evaluation.flagged_cwid_count
+    total_synopsis = sum(len(f.missing_synopsis) for f in evaluation.findings)
+    total_score = sum(len(f.missing_score) for f in evaluation.findings)
+    total_added = sum(len(f.churn_added) for f in evaluation.findings)
+    total_removed = sum(len(f.churn_removed) for f in evaluation.findings)
+
+    lines: list[str] = [
+        f"The onboarding detector flagged **{n} CWID(s)** on "
+        f"{now.date().isoformat()} — above the cold-start threshold of "
+        f"**{threshold}**. Filing one GitHub issue per CWID would flood the "
+        f"repo, so per-CWID filing is suppressed; this single digest issue "
+        f"stands in for the backlog.",
+        "",
+        "### Run totals",
+        f"- CWIDs scanned: **{evaluation.scanned_cwid_count}**",
+        f"- CWIDs flagged: **{n}** — {evaluation.gap_cwid_count} with "
+        f"synopsis/score gaps, {evaluation.churn_cwid_count} with ReCiter "
+        f"attribution drift",
+        f"- PMIDs missing a synopsis: **{total_synopsis}**",
+        f"- PMIDs with a synopsis but no score: **{total_score}**",
+        f"- Attribution drift: **+{total_added} / -{total_removed}** PMIDs",
+        "",
+        "### Why this is a backlog, not steady state",
+        "This is a cold-start artifact — onboarding has not yet run for most "
+        "faculty, so nearly every researcher has un-onboarded publications. "
+        "The backlog is synopsis-generation-bound: a PMID cannot be scored or "
+        "rolled up until its synopsis exists. Synopsis backfill is tracked in "
+        "#112; the enrichment job that generates synopses, in #92.",
+        "",
+    ]
+
+    top = evaluation.findings[:_DIGEST_ISSUE_CWID_CAP]
+    lines.append(
+        f"### Most-affected CWIDs (top {len(top)} by flagged-PMID count)"
+    )
+    for finding in top:
+        bits: list[str] = []
+        if finding.missing_synopsis:
+            bits.append(f"{len(finding.missing_synopsis)} need synopsis")
+        if finding.missing_score:
+            bits.append(f"{len(finding.missing_score)} need score")
+        if finding.churn_added or finding.churn_removed:
+            bits.append(
+                f"drift +{len(finding.churn_added)}/-{len(finding.churn_removed)}"
+            )
+        lines.append(f"- CWID {finding.cwid}: {', '.join(bits)}")
+    if n > len(top):
+        lines.append(f"- ...and {n - len(top)} more (full list below).")
+
+    lines += [
+        "",
+        "### All flagged CWIDs",
+        ", ".join(f.cwid for f in evaluation.findings) or "_(none)_",
+        "",
+        "### What happens next",
+        f"Per-CWID onboarding issues — each carrying its own "
+        f"`start-execution` trigger command and projected cost — resume "
+        f"automatically once the flagged-CWID count falls below the "
+        f"cold-start threshold ({threshold}); this digest is then marked "
+        f"cleared. Re-enabling the daily cron "
+        f"(`reciterai-onboarding-detector-daily`) needs both this guard "
+        f"shipped **and** the backlog reduced to a steady-state range — see "
+        f"#106.",
+    ]
+    return "\n".join(lines)
+
+
+def _digest_cleared_body(evaluation: DetectorEvaluation, *, now: datetime) -> str:
+    """The digest issue body once the backlog clears — the flagged count is
+    back below the cold-start threshold, so per-CWID filing has resumed.
+
+    Carries `_DIGEST_CLEARED_MARKER` so a normal-mode run marks a lingering
+    digest issue cleared exactly once, not on every run afterwards.
+    """
+    return "\n".join(
+        [
+            _DIGEST_CLEARED_MARKER,
+            f"**Backlog cleared — {now.date().isoformat()}.** The onboarding "
+            f"detector's flagged-CWID count ({evaluation.flagged_cwid_count}) "
+            f"is back below the cold-start threshold, so per-CWID onboarding "
+            f"issues have resumed. This digest is no longer the active "
+            f"backlog record.",
+            "",
+            "Safe to close.",
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -583,6 +759,74 @@ def scan_rollup_baselines(table: Any) -> dict[str, list[str]]:
 # ---------------------------------------------------------------------------
 
 
+def _file_digest_issue(
+    evaluation: DetectorEvaluation,
+    open_issues: list[dict],
+    *,
+    now: datetime,
+    threshold: int,
+) -> dict | None:
+    """Create or refresh the single cold-start digest issue (#106).
+
+    Matched by its fixed title among `open_issues`. Best-effort: a GitHub
+    error is logged and `None` returned — the STAGE# row and Teams digest
+    still land. Returns the issue dict (carrying `number`, `html_url`).
+    """
+    body = _digest_issue_body(evaluation, now=now, threshold=threshold)
+    matches = github_issues.find_issue_by_title(open_issues, _DIGEST_ISSUE_TITLE)
+    try:
+        if not matches:
+            issue = github_issues.create_issue(_DIGEST_ISSUE_TITLE, body)
+            logger.info(
+                "onboarding detector: cold-start mode — filed digest issue "
+                "#%s for %d flagged CWIDs",
+                issue.get("number"), evaluation.flagged_cwid_count,
+            )
+            return issue
+        issue = max(matches, key=lambda i: i.get("updated_at") or "")
+        updated = github_issues.update_issue(issue["number"], body=body)
+        logger.info(
+            "onboarding detector: cold-start mode — refreshed digest issue "
+            "#%s for %d flagged CWIDs",
+            issue["number"], evaluation.flagged_cwid_count,
+        )
+        return updated or issue
+    except github_issues.GithubApiError as exc:
+        logger.warning("onboarding detector: digest issue upsert failed: %s", exc)
+        return None
+
+
+def _clear_lingering_digest(
+    evaluation: DetectorEvaluation, open_issues: list[dict], *, now: datetime
+) -> bool:
+    """Normal-mode housekeeping — mark a digest issue left over from a prior
+    cold-start period cleared, now that per-CWID filing has resumed (#106).
+
+    Idempotent: an already-cleared digest (one carrying `_DIGEST_CLEARED_MARKER`)
+    is skipped, so its body is PATCHed once on the transition, not every run
+    afterwards. Returns True if a digest issue was marked cleared this run.
+    """
+    cleared = False
+    for issue in github_issues.find_issue_by_title(open_issues, _DIGEST_ISSUE_TITLE):
+        if _DIGEST_CLEARED_MARKER in (issue.get("body") or ""):
+            continue
+        try:
+            github_issues.update_issue(
+                issue["number"], body=_digest_cleared_body(evaluation, now=now)
+            )
+            logger.info(
+                "onboarding detector: backlog below threshold — marked digest "
+                "issue #%s cleared", issue["number"],
+            )
+            cleared = True
+        except github_issues.GithubApiError as exc:
+            logger.warning(
+                "onboarding detector: could not clear digest issue #%s: %s",
+                issue.get("number"), exc,
+            )
+    return cleared
+
+
 def run_detector(
     *,
     table: Any,
@@ -598,6 +842,12 @@ def run_detector(
     All inputs are pre-fetched by `handler` so this function is unit-testable
     with an injected `table` double. Issue filing is best-effort — a GitHub
     outage logs and is skipped; the STAGE# row and Teams digest still land.
+
+    Cold-start guard (#106): when a run flags more CWIDs than the
+    `config/thresholds.json` cold-start threshold, per-CWID issue filing is
+    suppressed and one digest issue is filed instead. Per-CWID filing resumes
+    automatically once the flagged count drops back below the threshold, at
+    which point a lingering digest issue is marked cleared.
     """
     now = now or datetime.now(timezone.utc)
     evaluation = evaluate_detector(
@@ -607,9 +857,13 @@ def run_detector(
         now=now,
     )
 
+    threshold = _cold_start_threshold()
+    cold_start = evaluation.flagged_cwid_count > threshold
+
     issues_by_cwid: dict[str, dict] = {}
     created = updated = resolved = 0
     issues_available = False
+    digest_issue: dict | None = None
 
     if file_issues:
         open_issues: list[dict] = []
@@ -631,28 +885,46 @@ def run_detector(
                     logger.warning(
                         "onboarding detector: ensure_label failed: %s", exc
                     )
-            # Flagged CWIDs -> create or refresh an issue.
-            for finding in evaluation.findings:
-                try:
-                    result = github_issues.upsert_onboarding_issue(
-                        finding.cwid,
-                        _issue_title(finding),
-                        _issue_body(finding, now=now),
-                        open_issues=open_issues,
-                        refresh_comment=_refresh_comment(finding, now=now),
-                    )
-                    issues_by_cwid[finding.cwid] = result
-                    if result.get("action") == "created":
-                        created += 1
-                    else:
-                        updated += 1
-                except github_issues.GithubApiError as exc:
-                    logger.warning(
-                        "onboarding detector: issue upsert failed for CWID "
-                        "%s: %s", finding.cwid, exc,
-                    )
+
+            if cold_start:
+                # Cold-start backlog: one digest issue, not a per-CWID flood.
+                logger.info(
+                    "onboarding detector: cold-start mode — %d flagged CWIDs "
+                    "exceeds threshold %d; per-CWID filing suppressed",
+                    evaluation.flagged_cwid_count, threshold,
+                )
+                digest_issue = _file_digest_issue(
+                    evaluation, open_issues, now=now, threshold=threshold
+                )
+            else:
+                # Steady state: create or refresh one issue per flagged CWID.
+                for finding in evaluation.findings:
+                    try:
+                        result = github_issues.upsert_onboarding_issue(
+                            finding.cwid,
+                            _issue_title(finding),
+                            _issue_body(finding, now=now),
+                            open_issues=open_issues,
+                            refresh_comment=_refresh_comment(finding, now=now),
+                        )
+                        issues_by_cwid[finding.cwid] = result
+                        if result.get("action") == "created":
+                            created += 1
+                        else:
+                            updated += 1
+                    except github_issues.GithubApiError as exc:
+                        logger.warning(
+                            "onboarding detector: issue upsert failed for CWID "
+                            "%s: %s", finding.cwid, exc,
+                        )
+                # A digest issue left over from a prior cold-start period is
+                # marked cleared now that per-CWID filing has resumed.
+                _clear_lingering_digest(evaluation, open_issues, now=now)
+
             # OQ-3: a previously-flagged CWID with an open issue that is clean
-            # today gets a one-time "safe to close" comment.
+            # today gets a one-time "safe to close" comment. Runs in both
+            # modes; the digest issue carries no `CWID {cwid}` token, so
+            # `cwid_from_title` returns None for it and it is skipped here.
             flagged = {f.cwid for f in evaluation.findings}
             for issue in open_issues:
                 cwid = github_issues.cwid_from_title(issue.get("title") or "")
@@ -676,14 +948,22 @@ def run_detector(
         run_id=run_id,
         input_hash=input_hash,
         duration_ms=_duration_ms(evaluation.started_at),
+        cold_start=cold_start,
     )
+    if digest_issue and digest_issue.get("number") is not None:
+        record["digest_issue_number"] = int(digest_issue["number"])
     table.put_item(Item=record)
 
     # Teams digest (R10 #1) — only when something was flagged.
     digest_sent = False
     if evaluation.flagged_cwid_count > 0:
         title, message, ctx = _build_digest(
-            evaluation, issues_by_cwid, issues_available=issues_available
+            evaluation,
+            issues_by_cwid,
+            issues_available=issues_available,
+            cold_start=cold_start,
+            threshold=threshold,
+            digest_url=(digest_issue or {}).get("html_url", ""),
         )
         digest_sent = bool(alerting.alert("WARN", title, message, ctx))
 
@@ -692,10 +972,12 @@ def run_detector(
         "flagged_cwid_count": evaluation.flagged_cwid_count,
         "gap_cwid_count": evaluation.gap_cwid_count,
         "churn_cwid_count": evaluation.churn_cwid_count,
+        "cold_start_mode": cold_start,
         "issues_created": created,
         "issues_updated": updated,
         "resolution_comments": resolved,
         "issues_available": issues_available,
+        "digest_issue_number": (digest_issue or {}).get("number"),
         "digest_sent": digest_sent,
     }
     logger.info("onboarding detector run: %s", summary)

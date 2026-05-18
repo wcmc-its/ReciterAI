@@ -334,6 +334,8 @@ on every run, including quiet days. Built by
 | `total_missing_synopsis`, `total_missing_score` | number | Gapped-PMID totals across all flagged CWIDs. |
 | `total_churn_added`, `total_churn_removed` | number | ReCiter attribution-drift PMID totals. |
 | `flagged_cwids` | list[string] \| null | The flagged CWIDs (capped at 200); omitted when none flagged. |
+| `cold_start_mode` | bool | True when the cold-start guard fired — a digest issue was filed instead of per-CWID issues (#106). |
+| `digest_issue_number` | number | The `[onboarding] Detector backlog digest` issue number; present only on a cold-start run that filed or refreshed it. |
 
 **Query patterns**
 
