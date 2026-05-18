@@ -10,15 +10,16 @@ regardless of publication date.
 Architecture (PLAN §3) — the `reciterai-onboarding` Step Functions state
 machine drives the cascade:
 
-    Orchestrate -> CheckProceed -> Score -> AssignFanOut -> TopTopic
-                                -> Rollup -> Finalize
+    Orchestrate -> CheckProceed -> Enrich -> Score -> AssignFanOut
+                                -> TopTopic -> Rollup -> Finalize
 
 mirroring the hot path's proven shape (`pipeline_hot/`). It reuses the four
 hot per-stage Lambdas (`reciterai-hot-score / -assign / -top-topic /
 -rollup`; the Assign stage fans `-assign` out per topic, PR 4) and adds
 onboarding-specific entry points:
 
-    orchestrator.py   first Task — scope, synopsis precondition, cost guard
+    orchestrator.py   first Task — scope the CWID set + cost guard
+    enrich.py         Enrich Task — synopsis + impact for the CWID's PMIDs
     assign_fanout.py  DeriveDirtyTopics Task — per-topic Assign Map fan-out
     finalize.py       last Task — decide complete|partial; the notify Lambda
     state_machine.asl.json   the cascade, with ${...Arn} deploy placeholders
@@ -54,8 +55,8 @@ ONBOARDING_STATUSES = frozenset(
 )
 
 # Cost-guard refusal error code (D-COSTSTATUS). A cost-guard trip is modelled
-# as status=failed + this error_code rather than a sixth `blocked` status, so
-# the spec's "exactly one of five" holds. Operators re-run with
+# as status=failed + this error_code rather than a fifth `blocked` status, so
+# the spec's "exactly one of four" holds. Operators re-run with
 # allow_cost_override=true; the failure_details carry the numbers.
 ERROR_CODE_COST_GUARD = "CostGuardExceeded"
 
@@ -122,7 +123,7 @@ def build_onboarding_record(
     if status not in ONBOARDING_STATUSES:
         raise ValueError(
             f"build_onboarding_record: status {status!r} is not one of the "
-            f"onboarding 5-state taxonomy {sorted(ONBOARDING_STATUSES)}"
+            f"onboarding 4-state taxonomy {sorted(ONBOARDING_STATUSES)}"
         )
 
     item: dict[str, Any] = {
