@@ -10,6 +10,12 @@ The first Task of the `reciterai-onboarding` state machine. For one CWID it:
    `onboarding_cost_guard_max_pmids` with no override terminates the run
    `cost_exceeded` → a `failed` row carrying `error_code=CostGuardExceeded`.
 
+A run whose net-work set is empty normally `skipped`s as an idempotent
+no-op — but only when the CWID's rollup is current. If the rollup is
+missing or stale (a prior cascade died after Score, or ReCiter
+de-attributed a PMID since the last rollup), the orchestrator routes
+`ready` for a recovery re-run instead (#115).
+
 It returns a routing status for the `CheckProceed` Choice — `ready` /
 `skipped` / `cost_exceeded` — distinct from the 4-state workflow `status`
 written to the `STAGE#onboarding#cwid` row (the hot orchestrator draws the
@@ -56,6 +62,7 @@ from utils.dynamodb_helpers import (
     TABLE_NAME,
     get_dynamo_client,
     get_processing_status,
+    get_table,
 )
 from utils.iso_clock import now_iso
 from utils.sql_queries import get_pmids_for_cwid
@@ -64,6 +71,7 @@ from utils.stage_records import (
     STATUS_FAILED,
     STATUS_SKIPPED,
     compute_input_hash,
+    find_latest_complete,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +158,55 @@ def _cost_display(cost: Decimal | None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Rollup-completeness probe (#115 recovery)
+# ---------------------------------------------------------------------------
+
+# The per-CWID rollup stage writes STAGE#rollup_by_cwid#cwid:{cwid} rows
+# (rollup_by_cwid.py's STAGE_NAME + _cwid_scope). Kept as literals rather than
+# imported: a module-scope `import rollup_by_cwid` would break the lean
+# onboarding-detector zip, which bundles orchestrator.py for its cost-preview
+# chain but not rollup_by_cwid.py (cf. the function-local score_publications
+# import in evaluate_onboarding). These two strings are the DynamoDB partition
+# key — as stable as a schema constant; scan_rollup_baselines in detector.py
+# hardcodes the same prefix for the same reason.
+_ROLLUP_STAGE = "rollup_by_cwid"
+
+
+def _rollup_scope(cwid: str) -> str:
+    """STAGE# scope segment for a CWID-scoped rollup row."""
+    return f"cwid:{cwid}"
+
+
+def latest_rollup_pmid_set(table: Any, cwid: str) -> set[str] | None:
+    """The accepted PMID set the CWID's most recent rollup consumed.
+
+    Reads `input_pmid_set` off the latest `complete`
+    `STAGE#rollup_by_cwid#cwid:{cwid}` row (written by `rollup_by_cwid
+    --cwid`, PR 2 / #90). Returns:
+
+    - the PMID set — the CWID has a completed rollup;
+    - `None` — the CWID has never had a complete rollup, or its latest
+      complete rollup row carries no `input_pmid_set`. Either way the #115
+      recovery check treats it as "not rolled up" and routes a recovery
+      re-run, the safe direction.
+
+    The recovery check compares this against the CWID's live accepted set:
+    a mismatch (or `None`) means a prior cascade scored the CWID but did not
+    finish rolling it up, so the run must re-execute the cascade rather than
+    skip as an idempotent no-op.
+    """
+    row = find_latest_complete(
+        table, stage=_ROLLUP_STAGE, scope=_rollup_scope(cwid)
+    )
+    if row is None:
+        return None
+    raw = row.get("input_pmid_set")
+    if raw is None:
+        return None
+    return {str(p) for p in raw}
+
+
+# ---------------------------------------------------------------------------
 # Decision logic (pure — unit-tested with injected work-set data)
 # ---------------------------------------------------------------------------
 
@@ -162,18 +219,33 @@ def evaluate_onboarding(
     allow_cost_override: bool,
     pmids: list[str],
     processing_status: dict[str, str],
+    rollup_input_pmid_set: set[str] | None,
     duration_ms: int = 0,
 ) -> dict[str, Any]:
     """Decide the routing status for one onboarding run. Pure — no I/O.
 
     `pmids` is the CWID's full accepted set; `processing_status` maps
-    pmid -> PROCESSING# status for the checkpoint cull.
+    pmid -> PROCESSING# status for the checkpoint cull;
+    `rollup_input_pmid_set` is the accepted PMID set the CWID's most recent
+    complete rollup consumed (`latest_rollup_pmid_set`), or None when the
+    CWID has never had a complete rollup.
 
-    Decision order: no PMIDs -> `skipped`; net work (PMIDs not already
-    `complete`) empty -> `skipped`; net work over the cost guard with no
-    override -> `cost_exceeded`; else `ready`. A `ready` run proceeds into
-    the Enrich->Score cascade; the Enrich stage generates any missing
-    synopses (#112), so there is no synopsis precondition here.
+    Decision order:
+
+    - no PMIDs -> `skipped`;
+    - net work (PMIDs not already `complete`) empty, and the rollup for this
+      exact accepted set has landed -> `skipped` (a true idempotent no-op);
+    - net work empty but the rollup is missing or stale -> `ready` with the
+      `recovery` flag set (#115): a prior cascade scored the CWID but did
+      not finish rolling it up — or ReCiter de-attributed a PMID since — so
+      the cascade re-runs. Enrich/Score/Assign idempotently skip; only
+      Rollup recomputes (D8's no-model-cost rollup recomputation);
+    - net work over the cost guard with no override -> `cost_exceeded`;
+    - else -> `ready`.
+
+    A `ready` run proceeds into the Enrich->Score cascade; the Enrich stage
+    generates any missing synopses (#112), so there is no synopsis
+    precondition here.
 
     Returns ``{"status", "input", "terminal_envelope"}`` — `input` carries
     the work payload for the ready cascade, `terminal_envelope` the
@@ -217,6 +289,33 @@ def evaluate_onboarding(
             "terminal_envelope": to_ddb_typed_envelope(row),
         }
 
+    def _ready(
+        *, net_work_count: int, projected_cost: Decimal, recovery: bool
+    ) -> dict[str, Any]:
+        """Build the `ready` result — the work payload the Enrich->Score
+        cascade consumes.
+
+        `recovery` True marks a #115 re-run: every PMID is already scored
+        (net_work_count 0) and the cascade re-executes only to land a rollup
+        a prior run left missing or stale. The handler reads the flag to
+        word the run's Teams note — a recovery spends no model budget.
+        """
+        return {
+            "status": ROUTE_READY,
+            "input": {
+                "cwid": cwid,
+                "run_id": run_id,
+                "started_at": started_at,
+                "pmids": pmids,
+                "allow_cost_override": allow_cost_override,
+                "net_work_count": net_work_count,
+                "projected_cost_usd": _cost_display(projected_cost),
+                "input_hash": input_hash,
+                "recovery": recovery,
+            },
+            "terminal_envelope": {},
+        }
+
     # 1. No accepted publications — nothing to onboard.
     if not pmids:
         return _terminal(
@@ -231,13 +330,28 @@ def evaluate_onboarding(
     # 2. PROCESSING# checkpoint cull — the net Bedrock/OpenAI-bound work set.
     net_work = [p for p in pmids if processing_status.get(p) != STATUS_COMPLETE]
     if not net_work:
-        return _terminal(
-            STATUS_SKIPPED,
-            net_work_count=0,
-            skip_reason=(
-                f"all {len(pmids)} PMID(s) already scored — "
-                "idempotent no-op"
-            ),
+        # Every accepted PMID is scored. Skip only when the CWID's rollup is
+        # current; otherwise re-run the cascade (#115). A prior cascade can
+        # die after Score and before Rollup — leaving the CWID
+        # scored-but-not-rolled-up — and ReCiter can de-attribute a PMID
+        # after a rollup; both leave the recorded `input_pmid_set` != the
+        # live accepted set. A missing rollup row (None) means a prior run
+        # scored these PMIDs but the CWID was never rolled up at all.
+        if rollup_input_pmid_set is not None and rollup_input_pmid_set == {
+            str(p) for p in pmids
+        }:
+            return _terminal(
+                STATUS_SKIPPED,
+                net_work_count=0,
+                skip_reason=(
+                    f"all {len(pmids)} PMID(s) already scored and rolled "
+                    "up — idempotent no-op"
+                ),
+            )
+        # Recovery re-run: net scoring work is 0, so the cost guard is moot
+        # (and D8's rollup recomputation bypasses it by design).
+        return _ready(
+            net_work_count=0, projected_cost=Decimal("0"), recovery=True
         )
 
     # 3. Cost guard (R5 / D-COSTSTATUS). The orchestrator is the single
@@ -266,20 +380,11 @@ def evaluate_onboarding(
         )
 
     # 4. Ready — hand the work payload to the Enrich->Score cascade.
-    return {
-        "status": ROUTE_READY,
-        "input": {
-            "cwid": cwid,
-            "run_id": run_id,
-            "started_at": started_at,
-            "pmids": pmids,
-            "allow_cost_override": allow_cost_override,
-            "net_work_count": len(net_work),
-            "projected_cost_usd": _cost_display(projected_cost),
-            "input_hash": input_hash,
-        },
-        "terminal_envelope": {},
-    }
+    return _ready(
+        net_work_count=len(net_work),
+        projected_cost=projected_cost,
+        recovery=False,
+    )
 
 
 # Routing status for each terminal workflow status. `cost_exceeded` is a
@@ -330,12 +435,15 @@ def handler(event: dict, context: Any = None) -> dict:
 
     # ReciterDB: the CWID's accepted PMID set.
     pmids = get_pmids_for_cwid(cwid)
-    # DynamoDB: the PROCESSING# checkpoint for the net-work cull.
-    processing_status = (
-        get_processing_status(get_dynamo_client(), TABLE_NAME, pmids)
-        if pmids
-        else {}
-    )
+    # DynamoDB: the PROCESSING# checkpoint for the net-work cull, and the
+    # CWID's most recent rollup snapshot for the #115 recovery check.
+    processing_status: dict[str, str] = {}
+    rollup_pmid_set: set[str] | None = None
+    if pmids:
+        processing_status = get_processing_status(
+            get_dynamo_client(), TABLE_NAME, pmids
+        )
+        rollup_pmid_set = latest_rollup_pmid_set(get_table(TABLE_NAME), cwid)
 
     result = evaluate_onboarding(
         cwid=cwid,
@@ -344,32 +452,53 @@ def handler(event: dict, context: Any = None) -> dict:
         allow_cost_override=allow_cost_override,
         pmids=pmids,
         processing_status=processing_status,
+        rollup_input_pmid_set=rollup_pmid_set,
         duration_ms=int((time.monotonic() - t0) * 1000),
     )
 
-    # Cost visibility (R5 / R10 #4). The ready path emits an informational
-    # Teams preview (no @-mention — not actionable); a `cost_exceeded` run
-    # is surfaced instead by the state machine's NotifyCostExceeded Task, so
-    # net-work-exists always produces exactly one Teams cost mention.
+    # Cost visibility (R5 / R10 #4). A `ready` run emits one informational
+    # Teams note (no @-mention — not actionable); a `cost_exceeded` run is
+    # surfaced instead by the state machine's NotifyCostExceeded Task, so
+    # every ready/cost-exceeded run produces exactly one Teams mention.
     if result["status"] == ROUTE_READY:
         work = result["input"]
-        logger.info(
-            "Onboarding ready: cwid=%s net_work=%s projected_cost=%s",
-            cwid, work["net_work_count"], work["projected_cost_usd"],
-        )
-        alerting.alert(
-            "WARN",
-            f"Onboarding cost preview — CWID {cwid}",
-            f"Onboarding run for CWID {cwid} will score "
-            f"{work['net_work_count']} publication(s). Estimated cost "
-            f"{work['projected_cost_usd']}.",
-            {
-                "cwid": cwid,
-                "run_id": run_id,
-                "net_work_count": work["net_work_count"],
-                "projected_cost_usd": work["projected_cost_usd"],
-            },
-            mention=False,
-        )
+        if work.get("recovery"):
+            # #115 recovery re-run: every PMID is already scored; the
+            # cascade re-runs only to land a rollup a prior run left
+            # missing or stale. No model spend — the worded note reflects
+            # that so an operator does not read it as a fresh-scoring run.
+            logger.info(
+                "Onboarding recovery re-run: cwid=%s run_id=%s "
+                "(rollup missing or stale)",
+                cwid, run_id,
+            )
+            alerting.alert(
+                "WARN",
+                f"Onboarding recovery re-run — CWID {cwid}",
+                f"A prior onboarding run for CWID {cwid} scored its "
+                "publications but did not finish the rollup. Re-running the "
+                "cascade to land it — no new scoring, no model cost.",
+                {"cwid": cwid, "run_id": run_id, "recovery": True},
+                mention=False,
+            )
+        else:
+            logger.info(
+                "Onboarding ready: cwid=%s net_work=%s projected_cost=%s",
+                cwid, work["net_work_count"], work["projected_cost_usd"],
+            )
+            alerting.alert(
+                "WARN",
+                f"Onboarding cost preview — CWID {cwid}",
+                f"Onboarding run for CWID {cwid} will score "
+                f"{work['net_work_count']} publication(s). Estimated cost "
+                f"{work['projected_cost_usd']}.",
+                {
+                    "cwid": cwid,
+                    "run_id": run_id,
+                    "net_work_count": work["net_work_count"],
+                    "projected_cost_usd": work["projected_cost_usd"],
+                },
+                mention=False,
+            )
 
     return result

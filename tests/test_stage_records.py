@@ -148,6 +148,84 @@ def test_should_skip_query_uses_correct_pk():
     assert kwargs["ExpressionAttributeValues"][":pk"] == "STAGE#publish_hierarchy#GLOBAL"
 
 
+# ---------- find_latest_complete ----------
+
+
+def test_find_latest_complete_returns_newest_complete_row():
+    """Returns the newest `complete` row regardless of its input_hash —
+    the hash-agnostic companion to find_existing_complete."""
+    newer = {
+        "PK": "STAGE#rollup_by_cwid#cwid:abc123",
+        "SK": "RUN#2026-05-18T12:00:00Z",
+        "status": "complete",
+        "input_hash": "hash_b",
+    }
+    older = {
+        "PK": "STAGE#rollup_by_cwid#cwid:abc123",
+        "SK": "RUN#2026-05-10T12:00:00Z",
+        "status": "complete",
+        "input_hash": "hash_a",
+    }
+    # The real query is ScanIndexForward=False — newest first.
+    table = _make_mock_table([newer, older])
+    row = sr.find_latest_complete(
+        table, stage="rollup_by_cwid", scope="cwid:abc123"
+    )
+    assert row is newer
+
+
+def test_find_latest_complete_skips_newer_non_complete_rows():
+    """A newer `skipped` row must not mask the latest real completion."""
+    newer_skipped = {
+        "PK": "STAGE#rollup_by_cwid#cwid:abc123",
+        "SK": "RUN#2026-05-18T12:00:00Z",
+        "status": "skipped",
+        "input_hash": "hash_b",
+    }
+    older_complete = {
+        "PK": "STAGE#rollup_by_cwid#cwid:abc123",
+        "SK": "RUN#2026-05-10T12:00:00Z",
+        "status": "complete",
+        "input_hash": "hash_a",
+    }
+    table = _make_mock_table([newer_skipped, older_complete])
+    row = sr.find_latest_complete(
+        table, stage="rollup_by_cwid", scope="cwid:abc123"
+    )
+    assert row is older_complete
+
+
+def test_find_latest_complete_returns_none_without_a_complete_row():
+    """A partition with only failed / skipped rows yields None."""
+    table = _make_mock_table([
+        {"PK": "STAGE#rollup_by_cwid#cwid:abc123", "SK": "RUN#1",
+         "status": "skipped"},
+        {"PK": "STAGE#rollup_by_cwid#cwid:abc123", "SK": "RUN#2",
+         "status": "failed"},
+    ])
+    assert sr.find_latest_complete(
+        table, stage="rollup_by_cwid", scope="cwid:abc123"
+    ) is None
+
+
+def test_find_latest_complete_returns_none_on_empty_partition():
+    table = _make_mock_table([])
+    assert sr.find_latest_complete(
+        table, stage="rollup_by_cwid", scope="cwid:abc123"
+    ) is None
+
+
+def test_find_latest_complete_queries_correct_pk():
+    """Regression guard for the PK shape."""
+    table = _make_mock_table([])
+    sr.find_latest_complete(table, stage="rollup_by_cwid", scope="cwid:abc123")
+    kwargs = table.query.call_args.kwargs
+    assert kwargs["ExpressionAttributeValues"][":pk"] == (
+        "STAGE#rollup_by_cwid#cwid:abc123"
+    )
+    assert kwargs["ScanIndexForward"] is False
+
+
 # ---------- write helpers ----------
 
 
