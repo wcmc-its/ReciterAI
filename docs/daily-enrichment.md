@@ -142,6 +142,60 @@ This constraint is part of the case for automation. It is written
 down here so future-you knows why the org-key blocker matters
 operationally, not just technically.
 
+## Enrichment backfill (#112 / onboarding)
+
+The daily job is **watermark-forward-only**: it enriches `pmid >
+last_max_pmid` and advances the watermark. It structurally cannot reach
+*historical* publications — the ones a newly-onboarded researcher brings
+from a prior institution (#80). Those PMIDs sit below the watermark
+forever.
+
+`run_daily_enrichment.py` has a second mode for exactly that set. With
+`--pmids` or `--from-gap-scan` it invokes `run_enrichment_backfill`
+instead of the daily job: synopsis + impact for an **explicit** PMID work
+set, regardless of publication date. Same model, prompts, schema, and
+writes as the daily job — `reciterai_synopsis` + `reciterai_impact` in
+MariaDB and an `IMPACT#` row in DynamoDB per PMID — minus the watermark.
+
+```bash
+source ~/.zshrc
+
+# Preview: resolve the work set + cost estimate, generate nothing.
+python3 -m scripts.run_daily_enrichment --from-gap-scan --dry-run
+
+# Run it. ~1,072 PMIDs ≈ $10–11 at the measured ~$0.0094/paper rate.
+python3 -m scripts.run_daily_enrichment --from-gap-scan --verbose
+
+# Or target an explicit PMID set:
+python3 -m scripts.run_daily_enrichment --pmids 39001234,39005678
+```
+
+**Work-set sources** (mutually exclusive):
+
+- `--from-gap-scan` — derive the set from the onboarding detector's
+  faculty gap scan: every first/last-author full-time-faculty PMID with
+  no synopsis. This is the #112 backfill entry point.
+- `--pmids PMID,PMID,...` — an explicit comma-separated set.
+
+**Idempotent.** Before generating anything, the backfill culls PMIDs that
+already have *both* a synopsis and an impact row, so a re-run only does
+the gaps. `--force` bypasses the cull and reprocesses every PMID — use it
+to recover PMIDs left half-enriched by a failed run (every write is an
+idempotent upsert, so reprocessing is safe).
+
+**Cost.** The backfill is bootstrap-class: it surfaces a cost estimate
+(and `--dry-run` previews it) but enforces no threshold — an
+intentionally large historical set is the point, exactly as for the daily
+job's `--full`. `cost_observed_usd` in the result JSON is the measured
+spend.
+
+**Status.** The result JSON's `status` is `complete`, `partial` (some
+PMIDs failed — the rest are committed; re-run to retry only the gaps),
+`failed`, `no_op` (empty work set, or everything already enriched), or
+`ddb_batch_failed` (MariaDB writes landed but the `IMPACT#` batch did not
+— re-run with `--force`). Exit code is 0 for `complete` / `no_op`, 1
+otherwise.
+
 ## Watermark + ops state
 
 The watermark lives in DDB at `PK = WATERMARK#daily_enrichment` /
