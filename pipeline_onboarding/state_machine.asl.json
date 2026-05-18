@@ -1,5 +1,5 @@
 {
-  "Comment": "ReciterAI new-researcher onboarding workflow (#80 Phase 2). Operator-triggered per CWID via aws stepfunctions start-execution with input {\"cwid\": \"...\", \"allow_cost_override\": false}. Orchestrate scopes the CWID's full accepted-publication set, checks the synopsis precondition, culls the PROCESSING# checkpoint, and applies the cost guard; CheckProceed routes deferred/skipped/cost_exceeded to a known-status terminal writer or ready into the Score cascade. Mirrors the hot path's shape: per-stage STAGE# rows written by the dynamodb:putItem SDK integration (D-07 crash-safety), handlers return DDB-typed envelopes, every Lambda Task Catches States.ALL to WriteOnboardingFailed. AssignFanOut is a per-topic Step Functions Map (PR 4): DeriveDirtyTopics groups the CWID's TOPIC# rows by topic, CheckAssignTopics routes an empty set past the Map, and the Map runs the reused assign Lambda once per topic that has an approved hierarchy draft. No concurrency lock and no states:* calls — onboarding is operator-triggered per CWID and same-CWID races are absorbed by per-stage idempotency.",
+  "Comment": "ReciterAI new-researcher onboarding workflow (#80 Phase 2). Operator-triggered per CWID via aws stepfunctions start-execution with input {\"cwid\": \"...\", \"allow_cost_override\": false}. Orchestrate scopes the CWID's full accepted-publication set, culls the PROCESSING# checkpoint, and applies the cost guard; CheckProceed routes skipped/cost_exceeded to a known-status terminal writer or ready into the Enrich->Score cascade. Enrich runs synopsis + impact (run_enrichment_backfill) for the CWID's PMID set so Score finds a synopsis for each — onboarding generates synopses inline (#112) and the synopsis-precondition deferred check is retired. Mirrors the hot path's shape: per-stage STAGE# rows written by the dynamodb:putItem SDK integration (D-07 crash-safety), handlers return DDB-typed envelopes, every Lambda Task Catches States.ALL to WriteOnboardingFailed. AssignFanOut is a per-topic Step Functions Map (PR 4): DeriveDirtyTopics groups the CWID's TOPIC# rows by topic, CheckAssignTopics routes an empty set past the Map, and the Map runs the reused assign Lambda once per topic that has an approved hierarchy draft. No concurrency lock and no states:* calls — onboarding is operator-triggered per CWID and same-CWID races are absorbed by per-stage idempotency.",
   "StartAt": "Orchestrate",
   "States": {
     "Orchestrate": {
@@ -30,13 +30,8 @@
 
     "CheckProceed": {
       "Type": "Choice",
-      "Comment": "Routes the orchestrator's routing status. ready -> Score cascade; the other three -> a known-status terminal writer.",
+      "Comment": "Routes the orchestrator's routing status. ready -> the Enrich->Score cascade; skipped / cost_exceeded -> a known-status terminal writer.",
       "Choices": [
-        {
-          "Variable": "$.orchestrate.status",
-          "StringEquals": "deferred",
-          "Next": "WriteOnboardingDeferred"
-        },
         {
           "Variable": "$.orchestrate.status",
           "StringEquals": "skipped",
@@ -48,32 +43,7 @@
           "Next": "WriteOnboardingCostExceeded"
         }
       ],
-      "Default": "Score"
-    },
-
-    "WriteOnboardingDeferred": {
-      "Type": "Task",
-      "Comment": "Inline putItem of the orchestrator's pre-typed deferred STAGE#onboarding#cwid row (D-07: a Lambda crash cannot lose a known-status terminal).",
-      "Resource": "arn:aws:states:::dynamodb:putItem",
-      "Parameters": {
-        "TableName": "reciterai",
-        "Item.$": "$.orchestrate.terminal_envelope"
-      },
-      "ResultPath": null,
-      "Next": "NotifyDeferred"
-    },
-
-    "NotifyDeferred": {
-      "Type": "Task",
-      "Resource": "${OnboardingNotifyLambdaArn}",
-      "Parameters": {
-        "kind": "deferred",
-        "cwid.$": "$.orchestrate.terminal_envelope.cwid.S",
-        "reason.$": "$.orchestrate.terminal_envelope.deferred_reason.S",
-        "run_id.$": "$.orchestrate.terminal_envelope.run_id.S"
-      },
-      "ResultPath": null,
-      "End": true
+      "Default": "Enrich"
     },
 
     "WriteOnboardingSkipped": {
@@ -111,6 +81,41 @@
       },
       "ResultPath": null,
       "End": true
+    },
+
+    "Enrich": {
+      "Type": "Task",
+      "Comment": "Onboarding enrich stage (#80 / #112). reciterai-onboarding-enrich runs run_enrichment_backfill — synopsis + impact for the CWID's PMID set — so Score finds a synopsis for each. Idempotent + partial-tolerant: a per-PMID enrichment failure does not abort the cascade; only a Lambda-level exception Catches to WriteOnboardingFailed. Replaces the retired synopsis-precondition deferred check.",
+      "Resource": "${OnboardingEnrichLambdaArn}",
+      "InputPath": "$.orchestrate.input",
+      "ResultPath": "$.enrich_envelope",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
+      "Next": "WriteEnrichStageRow"
+    },
+
+    "WriteEnrichStageRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "reciterai",
+        "Item.$": "$.enrich_envelope"
+      },
+      "ResultPath": null,
+      "Next": "Score"
     },
 
     "Score": {
@@ -360,6 +365,7 @@
         "input_hash.$": "$.orchestrate.input.input_hash",
         "net_work_count.$": "$.orchestrate.input.net_work_count",
         "projected_cost_usd.$": "$.orchestrate.input.projected_cost_usd",
+        "enrich_envelope.$": "$.enrich_envelope",
         "score_envelope.$": "$.score_envelope",
         "assign_envelope.$": "$.assign_envelope",
         "top_topic_envelope.$": "$.top_topic_envelope",

@@ -4,20 +4,18 @@ The first Task of the `reciterai-onboarding` state machine. For one CWID it:
 
 1. Scopes the work set — `get_pmids_for_cwid` (R2): the researcher's full
    accepted-publication PMID set, regardless of publication date.
-2. Checks the synopsis precondition — `check_synopsis_coverage` (R3 step 1):
-   if any PMID lacks a synopsis the run is **deferred** (the operator-laptop
-   cron owns synopsis generation; onboarding does not generate them — see
-   #92).
-3. Culls the PROCESSING# checkpoint: PMIDs already `complete` are dropped to
+2. Culls the PROCESSING# checkpoint: PMIDs already `complete` are dropped to
    compute the **net work** set — what will actually hit Bedrock/OpenAI.
-4. Applies the cost guard (R5 / D-COSTSTATUS): net work above
+3. Applies the cost guard (R5 / D-COSTSTATUS): net work above
    `onboarding_cost_guard_max_pmids` with no override terminates the run
    `cost_exceeded` → a `failed` row carrying `error_code=CostGuardExceeded`.
 
 It returns a routing status for the `CheckProceed` Choice — `ready` /
-`deferred` / `skipped` / `cost_exceeded` — distinct from the 5-state
-workflow `status` written to the `STAGE#onboarding#cwid` row (the hot
-orchestrator draws the same routing-vs-record distinction).
+`skipped` / `cost_exceeded` — distinct from the 4-state workflow `status`
+written to the `STAGE#onboarding#cwid` row (the hot orchestrator draws the
+same routing-vs-record distinction). The synopsis precondition that used to
+route `deferred` is retired: onboarding now generates synopses inline in the
+Enrich stage (#112), which runs after a `ready` route.
 
 Unlike the hot orchestrator there is **no concurrency lock**: onboarding is
 operator-triggered per CWID, and same-CWID races are absorbed by per-stage
@@ -60,10 +58,9 @@ from utils.dynamodb_helpers import (
     get_processing_status,
 )
 from utils.iso_clock import now_iso
-from utils.sql_queries import check_synopsis_coverage, get_pmids_for_cwid
+from utils.sql_queries import get_pmids_for_cwid
 from utils.stage_records import (
     STATUS_COMPLETE,
-    STATUS_DEFERRED,
     STATUS_FAILED,
     STATUS_SKIPPED,
     compute_input_hash,
@@ -72,9 +69,9 @@ from utils.stage_records import (
 logger = logging.getLogger(__name__)
 
 # Routing statuses returned to the `CheckProceed` Choice. `ready` proceeds
-# to Score; the other three route to a known-status terminal writer.
+# into the Enrich->Score cascade; the other two route to a known-status
+# terminal writer.
 ROUTE_READY = "ready"
-ROUTE_DEFERRED = "deferred"
 ROUTE_SKIPPED = "skipped"
 ROUTE_COST_EXCEEDED = "cost_exceeded"
 
@@ -164,24 +161,23 @@ def evaluate_onboarding(
     started_at: str,
     allow_cost_override: bool,
     pmids: list[str],
-    synopsis_missing: list[str],
     processing_status: dict[str, str],
     duration_ms: int = 0,
 ) -> dict[str, Any]:
     """Decide the routing status for one onboarding run. Pure — no I/O.
 
-    `pmids` is the CWID's full accepted set; `synopsis_missing` the subset
-    with no synopsis (from `check_synopsis_coverage`); `processing_status`
-    maps pmid -> PROCESSING# status for the checkpoint cull.
+    `pmids` is the CWID's full accepted set; `processing_status` maps
+    pmid -> PROCESSING# status for the checkpoint cull.
 
-    Decision order (PLAN §3): no PMIDs -> `skipped`; any synopsis missing ->
-    `deferred`; net work (PMIDs not already `complete`) empty -> `skipped`;
-    net work over the cost guard with no override -> `cost_exceeded`; else
-    `ready`.
+    Decision order: no PMIDs -> `skipped`; net work (PMIDs not already
+    `complete`) empty -> `skipped`; net work over the cost guard with no
+    override -> `cost_exceeded`; else `ready`. A `ready` run proceeds into
+    the Enrich->Score cascade; the Enrich stage generates any missing
+    synopses (#112), so there is no synopsis precondition here.
 
     Returns ``{"status", "input", "terminal_envelope"}`` — `input` carries
     the work payload for the ready cascade, `terminal_envelope` the
-    DDB-typed `STAGE#onboarding#cwid` row for the three non-ready writers.
+    DDB-typed `STAGE#onboarding#cwid` row for the two non-ready writers.
     The unused key is an empty dict; the state machine only dereferences the
     one the taken branch needs.
     """
@@ -232,21 +228,7 @@ def evaluate_onboarding(
             ),
         )
 
-    # 2. Synopsis precondition (R3 step 1). Any PMID without a synopsis
-    #    defers the whole run — onboarding does not generate synopses.
-    if synopsis_missing:
-        return _terminal(
-            STATUS_DEFERRED,
-            net_work_count=len(pmids),
-            deferred_reason=(
-                f"{len(synopsis_missing)} of {len(pmids)} PMID(s) have no "
-                "synopsis; run deferred pending synopsis backfill by the "
-                "enrichment job (#92)"
-            ),
-            deferred_pmids=sorted(synopsis_missing),
-        )
-
-    # 3. PROCESSING# checkpoint cull — the net Bedrock/OpenAI-bound work set.
+    # 2. PROCESSING# checkpoint cull — the net Bedrock/OpenAI-bound work set.
     net_work = [p for p in pmids if processing_status.get(p) != STATUS_COMPLETE]
     if not net_work:
         return _terminal(
@@ -258,7 +240,7 @@ def evaluate_onboarding(
             ),
         )
 
-    # 4. Cost guard (R5 / D-COSTSTATUS). The orchestrator is the single
+    # 3. Cost guard (R5 / D-COSTSTATUS). The orchestrator is the single
     #    decision point; score_publications' own guard is defense-in-depth.
     projected_cost = estimate_onboarding_cost(len(net_work))
     if onboarding_cost_guard_tripped(
@@ -283,7 +265,7 @@ def evaluate_onboarding(
             },
         )
 
-    # 5. Ready — hand the work payload to the Score cascade.
+    # 4. Ready — hand the work payload to the Enrich->Score cascade.
     return {
         "status": ROUTE_READY,
         "input": {
@@ -304,7 +286,6 @@ def evaluate_onboarding(
 # routing label distinct from its `failed` record status (D-COSTSTATUS).
 _ROUTE_FOR_STATUS = {
     STATUS_SKIPPED: ROUTE_SKIPPED,
-    STATUS_DEFERRED: ROUTE_DEFERRED,
     STATUS_FAILED: ROUTE_COST_EXCEEDED,
 }
 
@@ -347,11 +328,8 @@ def handler(event: dict, context: Any = None) -> dict:
         cwid, run_id, allow_cost_override,
     )
 
-    # ReciterDB: the CWID's accepted PMID set + synopsis coverage.
+    # ReciterDB: the CWID's accepted PMID set.
     pmids = get_pmids_for_cwid(cwid)
-    synopsis_missing = (
-        check_synopsis_coverage(pmids)["missing"] if pmids else []
-    )
     # DynamoDB: the PROCESSING# checkpoint for the net-work cull.
     processing_status = (
         get_processing_status(get_dynamo_client(), TABLE_NAME, pmids)
@@ -365,7 +343,6 @@ def handler(event: dict, context: Any = None) -> dict:
         started_at=started_at,
         allow_cost_override=allow_cost_override,
         pmids=pmids,
-        synopsis_missing=synopsis_missing,
         processing_status=processing_status,
         duration_ms=int((time.monotonic() - t0) * 1000),
     )

@@ -11,9 +11,9 @@ handlers) avoids a fourth tiny package file:
   inline `dynamodb:putItem` to persist (D-07 crash-safety: finalize writes
   nothing itself, so a crash routes cleanly to one `failed` row).
 
-- `notify_handler` — the **Notify** Tasks (`NotifyDeferred`,
-  `NotifyCostExceeded`, `NotifyFailed`). Sends the operator a Teams alert
-  *after* the terminal row is persisted, so the alert reflects the row.
+- `notify_handler` — the **Notify** Tasks (`NotifyCostExceeded`,
+  `NotifyFailed`). Sends the operator a Teams alert *after* the terminal
+  row is persisted, so the alert reflects the row.
 
 complete-vs-partial is decided from the **PROCESSING# checkpoint** (D-09):
 after the Score stage, every PMID in the work set has a `PROCESSING#pmid_*`
@@ -56,13 +56,13 @@ logger = logging.getLogger(__name__)
 
 # `kind` values for `notify_handler` — one per non-`ready`/non-`complete`
 # terminal the state machine routes through a Notify Task.
-NOTIFY_DEFERRED = "deferred"
 NOTIFY_COST_EXCEEDED = "cost_exceeded"
 NOTIFY_FAILED = "failed"
 
-# The four per-stage envelopes finalize receives, in cascade order. Used to
+# The five per-stage envelopes finalize receives, in cascade order. Used to
 # sum observed cost and record each stage's input_hash on the workflow row.
 _STAGE_ENVELOPE_KEYS = (
+    "enrich_envelope",
     "score_envelope",
     "assign_envelope",
     "top_topic_envelope",
@@ -240,7 +240,7 @@ def notify_handler(event: dict, context: Any = None) -> dict:
     """Notify Task — send the operator a Teams alert for a terminal run.
 
     Expected event (from an ASL `Notify*` Task Parameters):
-        {"kind": "deferred"|"cost_exceeded"|"failed",
+        {"kind": "cost_exceeded"|"failed",
          "cwid": "...", "reason": "...", "run_id": "..."}
 
     Best-effort: `alerting.alert` never raises. Returns whether the webhook
@@ -252,13 +252,7 @@ def notify_handler(event: dict, context: Any = None) -> dict:
     run_id = event.get("run_id", "")
     context_block = {"cwid": cwid, "run_id": run_id}
 
-    if kind == NOTIFY_DEFERRED:
-        severity, title = "WARN", f"Onboarding deferred — CWID {cwid}"
-        message = (
-            f"Onboarding for CWID {cwid} was deferred: {reason} "
-            "Re-run onboarding for this CWID once the synopses are backfilled."
-        )
-    elif kind == NOTIFY_COST_EXCEEDED:
+    if kind == NOTIFY_COST_EXCEEDED:
         severity, title = "WARN", f"Onboarding cost guard tripped — CWID {cwid}"
         message = (
             f"Onboarding for CWID {cwid} stopped at the cost guard: {reason} "

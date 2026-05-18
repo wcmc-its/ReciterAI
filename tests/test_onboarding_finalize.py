@@ -81,6 +81,10 @@ def _finalize_event(pmids):
         "input_hash": "ih-123",
         "net_work_count": len(pmids),
         "projected_cost_usd": "~$0.10",
+        "enrich_envelope": {
+            "input_hash": {"S": "enrich-ih"},
+            "cost_observed_usd": {"N": "0.04"},
+        },
         "score_envelope": {
             "input_hash": {"S": "score-ih"},
             "cost_observed_usd": {"N": "0.01"},
@@ -134,15 +138,16 @@ def test_finalize_partial_alerts(monkeypatch):
 def test_finalize_sums_stage_cost(monkeypatch):
     _wire_finalize(monkeypatch, {"1": "complete"})
     env = fin.handler(_finalize_event(["1"]))
-    # 0.01 (score) + 0.02 (top_topic) + 0 (rollup); the assign fan-out
-    # summary envelope carries no cost_observed_usd (PLAN D-REDUCE).
-    assert env["cost_observed_usd"] == {"N": "0.03"}
+    # 0.04 (enrich) + 0.01 (score) + 0.02 (top_topic) + 0 (rollup); the
+    # assign fan-out summary envelope carries no cost_observed_usd.
+    assert env["cost_observed_usd"] == {"N": "0.07"}
 
 
 def test_finalize_records_stage_input_hashes(monkeypatch):
     _wire_finalize(monkeypatch, {"1": "complete"})
     env = fin.handler(_finalize_event(["1"]))
     hashes = env["stage_input_hashes"]["M"]
+    assert hashes["enrich"] == {"S": "enrich-ih"}
     assert hashes["score"] == {"S": "score-ih"}
     assert hashes["rollup"] == {"S": "ru-ih"}
     assert hashes["assign"] == {"S": "assign-ih"}
@@ -175,20 +180,6 @@ def _wire_notify(monkeypatch):
     return calls
 
 
-def test_notify_deferred_warns(monkeypatch):
-    calls = _wire_notify(monkeypatch)
-    fin.notify_handler(
-        {
-            "kind": "deferred",
-            "cwid": "abc",
-            "reason": "2 of 3 missing synopsis",
-            "run_id": "r",
-        }
-    )
-    assert calls[0][0] == "WARN"
-    assert "deferred" in calls[0][1].lower()
-
-
 def test_notify_cost_exceeded_embeds_override(monkeypatch):
     monkeypatch.delenv("RECITERAI_ONBOARDING_STATE_MACHINE_ARN", raising=False)
     calls = _wire_notify(monkeypatch)
@@ -219,8 +210,8 @@ def test_notify_failed_is_error_severity(monkeypatch):
 
 def test_notify_returns_status(monkeypatch):
     _wire_notify(monkeypatch)
-    out = fin.notify_handler({"kind": "deferred", "cwid": "abc"})
-    assert out["kind"] == "deferred"
+    out = fin.notify_handler({"kind": "failed", "cwid": "abc"})
+    assert out["kind"] == "failed"
     assert out["cwid"] == "abc"
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build the 10 ReciterAI Lambda zips — 6 hot-path + 4 new-researcher
-# onboarding (#80 Phase 2 / PR 6).
+# Build the 11 ReciterAI Lambda zips — 6 hot-path + 5 new-researcher
+# onboarding (#80 Phase 2).
 #
 # Each zip is built in a clean staging dir under build/, with pip deps
 # installed via the public.ecr.aws/lambda/python:3.12 image so any
@@ -9,7 +9,7 @@
 # this script reusable for Lambdas that pull in C extensions.
 #
 # Usage:
-#   scripts/build_lambda_zips.sh                                # build all 10
+#   scripts/build_lambda_zips.sh                                # build all 11
 #   scripts/build_lambda_zips.sh reciterai-onboarding-detector  # build just one
 #
 # Output: build/<zip_basename>.zip for each Lambda.
@@ -65,7 +65,7 @@ LAMBDAS=(
   # build green and crash only on the first `--cwid` invocation.
   "reciterai-hot-rollup|pipeline_hot.handlers.rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py|utils.sql_queries"
   "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py|"
-  # ---- New-researcher onboarding (4) — #80 Phase 2 / PR 6 -----------------
+  # ---- New-researcher onboarding (5) — #80 Phase 2 ----------------------
   # orchestrator.py imports score_publications inside evaluate_onboarding —
   # function-local since #102, so importing the orchestrator module stays
   # lightweight (that is what lets the lean detector zip below bundle
@@ -96,6 +96,14 @@ LAMBDAS=(
   # derive-topics bundles rollup_by_cwid.py for fetch_cwid_topic_activity;
   # DynamoDB-only (no ReciterDB call on this path), so no pip deps.
   "reciterai-onboarding-derive-topics|pipeline_onboarding.assign_fanout||pipeline_onboarding/__init__.py pipeline_onboarding/assign_fanout.py rollup_by_cwid.py|"
+  # enrich.py runs run_enrichment_backfill (#112) — synopsis + impact for the
+  # CWID's PMID set, the onboarding cascade's Enrich stage. It imports
+  # pipeline_enrichment.daily_job at module scope, so the whole
+  # pipeline_enrichment/ package is bundled and a plain
+  # `import pipeline_onboarding.enrich` loads the full dep tree (openai,
+  # sqlalchemy, pyyaml) — no extra_imports needed. No score_publications.py:
+  # daily_job does not import it, so this zip skips the scoring tree.
+  "reciterai-onboarding-enrich|pipeline_onboarding.enrich|pymysql>=1.1.0 sqlalchemy>=2.0.0 openai>=2.0.0 pyyaml>=6.0.1|pipeline_onboarding/__init__.py pipeline_onboarding/enrich.py pipeline_enrichment|"
 )
 
 # Common dirs included in every zip except where commented otherwise.

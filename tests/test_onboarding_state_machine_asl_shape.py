@@ -34,6 +34,7 @@ def asl(asl_raw) -> dict:
 # ${AssignLambdaArn} (the reused reciterai-hot-assign Lambda the Map runs).
 EXPECTED_PLACEHOLDERS = {
     "${OnboardingOrchestratorLambdaArn}",
+    "${OnboardingEnrichLambdaArn}",
     "${ScoreLambdaArn}",
     "${DeriveDirtyTopicsLambdaArn}",
     "${AssignLambdaArn}",
@@ -47,7 +48,8 @@ EXPECTED_PLACEHOLDERS = {
 # Catch States.ALL to the terminal failed-row writer. (The Map's inner
 # AssignOne Task is checked separately — see the AssignFanOut Map tests.)
 LAMBDA_TASK_STATES = (
-    "Orchestrate", "Score", "DeriveDirtyTopics", "TopTopic", "Rollup", "Finalize"
+    "Orchestrate", "Enrich", "Score", "DeriveDirtyTopics", "TopTopic",
+    "Rollup", "Finalize",
 )
 
 
@@ -81,11 +83,11 @@ def test_required_states_present(asl):
     for required in (
         "Orchestrate",
         "CheckProceed",
-        "WriteOnboardingDeferred",
-        "NotifyDeferred",
         "WriteOnboardingSkipped",
         "WriteOnboardingCostExceeded",
         "NotifyCostExceeded",
+        "Enrich",
+        "WriteEnrichStageRow",
         "Score",
         "WriteScoreStageRow",
         "DeriveDirtyTopics",
@@ -126,15 +128,14 @@ def test_every_lambda_task_retries_service_errors(asl):
         assert "Lambda.ServiceException" in retry[0]["ErrorEquals"]
 
 
-def test_check_proceed_routes_three_terminals(asl):
-    """CheckProceed routes deferred/skipped/cost_exceeded to their writers;
-    Default (ready) proceeds into the Score cascade."""
+def test_check_proceed_routes_terminals_else_enrich(asl):
+    """CheckProceed routes skipped/cost_exceeded to their writers;
+    Default (ready) proceeds into the Enrich->Score cascade."""
     choice = asl["States"]["CheckProceed"]
     assert choice["Type"] == "Choice"
-    assert choice["Default"] == "Score"
+    assert choice["Default"] == "Enrich"
     routes = {c["StringEquals"]: c["Next"] for c in choice["Choices"]}
     assert routes == {
-        "deferred": "WriteOnboardingDeferred",
         "skipped": "WriteOnboardingSkipped",
         "cost_exceeded": "WriteOnboardingCostExceeded",
     }
@@ -143,10 +144,9 @@ def test_check_proceed_routes_three_terminals(asl):
 
 
 def test_known_status_writers_consume_orchestrator_envelope(asl):
-    """The deferred/skipped/cost-exceeded rows are written from the
-    orchestrator's pre-typed terminal_envelope (D-07 crash-safety)."""
+    """The skipped/cost-exceeded rows are written from the orchestrator's
+    pre-typed terminal_envelope (D-07 crash-safety)."""
     for name in (
-        "WriteOnboardingDeferred",
         "WriteOnboardingSkipped",
         "WriteOnboardingCostExceeded",
     ):
@@ -160,11 +160,24 @@ def test_skipped_terminal_is_silent(asl):
     assert asl["States"]["WriteOnboardingSkipped"]["Next"] == "End"
 
 
-def test_deferred_and_cost_exceeded_route_to_notify(asl):
-    assert asl["States"]["WriteOnboardingDeferred"]["Next"] == "NotifyDeferred"
+def test_cost_exceeded_routes_to_notify(asl):
     assert (
         asl["States"]["WriteOnboardingCostExceeded"]["Next"]
         == "NotifyCostExceeded"
+    )
+
+
+def test_enrich_consumes_orchestrate_input(asl):
+    """Enrich receives the orchestrator's work payload and lands its STAGE#
+    envelope at $.enrich_envelope for WriteEnrichStageRow."""
+    state = asl["States"]["Enrich"]
+    assert state["Resource"] == "${OnboardingEnrichLambdaArn}"
+    assert state["InputPath"] == "$.orchestrate.input"
+    assert state["ResultPath"] == "$.enrich_envelope"
+    assert state["Next"] == "WriteEnrichStageRow"
+    assert (
+        asl["States"]["WriteEnrichStageRow"]["Parameters"]["Item.$"]
+        == "$.enrich_envelope"
     )
 
 
@@ -294,10 +307,13 @@ def test_stage_row_writers_pass_typed_envelopes(asl):
 
 
 def test_cascade_order(asl):
-    """The ready cascade: Score -> stage row -> DeriveDirtyTopics ->
-    CheckAssignTopics -> (AssignSkipped | AssignFanOut -> BuildAssignSummary)
-    -> TopTopic -> stage row -> Rollup -> stage row -> Finalize -> final row."""
+    """The ready cascade: Enrich -> stage row -> Score -> stage row ->
+    DeriveDirtyTopics -> CheckAssignTopics -> (AssignSkipped | AssignFanOut
+    -> BuildAssignSummary) -> TopTopic -> stage row -> Rollup -> stage row
+    -> Finalize -> final row."""
     states = asl["States"]
+    assert states["Enrich"]["Next"] == "WriteEnrichStageRow"
+    assert states["WriteEnrichStageRow"]["Next"] == "Score"
     assert states["Score"]["Next"] == "WriteScoreStageRow"
     assert states["WriteScoreStageRow"]["Next"] == "DeriveDirtyTopics"
     assert states["DeriveDirtyTopics"]["Next"] == "CheckAssignTopics"
@@ -340,7 +356,6 @@ def test_dynamodb_writes_target_reciterai_table(asl):
 
 def test_notify_tasks_invoke_notify_lambda(asl):
     for name, kind in (
-        ("NotifyDeferred", "deferred"),
         ("NotifyCostExceeded", "cost_exceeded"),
         ("NotifyFailed", "failed"),
     ):
@@ -353,7 +368,6 @@ def test_final_states_terminate(asl):
     states = asl["States"]
     for name in (
         "WriteOnboardingFinal",
-        "NotifyDeferred",
         "NotifyCostExceeded",
         "NotifyFailed",
     ):
