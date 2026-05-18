@@ -137,19 +137,6 @@ def test_pmids_rejects_combination_with_delta_since(monkeypatch):
         asyncio.run(sp.main())
 
 
-def test_pmids_rejects_combination_with_rescore_pmids(monkeypatch):
-    import asyncio
-    import sys
-
-    monkeypatch.setattr(sys, "argv", [
-        "score_publications.py",
-        "--pmids", "1",
-        "--rescore-pmids", "2",
-    ])
-    with pytest.raises(SystemExit):
-        asyncio.run(sp.main())
-
-
 def _stub_score_main_env(monkeypatch):
     """Patch out the I/O `score_publications.main` needs so a --pmids run
     can be driven to (but not through) the scoring loop."""
@@ -167,7 +154,7 @@ def _stub_score_main_env(monkeypatch):
 
 
 def test_pmids_mode_extracts_explicit_set_and_respects_idempotency(monkeypatch):
-    """--pmids extracts exactly the supplied list AND, unlike --rescore-pmids,
+    """--pmids extracts exactly the supplied list AND, unlike --pmids --force,
     still consults the STAGE# skip cache (idempotent re-runs)."""
     import asyncio
     import sys
@@ -190,7 +177,7 @@ def test_pmids_mode_extracts_explicit_set_and_respects_idempotency(monkeypatch):
 
     # Extracted exactly the explicit list — no date delta.
     assert by_pmids_calls == [["111", "222"]]
-    # Idempotency preserved: should_skip IS consulted (contrast --rescore-pmids).
+    # Idempotency preserved: should_skip IS consulted (contrast --force).
     should_skip_mock.assert_called_once()
 
 

@@ -301,11 +301,11 @@ def extract_publications(delta_since: str | None = None) -> list:
 def extract_publications_by_pmids(pmids: list[str]) -> list:
     """Extract publications for an explicit PMID list (no date filter).
 
-    Used by the `--rescore-pmids` CLI flag for targeted operator recovery
-    of PMIDs that fall outside the weekly hot-path delta window. The
-    `articleYear >= 2020` filter from PUBLICATION_EXTRACTION_SQL still
-    applies — pre-2020 PMIDs are silently excluded just as they are
-    elsewhere in the pipeline.
+    Backs the `--pmids` work-set flag and its `--additive` / `--force`
+    variants — explicit PMID sets that fall outside the weekly hot-path
+    delta window. The `articleYear >= 2020` filter from
+    PUBLICATION_EXTRACTION_SQL still applies — pre-2020 PMIDs are silently
+    excluded just as they are elsewhere in the pipeline.
 
     Args:
         pmids: List of PMID strings. Empty list returns [].
@@ -334,7 +334,7 @@ def extract_publications_by_pmids(pmids: list[str]) -> list:
         publications = [dict(row) for row in rows]
         print(
             f"Extracted {len(publications)} publications from ReciterDB "
-            f"(rescore-pmids: {len(pmids)} requested, "
+            f"({len(pmids)} requested by PMID, "
             f"{len(pmids) - len(publications)} not found / pre-2020 / no synopsis)"
         )
         return publications
@@ -1040,43 +1040,40 @@ async def main():
         ),
     )
     parser.add_argument(
-        '--rescore-pmids', metavar='PMID1,PMID2,...', default=None,
-        help=(
-            'Comma-separated list of PMIDs to rescore. Bypasses '
-            '--delta-since AND the PROCESSING# checkpoint cache so even '
-            'already-complete PMIDs get a fresh scoring pass. Useful for '
-            'targeted operator recovery — e.g. flipping content-filter '
-            'survivors after a fallback-path change, or nudging PMIDs '
-            'that aged out of the 14-day hot-path delta window. Mutually '
-            'exclusive with --delta-since.'
-        ),
-    )
-    parser.add_argument(
-        '--retry-pmids', metavar='PMID1,PMID2,...', default=None,
-        help=(
-            'Comma-separated list of PMIDs to union into the score set on '
-            'top of the --delta-since date delta. Set by the hot-path '
-            'orchestrator retry sweep so failed PMIDs that aged out of the '
-            'publication-date delta window still get re-scored. Additive '
-            '(compatible with --delta-since); unlike --rescore-pmids it '
-            'does NOT bypass the PROCESSING# checkpoint or the STAGE# skip '
-            'cache — a failed row is status != complete, so the normal '
-            'checkpoint re-scores it once it is in the set. Mutually '
-            'exclusive with --rescore-pmids.'
-        ),
-    )
-    parser.add_argument(
         '--pmids', metavar='PMID1,PMID2,...', default=None,
         help=(
-            'Comma-separated explicit PMID work set, as an ALTERNATIVE to '
-            '--delta-since (not additive). Set by the new-researcher '
-            "onboarding workflow (#80) to score one CWID's backfilled "
-            'publications regardless of publication date. Unlike '
-            '--rescore-pmids it RESPECTS the PROCESSING# checkpoint and the '
-            'STAGE# skip cache, so re-runs are idempotent (already-complete '
-            'PMIDs are skipped). The onboarding cost guard (R5) applies in '
-            'this mode. Mutually exclusive with --delta-since, '
-            '--rescore-pmids, and --retry-pmids.'
+            'Explicit comma-separated PMID work set, scored regardless of '
+            'publication date. On its own it REPLACES --delta-since (the '
+            'two are competing work sets) and respects the PROCESSING# '
+            'checkpoint and STAGE# skip cache, so re-runs are idempotent — '
+            'this is new-researcher onboarding mode (#80), and the '
+            'onboarding cost guard (R5) applies. Add --additive to union '
+            'the set onto a --delta-since delta instead of replacing it, '
+            'or --force to bypass the caches. Mutually exclusive with '
+            '--release-quarantine.'
+        ),
+    )
+    parser.add_argument(
+        '--additive', action='store_true',
+        help=(
+            'Modifier for --pmids: union the explicit work set onto the '
+            'date-delta extraction instead of replacing it, deduplicating '
+            'against PMIDs already in the delta. The hot-path orchestrator '
+            'retry sweep sets it so failed PMIDs that aged out of the '
+            'publication-date window still get re-scored; the PROCESSING# '
+            'checkpoint and STAGE# skip cache are respected. Requires '
+            '--pmids; incompatible with --force.'
+        ),
+    )
+    parser.add_argument(
+        '--force', action='store_true',
+        help=(
+            'Modifier for --pmids: bypass both the PROCESSING# checkpoint '
+            'and the STAGE# skip cache so even already-complete PMIDs get '
+            'a fresh scoring pass. For targeted operator recovery — e.g. '
+            're-running content-filter survivors after a fallback-path '
+            'change, or PMIDs ReCiter newly attributed to a CWID. Requires '
+            '--pmids; incompatible with --additive.'
         ),
     )
     parser.add_argument(
@@ -1102,33 +1099,43 @@ async def main():
     )
     args = parser.parse_args()
 
-    if args.rescore_pmids and args.delta_since:
+    # --- Validate the scoping-flag combination (#89) ---
+    # Work set: --delta-since (date delta) or --pmids (explicit list).
+    # --additive unions the two; --force bypasses the caches for --pmids.
+    if args.additive and not args.pmids:
         parser.error(
-            "--rescore-pmids and --delta-since are mutually exclusive — "
-            "they are competing scoping mechanisms (explicit list vs. date filter)"
+            "--additive unions a --pmids work set onto the date-delta "
+            "extraction; it has no meaning without --pmids"
         )
 
-    if args.rescore_pmids and args.retry_pmids:
+    if args.force and not args.pmids:
         parser.error(
-            "--rescore-pmids and --retry-pmids are mutually exclusive — "
-            "--rescore-pmids is operator force-recovery (bypasses caches); "
-            "--retry-pmids is the orchestrator's additive sweep"
+            "--force bypasses the checkpoint and skip caches for an "
+            "explicit --pmids work set; it has no effect without --pmids"
         )
 
-    if args.pmids and (args.delta_since or args.rescore_pmids or args.retry_pmids):
+    if args.force and args.additive:
         parser.error(
-            "--pmids is a standalone explicit work set and cannot be "
-            "combined with --delta-since, --rescore-pmids, or --retry-pmids"
+            "--force and --additive cannot be combined — --force is "
+            "operator force-recovery (bypasses caches, the explicit set "
+            "replaces the delta); --additive is the cache-respecting "
+            "sweep that unions the set onto the delta"
+        )
+
+    if args.pmids and args.delta_since and not args.additive:
+        parser.error(
+            "--pmids replaces --delta-since (they are competing work "
+            "sets); pass --additive to union the explicit set onto the "
+            "delta instead"
         )
 
     if args.release_quarantine and (
-        args.delta_since or args.rescore_pmids or args.retry_pmids or args.pmids
+        args.delta_since or args.pmids or args.additive or args.force
     ):
         parser.error(
             "--release-quarantine is a standalone maintenance mode (it "
             "clears quarantine state and runs no scoring); it cannot be "
-            "combined with --delta-since, --rescore-pmids, --retry-pmids, "
-            "or --pmids"
+            "combined with --delta-since, --pmids, --additive, or --force"
         )
 
     # --- Operator maintenance: release quarantined PMIDs (#86) ---
@@ -1202,54 +1209,52 @@ async def main():
 
     # --- Phase 1: Extract from ReciterDB ---
     print("\n--- Phase 1: Extracting publications from ReciterDB ---")
-    if args.rescore_pmids:
-        rescore_pmids = [p.strip() for p in args.rescore_pmids.split(',') if p.strip()]
-        if not rescore_pmids:
-            print("--rescore-pmids supplied an empty list; nothing to do.")
-            return
-        print(f"[--rescore-pmids mode] {len(rescore_pmids)} PMIDs requested")
-        publications = extract_publications_by_pmids(rescore_pmids)
-    elif args.pmids:
-        # Onboarding work set (#80): an explicit PMID list, scored
-        # regardless of publication date. Idempotency is preserved — the
-        # checkpoint and STAGE# skip cache below are consulted normally
-        # (args.rescore_pmids is false), so a re-run skips complete PMIDs.
-        onboarding_pmids = [p.strip() for p in args.pmids.split(',') if p.strip()]
-        if not onboarding_pmids:
-            print("--pmids supplied an empty list; nothing to do.")
-            return
-        print(f"[--pmids mode] {len(onboarding_pmids)} PMIDs requested "
-              "(onboarding work set)")
-        publications = extract_publications_by_pmids(onboarding_pmids)
+    pmid_work_set = (
+        [p.strip() for p in args.pmids.split(',') if p.strip()]
+        if args.pmids else []
+    )
+    if args.pmids and not pmid_work_set and not args.additive:
+        # An explicit work set that resolved to nothing, and not a sweep
+        # unioning onto a delta — so there is nothing to score.
+        print("--pmids supplied an empty list; nothing to do.")
+        return
+
+    if args.pmids and not args.additive:
+        # Explicit work set scored regardless of publication date, an
+        # ALTERNATIVE to the --delta-since delta. Plain --pmids is the
+        # onboarding work set (#80) and respects the checkpoint + skip
+        # cache below; --force additionally bypasses both.
+        mode = '--pmids --force' if args.force else '--pmids'
+        print(f"[{mode} mode] {len(pmid_work_set)} PMIDs requested")
+        publications = extract_publications_by_pmids(pmid_work_set)
     else:
         publications = extract_publications(delta_since=args.delta_since)
-        if args.retry_pmids:
-            # Hot-path retry sweep: union the orchestrator's failed-PMID
-            # list into the date delta. Deduplicate against the delta so a
-            # PMID that is both recent and failed is not extracted twice.
-            retry_pmids = [p.strip() for p in args.retry_pmids.split(',') if p.strip()]
-            if retry_pmids:
-                existing = {str(p['pmid']) for p in publications}
-                extra = [
-                    pub for pub in extract_publications_by_pmids(retry_pmids)
-                    if str(pub['pmid']) not in existing
-                ]
-                print(
-                    f"[--retry-pmids] hot-path retry sweep: {len(retry_pmids)} "
-                    f"requested, {len(extra)} unioned into the score set "
-                    "(rest already in the date delta, or not found / "
-                    "pre-2020 / no synopsis)"
-                )
-                publications = publications + extra
+        if pmid_work_set:
+            # --additive: union the explicit work set onto the date delta.
+            # Deduplicate against the delta so a PMID that is both recent
+            # and in the set is not extracted twice. The hot-path retry
+            # sweep uses this for failed PMIDs that aged out of the window.
+            existing = {str(p['pmid']) for p in publications}
+            extra = [
+                pub for pub in extract_publications_by_pmids(pmid_work_set)
+                if str(pub['pmid']) not in existing
+            ]
+            print(
+                f"[--pmids --additive] {len(pmid_work_set)} PMIDs "
+                f"requested, {len(extra)} unioned into the score set "
+                "(rest already in the date delta, or not found / "
+                "pre-2020 / no synopsis)"
+            )
+            publications = publications + extra
     author_mapping = extract_author_mapping()
     faculty_metadata = extract_faculty_metadata()
 
-    if args.rescore_pmids:
-        # Bypass the checkpoint — operator explicitly wants to rescore
-        # even already-complete PMIDs. PROCESSING# rows will be overwritten
-        # on success; STAGE# substrate appends new per-PMID rows alongside
-        # the prior history (audit trail preserved).
-        print("\n--- [--rescore-pmids] Bypassing PROCESSING# checkpoint cache ---")
+    if args.force:
+        # --force: bypass the checkpoint — the operator explicitly wants to
+        # rescore even already-complete PMIDs. PROCESSING# rows are
+        # overwritten on success; the STAGE# substrate appends new per-PMID
+        # rows alongside the prior history (audit trail preserved).
+        print("\n--- [--force] Bypassing PROCESSING# checkpoint cache ---")
         unscored = publications
     else:
         # --- Checkpoint/resume: skip already-completed publications (D-09) ---
@@ -1261,12 +1266,14 @@ async def main():
         unscored = unscored[:args.test]
         print(f"[--test mode] Limiting run to first {args.test} publications")
 
-    # --- #80 R5: onboarding cost guard (--pmids mode only) ---
+    # --- #80 R5: onboarding cost guard (plain --pmids only) ---
     # Checked against `unscored` — the net work set AFTER checkpoint
-    # culling — so a near-complete re-run does not trip. Only --pmids
-    # runs are guarded; the --delta-since path is implicitly bounded by
-    # the orchestrator's 14-day window.
-    if args.pmids and onboarding_cost_guard_tripped(
+    # culling — so a near-complete re-run does not trip. Only plain
+    # --pmids (onboarding) is guarded: --force recovery and the --additive
+    # retry sweep are operator/orchestrator-initiated, and the bare
+    # --delta-since path is bounded by the orchestrator's 14-day window.
+    onboarding_mode = bool(args.pmids) and not args.force and not args.additive
+    if onboarding_mode and onboarding_cost_guard_tripped(
         len(unscored),
         threshold=ONBOARDING_COST_GUARD_MAX_PMIDS,
         override=args.allow_cost_override,
@@ -1284,15 +1291,15 @@ async def main():
         taxonomy_version=taxonomy['taxonomy_version'],
         pmids=[str(p['pmid']) for p in unscored],
     )
-    if args.rescore_pmids:
-        # --rescore-pmids explicitly forces this run. Bypass the run-level
-        # skip cache, otherwise a prior `records_written=0` complete row
-        # (e.g. a smoke that finished after every PMID failed) collides
-        # with the same input_hash and blocks the rescore. Operator
-        # otherwise has to delete the offending STAGE# row by hand.
+    if args.force:
+        # --force explicitly forces this run. Bypass the run-level skip
+        # cache, otherwise a prior `records_written=0` complete row (e.g. a
+        # smoke that finished after every PMID failed) collides with the
+        # same input_hash and blocks the rescore. The operator would
+        # otherwise have to delete the offending STAGE# row by hand.
         skip, prior = False, None
         print(
-            "[--rescore-pmids] Bypassing STAGE# substrate skip cache "
+            "[--force] Bypassing STAGE# substrate skip cache "
             f"(input_hash {input_hash[:12]})"
         )
     else:

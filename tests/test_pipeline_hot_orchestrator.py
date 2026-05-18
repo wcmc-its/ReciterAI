@@ -635,7 +635,7 @@ def test_retry_sweep_legacy_row_without_failed_at_is_eligible(monkeypatch):
     assert result["retry_pmids"] == ["legacy"]
 
 
-# ---------- score handler: retry-pmids passthrough ----------
+# ---------- score handler: additive retry passthrough ----------
 
 
 def test_score_handler_passes_retry_pmids(monkeypatch):
@@ -655,9 +655,11 @@ def test_score_handler_passes_retry_pmids(monkeypatch):
         "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
     })
     cmd = captured_cmds[0]
-    assert "--retry-pmids" in cmd
+    # The retry sweep is passed as --pmids ... --additive (#89).
+    assert "--pmids" in cmd
+    assert "--additive" in cmd
     assert "77,88" in cmd
-    # retry-pmids is additive — --delta-since is still passed.
+    # The sweep is additive — --delta-since is still passed.
     assert "--delta-since" in cmd
 
 
@@ -673,7 +675,7 @@ def test_score_handler_omits_retry_pmids_when_empty(monkeypatch):
 
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
     score_handler.handler({"delta": {"pmids": ["1"], "size": 1}})
-    assert "--retry-pmids" not in captured_cmds[0]
+    assert "--additive" not in captured_cmds[0]
 
 
 # ---------- score handler: onboarding {pmids} event (#80) ----------
@@ -697,9 +699,11 @@ def test_score_handler_pmids_event_routes_to_pmids_flag(monkeypatch):
     assert "--pmids" in cmd
     assert "111,222,333" in cmd
     assert "--emit-envelope" in cmd
-    # An onboarding event must NOT carry the hot-path delta flags.
+    # An onboarding event must NOT carry the hot-path delta flags or the
+    # --pmids modifiers — plain --pmids only.
     assert "--delta-since" not in cmd
-    assert "--retry-pmids" not in cmd
+    assert "--additive" not in cmd
+    assert "--force" not in cmd
     assert "--allow-cost-override" not in cmd
 
 
