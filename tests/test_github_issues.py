@@ -281,6 +281,28 @@ def test_find_issues_for_cwid_no_match():
     assert gi.find_issues_for_cwid(issues, "abc1234") == []
 
 
+def test_find_issue_by_title_exact_match():
+    """The cold-start digest issue (#106) is matched by its fixed title."""
+    issues = [
+        {"number": 1, "title": "[onboarding] Detector backlog digest"},
+        {"number": 2, "title": "[onboarding] CWID abc1234 needs backfill (1 PMIDs)"},
+    ]
+    found = gi.find_issue_by_title(issues, "[onboarding] Detector backlog digest")
+    assert [i["number"] for i in found] == [1]
+
+
+def test_find_issue_by_title_requires_exact_not_partial():
+    """A title that merely contains the string is not a match."""
+    issues = [{"number": 5, "title": "[onboarding] Detector backlog digest — old"}]
+    assert gi.find_issue_by_title(issues, "[onboarding] Detector backlog digest") == []
+
+
+def test_find_issue_by_title_tolerates_surrounding_whitespace():
+    issues = [{"number": 7, "title": "  [onboarding] Detector backlog digest  "}]
+    found = gi.find_issue_by_title(issues, "[onboarding] Detector backlog digest")
+    assert [i["number"] for i in found] == [7]
+
+
 # ---------------------------------------------------------------------------
 # upsert_onboarding_issue — the spec-T1 conflict path
 # ---------------------------------------------------------------------------

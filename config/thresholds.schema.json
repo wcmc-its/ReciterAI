@@ -29,7 +29,8 @@
     "retry_sweep_max_pmids",
     "retry_sweep_quarantine_after",
     "retry_sweep_min_age_days",
-    "onboarding_cost_guard_max_pmids"
+    "onboarding_cost_guard_max_pmids",
+    "onboarding_detector_cold_start_threshold"
   ],
   "properties": {
     "uncovered_score_floor": {
@@ -159,6 +160,11 @@
       "type": "integer",
       "minimum": 1,
       "description": "New-researcher onboarding (#80): maximum net Bedrock/OpenAI-bound scoring work, in PMIDs, that a `score_publications.py --pmids` run will process without an explicit override. Counted AFTER per-PMID idempotency culling, so a near-complete re-run does not trip. Catches CWID collision / malformed queries / anomalously large publication histories."
+    },
+    "onboarding_detector_cold_start_threshold": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "New-researcher onboarding detector (#106): when a daily detector run flags more CWIDs than this, per-CWID GitHub-issue filing is suppressed and a single digest issue is filed instead, so a cold-start backlog cannot flood the repo. Per-CWID filing resumes automatically once the flagged count drops back below this threshold."
     }
   }
 }
