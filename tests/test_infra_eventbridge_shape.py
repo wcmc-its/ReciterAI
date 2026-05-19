@@ -5,16 +5,17 @@ This test pins those paths so future edits to the config can't
 silently break deploy_cron without a test failure.
 
 We also verify:
-- The four expected rules are present (hot weekly, spotlight monthly,
-  drift daily, onboarding-detector daily) with the cron expressions
-  locked in plan-phase (Open Q 10.1 → hot path = `cron(0 12 ? * MON *)`;
-  onboarding detector daily = `cron(0 13 * * ? *)`, #80 Phase 2).
+- The five expected rules are present (hot weekly, spotlight monthly,
+  drift daily, onboarding-detector daily, enrichment daily — #37 PR 4)
+  with the cron expressions locked in plan-phase (Open Q 10.1 → hot path
+  = `cron(0 12 ? * MON *)`; onboarding detector daily = `cron(0 13 * * ? *)`,
+  #80 Phase 2; enrichment daily = `cron(0 11 * * ? *)`, #37 PR 4).
 - Each rule's target_arn template uses {account_id} + {region}
   placeholders so the deploy script's substitution is the only place
   account/region are bound.
-- The IAM policy doc has the actions called out in PLAN T12: DynamoDB
-  RW on reciterai, S3 RW on wcmc-reciterai-*, bedrock invoke +
-  batch, states:StartExecution, events:PutEvents.
+- The Lambda IAM policy doc has the actions called out in PLAN T12:
+  DynamoDB RW on reciterai, S3 RW on wcmc-reciterai-*, bedrock invoke
+  + batch, states:StartExecution, events:PutEvents.
 """
 
 from __future__ import annotations
@@ -48,13 +49,14 @@ def test_eventbridge_has_region(eventbridge_config):
     assert eventbridge_config["region"]
 
 
-def test_eventbridge_defines_four_rules(eventbridge_config):
+def test_eventbridge_defines_five_rules(eventbridge_config):
     names = [r["name"] for r in eventbridge_config["rules"]]
     assert names == [
         "reciterai-hot-weekly",
         "reciterai-spotlight-monthly",
         "reciterai-drift-daily",
         "reciterai-onboarding-detector-daily",
+        "reciterai-enrichment-daily",
     ]
 
 
@@ -65,6 +67,7 @@ def test_eventbridge_defines_four_rules(eventbridge_config):
         ("reciterai-spotlight-monthly", "cron(0 13 1 * ? *)"),
         ("reciterai-drift-daily", "cron(0 14 * * ? *)"),
         ("reciterai-onboarding-detector-daily", "cron(0 13 * * ? *)"),
+        ("reciterai-enrichment-daily", "cron(0 11 * * ? *)"),
     ],
 )
 def test_cron_expressions_match_plan(eventbridge_config, rule_name, expected_schedule):
@@ -77,12 +80,22 @@ def test_every_rule_has_required_jq_paths(eventbridge_config):
     required = {
         "name", "description", "schedule_expression", "state", "target",
     }
-    target_required = {"id", "kind", "arn_template", "input"}
+    # All targets need id/kind/arn_template; `input` is required for
+    # step_functions + lambda targets (EventBridge forwards it to the target),
+    # but ECS targets do NOT use Input — the task definition's default
+    # command runs and the EventBridge Input field is dead for direct
+    # RunTask launches (no input transformer wired). See deploy_cron.sh's
+    # ecs branch comment.
+    target_required = {"id", "kind", "arn_template"}
     for rule in eventbridge_config["rules"]:
         assert required.issubset(rule.keys()), (
             f"rule {rule.get('name')} missing keys: {required - set(rule.keys())}"
         )
         assert target_required.issubset(rule["target"].keys())
+        if rule["target"]["kind"] in {"step_functions", "lambda"}:
+            assert "input" in rule["target"], (
+                f"{rule['name']}: {rule['target']['kind']} target needs input"
+            )
 
 
 def test_step_functions_target_has_role_arn(eventbridge_config):
@@ -91,6 +104,20 @@ def test_step_functions_target_has_role_arn(eventbridge_config):
     assert sf_rules, "expected at least one step_functions target (hot path)"
     for rule in sf_rules:
         assert "role_arn_template" in rule["target"]
+
+
+def test_ecs_target_has_required_runtask_fields(eventbridge_config):
+    """ECS targets need role_arn_template (for RunTask invocation),
+    task_definition_template (passed in EcsParameters), launch_type,
+    and a network_configuration block."""
+    ecs_rules = [r for r in eventbridge_config["rules"] if r["target"]["kind"] == "ecs"]
+    assert ecs_rules, "expected at least one ecs target (enrichment, #37 PR 4)"
+    for rule in ecs_rules:
+        target = rule["target"]
+        assert "role_arn_template" in target
+        assert "task_definition_template" in target
+        assert "launch_type" in target
+        assert "network_configuration" in target
 
 
 def test_target_arn_templates_use_placeholders(eventbridge_config):
@@ -107,7 +134,7 @@ def test_rule_states_are_valid(eventbridge_config):
 
 
 def test_target_kinds_are_supported_by_deploy_script(eventbridge_config):
-    supported = {"step_functions", "lambda"}
+    supported = {"step_functions", "lambda", "ecs"}
     for rule in eventbridge_config["rules"]:
         assert rule["target"]["kind"] in supported
 
