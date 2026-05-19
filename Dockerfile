@@ -20,3 +20,11 @@ COPY . .
 RUN useradd --create-home --shell /bin/bash --uid 10001 reciterai \
  && chown -R reciterai:reciterai /app
 USER reciterai
+
+# Default command runs the daily enrichment job (#37 PR 4). The ECS task
+# definition's scheduled invocation uses this default; on-demand
+# `RunTask` calls override it via `containerOverrides[].command` —
+#   - --from-gap-scan for the #112 onboarding-author backfill,
+#   - --pmids <list> for ad-hoc sets,
+#   - --full for an annual rescore.
+CMD ["python", "-m", "scripts.run_daily_enrichment"]

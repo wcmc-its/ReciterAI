@@ -289,33 +289,54 @@ own deferred Phase).
      --name reciterai/bedrock-api-key \
      --secret-string "<long-term Bedrock API key>"
    ```
-3. **IAM (out-of-band, the `infra/` directory creates no roles):** create
+3. **Teams webhook secret (if it does not already exist):** the existing
+   Lambda fleet reads `RECITERAI_TEAMS_WEBHOOK_URL` from env, not Secrets
+   Manager (Phase 10 SECURITY note flagged this as a future migration).
+   Fargate's `secrets` block does require a Secrets Manager source, so
+   the deploy creates the secret if it does not already exist:
+   ```bash
+   aws secretsmanager describe-secret --secret-id reciterai/teams-webhook-url \
+     >/dev/null 2>&1 \
+     || aws secretsmanager create-secret \
+          --name reciterai/teams-webhook-url \
+          --secret-string "<RECITERAI_TEAMS_WEBHOOK_URL value>"
+   ```
+4. **IAM (out-of-band, the `infra/` directory creates no roles):** create
    the Fargate task role with `infra/enrichment_task_iam_policy.json`
    (covers DynamoDB write, Secrets Manager read on the four secrets, and
-   CloudWatch Logs write), and the EventBridge→ECS `RunTask` invocation
-   role.
-4. **Networking:** confirm the subnets + security group reach ReciterDB
+   CloudWatch Logs write — explicitly NO `bedrock:InvokeModel`, see plan
+   D8 / PR-4 D-Q1), and the EventBridge→ECS `RunTask` invocation role.
+5. **Networking:** confirm the subnets + security group reach ReciterDB
    — reuse the networking the hot-path Lambdas already use for MariaDB.
-5. **Task definition:** register `infra/ecs_task_definition.json`
-   (substitute the pushed image URI + role ARNs).
-6. **Cron:** `scripts/deploy_cron.sh --dry-run --rule
+   Export them for the deploy script:
+   ```bash
+   export RECITERAI_ENRICHMENT_SUBNETS=subnet-...,subnet-...
+   export RECITERAI_ENRICHMENT_SECURITY_GROUPS=sg-...
+   ```
+6. **Task definition:** register `infra/ecs_task_definition.json`
+   (substitute the pushed image URI + role ARNs + secret ARNs in place
+   of the `{...}` placeholders, then `aws ecs register-task-definition
+   --cli-input-json file://infra/ecs_task_definition.rendered.json`).
+7. **Cron:** `scripts/deploy_cron.sh --dry-run --rule
    reciterai-enrichment-daily`, inspect, then apply. The rule's target
    kind is `ecs`; `deploy_cron.sh` carries the new `ecs` branch (PR 4).
-7. **Smoke:** run `scripts/smoke_enrichment.sh` — `--from-gap-scan
-   --dry-run` (work-set + cost preview, no model calls), then a tiny real
-   `--pmids` run. Confirm:
+8. **Smoke:** run `scripts/smoke_enrichment.sh` — `SMOKE_EXPECT=dry-run`
+   first (work-set + cost preview, no model calls), then
+   `SMOKE_EXPECT=real ENRICHMENT_SMOKE_PMID=<a real unscored PMID>`.
+   Confirm:
+   - the task launches (image pull / IAM / network all wired),
    - the content-filter fallback fires cleanly when it triggers,
    - length enforcement on the synopsis 3-attempt loop holds,
-   - MariaDB + `IMPACT#` writes land for every PMID in the test set,
+   - MariaDB + `IMPACT#` writes land for the test PMID,
    - `cost_observed_usd` is in the spike-derived range — pin the
      cost-guard default down if measured spend differs materially.
-8. **#112 backfill (#37 D5, forward-only):** run the task on-demand with
+9. **#112 backfill (#37 D5, forward-only):** run the task on-demand with
    `--from-gap-scan` — ~1,073 papers, Sonnet scores written for every
    `missing_either` PMID; existing gpt-5.1 scores from earlier POC runs
    stay in place untouched. `--dry-run` first to confirm the work-set
    size.
-9. **Verify a scheduled tick:** confirm the first 11:00 UTC run writes a
-   `complete`-status `RunResult` and advances the watermark.
+10. **Verify a scheduled tick:** confirm the first 11:00 UTC run writes
+    a `complete`-status `RunResult` and advances the watermark.
 
 The **annual rescore** (#37 D5, deferred) is enabled by this deploy — the
 same task definition runs it on-demand via a different command override;

@@ -1,0 +1,83 @@
+{
+  "$schema_note": "ECS Fargate task definition for the ReciterAI daily-enrichment job (#37 PR 4). Single task definition serves three invocation modes — scheduled daily (no command override), on-demand backfill (`--from-gap-scan` override via `containerOverrides[].command`), and on-demand annual rescore (`--full` override). Templated placeholders below — substitute at deploy time, see infra/README.md and the docs/daily-enrichment.md §7-B runbook. Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8 / PR-4 D-Q1); the task role intentionally does NOT carry `bedrock:InvokeModel`.",
+  "family": "reciterai-enrichment",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "1024",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "taskRoleArn": "{TASK_ROLE_ARN}",
+  "executionRoleArn": "{EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "reciterai-enrichment",
+      "image": "{IMAGE_URI}",
+      "essential": true,
+      "command": ["python", "-m", "scripts.run_daily_enrichment"],
+      "environment": [
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "RECITERAI_ALERT_MENTION_UPN", "value": "paa2013@med.cornell.edu"},
+        {"name": "RECITERAI_ALERT_MENTION_NAME", "value": "Paul Albert"}
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "{DB_SECRET_ARN}:DB_HOST::"
+        },
+        {
+          "name": "DB_USERNAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_USERNAME::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "{DB_SECRET_ARN}:DB_PASSWORD::"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_NAME::"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "{OPENAI_SECRET_ARN}:OPENAI_API_KEY::"
+        },
+        {
+          "name": "RECITERAI_TEAMS_WEBHOOK_URL",
+          "valueFrom": "{TEAMS_WEBHOOK_SECRET_ARN}"
+        },
+        {
+          "name": "AWS_BEARER_TOKEN_BEDROCK",
+          "valueFrom": "{BEDROCK_API_KEY_SECRET_ARN}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/reciterai-enrichment",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "enrichment",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ],
+  "deploy_notes": {
+    "placeholders": {
+      "{TASK_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/reciterai-enrichment-task — IAM role attached to the running container; carries the policy in `enrichment_task_iam_policy.json` (DDB write, Secrets Manager read on the 4 secrets below, CloudWatch Logs).",
+      "{EXECUTION_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/ecsTaskExecutionRole — the standard ECS task execution role; needs `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `secretsmanager:GetSecretValue` on the 4 secrets, and `logs:CreateLogGroup`/`logs:CreateLogStream`/`logs:PutLogEvents`. The AWS-managed `AmazonECSTaskExecutionRolePolicy` covers ECR + Logs; Secrets Manager needs an inline grant matching the 4 ARNs.",
+      "{IMAGE_URI}": "ECR image URI of the pushed reciterai-enrichment image, e.g. `{ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:{GIT_SHA}`.",
+      "{DB_SECRET_ARN}": "Full ARN of `reciterai/reciter-analysis-db` (JSON SecretString with DB_HOST/DB_USERNAME/DB_PASSWORD/DB_NAME keys). ECS pulls individual JSON keys via the trailing `:KEY::` syntax.",
+      "{OPENAI_SECRET_ARN}": "Full ARN of `reciterai/openai-api-key` (JSON SecretString with an OPENAI_API_KEY key). Used by the Bedrock content-filter fallback only (D3).",
+      "{TEAMS_WEBHOOK_SECRET_ARN}": "Full ARN of `reciterai/teams-webhook-url` (plain SecretString — the webhook URL itself). The deploy runbook creates this secret if it does not already exist; alerting.py reads `RECITERAI_TEAMS_WEBHOOK_URL` from env and tolerates absence (logs-only).",
+      "{BEDROCK_API_KEY_SECRET_ARN}": "Full ARN of `reciterai/bedrock-api-key` (plain SecretString — a LONG-TERM Bedrock API key). Short-term Bedrock keys expire in ≤12h and would break overnight ticks. boto3 auto-detects the value via `AWS_BEARER_TOKEN_BEDROCK` and uses it as the bearer token for `bedrock-runtime` calls (plan D8)."
+    },
+    "sizing": "0.25 vCPU / 1 GB is the smallest viable Fargate size for this workload. The job is I/O-bound (Bedrock + OpenAI API calls + MariaDB writes); CPU is rarely the bottleneck. 1 GB carries headroom for boto3 + SQLAlchemy + the openai client; 0.5 GB would be tight on Python 3.12 + the loaded dependency set.",
+    "runtime_modes": {
+      "scheduled_daily": "EventBridge `reciterai-enrichment-daily` rule invokes `RunTask` with no override; the container runs the task definition's default `command` (`python -m scripts.run_daily_enrichment`).",
+      "on_demand_backfill": "Operator `aws ecs run-task ... --overrides '{\"containerOverrides\":[{\"name\":\"reciterai-enrichment\",\"command\":[\"python\",\"-m\",\"scripts.run_daily_enrichment\",\"--from-gap-scan\",\"--verbose\"]}]}'`. Same task def, same role, same secrets — only the command changes.",
+      "on_demand_rescore": "Operator `aws ecs run-task ... --overrides '{\"containerOverrides\":[{\"name\":\"reciterai-enrichment\",\"command\":[\"python\",\"-m\",\"scripts.run_daily_enrichment\",\"--full\"]}]}'`. The annual rescore — same shape as backfill but a different work-set flag. Cost-guard is bypassed by `--full` (intentionally; rescore is operator-gated)."
+    }
+  }
+}
