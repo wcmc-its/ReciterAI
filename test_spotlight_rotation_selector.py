@@ -24,6 +24,7 @@ All tests use synthetic injected boto3 stubs; no AWS calls.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from datetime import datetime, timedelta, timezone
@@ -509,3 +510,151 @@ def test_p11_update_history_versioned_pk():
     assert len(client.update_calls) == 1
     pk_val = client.update_calls[0]["Key"]["PK"]["S"]
     assert pk_val == "SPOTLIGHT_HISTORY#v2026-06-01#sub_a"
+
+
+# ---------------------------------------------------------------------------
+# #91 — near-clone gate tests (select_with_diversity near_clones param)
+# ---------------------------------------------------------------------------
+
+
+def test_91_near_clones_none_matches_legacy_parent_only():
+    """near_clones=None (and omitted) → exactly the original parent gate."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    pool = [
+        _make_pool_entry(f"parent_{i:03d}_001", f"parent_{i:03d}", 100.0 - i)
+        for i in range(10)
+    ]
+    omitted = select_with_diversity(pool, history={}, n=10)
+    explicit = select_with_diversity(pool, history={}, n=10, near_clones=None)
+    assert [s.entry.subtopic_id for s in omitted] == [
+        s.entry.subtopic_id for s in explicit
+    ]
+    assert len(omitted) == 10
+
+
+def test_91_three_mutual_near_clones_collapse_to_one_selection():
+    """3 mutually near-clone, distinct-parent subtopics → only 1 is selected;
+    the freed slots backfill from the rest of the pool."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    # 3 near-clones (the top 3 sel_scores) + 9 distinct-parent fillers.
+    clones = [
+        _make_pool_entry("astro_a_001", "genetics", 100.0),
+        _make_pool_entry("astro_b_001", "single_cell", 99.0),
+        _make_pool_entry("astro_c_001", "systems_bio", 98.0),
+    ]
+    fillers = [
+        _make_pool_entry(f"fill_{i:03d}_001", f"fill_parent_{i:03d}", 50.0 - i)
+        for i in range(9)
+    ]
+    pool = clones + fillers
+    near_clones = {
+        "astro_a_001": {"astro_b_001", "astro_c_001"},
+        "astro_b_001": {"astro_a_001", "astro_c_001"},
+        "astro_c_001": {"astro_a_001", "astro_b_001"},
+    }
+    selected = select_with_diversity(
+        pool, history={}, n=10, near_clones=near_clones
+    )
+    selected_sids = {s.entry.subtopic_id for s in selected}
+    assert len(selected) == 10
+    # Exactly one of the three near-clones made the cut...
+    assert len(selected_sids & {"astro_a_001", "astro_b_001", "astro_c_001"}) == 1
+    # ...and it is the highest-sel_score one.
+    assert "astro_a_001" in selected_sids
+    # The 9 fillers backfilled the slots the clone gate freed.
+    for filler in fillers:
+        assert filler.subtopic_id in selected_sids
+
+
+def test_91_pairwise_chain_keeps_both_ends():
+    """An A-B-C near-clone CHAIN (A~B, B~C, A NOT~ C): the pairwise gate keeps
+    A and C — it is not transitive, so it does not over-suppress the way a
+    clustering approach would."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    pool = [
+        _make_pool_entry("chain_a_001", "parent_a", 100.0),
+        _make_pool_entry("chain_b_001", "parent_b", 90.0),
+        _make_pool_entry("chain_c_001", "parent_c", 80.0),
+    ]
+    near_clones = {
+        "chain_a_001": {"chain_b_001"},
+        "chain_b_001": {"chain_a_001", "chain_c_001"},
+        "chain_c_001": {"chain_b_001"},
+    }
+    selected = select_with_diversity(
+        pool, history={}, n=2, near_clones=near_clones
+    )
+    selected_sids = {s.entry.subtopic_id for s in selected}
+    # A picked first; B gated (clone of A); C picked (clone of B, but B is not
+    # selected). A clustering approach would have merged all three.
+    assert selected_sids == {"chain_a_001", "chain_c_001"}
+
+
+def test_91_pass_2_fills_least_cloned_first(caplog):
+    """When Pass 1 stalls, Pass 2 fills by fewest clone-overlap first — NOT by
+    raw sel_score — and logs each forced near-clone admission at WARNING."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    # nc_a is a near-clone of b/c/d/e, so once a is picked they are all gated
+    # in Pass 1. nc_f has no clone. Pass 1 → [a, f]; Pass 2 must add 2 more.
+    pool = [
+        _make_pool_entry("nc_a_001", "parent_a", 100.0),
+        _make_pool_entry("nc_b_001", "parent_b", 95.0),
+        _make_pool_entry("nc_c_001", "parent_c", 90.0),
+        _make_pool_entry("nc_d_001", "parent_d", 85.0),
+        _make_pool_entry("nc_e_001", "parent_e", 80.0),
+        _make_pool_entry("nc_f_001", "parent_f", 75.0),
+    ]
+    near_clones = {
+        "nc_a_001": {"nc_b_001", "nc_c_001", "nc_d_001", "nc_e_001"},
+        "nc_b_001": {"nc_a_001", "nc_c_001", "nc_d_001"},
+        "nc_c_001": {"nc_a_001", "nc_b_001"},
+        "nc_d_001": {"nc_a_001", "nc_b_001"},
+        "nc_e_001": {"nc_a_001"},
+        "nc_f_001": set(),
+    }
+    with caplog.at_level(logging.WARNING):
+        selected = select_with_diversity(
+            pool, history={}, n=4, near_clones=near_clones
+        )
+    picked = [s.entry.subtopic_id for s in selected]
+    # Pass 1 → [a, f]. Pass 2 round 1: b/c/d/e each overlap {a} (count 1); the
+    # tie breaks on sel_score → b. Pass 2 round 2: c and d now overlap {a, b}
+    # (count 2) while e still overlaps only {a} (count 1) → e wins, even
+    # though c and d out-score it.
+    assert picked[:2] == ["nc_a_001", "nc_f_001"]
+    assert set(picked) == {"nc_a_001", "nc_f_001", "nc_b_001", "nc_e_001"}
+    # e beat the higher-scored c and d purely on lower clone overlap.
+    assert "nc_c_001" not in picked
+    assert "nc_d_001" not in picked
+    # Each forced near-clone admission was logged.
+    assert "Pass 2" in caplog.text
+
+
+def test_91_pass_1_result_is_pairwise_clone_free():
+    """When Pass 1 alone fills n, the selected set has no near-clone pair, and
+    the in-function Pass-1 self-check assertion does not fire."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    pool = [
+        _make_pool_entry("dup_a_001", "parent_a", 100.0),
+        _make_pool_entry("dup_b_001", "parent_b", 99.0),
+        _make_pool_entry("solo_c_001", "parent_c", 98.0),
+    ]
+    near_clones = {
+        "dup_a_001": {"dup_b_001"},
+        "dup_b_001": {"dup_a_001"},
+        "solo_c_001": set(),
+    }
+    selected = select_with_diversity(
+        pool, history={}, n=2, near_clones=near_clones
+    )
+    selected_sids = {s.entry.subtopic_id for s in selected}
+    # dup_a (higher score) + solo_c; dup_b is gated as a clone of dup_a.
+    assert selected_sids == {"dup_a_001", "solo_c_001"}
+    # No two selected subtopics are near-clones of each other.
+    for sid in selected_sids:
+        assert not (near_clones[sid] & selected_sids)

@@ -218,20 +218,55 @@ def _ingest_responses(resp: dict, result: dict[str, Optional[str]]) -> None:
         result[sid] = last
 
 
+def _count_selected_near_clones(
+    subtopic_id: str,
+    near_clones: dict[str, set[str]] | None,
+    selected_sids: set[str],
+) -> int:
+    """Count how many already-selected subtopics are near-clones of this one.
+
+    Returns 0 when ``near_clones`` is None (the gate is disabled). Drives the
+    Pass-2 best-effort fill order in ``select_with_diversity`` (#91): the
+    candidate with the lowest count is filled first.
+    """
+    if near_clones is None:
+        return 0
+    return len(near_clones.get(subtopic_id, frozenset()) & selected_sids)
+
+
 def select_with_diversity(
     pool: list[PoolEntry],
     history: dict[str, Optional[str]],
     n: int = SELECTION_SIZE,
+    *,
+    near_clones: dict[str, set[str]] | None = None,
 ) -> list[Selection]:
-    """SPOT-03 greedy parent-diversity selection.
+    """SPOT-03 greedy parent-diversity selection with a #91 near-clone gate.
 
     Sorts the pool by ``(-sel_score, subtopic_id)`` for deterministic
-    tiebreaker stability, then greedily picks one subtopic per parent_topic
-    until ``n`` selections are made.
+    tiebreaker stability, then selects ``n`` subtopics in two passes.
 
-    Selection size is a FLOOR (RESEARCH §Open Q §8): if the pool yields
-    fewer than ``n`` distinct parent topics, raises ValueError with an
-    operator-friendly message. T-06-03-05 mitigation.
+    **Pass 1** greedily picks a candidate when BOTH hold: its ``parent_topic``
+    is not yet used (the original SPOT-03 gate) AND it is not a near-clone of
+    an already-selected subtopic (#91 — active only when ``near_clones`` is
+    supplied). A near-clone is two subtopics whose ``short_description``
+    embeddings are too similar; ``spotlight.theme_dedup.find_near_clones``
+    produces the adjacency. The clone gate stops one publish cycle from
+    surfacing several differently-parented paraphrases of a single theme as
+    near-duplicate cards.
+
+    **Pass 2** runs only if Pass 1 came up short of ``n`` because the
+    near-clone gate skipped otherwise-valid candidates. It keeps the
+    parent-topic gate but drops the clone gate, filling the remaining slots
+    least-cloned-first: the candidate that is a near-clone of the fewest
+    already-selected subtopics wins, ties broken by ``sel_score``. This is
+    best-effort — the near-clone gate can never block a monthly publish — and
+    each forced near-clone admission is logged at WARNING.
+
+    Selection size is a FLOOR (RESEARCH §Open Q §8): if even Pass 2 cannot
+    reach ``n`` distinct parent topics, raises ValueError. Because Pass 2 has
+    the clone gate off, a floor failure is always a genuine parent-topic
+    shortage (T-06-03-05 mitigation).
 
     Args:
         pool: list of PoolEntry from ``pool_ranker.rank_pool()``. NOT
@@ -239,6 +274,14 @@ def select_with_diversity(
         history: dict mapping subtopic_id → last_shown_at ISO string (or
             None for cold-start). Use ``fetch_history`` to populate.
         n: floor on number of selections to return. Default SELECTION_SIZE.
+        near_clones: optional symmetric adjacency mapping each subtopic_id to
+            the set of pool subtopic_ids it is a near-clone of
+            (``theme_dedup.NearClones.adjacency``). None (the default)
+            disables the near-clone gate — Pass 1 is then exactly the
+            original parent-only selection, so existing callers are
+            unaffected. An empty dict has the same effect and is what
+            ``backfill_spotlight`` passes when the embedding step fails
+            (graceful degradation, #91 plan §9.6).
 
     Returns:
         List of ``n`` Selection objects, each with a unique parent_topic.
@@ -262,13 +305,81 @@ def select_with_diversity(
 
     selected: list[Selection] = []
     parents: set[str] = set()
+    selected_sids: set[str] = set()
+
+    # Pass 1: parent-distinct AND (when near_clones is given) near-clone-free.
     for s in scored:
+        sid = s.entry.subtopic_id
         if s.entry.parent_topic in parents:
+            continue
+        if near_clones is not None and (
+            near_clones.get(sid, frozenset()) & selected_sids
+        ):
             continue
         selected.append(s)
         parents.add(s.entry.parent_topic)
+        selected_sids.add(sid)
         if len(selected) == n:
             break
+
+    # Self-check (regression guard, #91): Pass 1's result must be pairwise
+    # near-clone-free. A future refactor that drops the Pass-1 clone gate
+    # trips this assertion. Pass 2 is intentionally exempt — it admits
+    # near-clones when the pool is too thin to fill n slots without them.
+    if near_clones is not None:
+        for s in selected:
+            overlap = (
+                near_clones.get(s.entry.subtopic_id, frozenset())
+                & selected_sids
+            )
+            assert not overlap, (
+                f"rotation_selector Pass 1 invariant violated: selected "
+                f"{s.entry.subtopic_id} alongside near-clone(s) "
+                f"{sorted(overlap)} — the #91 near-clone gate regressed"
+            )
+
+    # Pass 2 (best-effort fill, #91): Pass 1 fell short of n because the
+    # clone gate skipped valid candidates. Relax the clone gate, keep the
+    # parent gate, and fill least-cloned-first so the publish doubles up on
+    # the least-repeated theme only as forced — never just by raw sel_score.
+    if len(selected) < n:
+        remaining = [
+            s
+            for s in scored
+            if s.entry.subtopic_id not in selected_sids
+            and s.entry.parent_topic not in parents
+        ]
+        while len(selected) < n and remaining:
+            # ``remaining`` stays in sel_score-DESC order, so min() returns
+            # the first candidate achieving the lowest clone-overlap count —
+            # i.e. sel_score is the natural tiebreaker.
+            best = min(
+                remaining,
+                key=lambda s: _count_selected_near_clones(
+                    s.entry.subtopic_id, near_clones, selected_sids
+                ),
+            )
+            overlap = (
+                near_clones.get(best.entry.subtopic_id, frozenset())
+                & selected_sids
+                if near_clones is not None
+                else set()
+            )
+            if overlap:
+                logger.warning(
+                    "Rotation selector Pass 2: pool too thin for a fully "
+                    "near-clone-free publish; admitting %s, a near-clone of "
+                    "%s",
+                    best.entry.subtopic_id,
+                    sorted(overlap),
+                )
+            selected.append(best)
+            parents.add(best.entry.parent_topic)
+            selected_sids.add(best.entry.subtopic_id)
+            # Drop ``best`` and any now parent-colliding candidate.
+            remaining = [
+                s for s in remaining if s.entry.parent_topic not in parents
+            ]
 
     if len(selected) < n:
         raise ValueError(

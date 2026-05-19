@@ -124,3 +124,15 @@ If you raise this: more consistent critic failures are required before a diagnos
 Maximum number of underlying `CRITIC_REJECT#` PK suffixes stored in a `SPOTLIGHT_DIAGNOSTIC#` row's `underlying_rejects` list per D-32. When the actual count exceeds this cap, `underlying_rejects_truncated: true` and `total_underlying: N` are set so the truncation is visible. Bounds DDB item size; today's ~65-topic taxonomy is well under DynamoDB's 400KB item limit either way, but sparse-by-default is the correct contract for future taxonomy growth.
 
 If you raise this: more underlying reject provenance links are stored per diagnostic row; operators have more drill-down paths without making a secondary query; DDB row size grows.
+
+---
+
+## Spotlight near-clone gate (#91)
+
+### `spotlight_theme_similarity_max` (float, default 0.8)
+
+Cosine-similarity cutoff for the spotlight rotation selector's near-clone gate. The selector embeds each pooled subtopic's `short_description` (Bedrock Titan Text Embeddings v2) and computes all-pairs cosine similarity; two subtopics whose embeddings score at or above this value are treated as near-clones, and the selector will not place both in the same monthly publish. This is what stops a publish cycle from surfacing, e.g., three differently-parented "spaceflight omics" subtopics as three near-duplicate cards (#91).
+
+This is an embedding-cosine threshold — its correct value depends on the embedding model and the live taxonomy, so it cannot be pinned analytically. Calibrate it with `python backfill_spotlight.py --dry-run`, which runs the theme scan and prints the pool's near-clone neighborhood (every pair at or above `threshold - 0.10`, with the pairs the gate acts on marked `CLONE`). Tune against the loosest pair you still consider a genuine clone.
+
+If you raise this: fewer pairs count as near-clones, so more genuine near-clones can co-occur in one publish. If you lower it: more pairs are gated, distinct-but-related subtopics may be suppressed, and the selector falls back to its best-effort second pass more often. The gate is best-effort and never blocks a publish — an embedding failure degrades to parent-only selection (see `spotlight/theme_dedup.py`).

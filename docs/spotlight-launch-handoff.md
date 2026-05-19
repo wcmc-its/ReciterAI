@@ -133,7 +133,7 @@ If the schema or contract needs to change, update `docs/spotlight.schema.json` +
 Same as the first publish — no special setup once the bucket exists:
 
 ```bash
-# Smoke first (~$0 + DynamoDB read only):
+# Smoke first (DynamoDB read + ~50 cheap Titan embedding calls, ~$0):
 python3 backfill_spotlight.py --dry-run
 
 # Full smoke (~$0.30 Bedrock, no S3 write):
@@ -153,6 +153,8 @@ Operator workflow flags:
 - `--approve <subtopic_id>` / `--reject <subtopic_id>` — transition state machine
 - `--regen-only <subtopic_id>` — re-roll one spotlight without touching the others
 - `--reset-history` — truncate SPOTLIGHT_HISTORY# (after annual hierarchy recompute when subtopic IDs rotate)
+
+**Near-clone gate (#91):** the rotation selector will not place two near-duplicate subtopics in one publish (e.g. three differently-parented "spaceflight omics" subtopics). `--dry-run` runs the theme scan and prints the pool's near-clone neighborhood; calibrate the `spotlight_theme_similarity_max` threshold (`config/thresholds.json`, documented in `config/thresholds.md`) against that output. An embedding failure degrades to parent-only selection — it never blocks a publish.
 
 ---
 

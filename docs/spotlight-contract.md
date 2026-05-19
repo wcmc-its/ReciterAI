@@ -65,7 +65,7 @@ The Phase 6 addition relative to Phase 5 is `spotlight_version` between `schema_
 
 ## Cadence
 
-- **Weekly publish (operator-run, v1):** `python backfill_spotlight.py --publish` produces a new `spotlight/v{ISO-date}/` prefix and overwrites `spotlight/latest/`. The recommended operator workflow is `--dry-run` (validation + manifest preview) then `--dry-run-full` (full pipeline preview) then `--publish` once review is satisfied.
+- **Weekly publish (operator-run, v1):** `python backfill_spotlight.py --publish` produces a new `spotlight/v{ISO-date}/` prefix and overwrites `spotlight/latest/`. The recommended operator workflow is `--dry-run` (validation + manifest preview) then `--dry-run-full` (full pipeline preview) then `--publish` once review is satisfied. `--dry-run` also runs the #91 near-clone theme scan — a cheap Bedrock Titan embedding per pooled subtopic — and prints the pool's near-clone neighborhood, the calibration surface for the `spotlight_theme_similarity_max` tunable that keeps the rotation selector from placing two near-duplicate subtopics in one publish.
 - **Ad-hoc re-publishes:** Same-day re-publishes are explicitly first-class; same-prefix overwrite emits a `WARN: spotlight/v{date}/ already exists — overwriting` log line and proceeds. The `manifest.sha256` changes if and only if the bytes changed, so consumers detect real changes and skip no-op re-publishes automatically.
 - **Cron automation:** Deferred to v2. v1 is operator-run.
 - **Recommended consumer polling:** Poll `latest/manifest.json` weekly (HEAD or GET) and compare `manifest.sha256` against the last-known value. If `sha256` changed, re-run the full ETL fetch-and-load flow. No push notifications exist — the manifest sha256 IS the change signal.
