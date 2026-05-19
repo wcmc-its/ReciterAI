@@ -132,3 +132,12 @@ def test_onboarding_detector_bundles_lightweight_cost_preview_chain(specs):
     assert "pyyaml" in row["pip_deps"]
     assert "pipeline_onboarding.orchestrator" in extra
     assert "utils.llm_cost" in extra
+
+
+def test_alert_dispatcher_bundles_teams_transport(specs):
+    """#121: the dispatcher sends Teams alerts via pipeline_enrichment.alerting;
+    that module + its package marker must be bundled or the Lambda crashes at
+    import (the build's import-check also catches it — pin the spec too)."""
+    first_party = specs["reciterai-hot-alert-dispatcher"]["first_party"].split()
+    assert "pipeline_enrichment/alerting.py" in first_party
+    assert "pipeline_enrichment/__init__.py" in first_party
