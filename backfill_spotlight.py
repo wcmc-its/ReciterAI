@@ -200,6 +200,27 @@ def _build_parent_lookup(hierarchy: dict) -> dict[str, str]:
     return out
 
 
+def _build_short_descriptions(hierarchy: dict, pool: list) -> dict[str, str]:
+    """Map each pooled subtopic_id to its short_description for #91 dedup.
+
+    The near-clone scan only ever needs the ~50 subtopics in the rotation
+    pool, not the full ~1,500-subtopic taxonomy — so this subsets the
+    hierarchy to the pool. A pooled subtopic with no short_description in the
+    hierarchy maps to "" (``theme_dedup.find_near_clones`` gives it an empty
+    adjacency entry — it can never be gated out of selection).
+    """
+    short_by_sid: dict[str, str] = {}
+    topics = hierarchy.get("topics", {})
+    for topic_block in topics.values():
+        if not isinstance(topic_block, dict):
+            continue
+        for sub in topic_block.get("subtopics", []):
+            sid = sub.get("id")
+            if sid:
+                short_by_sid[sid] = sub.get("short_description", "")
+    return {e.subtopic_id: short_by_sid.get(e.subtopic_id, "") for e in pool}
+
+
 def _build_subtopic_metadata(hierarchy: dict) -> dict:
     """Flatten hierarchy.json topics -> {subtopic_id: SubtopicMeta}.
 
@@ -298,6 +319,65 @@ def _resolve_publish_id(explicit: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _print_near_clone_report(near_clones, selections) -> None:
+    """Print the #91 near-clone neighborhood for --dry-run threshold tuning.
+
+    Lists, per selected subtopic, the pooled near-clones the selector did not
+    also select; then the full ranked near-pair list. A pair at or above the
+    threshold is tagged CLONE (the gate acts on it); CLONE/both-selected means
+    Pass 2 was forced to admit both because the pool was too thin. Pairs below
+    the threshold are near-misses. This is the surface for calibrating
+    ``spotlight_theme_similarity_max`` (#91 plan §7).
+    """
+    from spotlight.theme_dedup import RANKED_PAIR_FLOOR_MARGIN
+
+    threshold = near_clones.threshold
+    ranked = near_clones.ranked_pairs
+    adjacency = near_clones.adjacency
+    selected_sids = {s.entry.subtopic_id for s in selections}
+
+    print(
+        f"\nNear-clone theme scan "
+        f"(spotlight_theme_similarity_max={threshold:.3f}):"
+    )
+    if not ranked:
+        print(
+            "  no near-clone or near-miss pairs among the pooled subtopics "
+            "(nothing to gate, or embeddings were unavailable — see the log "
+            "above)."
+        )
+        return
+
+    cosine_by_pair = {frozenset((a, b)): cos for a, b, cos in ranked}
+
+    suppressed_any = False
+    for s in selections:
+        sid = s.entry.subtopic_id
+        suppressed = sorted(adjacency.get(sid, set()) - selected_sids)
+        if not suppressed:
+            continue
+        suppressed_any = True
+        detail = ", ".join(
+            f"{other} (cos={cosine_by_pair[frozenset((sid, other))]:.3f})"
+            for other in suppressed
+        )
+        print(f"  {sid} suppressed near-clone(s): {detail}")
+    if not suppressed_any:
+        print("  no near-clones suppressed; every selected subtopic is distinct.")
+
+    print(
+        f"  ranked near-pairs (cosine >= "
+        f"{threshold - RANKED_PAIR_FLOOR_MARGIN:.3f}):"
+    )
+    for a, b, cos in ranked:
+        if cos >= threshold:
+            both_selected = a in selected_sids and b in selected_sids
+            tag = "CLONE/both-selected" if both_selected else "CLONE"
+        else:
+            tag = "near-miss"
+        print(f"    [{tag}] cos={cos:.3f}  {a} ~ {b}")
+
+
 def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """Main pipeline orchestrator.
 
@@ -313,6 +393,8 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     from spotlight.pool_ranker import rank_pool
     from spotlight.rotation_selector import fetch_history, select_with_diversity
     from spotlight.author_resolver import resolve_authors
+    from spotlight.theme_dedup import NearClones, find_near_clones
+    from utils.env_check import load_thresholds
 
     # Hierarchy is loaded up-front so the pool ranker can canonicalize
     # parent_topic for the rotation selector's diversity gate (without
@@ -333,7 +415,33 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         subtopic_ids=[e.subtopic_id for e in pool],
         hierarchy_version=spotlight_hierarchy_version,
     )
-    selections = select_with_diversity(pool, history)
+
+    # #91: near-clone theme dedup. Embed the pool's short_descriptions and
+    # hand the rotation selector a near-clone adjacency so it never places
+    # two near-duplicate subtopics in one publish. Best-effort — any
+    # embedding failure (Bedrock throttle/timeout/5xx, or a missing
+    # bedrock:InvokeModel grant) degrades to parent-only selection and the
+    # publish still proceeds (#91 plan §9.6).
+    theme_threshold = float(load_thresholds()["spotlight_theme_similarity_max"])
+    pool_descriptions = _build_short_descriptions(hierarchy, pool)
+    try:
+        near_clones = find_near_clones(pool_descriptions, theme_threshold)
+    except Exception as exc:
+        # Deliberately broad: theme dedup is best-effort and must never block
+        # the monthly publish. Any failure -> empty adjacency -> the selector
+        # runs exactly today's parent-only selection.
+        logger.warning(
+            "theme dedup unavailable: %s; falling back to parent-only "
+            "selection",
+            exc,
+        )
+        near_clones = NearClones(
+            adjacency={}, ranked_pairs=[], threshold=theme_threshold
+        )
+
+    selections = select_with_diversity(
+        pool, history, near_clones=near_clones.adjacency
+    )
 
     print(f"\nPool ranker: {len(pool)} subtopics ranked.")
     print(f"Rotation selector: {len(selections)} selections.")
@@ -344,7 +452,11 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         )
 
     if dry_run:
-        # Cheapest preview — no Bedrock, no DynamoDB writes, no publish.
+        # Cheapest preview — no Bedrock generation, no DynamoDB writes, no
+        # publish. The near-clone scan above does make ~50 cheap,
+        # non-generative Titan embedding calls; the report below is the
+        # calibration surface for spotlight_theme_similarity_max (#91 §7).
+        _print_near_clone_report(near_clones, selections)
         return 0
 
     # Stage 3+4+5+6: --dry-run-full or --publish.
