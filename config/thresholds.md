@@ -129,10 +129,12 @@ If you raise this: more underlying reject provenance links are stored per diagno
 
 ## Spotlight near-clone gate (#91)
 
-### `spotlight_theme_similarity_max` (float, default 0.8)
+### `spotlight_theme_similarity_max` (float, default 0.70)
 
 Cosine-similarity cutoff for the spotlight rotation selector's near-clone gate. The selector embeds each pooled subtopic's `short_description` (Bedrock Titan Text Embeddings v2) and computes all-pairs cosine similarity; two subtopics whose embeddings score at or above this value are treated as near-clones, and the selector will not place both in the same monthly publish. This is what stops a publish cycle from surfacing, e.g., three differently-parented "spaceflight omics" subtopics as three near-duplicate cards (#91).
 
 This is an embedding-cosine threshold — its correct value depends on the embedding model and the live taxonomy, so it cannot be pinned analytically. Calibrate it with `python backfill_spotlight.py --dry-run`, which runs the theme scan and prints the pool's near-clone neighborhood (every pair at or above `threshold - 0.10`, with the pairs the gate acts on marked `CLONE`). Tune against the loosest pair you still consider a genuine clone.
+
+**Calibrated to 0.70 on 2026-05-19** against the live 50-subtopic pool. Every near-clone pair the scan surfaced at or above 0.70 — three spaceflight-omics subtopics, two health-disparities subtopics, one precision-oncology pair — was a genuine duplicate on inspection of the `short_description` text, and no distinct pair scored that high. The prior 0.80 starting value was too loose: it left two of the three spaceflight near-clones (cosine 0.78) both eligible for one publish. The nearest near-miss is a cancer-genomics pair at 0.699 — visible in the dry-run report; nudge the threshold down only if a future pool shows such a pair producing a duplicate-looking publish.
 
 If you raise this: fewer pairs count as near-clones, so more genuine near-clones can co-occur in one publish. If you lower it: more pairs are gated, distinct-but-related subtopics may be suppressed, and the selector falls back to its best-effort second pass more often. The gate is best-effort and never blocks a publish — an embedding failure degrades to parent-only selection (see `spotlight/theme_dedup.py`).
