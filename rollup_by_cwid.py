@@ -334,6 +334,54 @@ def fetch_cwid_topic_activity(table: Any, cwid: str) -> list[dict]:
     return rows
 
 
+def fetch_topic_activity_for_pmids(table: Any, pmids: Iterable[str]) -> list[dict]:
+    """Return the `TOPIC#` activity rows for a PMID set, via the PmidIndex GSI.
+
+    The PMID-keyed analogue of `fetch_cwid_topic_activity` — the hot path's
+    `DeriveDirtyTopics` Task (#119) needs "which topics do these delta PMIDs
+    have scored activity in", a per-PMID lookup rather than per-CWID.
+
+    Queries `PmidIndex` (`pmid` HASH, `PK` RANGE) once per PMID with
+    `PK begins_with TOPIC#`, projecting each activity row to the same three
+    fields `fetch_cwid_topic_activity` returns: `topic_id` (from the PK),
+    `pmid`, `primary_subtopic_id`. Non-activity rows (SK not `SCORE#...`) are
+    dropped defensively; a PMID with no `TOPIC#` rows contributes nothing.
+    Input PMIDs are de-duplicated; each query paginates on `LastEvaluatedKey`.
+    """
+    rows: list[dict] = []
+    for pmid in sorted({str(p) for p in pmids if str(p).strip()}):
+        last_key = None
+        while True:
+            kwargs: dict = {
+                "IndexName": "PmidIndex",
+                "KeyConditionExpression": (
+                    Key("pmid").eq(pmid)
+                    & Key("PK").begins_with(_TOPIC_PK_PREFIX)
+                ),
+            }
+            if last_key:
+                kwargs["ExclusiveStartKey"] = last_key
+            resp = table.query(**kwargs)
+            for item in resp.get("Items", []):
+                sk = item.get("SK", "")
+                if not (isinstance(sk, str) and sk.startswith(_ACTIVITY_SK_PREFIX)):
+                    continue
+                pk = item.get("PK", "")
+                if not (isinstance(pk, str) and pk.startswith(_TOPIC_PK_PREFIX)):
+                    continue
+                row_pmid = item.get("pmid")
+                sub = item.get("primary_subtopic_id")
+                rows.append({
+                    "topic_id": pk[len(_TOPIC_PK_PREFIX):],
+                    "pmid": str(row_pmid) if row_pmid not in (None, "") else None,
+                    "primary_subtopic_id": sub or None,
+                })
+            last_key = resp.get("LastEvaluatedKey")
+            if not last_key:
+                break
+    return rows
+
+
 def _relevant_activity(
     activity_rows: Iterable[Mapping[str, Any]],
     input_pmid_set: Iterable[str],

@@ -453,3 +453,88 @@ def test_cli_cwid_and_cwids_are_mutually_exclusive():
 def test_cli_cwid_rejects_skip_stage_write():
     with pytest.raises(SystemExit):
         rbc.main(["--cwid", "abc", "--skip-stage-write"])
+
+
+# --- fetch_topic_activity_for_pmids (#119) ---------------------------------
+
+
+def test_fetch_for_pmids_queries_pmid_index():
+    table = MagicMock()
+    table.query.return_value = {"Items": []}
+    rbc.fetch_topic_activity_for_pmids(table, ["111"])
+    kwargs = table.query.call_args.kwargs
+    assert kwargs["IndexName"] == "PmidIndex"
+    values = _condition_values(kwargs["KeyConditionExpression"])
+    # The GSI hash key is the PMID; the range key narrows to the TOPIC# partition.
+    assert "111" in values
+    assert "TOPIC#" in values
+
+
+def test_fetch_for_pmids_projects_to_three_rollup_fields():
+    table = MagicMock()
+    table.query.return_value = {"Items": [_topic_item("cardio", "111", "afib")]}
+    rows = rbc.fetch_topic_activity_for_pmids(table, ["111"])
+    assert rows == [
+        {"topic_id": "cardio", "pmid": "111", "primary_subtopic_id": "afib"}
+    ]
+
+
+def test_fetch_for_pmids_drops_non_activity_sk_rows():
+    table = MagicMock()
+    table.query.return_value = {
+        "Items": [
+            _topic_item("cardio", "111", "afib"),
+            _topic_item("cardio", "111", "afib", sk="META#something"),
+        ]
+    }
+    rows = rbc.fetch_topic_activity_for_pmids(table, ["111"])
+    assert rows == [
+        {"topic_id": "cardio", "pmid": "111", "primary_subtopic_id": "afib"}
+    ]
+
+
+def test_fetch_for_pmids_paginates_on_last_evaluated_key():
+    table = MagicMock()
+    table.query.side_effect = [
+        {"Items": [_topic_item("cardio", "111", "afib")],
+         "LastEvaluatedKey": {"cursor": "page2"}},
+        {"Items": [_topic_item("neuro", "111", "stroke")]},
+    ]
+    rows = rbc.fetch_topic_activity_for_pmids(table, ["111"])
+    assert len(rows) == 2
+    assert table.query.call_count == 2
+    assert table.query.call_args_list[1].kwargs["ExclusiveStartKey"] == {
+        "cursor": "page2"
+    }
+
+
+def test_fetch_for_pmids_queries_each_pmid_once_sorted_and_deduped():
+    table = MagicMock()
+    table.query.return_value = {"Items": []}
+    rbc.fetch_topic_activity_for_pmids(table, ["222", "111", "222"])
+    pmids_queried = [
+        next(
+            v for v in _condition_values(c.kwargs["KeyConditionExpression"])
+            if not v.startswith("TOPIC#")
+        )
+        for c in table.query.call_args_list
+    ]
+    assert pmids_queried == ["111", "222"]
+
+
+def test_fetch_for_pmids_empty_input_makes_no_query():
+    table = MagicMock()
+    assert rbc.fetch_topic_activity_for_pmids(table, []) == []
+    assert rbc.fetch_topic_activity_for_pmids(table, ["", "  "]) == []
+    table.query.assert_not_called()
+
+
+def test_fetch_for_pmids_normalizes_missing_pmid_and_subtopic():
+    table = MagicMock()
+    table.query.return_value = {
+        "Items": [{"PK": "TOPIC#cardio", "SK": "SCORE#0900#ACTIVITY#x"}]
+    }
+    rows = rbc.fetch_topic_activity_for_pmids(table, ["111"])
+    assert rows == [
+        {"topic_id": "cardio", "pmid": None, "primary_subtopic_id": None}
+    ]
