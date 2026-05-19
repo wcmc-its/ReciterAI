@@ -64,9 +64,10 @@ LAMBDAS=(
   # makes the import-check load it — otherwise a missing pymysql wheel would
   # build green and crash only on the first `--cwid` invocation.
   "reciterai-hot-rollup|pipeline_hot.handlers.rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py|utils.sql_queries"
-  # alert-dispatcher sends Teams alerts via pipeline_enrichment.alerting
-  # (#121); bundle that module + its package marker as first-party files.
-  "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
+  # alert-dispatcher sends Teams alerts via pipeline_enrichment.alerting and
+  # classifies stage-skip streaks via stage_skip.py (#121); bundle both
+  # modules + the pipeline_enrichment package marker as first-party files.
+  "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py pipeline_hot/handlers/stage_skip.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
   # ---- New-researcher onboarding (5) — #80 Phase 2 ----------------------
   # orchestrator.py imports score_publications inside evaluate_onboarding —
   # function-local since #102, so importing the orchestrator module stays

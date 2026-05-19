@@ -1,9 +1,10 @@
 """Unit tests for the hot-path AlertDispatcher Lambda (#121).
 
 `pipeline_hot/handlers/alert_dispatcher.py` is invoked by the state
-machine's `NotifyError` (ERROR) and `NotifyStageSkipAnomaly` (WARN)
-states. It maps the event onto the Teams transport
-`pipeline_enrichment.alerting.alert` — best-effort, never raising.
+machine's `NotifyError` and `NotifyStageSkipAnomaly` states. It maps the
+event onto the Teams transport `pipeline_enrichment.alerting.alert`; for
+the `hot_path.stage_skip` source it first runs `stage_skip.resolve` to
+classify WARN vs ERROR. Best-effort, never raising.
 """
 
 from __future__ import annotations
@@ -32,36 +33,6 @@ def captured(monkeypatch):
 
     monkeypatch.setattr(ad.alerting, "alert", fake_alert)
     return calls
-
-
-def test_stage_skip_event_maps_to_warn_teams_alert(captured):
-    """The #121 NotifyStageSkipAnomaly event → a WARN Teams alert whose
-    context carries the run detail plus the folded-in routing fields."""
-    event = {
-        "severity": "WARN",
-        "source": "hot_path.stage_skip",
-        "title": "Hot path stage skip",
-        "message": "Hot run R1 skipped a stage.",
-        "execution_arn": "arn:aws:states:::execution:reciterai-hot-path:R1",
-        "context": {
-            "run_id": "R1",
-            "delta_size": 12,
-            "assign_input_hash": "skipped:no-assign-topics",
-        },
-    }
-    result = ad.handler(event)
-
-    assert len(captured) == 1
-    call = captured[0]
-    assert call["severity"] == "WARN"
-    assert call["title"] == "Hot path stage skip"
-    assert call["message"] == "Hot run R1 skipped a stage."
-    # caller context preserved, routing fields folded in
-    assert call["context"]["run_id"] == "R1"
-    assert call["context"]["delta_size"] == 12
-    assert call["context"]["source"] == "hot_path.stage_skip"
-    assert call["context"]["execution_arn"].endswith(":R1")
-    assert result == {"status": "dispatched", "delivered": True, "transport": "teams"}
 
 
 def test_minimal_event_defaults_all_optional_fields(captured):
@@ -113,3 +84,26 @@ def test_handler_never_raises_when_the_transport_raises(monkeypatch):
     monkeypatch.setattr(ad.alerting, "alert", boom)
     result = ad.handler({"severity": "WARN", "message": "m"})
     assert result == {"status": "dispatched", "delivered": False, "transport": "teams"}
+
+
+def test_stage_skip_source_is_resolved_then_dispatched(captured, monkeypatch):
+    """A hot_path.stage_skip event is run through stage_skip.resolve first;
+    the resolved severity/title/message is what gets dispatched."""
+    resolved = {
+        "severity": "ERROR",
+        "source": "hot_path.stage_skip",
+        "title": "Hot path stage-skip streak",
+        "message": "Hot run R3 skipped assign — 3 consecutive work-present runs.",
+        "execution_arn": "arn:aws:states:::execution:reciterai-hot-path:R3",
+        "context": {"run_id": "R3", "assign_skip_streak": 3},
+    }
+    monkeypatch.setattr(ad.stage_skip, "resolve", lambda event: resolved)
+
+    result = ad.handler({"source": "hot_path.stage_skip", "hot_run": {"run_id": "R3"}})
+
+    call = captured[0]
+    assert call["severity"] == "ERROR"
+    assert call["title"] == "Hot path stage-skip streak"
+    assert "3 consecutive" in call["message"]
+    assert call["context"]["assign_skip_streak"] == 3
+    assert result["delivered"] is True

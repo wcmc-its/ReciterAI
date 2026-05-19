@@ -385,16 +385,14 @@
 
     "NotifyStageSkipAnomaly": {
       "Type": "Task",
-      "Comment": "#121 — best-effort WARN to Teams via the alert dispatcher. The hot_run complete row is already written, so this is terminal and Catches to End: an alerting fault must never flip a completed run's execution to failed.",
+      "Comment": "#121 — best-effort stage-skip alert to Teams via the alert dispatcher. Passes the triggering run under hot_run; the dispatcher (stage_skip.resolve) reads recent hot_run history and classifies WARN (this run skipped a stage) or ERROR (a streak of work-present runs all skipped). Terminal and Catches to End: the hot_run complete row is already written, so an alerting fault must never flip a completed run's execution to failed.",
       "Resource": "${AlertDispatcherLambdaArn}",
       "Parameters": {
-        "severity": "WARN",
         "source": "hot_path.stage_skip",
-        "title": "Hot path stage skip",
-        "message.$": "States.Format('Hot run {} completed but skipped a stage despite a non-empty delta (delta_size={}, retry_size={}).', $.orchestrate.input.run_id, $.orchestrate.input.delta.size, $.orchestrate.input.delta.retry_size)",
         "execution_arn.$": "$$.Execution.Id",
-        "context": {
+        "hot_run": {
           "run_id.$": "$.orchestrate.input.run_id",
+          "started_at.$": "$.orchestrate.input.started_at",
           "delta_size.$": "$.orchestrate.input.delta.size",
           "retry_size.$": "$.orchestrate.input.delta.retry_size",
           "assign_input_hash.$": "$.assign_envelope.input_hash.S",
