@@ -206,3 +206,51 @@ def test_synopsis_non_filter_empty_retries_bedrock_then_succeeds():
     assert result.synopsis == syn
     assert result.error is None
     assert result.model == SONNET_MODEL
+
+
+def test_synopsis_content_filter_mid_loop_after_overrun_accumulates_tokens():
+    """Attempt 1 overruns on Sonnet; attempt 2 content-filters and recovers
+    via the gpt-5.1 fallback. Tokens accumulate across both models, and the
+    result records the model that produced the synopsis that was kept."""
+    kept = "Recovered via the gpt-5.1 fallback on the loop's second attempt"
+    assert len(kept) <= SYNOPSIS_MAX_CHARS
+
+    fake = _FakeBedrock([
+        _bedrock_synopsis("x" * 110),  # attempt 1 — Sonnet, overruns
+        BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
+    ])
+    with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
+         patch.object(llm_call_mod, "openai_call_with_retry",
+                      return_value=_openai_completion(json.dumps({"synopsis": kept}))):
+        result = generate_synopsis(pmid="11", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 2
+    assert result.synopsis == kept
+    assert result.error is None
+    assert result.model == GPT5_MODEL  # the model that produced the kept synopsis
+    # Sonnet attempt-1 tokens (100/20) + gpt-5.1 fallback tokens (150/30).
+    assert result.input_tokens == 250
+    assert result.output_tokens == 50
+
+
+def test_synopsis_overrunning_fallback_re_enters_length_loop():
+    """A gpt-5.1 fallback whose own output overruns 95 chars re-enters the
+    reinforcement loop; the next attempt goes back to Bedrock (the fallback
+    is one-shot per call_with_fallback invocation)."""
+    kept = "Second attempt came back from Bedrock within the limit cleanly"
+    assert len(kept) <= SYNOPSIS_MAX_CHARS
+
+    fake = _FakeBedrock([
+        BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
+        _bedrock_synopsis(kept),  # attempt 2 — Bedrock, within limit
+    ])
+    with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
+         patch.object(llm_call_mod, "openai_call_with_retry",
+                      return_value=_openai_completion(json.dumps({"synopsis": "x" * 110}))) as mock_openai:
+        result = generate_synopsis(pmid="12", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 2
+    assert mock_openai.call_count == 1  # fallback fired only on attempt 1
+    assert result.synopsis == kept
+    assert result.error is None
+    assert result.model == SONNET_MODEL

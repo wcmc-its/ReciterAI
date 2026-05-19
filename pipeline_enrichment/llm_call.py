@@ -133,8 +133,11 @@ def call_with_fallback(
         openai_client: injectable OpenAI client for the fallback; defaults
             to the lazy `utils.openai_client` singleton, constructed only
             if the fallback actually fires (it needs OPENAI_API_KEY).
-        openai_max_completion_tokens: token ceiling for the gpt-5.1 fallback
-            (covers reasoning + the small visible JSON).
+        openai_max_completion_tokens: token ceiling for the gpt-5.1 fallback.
+            gpt-5.1 is a reasoning model, so this covers reasoning + the small
+            visible JSON; 8000 keeps the headroom the retired OpenAI synopsis
+            path used (score_publications._dense_score sizes its own fallback
+            lower, at 4096, for denser topic-scoring output).
 
     Returns:
         LLMCallResult — response text, token usage, and the model actually
@@ -228,8 +231,16 @@ def _openai_fallback(
 
 
 def _safe_openai_tokens(completion, attr: str) -> int:
-    """Pull a token count off an OpenAI completion's usage object defensively."""
+    """Pull a token count off an OpenAI completion's usage object defensively.
+
+    A missing or malformed usage object yields 0 — the fallback synopsis
+    itself is still usable; only its cost attribution is lost. The warning
+    makes a systematic usage-parsing failure visible rather than silent.
+    """
     try:
         return int(getattr(completion.usage, attr) or 0)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "could not read OpenAI usage.%s (%s); recording 0 tokens", attr, e
+        )
         return 0
