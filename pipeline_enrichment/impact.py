@@ -1,9 +1,9 @@
 """Impact scoring — per-PMID worker.
 
 Ported from POC `core/impact.py` + `core/impact_scoring_legacy.py`
-(publications path only). Calls GPT-5.1 via Chat Completions with the
-IMPACT_SCHEMA structured response format. Uses v2 prompt by default
-(parity-corrected, 2025-12-28).
+(publications path only). Scores impact on AWS Bedrock Claude Sonnet
+4.6 with a one-shot OpenAI gpt-5.1 content-filter fallback (see
+`pipeline_enrichment.llm_call`). Uses the v2 prompt by default.
 
 Inputs: a `pub_data` dict containing the bibliometric columns produced
 by the upstream MariaDB query — `articleTitle`, `journalTitleVerbose`,
@@ -13,9 +13,11 @@ by the upstream MariaDB query — `articleTitle`, `journalTitleVerbose`,
 omitted from the prompt.
 
 Output: ImpactResult dataclass — score (0–100) + justification + usage
-metadata for cost attribution.
+metadata for cost attribution + the model actually used.
 
-Scheduled wiring lands in #37 step 2.
+Justification length (≤120 chars / ≤10 words) is enforced by a Python
+reinforcement-retry loop (initial call + 1 retry); the model's output
+is never truncated — see #50 / feedback_no_arbitrary_truncation.
 """
 from __future__ import annotations
 
@@ -24,25 +26,23 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from openai import OpenAI
-
-from pipeline_enrichment.prompts import (
-    IMPACT_SCHEMA,
-    build_impact_user_content,
-    get_impact_system_prompt,
-)
-from utils.openai_client import GPT5_MODEL, call_with_retry, get_default_client
+from pipeline_enrichment.llm_call import call_with_fallback, parse_json_lenient
+from pipeline_enrichment.prompts import build_impact_user_content, get_impact_system_prompt
+from utils.bedrock_client import BedrockClient, SONNET_MODEL
 
 logger = logging.getLogger(__name__)
 
 # Justification length constraints from IMPACT_PROMPT_V2 + IMPACT_SCHEMA:
-# - schema: maxLength 120 chars (but impact uses {"type": "json_object"},
-#   not json_schema, so this is a Python-side postcondition only)
-# - prompt: "≤10 words summarizing the reasoning"
-# The #37 step 2 bootstrap surfaced 4.2% word-count violations (76/1,815);
-# char-count violations were 0/1,815. Validator retries once on either
-# violation; second overrun preserves model output with an error flag.
-# NEVER truncate — drops content the model considered necessary (see #50).
+# - ≤120 characters
+# - ≤10 words ("≤10 words summarizing the reasoning")
+# Bedrock Converse has no strict-JSON response mode, so IMPACT_SCHEMA is a
+# Python-side postcondition only — these limits are enforced solely by the
+# reinforcement-retry loop below (initial call + 1 retry). The #37 step 2
+# bootstrap surfaced 4.2% word-count violations (76/1,815); char-count
+# violations were 0/1,815, so the loop stays at one retry (synopsis widened
+# to two — impact did not need it). A second overrun preserves the model's
+# actual output with an error flag — NEVER truncate, since that drops
+# content the model considered necessary (see #50).
 JUSTIF_MAX_CHARS = 120
 JUSTIF_MAX_WORDS = 10
 
@@ -52,8 +52,11 @@ class ImpactResult:
     """One impact scoring outcome.
 
     `impact_score` is None on failure; `error` carries the cause.
-    `prompt_version` records which version of the impact prompt was used,
-    so a future evaluation can stratify scores by prompt revision.
+    `model` is the model actually used — Bedrock Sonnet 4.6, or `gpt-5.1`
+    when the content-filter fallback fired. `prompt_version` records which
+    version of the impact *prompt* was used (the prompt text, not the
+    model), so a future evaluation can stratify scores by prompt revision.
+    `input_tokens` / `output_tokens` feed `CostAccumulator.record`.
     """
 
     pmid: str
@@ -66,41 +69,35 @@ class ImpactResult:
     error: Optional[str] = None
 
 
-# POC `core/impact_scoring_legacy.py:_score_impact_for_publication` sends
-# response_format={"type": "json_object"}, NOT a json_schema. We mirror
-# that exactly to preserve equivalence; the schema lives in code as a
-# postcondition check, not in the request envelope.
-_RESPONSE_FORMAT = {"type": "json_object"}
-
-
 def score_impact(
     *,
     pub_data: dict,
-    client: OpenAI | None = None,
-    model: str = GPT5_MODEL,
+    client: BedrockClient | None = None,
+    model: str = SONNET_MODEL,
     prompt_version: str | None = None,
-    max_completion_tokens: int = 8000,
-    reasoning_effort: str = "medium",
+    max_tokens: int = 512,
 ) -> ImpactResult:
-    """Score one publication's impact.
+    """Score one publication's impact on Bedrock Sonnet 4.6.
 
     Args:
         pub_data: bibliometric dict. Must include `pmid`. Other fields
             are passed through `build_impact_user_content`; missing
             optionals are omitted from the prompt.
-        client: OpenAI client; defaults to the module's lazy singleton.
-        model: model ID (default GPT5_MODEL = "gpt-5.1").
+        client: Bedrock client; defaults to the shared lazy singleton in
+            `pipeline_enrichment.llm_call`. The OpenAI content-filter
+            fallback's client is managed inside that module.
+        model: Bedrock model ID (default SONNET_MODEL).
         prompt_version: impact prompt version ("v1" or "v2"). Defaults
             to the current default ("v2" as of 2025-12-28).
-        max_completion_tokens: GPT-5 reasoning + visible-token ceiling.
-        reasoning_effort: forwarded to GPT-5; POC v2 prompt was tuned
-            against `medium` so we default to that.
+        max_tokens: Bedrock response token cap. The impact JSON object
+            (score + ≤120-char justification) is tiny, so 512 is ample.
 
     Returns:
-        ImpactResult with score 0–100 + justification on success.
+        ImpactResult with score 0–100 + justification on success, and
+        `.model` set to the model actually used (Sonnet, or `gpt-5.1`
+        when the content-filter fallback fired).
     """
     pmid = str(pub_data.get("pmid", "?"))
-    client = client or get_default_client()
     system_prompt = get_impact_system_prompt(prompt_version)
     resolved_version = prompt_version or "v2"
     user_content = (
@@ -110,37 +107,34 @@ def score_impact(
 
     input_tokens_total = 0
     output_tokens_total = 0
-    response_model: Optional[str] = None
+    response_model: str = model
     score: Optional[int] = None
     justification: Optional[str] = None
 
     for attempt in range(2):  # initial call + 1 reinforcement retry on length violation
         try:
-            response = call_with_retry(
-                client,
-                model=model,
+            call_result = call_with_fallback(
                 system_prompt=system_prompt,
                 user_prompt=user_content,
-                response_format=_RESPONSE_FORMAT,
-                max_completion_tokens=max_completion_tokens,
-                reasoning_effort=reasoning_effort,
+                model=model,
+                max_tokens=max_tokens,
+                bedrock_client=client,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("impact call failed for pmid=%s: %s", pmid, e)
             return ImpactResult(
                 pmid=pmid, impact_score=None, justification=None,
-                model=model, prompt_version=resolved_version,
+                model=response_model, prompt_version=resolved_version,
                 input_tokens=input_tokens_total, output_tokens=output_tokens_total,
                 error=str(e),
             )
 
-        input_tokens_total += _safe_input_tokens(response)
-        output_tokens_total += _safe_output_tokens(response)
-        response_model = response.model
+        input_tokens_total += call_result.input_tokens
+        output_tokens_total += call_result.output_tokens
+        response_model = call_result.model
 
-        raw = response.choices[0].message.content or ""
         try:
-            payload = json.loads(raw)
+            payload = parse_json_lenient(call_result.text)
         except json.JSONDecodeError as e:
             return ImpactResult(
                 pmid=pmid, impact_score=None, justification=None,
@@ -154,7 +148,7 @@ def score_impact(
                 pmid=pmid, impact_score=None, justification=None,
                 model=response_model, prompt_version=resolved_version,
                 input_tokens=input_tokens_total, output_tokens=output_tokens_total,
-                error=f"missing impactScore in response: {raw[:200]}",
+                error=f"missing impactScore in response: {call_result.text[:200]}",
             )
 
         # POC clamps to 0..100 and coerces to int; mirror exactly.
@@ -216,17 +210,3 @@ def score_impact(
         input_tokens=input_tokens_total, output_tokens=output_tokens_total,
         error="unexpected: exited validator loop without return",
     )
-
-
-def _safe_input_tokens(response) -> int:
-    try:
-        return int(response.usage.prompt_tokens or 0)
-    except Exception:
-        return 0
-
-
-def _safe_output_tokens(response) -> int:
-    try:
-        return int(response.usage.completion_tokens or 0)
-    except Exception:
-        return 0
