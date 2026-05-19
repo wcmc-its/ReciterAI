@@ -1,9 +1,10 @@
 # Cost model — what each pipeline job costs
 
-> **Confidence level.** Numbers here are *reasoned estimates from prompt shape + published model pricing*, not measured spend. In-repo Bedrock numbers are within roughly ±2× of reality. Upstream synopsis + impact numbers were revised down on 2026-05-13 after grounding against the actual POC prompt shape (title + abstract, not full text) — earlier draft of this doc had them ~10× too high. To tighten any cell further, see [Grounding the numbers](#grounding-the-numbers) at the end.
+> **Confidence level.** Numbers here are *reasoned estimates from prompt shape + published model pricing*, not measured spend. In-repo Bedrock numbers are within roughly ±2× of reality. The daily-enrichment synopsis + impact numbers were revised on 2026-05-13 (input shape) and again on 2026-05-19 (model rewire to Bedrock Sonnet 4.6); the 2026-05-19 row is grounded against a measured 15-paper spike. To tighten any cell further, see [Grounding the numbers](#grounding-the-numbers) at the end.
 >
 > **Revision history.**
-> - 2026-05-13: corrected upstream synopsis + impact figures (was Sonnet-on-full-text assumption; actually GPT-5.1 on title+abstract via OpenAI Batch). #37 will measure real spend and pin these cells.
+> - 2026-05-13: corrected daily-enrichment synopsis + impact figures (was Sonnet-on-full-text assumption; actually GPT-5.1 on title+abstract via OpenAI Batch).
+> - 2026-05-19: daily-enrichment synopsis + impact rewired to Bedrock Claude Sonnet 4.6 via #37 PRs 1–2; OpenAI gpt-5.1 retained as the content-filter fallback (#37 D3). Per-PMID figures now grounded against the Bedrock spike (`scripts/debug/bedrock_synopsis_impact_spike.py`, n=15) at $0.0141/PMID combined.
 >
 > All $ figures assume the current corpus: **~6,200 PMIDs**, **66 topics**, **1,541 subtopics** across **~600 WCM full-time faculty**. PMIDs are filtered to `publicationTypeCanonical = 'Academic Article'`, `articleYear >= 2020`. Author scope today is *all* positions (first / middle / last) of WCM full-time faculty.
 
@@ -11,9 +12,9 @@
 
 There are three pools that get conflated when people ask "what does it cost to run ReciterAI?":
 
-1. **Upstream pipeline** — generates `reciterai_synopsis` and `reciterai_impact` rows in MariaDB. Lives outside this repo. This repo only *reads* those rows. **This is the expensive half.**
+1. **Daily-enrichment pipeline** (`pipeline_enrichment`) — generates `reciterai_synopsis` + `reciterai_impact` rows in MariaDB and `IMPACT#` rows in DynamoDB for new WCM-faculty publications. Bedrock Claude Sonnet 4.6 on the happy path; OpenAI gpt-5.1 on the content-filter fallback (#37 D3). Used to live outside this repo as a POC laptop script; #37 ported it in-repo (PRs land 2026-05-16…) and moves it to scheduled ECS Fargate (PR 4). **Historically the expensive half; now comparable to in-repo Bedrock at current corpus size.**
 2. **In-repo Bedrock work** — `score_publications`, `assign_subtopics`, `discover_subtopics`, `relabel_subtopics`, `generate_taxonomy`, `generate_see_also`, spotlight lede + critic. Sonnet 4.6 / Haiku 4.5 / Opus 4.7 via Bedrock.
-3. **In-repo infra** — DynamoDB (PAY_PER_REQUEST), S3 (artifact bucket + hierarchy bucket), Step Functions, Lambda. Effectively rounding error at current scale.
+3. **In-repo infra** — DynamoDB (PAY_PER_REQUEST), S3 (artifact bucket + hierarchy bucket), Step Functions, Lambda, Fargate. Effectively rounding error at current scale.
 
 The big cost driver in (1) and (2) is **PMID count**. Author-position scope (first/last vs. all) changes which faculty *links* exist; it does NOT change how many PMIDs get scored. Time scope (2020+ vs. earlier years) and pub-type scope are the real cost levers.
 
@@ -62,33 +63,37 @@ Assumes ~20 new PMIDs/day enter the corpus = ~600/month, no taxonomy version bum
 
 Subtopic discovery / relabel / see-also re-run cold; they don't enter steady-state cost unless input_hash changes.
 
-## Per-stage cost — upstream (will move in-repo via #37)
+## Per-stage cost — daily enrichment (`pipeline_enrichment`)
 
-The synopsis and impact pipelines currently live in `wcmc-its/ReCiterAI-POC` (`core/synopsis.py`, `core/impact.py`) and write to MariaDB (`reciterai_synopsis`, `reciterai_impact`). Issue #37 ports them into a scheduled daily job, switches the sink to DynamoDB, and brings them under this repo's observability substrate.
+Now in-repo (#37 PRs 1–2, merged 2026-05-19); scheduled on ECS Fargate (#37 PR 4). Lives at `pipeline_enrichment/{synopsis,impact,daily_job}.py`; writes `reciterai_synopsis` + `reciterai_impact` rows to MariaDB and an `IMPACT#` row to DynamoDB per PMID. The happy path runs Bedrock Claude Sonnet 4.6 via the Converse API; on a content-filter block (Sonnet reproducibly filters WCM biomedical animal-model abstracts — see `sonnet-content-filter-on-dense-scoring.md`) the call falls back once to OpenAI gpt-5.1.
 
-**Inputs (corrected 2026-05-13):** title + abstract + (impact only) a handful of bibliometric fields. Not full text. Earlier estimates here assumed Sonnet on full text; that was wrong.
+**Inputs:** title + abstract + (impact only) a handful of bibliometric fields. Not full text.
 
-| Stage | Model | Tokens (est.) in / out | Cost per PMID | Confidence |
+| Stage | Model | Tokens (avg) in / out | Cost per PMID | Confidence |
 |---|---|---|---|---|
-| Synopsis generation | GPT-5.1 via OpenAI Batch API (~50% off) | ~600 / ~100 | **~$0.005** | medium (grounded against POC prompt shape; price-card-derived) |
-| Impact scoring | GPT-5.1 via OpenAI Batch API | ~700 / ~100 | **~$0.010** | medium |
+| Synopsis generation | Bedrock Claude Sonnet 4.6 (happy path) | ~1,990 / ~70 | **~$0.0067** | high (spike, n=15) |
+| Impact scoring | Bedrock Claude Sonnet 4.6 (happy path) | ~1,990 / ~80 | **~$0.0074** | high (spike, n=15) |
+| **Combined per PMID** (happy path) | Bedrock Sonnet 4.6 | — | **~$0.0141** | high (spike: $0.21222 / 15 PMIDs) |
+| Synopsis + impact (content-filter fallback lane) | OpenAI gpt-5.1 — fallback only | ~1,650 / ~265 | **~$0.0094** | medium (POC-measured) |
 
-Two daily cycles of real spend under #37 will pin the actual numbers and update this table.
+The combined per-PMID figure is the canonical input to the cost guard (`pipeline_enrichment/cost_guard.py`, default $0.018/paper — a conservative round-up that carries headroom for the length-retry loops + the fallback lane).
 
-For the current 6,200-PMID corpus, the upstream pipeline has paid ~$90 one-time (estimated; was ~$900–$2,800 in the wrong-input-shape version of this doc). For scope expansion, ~$0.015 per new PMID applies.
+The fallback row is the *additive* cost on the rare paper that Sonnet content-filters: that paper pays a Sonnet input-token cost (the original blocked call) **plus** a full gpt-5.1 call. Effective rate when the fallback fires ≈ $0.020/paper. Filter prevalence in the daily enrichment job is not yet measured — the §7-B Fargate smoke run (#37 PR 4) pins it.
+
+For the current 6,200-PMID corpus, the daily-enrichment pipeline has paid ~$60–90 in OpenAI spend pre-rewire (POC laptop runs) and ≈$15 to enrich the #112 1,073-paper backlog forward-only on Sonnet (PR 4 deploy). For scope expansion, ~$0.0141 per new PMID applies on the happy path.
 
 ## What different scope changes cost (deltas)
 
-| Change | Δ PMIDs | Upstream Δ (est.) | In-repo Bedrock Δ | DDB / infra Δ | Total Δ |
+| Change | Δ PMIDs | Daily-enrichment Δ (est.) | In-repo Bedrock Δ | DDB / infra Δ | Total Δ |
 |---|---|---|---|---|---|
 | Filter author rank to first/last only (corpus-wide) | −167 PMIDs | $0 (subtractive — saved spend was already paid) | ~$3 saved one-time | trivial | ~$3 saved |
 | Gate ingestion on ≥1 first/last WCM FT author (#26 — rejected 2026-05-13) | −167 PMIDs going forward | ~$2/yr saved | <$1/yr saved | trivial | ~$3/yr saved — too small to bother |
 | Add author-rank weighting (middle × 0.3, etc.) | 0 | $0 | $0 | $0 | $0 — pure arithmetic change |
-| Drop pub-type filter (`Academic Article` only) | +20%? unknown | +$20–$60 one-time | +$40 one-time | trivial | $60–$100 one-time |
-| Expand to pre-2020 (2010–2019) | +~30,000 PMIDs | ~$450 one-time | ~$1K one-time | trivial | **~$1,500 one-time** |
+| Drop pub-type filter (`Academic Article` only) | +20%? unknown | +$20–$50 one-time | +$40 one-time | trivial | $60–$90 one-time |
+| Expand to pre-2020 (2010–2019) | +~30,000 PMIDs | ~$425 one-time | ~$1K one-time | trivial | **~$1,400 one-time** |
 | Expand to all WCM faculty (not just full-time) | varies | depends on overlap | small | trivial | unknown |
 
-With the corrected per-PMID figures, the pre-2020 expansion is no longer the dollar lever it appeared to be in the earlier draft — it's a ~$1.5K one-time cost rather than $4K–$10K. The signal-quality and ETL-coordination costs of expanding scope are probably larger than the dollar cost now.
+With the Bedrock-grounded $0.0141/PMID daily-enrichment rate, the pre-2020 expansion is no longer the dollar lever it appeared to be in the earlier draft — a ~$1.4K one-time cost rather than the $4K–$10K from the original Sonnet-on-full-text figures. The signal-quality and ETL-coordination costs of expanding scope are probably larger than the dollar cost now.
 
 ## Infra cost (DynamoDB, S3, Step Functions)
 
@@ -98,15 +103,16 @@ At current scale these are well under $10/month total. PAY_PER_REQUEST DDB on a 
 
 Anywhere a cell above is labeled "estimated," the path to a measured number is:
 
-1. **In-repo Bedrock per-stage cost.** Bedrock emits invocation logs to CloudWatch (`/aws/bedrock/modelinvocations` log group when invocation logging is enabled) and CloudTrail. A two-week sample of `InvokeModel` calls, joined by `inferenceProfileArn` and aggregated by model, gives a real $/call. The in-repo `STAGE#` records also have a `cost_observed_usd` slot — but most rows currently carry `0` because the per-call cost-attribution code isn't wired through. Wiring that up would let `STAGE#` rows self-report and would obsolete most of this doc.
-2. **Upstream synopsis + impact cost.** Owned by whoever runs the upstream pipeline. Ask them for: model ID, average tokens-in / tokens-out per record, and total monthly invocation count. Multiply against the published price card.
+1. **In-repo Bedrock per-stage cost.** Bedrock emits invocation logs to CloudWatch (`/aws/bedrock/modelinvocations` log group when invocation logging is enabled) and CloudTrail. A two-week sample of `InvokeModel` calls, joined by `inferenceProfileArn` and aggregated by model, gives a real $/call. The in-repo `STAGE#` records also have a `cost_observed_usd` slot — and after #37 PR 2 the daily-enrichment job populates it per run via the model the call actually used (Sonnet, or gpt-5.1 on the fallback). Wiring the rest of the substrate up similarly would let `STAGE#` rows self-report and would obsolete most of this doc.
+2. **Daily-enrichment synopsis + impact cost.** Now in-repo (`pipeline_enrichment`). Per-PMID figures above are from `scripts/debug/bedrock_synopsis_impact_spike.py` (n=15, 2026-05-19). The §7-B Fargate smoke run (#37 PR 4) pins the live operational rate against measured spend before the #112 backfill.
 3. **Author-rank filter delta.** Already measured precisely in earlier analysis: 78,103 TOPIC#/SCORE# rows total → 37,096 first+last → 41,007 middle/empty; only 167 PMIDs (2.7%) lack any first/last anchor.
 
 ## Update cadence
 
-This doc was written 2026-05-13. Bedrock model pricing changes periodically; the numbers here will drift. Re-check whenever:
+This doc was written 2026-05-13 and last revised 2026-05-19. Bedrock and OpenAI model pricing changes periodically; the numbers here will drift. Re-check whenever:
 
-- A model is swapped in `MODEL_IDS_BY_STAGE` (see `utils/bedrock_client.py`).
+- A model is swapped in `MODEL_IDS_BY_STAGE` (see `utils/bedrock_client.py`) or in the daily-enrichment substrate (`pipeline_enrichment/synopsis.py`, `impact.py`).
 - The corpus grows by >2× or contracts.
 - A new stage is added or `max_tokens` is bumped on an existing stage.
-- AWS publishes a Bedrock price change.
+- AWS publishes a Bedrock price change, or OpenAI changes the gpt-5.1 price card (affects the fallback lane).
+- The §7-B smoke run reveals the daily-enrichment Sonnet rate differs materially from the spike's $0.0141/PMID — pin the new rate here and in `pipeline_enrichment/cost_guard.py`.

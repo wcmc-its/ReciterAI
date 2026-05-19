@@ -1,95 +1,84 @@
 # Daily enrichment job — operator guide
 
-The daily enrichment job adds synopsis + impact rows to MariaDB for new
-WCM-faculty publications. It is the in-repo replacement for the laptop
-POC's manual workflow (see #37).
+The daily enrichment job adds `reciterai_synopsis` + `reciterai_impact` rows
+to MariaDB and an `IMPACT#` row to DynamoDB per PMID for new WCM-faculty
+publications (#37). The Scholars Profile System reads those rows downstream.
 
-**Operating mode (as of 2026-05-14):** operator-run-by-hand from the
-operator's laptop, once per day. Not scheduled.
+**Operating mode (end state, post-#37 PR 4):** scheduled daily on AWS ECS
+Fargate at 11:00 UTC / 07:00 EDT (EventBridge → ECS `RunTask`). The same
+task definition runs the #112 backfill (~1,073 papers) and the annual
+rescore on-demand via command overrides. The operator laptop is no longer
+in the loop.
 
-## Why no cron / Lambda yet
+**Model:** synopsis + impact run on AWS Bedrock Claude Sonnet 4.6
+(`us.anthropic.claude-sonnet-4-6`) on the happy path. On a Bedrock
+content-filter block (Sonnet 4.6 reproducibly filters WCM biomedical
+animal-model abstracts — see `sonnet-content-filter-on-dense-scoring.md`),
+each call falls back once to OpenAI gpt-5.1 on the same prompt; only a
+filtered-*and*-fallback-failed paper becomes a per-PMID failure.
 
-The OpenAI API key currently used is a **personal, transitional credential**
-on the operator's local machine. Propagating it to shared infrastructure
-(ReciterDB host, Lambda env, Secrets Manager) would harden a deployment
-pattern the operator explicitly wants to replace. Automation hardens
-the auth in place; we are deliberately not hardening this pattern.
+## Prerequisites — Fargate task (production)
 
-Tracked as a follow-up: see [the linked issue](#follow-up-trigger) — the
-automation revisit is triggered when an org-managed OpenAI key (or Azure
-OpenAI tenant access) is available, not on a calendar.
+The task definition (`infra/ecs_task_definition.json`, added by #37 PR 4)
+supplies these via the ECS-native `secrets` + `environment` blocks. No
+operator action is needed once the task is registered.
 
-## Prerequisites
+| Env var | Source | Purpose |
+|---|---|---|
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Secrets Manager `reciterai/reciter-analysis-db` | MariaDB writes |
+| `OPENAI_API_KEY` | Secrets Manager `reciterai/openai-api-key` | Bedrock→OpenAI content-filter fallback only |
+| `AWS_BEARER_TOKEN_BEDROCK` | Secrets Manager (new, see §"Deploying the enrichment job") | Bedrock auth — long-term Bedrock API key (#37 D8) |
+| `AWS_DEFAULT_REGION` | `environment` | DynamoDB region |
+| `RECITERAI_TEAMS_WEBHOOK_URL` | Secrets Manager | Teams alerts on failure / cost-guard trip |
+| `RECITERAI_ALERT_MENTION_UPN`, `RECITERAI_ALERT_MENTION_NAME` | `environment` | @-mention on actionable alerts |
 
-The following must be set in the operator's environment (`~/.zshrc`):
+The task role has `dynamodb:*Item` + `BatchWriteItem` on the `reciterai`
+table, `secretsmanager:GetSecretValue` on the secrets listed above, and
+CloudWatch Logs write. Bedrock authentication uses the bearer token
+(`AWS_BEARER_TOKEN_BEDROCK`), so `bedrock:InvokeModel` on the task role is
+not load-bearing for the happy path (#37 D8).
+
+## Prerequisites — local dev (operator laptop)
+
+Running the CLI locally (e.g., for one-shot diagnostic backfill) still
+works against the production tables. Set these in `~/.zshrc`:
 
 | Env var | Purpose | Notes |
 |---|---|---|
-| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | MariaDB connection for synopsis + impact writes | |
-| `OPENAI_API_KEY` | GPT-5.1 calls (synopsis + impact prompts) | Personal key. Do not copy to shared hosts. |
-| `AWS_DEFAULT_REGION` | DynamoDB watermark | Defaults to `us-east-1` if unset |
-| AWS credentials | DynamoDB watermark writes | Standard credential chain (env vars / `~/.aws/credentials` / SSO) |
-| `RECITERAI_TEAMS_WEBHOOK_URL` | Teams alerts on failure / cost-guard trip | Workflows webhook URL. Treat as a credential — do not commit. |
-| `RECITERAI_ALERT_MENTION_UPN` | UPN to @-mention on actionable alerts | e.g. `paa2013@med.cornell.edu` |
-| `RECITERAI_ALERT_MENTION_NAME` | Display name for the @-mention | First token becomes the at-tag |
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | MariaDB writes | |
+| `AWS_BEARER_TOKEN_BEDROCK` | Bedrock auth (long-term Bedrock API key — #37 D8) | boto3 auto-detects this and uses it as a bearer token; no code path change. |
+| `OPENAI_API_KEY` | Bedrock→OpenAI content-filter fallback only | The org-shared `reciterai/openai-api-key` secret. |
+| `AWS_DEFAULT_REGION` | DynamoDB watermark | Defaults to `us-east-1` if unset. |
+| AWS credentials | DynamoDB + Secrets Manager | Standard credential chain (env vars / `~/.aws/credentials` / SSO). The Bedrock API key authenticates Bedrock; everything else uses the default chain. |
+| `RECITERAI_TEAMS_WEBHOOK_URL` | Teams alerts | Optional locally — absent = alerts silently skipped. |
+| `RECITERAI_ALERT_MENTION_UPN`, `RECITERAI_ALERT_MENTION_NAME` | Teams @-mention | Optional locally. |
 
-## Bootstrap (one-time)
+## Daily operation (steady state, Fargate)
 
-The first production-style run faces a backlog: the gap between the
-laptop POC's last run and today. As of 2026-05-14 (after a 50-paper
-test run) that was **~1,815 papers**, accruing daily until bootstrap
-completes.
+EventBridge rule `reciterai-enrichment-daily` fires at 11:00 UTC and
+invokes `RunTask` against the `reciterai-enrichment` task definition with
+its default command (`python -m scripts.run_daily_enrichment`). The
+schedule slot was picked to land after the overnight ReciterDB refresh and
+before the onboarding detector (13:00 UTC) — so the detector's gap scan
+sees the morning's freshly-enriched papers — and before drift (14:00 UTC).
 
-```bash
-# From the repo root:
-source ~/.zshrc
-python3 -m scripts.run_daily_enrichment --full --verbose
-```
+Daily deltas are expected to be **5–15 papers**. At the spike-measured
+Sonnet 4.6 rate (~$0.0141/paper combined), that's ~$0.07–$0.21 per run.
 
-`--full` bypasses the cost guard. At the rate measured in a 50-paper
-run on 2026-05-14 (`$0.471495 / 50 papers = $0.00943/paper`, n=100 API
-calls), bootstrap is:
-
-- Cost: **~$18** for ~1,815 papers. Materially lower than #37's
-  modeling estimate of ~$0.035/paper Batch / ~$0.060/paper sync —
-  the model under-counted output tokens (likely because it didn't
-  account for the level of reasoning the impact prompt actually
-  produces, or it priced against an older tier).
-- Wall time: TBD. The 50-paper run took several minutes; bootstrap is
-  proportional. Plan for hours, not days; use `tmux` / `screen` so the
-  run survives a terminal close.
-
-**Operational constraints during bootstrap:**
-
-- Laptop must be awake, lid open, on network for the duration. Mac
-  power-management settings worth checking: caffeinate / Energy Saver
-  → "Prevent automatic sleeping when display is off" while AC-powered.
-- OpenAI rate limits could bite. Tier 5 limits handle the throughput
-  comfortably, but if you hit a 429 the script's retry logic backs off
-  and continues — net effect is wall time inflation, not failure.
-- Don't close the terminal. Use `tmux` or `screen` if the run might
-  outlast your session.
-
-Output is JSON-serialized RunResult on stdout. On completion you'll
-see `"status": "complete"` and a `cost_observed_usd` field. Save the
-output as another data point for the cost numbers in this doc.
-
-## Daily operation (steady state)
-
-Once bootstrap is done, the watermark is current. Daily deltas are
-expected to be 5–15 papers. At measured rate (~$0.0094/paper sync),
-that's **~$0.05–0.15 per run** — trivially small.
+**Verifying a tick:**
 
 ```bash
-# Once per day, from the repo root:
-source ~/.zshrc
-python3 -m scripts.run_daily_enrichment
+# Most recent task run for the enrichment task family:
+aws ecs list-tasks --cluster reciterai-cluster \
+  --family reciterai-enrichment --desired-status STOPPED \
+  --max-items 1
+
+# CloudWatch logs for that task (substitute the task ARN's last segment):
+aws logs tail /ecs/reciterai-enrichment --since 24h
 ```
 
-Exit code 0 = clean (status `complete` or `no_op`). Exit code 1 =
-something needs attention. Teams will already have alerted you on
-real failures or cost-guard trips; the exit code matters mostly for
-shell scripting if you ever do wrap this in a launcher.
+A clean run logs the result JSON on the final line (`status: complete`,
+`successes: N`, `new_watermark_pmid: …`, `cost_observed_usd: …`).
 
 ### What success looks like
 
@@ -99,8 +88,8 @@ shell scripting if you ever do wrap this in a launcher.
   "delta_size": 7,
   "successes": 7,
   "new_watermark_pmid": 42199999,
-  "cost_observed_usd": "0.47",
-  "cost_summary": { "call_count": 14, "total_input_tokens": 9800, ... },
+  "cost_observed_usd": "0.10",
+  "cost_summary": { "call_count": 14, "total_input_tokens": 13900, ... },
   ...
 }
 ```
@@ -116,33 +105,28 @@ shell scripting if you ever do wrap this in a launcher.
 }
 ```
 
-The watermark does NOT advance. The next run retries the same delta;
-idempotent writes in `pipeline_enrichment/mariadb_writer.py` make
-that safe. If a particular pmid persistently fails, investigate
-manually before the daily delta grows unmanageably.
+The watermark does **not** advance on failure. The next tick retries the
+same delta; idempotent writes (`pipeline_enrichment/mariadb_writer.py` +
+`pipeline_enrichment/ddb_writer.py`) make that safe. If a particular PMID
+persistently fails — content-filtered *and* fallback also failed, or a
+transient Bedrock error — investigate manually before the daily delta
+grows unmanageably (the cost guard catches the order-of-magnitude case;
+the orchestrator is all-or-nothing per tick).
 
-### Operator-availability constraint
+### Cost guard
 
-Manual operation couples freshness to the operator's calendar. Two
-weeks of PTO = two weeks of accruing delta = a longer catch-up run on
-return. The cost guard will refuse a delta that's grown past ~3,000
-papers (default threshold $30 / per-paper $0.010); `--full` is the
-escape hatch.
+`pipeline_enrichment/cost_guard.py` refuses a run whose preflight estimate
+exceeds **$30** at a Sonnet-calibrated rate of **$0.018/paper** (the
+spike's $0.0141/paper rounded up to cover the length-retry loops and the
+content-filter fallback lane). At those defaults the guard trips above
+~1,667 papers — far above any plausible daily delta. A trip means
+something is structurally wrong (watermark hasn't advanced for weeks, a
+corpus-filter regression, etc.), not "today's run is expensive."
 
-If sustained absence is expected, options in declining order of
-sensibility:
+The backfill and the annual rescore enforce no threshold (they bypass via
+`--from-gap-scan` / `--full`).
 
-1. Run `--full` on the last day before leaving (clears the backlog up
-   to that point).
-2. Hand the daily run off to another operator with appropriate creds
-   (treat this as a real handoff, not informal coverage).
-3. Accept the catch-up cost on return.
-
-This constraint is part of the case for automation. It is written
-down here so future-you knows why the org-key blocker matters
-operationally, not just technically.
-
-## Enrichment backfill (#112 / onboarding)
+## Backfill (#112 / onboarding)
 
 The daily job is **watermark-forward-only**: it enriches `pmid >
 last_max_pmid` and advances the watermark. It structurally cannot reach
@@ -153,17 +137,50 @@ forever.
 `run_daily_enrichment.py` has a second mode for exactly that set. With
 `--pmids` or `--from-gap-scan` it invokes `run_enrichment_backfill`
 instead of the daily job: synopsis + impact for an **explicit** PMID work
-set, regardless of publication date. Same model, prompts, schema, and
-writes as the daily job — `reciterai_synopsis` + `reciterai_impact` in
-MariaDB and an `IMPACT#` row in DynamoDB per PMID — minus the watermark.
+set, regardless of publication date. Same model path (Sonnet primary +
+gpt-5.1 fallback), prompts, schema, and writes as the daily job —
+`reciterai_synopsis` + `reciterai_impact` in MariaDB and an `IMPACT#` row
+in DynamoDB per PMID — minus the watermark.
+
+The Fargate task definition runs this mode via `command` override; the
+operator can also run it locally for one-off ad-hoc sets.
+
+### On Fargate (recommended for the #112 ~1,073-paper run)
+
+```bash
+# Preview: resolve the work set + cost estimate, no model calls.
+aws ecs run-task --cluster reciterai-cluster \
+  --task-definition reciterai-enrichment \
+  --launch-type FARGATE \
+  --network-configuration '<your subnets + SG>' \
+  --overrides '{"containerOverrides":[{
+    "name":"reciterai-enrichment",
+    "command":["python","-m","scripts.run_daily_enrichment",
+               "--from-gap-scan","--dry-run"]
+  }]}'
+
+# Then run it for real:
+aws ecs run-task --cluster reciterai-cluster \
+  --task-definition reciterai-enrichment \
+  --launch-type FARGATE \
+  --network-configuration '<your subnets + SG>' \
+  --overrides '{"containerOverrides":[{
+    "name":"reciterai-enrichment",
+    "command":["python","-m","scripts.run_daily_enrichment",
+               "--from-gap-scan","--verbose"]
+  }]}'
+```
+
+At ~$0.0141/paper happy-path + a fallback lane, the #112 1,073-paper
+backfill is ≈ $15 + the fallback share, and runs in a few hours on the
+default Fargate sizing (0.25 vCPU / 0.5–1 GB — the job is I/O-bound).
+
+### Locally (for ad-hoc PMID sets)
 
 ```bash
 source ~/.zshrc
 
-# Preview: resolve the work set + cost estimate, generate nothing.
 python3 -m scripts.run_daily_enrichment --from-gap-scan --dry-run
-
-# Run it. ~1,072 PMIDs ≈ $10–11 at the measured ~$0.0094/paper rate.
 python3 -m scripts.run_daily_enrichment --from-gap-scan --verbose
 
 # Or target an explicit PMID set:
@@ -184,10 +201,9 @@ to recover PMIDs left half-enriched by a failed run (every write is an
 idempotent upsert, so reprocessing is safe).
 
 **Cost.** The backfill is bootstrap-class: it surfaces a cost estimate
-(and `--dry-run` previews it) but enforces no threshold — an
-intentionally large historical set is the point, exactly as for the daily
-job's `--full`. `cost_observed_usd` in the result JSON is the measured
-spend.
+(`--dry-run` previews it) but enforces no threshold — an intentionally
+large historical set is the point. `cost_observed_usd` in the result JSON
+is the measured spend.
 
 **Status.** The result JSON's `status` is `complete`, `partial` (some
 PMIDs failed — the rest are committed; re-run to retry only the gaps),
@@ -213,48 +229,129 @@ Fields of interest:
 - `last_run_started_at` — set every `mark_run_started` call
 - `last_run_id` — UUID4, useful for cross-referencing in Teams alerts
 
+## Deploying the enrichment job
+
+Operator runbook for standing the Fargate deploy up (post-#37 PR 4
+merge). Two cutovers are independent:
+
+- **A**: redeploy the existing `reciterai-onboarding-enrich` Lambda so it
+  picks up the Bedrock-rewired code path. Can run as soon as the rewire
+  PRs (#129, #130) merge.
+- **B**: bring up the Fargate task definition + cron rule. Requires PR 4.
+
+### A. Cut the `reciterai-onboarding-enrich` Lambda over to Bedrock
+
+The onboarding Enrich Lambda calls `run_enrichment_backfill` → the
+synopsis/impact modules, so the Bedrock rewire reaches it transitively.
+Until redeployed it runs its old zip — safe (Lambda execution is frozen
+to its zip), but it should move to Bedrock for consistency.
+
+1. Rebuild: `scripts/build_lambda_zips.sh reciterai-onboarding-enrich`.
+   The zip still bundles `openai` — the content-filter fallback path
+   needs it (#37 D3).
+2. Redeploy:
+   ```bash
+   aws lambda update-function-code \
+     --function-name reciterai-onboarding-enrich \
+     --zip-file fileb://build/reciterai-onboarding-enrich.zip
+   ```
+3. **IAM:** no change needed — `infra/lambda_iam_policy.json` already
+   grants `bedrock:InvokeModel` (the Lambda uses IAM-role auth for
+   Bedrock, not the bearer token). The `reciterai-onboarding-enrich`
+   Lambda keeps reading `reciterai/openai-api-key` via
+   `utils.secrets_loader`'s auto-load — required for the content-filter
+   fallback.
+4. **Smoke:** an onboarding run on a small unscored CWID
+   (`scripts/smoke_onboarding.sh SMOKE_EXPECT=complete`) exercises the
+   Enrich stage on Bedrock.
+
+### B. Deploy the daily enrichment job to Fargate
+
+The infra lives in `infra/` alongside the hot path (#37 D6 — the
+single-file IaC is extended once more; a full CDK migration remains its
+own deferred Phase).
+
+1. **ECR:** create the `reciterai-enrichment` repository; build the image
+   from the repo's `Dockerfile`, tag, push:
+   ```bash
+   aws ecr create-repository --repository-name reciterai-enrichment
+   docker build -t reciterai-enrichment:$(git rev-parse --short HEAD) .
+   docker tag reciterai-enrichment:<sha> \
+     <acct>.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:<sha>
+   docker push <acct>.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:<sha>
+   ```
+2. **Bedrock API key secret (#37 D8):** create the Secrets Manager secret
+   that the task definition's `secrets` block resolves to
+   `AWS_BEARER_TOKEN_BEDROCK`. Must be a **long-term** Bedrock API key —
+   short-term keys expire in ≤ 12 h and would break overnight ticks:
+   ```bash
+   aws secretsmanager create-secret \
+     --name reciterai/bedrock-api-key \
+     --secret-string "<long-term Bedrock API key>"
+   ```
+3. **IAM (out-of-band, the `infra/` directory creates no roles):** create
+   the Fargate task role with `infra/enrichment_task_iam_policy.json`
+   (covers DynamoDB write, Secrets Manager read on the four secrets, and
+   CloudWatch Logs write), and the EventBridge→ECS `RunTask` invocation
+   role.
+4. **Networking:** confirm the subnets + security group reach ReciterDB
+   — reuse the networking the hot-path Lambdas already use for MariaDB.
+5. **Task definition:** register `infra/ecs_task_definition.json`
+   (substitute the pushed image URI + role ARNs).
+6. **Cron:** `scripts/deploy_cron.sh --dry-run --rule
+   reciterai-enrichment-daily`, inspect, then apply. The rule's target
+   kind is `ecs`; `deploy_cron.sh` carries the new `ecs` branch (PR 4).
+7. **Smoke:** run `scripts/smoke_enrichment.sh` — `--from-gap-scan
+   --dry-run` (work-set + cost preview, no model calls), then a tiny real
+   `--pmids` run. Confirm:
+   - the content-filter fallback fires cleanly when it triggers,
+   - length enforcement on the synopsis 3-attempt loop holds,
+   - MariaDB + `IMPACT#` writes land for every PMID in the test set,
+   - `cost_observed_usd` is in the spike-derived range — pin the
+     cost-guard default down if measured spend differs materially.
+8. **#112 backfill (#37 D5, forward-only):** run the task on-demand with
+   `--from-gap-scan` — ~1,073 papers, Sonnet scores written for every
+   `missing_either` PMID; existing gpt-5.1 scores from earlier POC runs
+   stay in place untouched. `--dry-run` first to confirm the work-set
+   size.
+9. **Verify a scheduled tick:** confirm the first 11:00 UTC run writes a
+   `complete`-status `RunResult` and advances the watermark.
+
+The **annual rescore** (#37 D5, deferred) is enabled by this deploy — the
+same task definition runs it on-demand via a different command override;
+its scope and timing are a separate operator decision.
+
 ## Cost reconciliation
 
-Done as of 2026-05-14, based on a 50-paper test run (n=100 API calls):
+Done as of 2026-05-19 against the Bedrock spike
+(`scripts/debug/bedrock_synopsis_impact_spike.py`, n=15 PMIDs, 30 calls).
 
-| Metric | Measured | Earlier guess |
-|---|---|---|
-| Per-paper sync | **$0.00943** | ~$0.067 (hand-wave) / ~$0.060 (cost_guard default) |
-| Bootstrap (~1,815 papers) | **~$17** | ~$125 |
-| Annual at 5 papers/day × 250 days | **~$12/yr** | ~$430/yr |
-| Annual rescore (~6,200 papers) | **~$58** | ~$110 (Batch) / ~$415 (sync) |
+| Metric | Sonnet 4.6 (Bedrock, current) | gpt-5.1 (OpenAI, prior) | Earlier modeling guess |
+|---|---|---|---|
+| Per-paper combined | **$0.0141** | $0.0094 (POC, n=100) | $0.060 (hand-wave) |
+| 5–15 papers/day, daily | $0.07–$0.21/run | $0.05–$0.15/run | $0.30–$0.90/run |
+| Annual at 5 papers/day × 250 days | **~$18/yr** | ~$12/yr | ~$430/yr |
+| #112 backfill (~1,073 papers, forward-only) | **~$15** | n/a (POC) | n/a |
+| Annual rescore (~6,200 papers, deferred) | **~$88** | ~$58 (Batch) / ~$117 (sync) | ~$110 (Batch) / ~$415 (sync) |
 
-The earlier numbers were predicated on $0.067/paper, which was an
-unverified eyeball from the PR 1 smoke test rather than a measurement.
-The 50-paper run captured token counts directly: 1,649 input + 265
-output tokens per call × 2 calls/paper × ($1.25/$10 per Mtok input/output)
-= $0.00943/paper.
+The Bedrock rate is ~50% higher than the gpt-5.1 measured rate — the
+output-token differential (Sonnet writes terser justifications; both
+input footprints are comparable) is dominated by the input price gap
+($3/Mtok Sonnet vs. $1.25/Mtok gpt-5.1). At these prices the absolute
+dollars are still small enough that Bedrock Batch's ~50% discount is not
+worth the architectural overhead (two-process coordination, async
+result-collection, in-flight state in DDB) — and Batch is incompatible
+with the length-retry + content-filter-fallback loops anyway (#37 §4.2).
 
-The `cost_guard.py` default per-paper has been bumped to **$0.010**
-(slight conservative overestimate of measured). The $30 threshold
-hasn't moved; at the new rate it trips at ~3,000 papers, well above
-plausible non-anomalous workloads. The threshold is still useful as
-an anomaly detector for "watermark hasn't advanced in months" or
-"corpus filter regression" scenarios.
+The fallback lane (Bedrock→gpt-5.1 on a content-filter block) adds a
+gpt-5.1 call on top of the original Sonnet input-token spend, so a
+filtered paper costs roughly $0.020 — pin this against measured spend
+after PR 4's smoke run.
 
-**What this changes architecturally:** the Batch-mode + threshold-
-selection conversation that was happening before this audit is largely
-moot at these prices. Batch's ~50% savings is ~$9 on the bootstrap and
-~$6/yr on the annual rescore. Not worth the architectural overhead
-(two-process coordination, async result-collection, in-flight state in
-DDB). If costs ever drift materially upward, revisit; for now sync
-everywhere is the right answer.
+## History / closed follow-ups
 
-## Follow-up trigger
-
-The automation revisit is captured as [issue #46](https://github.com/wcmc-its/ReciterAI/issues/46).
-The trigger is:
-
-> When an org-managed OpenAI API key (or Azure OpenAI tenant access)
-> becomes available, revisit the deploy story: B1 (cron on ReciterDB
-> host) or A (CDK migration → Lambda + VPC). The choice depends on
-> whether other MariaDB-reaching workloads are coming alongside.
-
-Until that trigger fires, run the CLI by hand. The job already does
-the load-bearing work — watermark, cost guard, alerts, idempotent
-writes; the cron layer is gravy and gravy can wait.
+The automation revisit (#46) was filed when this job ran from the
+operator laptop and the trigger was "an org-managed OpenAI API key
+becomes available." The Bedrock pivot (#37) supersedes that trigger —
+Bedrock IAM auth + Fargate is the org-managed path. #46 closes on #37 PR
+4's merge.
