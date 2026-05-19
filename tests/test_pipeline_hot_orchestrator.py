@@ -228,10 +228,39 @@ def test_build_state_machine_input_shape():
     assert sm_input["last_successful_hot_run_at"] == "2026-05-05T12:00:00Z"
     assert sm_input["delta"]["pmids"] == ["1", "2", "3"]
     assert sm_input["delta"]["size"] == 3
-    # T7 placeholders consumed by state_machine.asl.json
-    # CheckAssignNeeded / CheckRollupNeeded gates.
-    assert sm_input["delta"]["assign_topics"] == []
+    # dirty_cwids defaults empty; CheckRollupNeeded routes that past Rollup.
     assert sm_input["delta"]["dirty_cwids"] == []
+    # rollup_input_hash is always present (BuildRollupSummary stamps it).
+    assert isinstance(sm_input["delta"]["rollup_input_hash"], str)
+    assert sm_input["delta"]["rollup_input_hash"]
+    # assign_topics is NOT orchestrator-produced — the post-Score
+    # DeriveDirtyTopics Task computes it (#119).
+    assert "assign_topics" not in sm_input["delta"]
+
+
+def test_build_state_machine_input_populates_dirty_cwids():
+    sm_input = orch.build_state_machine_input(
+        pmids=["1", "2"],
+        last_run_at=None,
+        started_at="2026-05-12T12:00:00Z",
+        run_id="run-abc",
+        dirty_cwids=["abc1001", "xyz1003"],
+    )
+    assert sm_input["delta"]["dirty_cwids"] == ["abc1001", "xyz1003"]
+
+
+def test_rollup_input_hash_is_content_addressed_to_the_dirty_set():
+    """Same dirty set -> same hash (order-independent); a different set ->
+    a different hash. BuildRollupSummary stamps this on the hot_run row."""
+    def _hash(cwids):
+        return orch.build_state_machine_input(
+            pmids=["1"], last_run_at=None, started_at="t", run_id="r",
+            dirty_cwids=cwids,
+        )["delta"]["rollup_input_hash"]
+
+    assert _hash(["a", "b"]) == _hash(["b", "a"])
+    assert _hash(["a", "b"]) != _hash(["a", "c"])
+    assert _hash([]) != _hash(["a"])
 
 
 # ---------- score handler ----------
@@ -731,3 +760,37 @@ def test_score_handler_empty_pmids_event_raises(monkeypatch):
     )
     with pytest.raises(ValueError, match="empty 'pmids'"):
         score_handler.handler({"pmids": []})
+
+
+# ---------- handler: ready path derives dirty_cwids (#119) ----------
+
+
+def test_handler_ready_path_derives_and_threads_dirty_cwids(monkeypatch):
+    """The ready path runs get_cwids_for_pmids over the delta+retry union
+    and threads the result into delta.dirty_cwids (#119)."""
+    monkeypatch.delenv("RECITERAI_HOT_STATE_MACHINE_ARN", raising=False)
+    monkeypatch.setattr(orch, "get_table", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(
+        orch, "resolve_last_successful_hot_run", lambda t: "2026-05-05T12:00:00Z"
+    )
+    monkeypatch.setattr(orch, "resolve_delta_pmids", lambda *a, **k: ["1", "2"])
+    monkeypatch.setattr(orch, "get_dynamo_client", lambda: MagicMock())
+    monkeypatch.setattr(
+        orch, "resolve_retry_sweep",
+        lambda *a, **k: {"retry_pmids": ["9"], "quarantined_pmids": []},
+    )
+
+    seen: list = []
+
+    def fake_cwids(pmids):
+        seen.append(list(pmids))
+        return ["cwidX", "cwidY"]
+
+    monkeypatch.setattr("utils.sql_queries.get_cwids_for_pmids", fake_cwids)
+
+    result = orch.handler({"run_id": "run-x"})  # no state_machine_arn -> no lock check
+
+    assert result["status"] == "ready"
+    # Derived over the sorted delta+retry union.
+    assert seen == [["1", "2", "9"]]
+    assert result["input"]["delta"]["dirty_cwids"] == ["cwidX", "cwidY"]

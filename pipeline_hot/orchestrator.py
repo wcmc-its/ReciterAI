@@ -49,6 +49,7 @@ from utils.env_check import load_thresholds
 from utils.stage_records import (
     STATUS_COMPLETE,
     build_skipped_record,
+    compute_input_hash,
     write_skipped,
 )
 from pipeline_common import alert
@@ -346,6 +347,7 @@ def build_state_machine_input(
     started_at: str,
     run_id: str,
     retry_pmids: list[str] | None = None,
+    dirty_cwids: list[str] | None = None,
 ) -> dict:
     """Produce the dict the state machine's first Task receives.
 
@@ -366,8 +368,16 @@ def build_state_machine_input(
     `run_kind` tags the run for the hot_run STAGE# row — "delta" vs.
     "delta+retry" — so a retry-sweep run is distinguishable from a pure
     delta run when auditing the substrate.
+
+    `dirty_cwids` is the per-run dirty-CWID set (CWIDs whose first/last-
+    author work intersects `all_pmids`) — the `RollupFanOut` Map iterates
+    it, and `rollup_input_hash` content-addresses it for the hot_run row.
+    `assign_topics` is deliberately absent: it depends on the TOPIC# rows
+    the Score stage writes, which do not exist when the orchestrator runs,
+    so the post-Score DeriveDirtyTopics Task computes it instead (#119).
     """
     retry_pmids = list(retry_pmids or [])
+    dirty_cwids = list(dirty_cwids or [])
     all_pmids = sorted(set(pmids) | set(retry_pmids))
     return {
         "run_id": run_id,
@@ -380,18 +390,25 @@ def build_state_machine_input(
             "retry_pmids": retry_pmids,
             "retry_size": len(retry_pmids),
             "all_pmids": all_pmids,
-            # T7 placeholders. The state machine's `CheckAssignNeeded`
-            # and `CheckRollupNeeded` Choice gates route around the
-            # Assign / Rollup tasks via Pass states that inject stub
-            # envelopes when these lists are empty. Real per-topic and
-            # per-CWID dirty-set computation is a follow-up tracked on
-            # issue #72; until then both lists stay empty and the
-            # smoke / weekly run exercises Score → TopTopic only.
-            "assign_topics": [],
-            "dirty_cwids": [],
+            # `dirty_cwids` — CWIDs whose first/last-author work
+            # intersects this run's PMID set (#119). `CheckRollupNeeded`
+            # routes an empty list past the Rollup fan-out; a non-empty
+            # one is the `RollupFanOut` Map's ItemsPath. `rollup_input_hash`
+            # is the run-level summary hash `BuildRollupSummary` stamps on
+            # the hot_run row — the per-CWID detail is the N
+            # STAGE#rollup_by_cwid#cwid rows the Map writes.
+            #
+            # `assign_topics` is NOT here: it needs the TOPIC# rows the
+            # Score stage writes, absent when the orchestrator runs. The
+            # post-Score DeriveDirtyTopics Task computes it; the ASL reads
+            # `$.assign.assign_topics`.
+            "dirty_cwids": dirty_cwids,
+            "rollup_input_hash": compute_input_hash(
+                "rollup_fanout", {"dirty_cwids": sorted(dirty_cwids)}
+            ),
         },
         "trace": {
-            "orchestrator_version": "0.2.0",
+            "orchestrator_version": "0.3.0",
         },
     }
 
@@ -462,7 +479,10 @@ def handler(event: dict, context: Any = None) -> dict:
 
     # 2. Resolve last successful hot run + delta PMID set.
     last_run_at = resolve_last_successful_hot_run(table)
-    from utils.sql_queries import get_db_connection  # local import: tests stub
+    from utils.sql_queries import (  # local import: tests stub
+        get_cwids_for_pmids,
+        get_db_connection,
+    )
 
     def _ddb_to_pmid_query(since_iso: str) -> list[str]:
         # Delta PMID resolution against ReciterDB. `analysis_summary_article`
@@ -516,6 +536,13 @@ def handler(event: dict, context: Any = None) -> dict:
             },
         )
 
+    # 4. Dirty-CWID set for the Rollup fan-out (#119). Unlike the retry
+    # sweep, this is a core stage input, not best-effort recovery — a
+    # failure here propagates and the state machine's Orchestrate Catch
+    # writes the failed hot_run row.
+    all_pmids = sorted(set(pmids) | set(retry_pmids))
+    dirty_cwids = get_cwids_for_pmids(all_pmids)
+
     return {
         "status": "ready",
         "input": build_state_machine_input(
@@ -524,5 +551,6 @@ def handler(event: dict, context: Any = None) -> dict:
             started_at=started_at,
             run_id=run_id,
             retry_pmids=retry_pmids,
+            dirty_cwids=dirty_cwids,
         ),
     }
