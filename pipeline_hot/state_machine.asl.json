@@ -1,5 +1,5 @@
 {
-  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: score, assign, and rollup the publication-date delta plus the orchestrator's state-based retry sweep (failed PMIDs that aged out of the delta window). NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5). CheckAssignNeeded / CheckRollupNeeded route around Assign / Rollup via Pass states that inject typed stub envelopes when the orchestrator's placeholder lists are empty (T7 follow-up: populate the lists from delta PMID metadata).",
+  "Comment": "ReciterAI hot path (Phase 10). Weekly cron: score, assign, and rollup the publication-date delta plus the orchestrator's state-based retry sweep (failed PMIDs that aged out of the delta window). NEVER mints versions; that is the cold path's job (spec §2). State machine owns STAGE# row writes via DynamoDB:PutItem SDK integration (D-07), so a Python crash between work-done and row-written cannot lose the completion signal. Pre-run-in-progress lock via ListExecutions in Orchestrate (Open Q5). DeriveDirtyTopics derives the per-topic assign work from the scored delta; AssignFanOut and RollupFanOut are per-item Step Functions Maps. CheckAssignNeeded / CheckRollupNeeded route an empty work set past its Map via a typed skipped envelope (#119).",
   "StartAt": "Orchestrate",
   "States": {
     "Orchestrate": {
@@ -72,45 +72,17 @@
         "Item.$": "$.score_envelope"
       },
       "ResultPath": null,
-      "Next": "CheckAssignNeeded"
+      "Next": "DeriveDirtyTopics"
     },
 
-    "CheckAssignNeeded": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Variable": "$.orchestrate.input.delta.assign_topics[0]",
-          "IsPresent": false,
-          "Next": "AssignSkipped"
-        }
-      ],
-      "Default": "Assign"
-    },
-
-    "AssignSkipped": {
-      "Type": "Pass",
-      "Comment": "Stub envelope when delta.assign_topics is empty. Already in DDB attribute-typed format so WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.",
-      "Result": {
-        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
-        "SK": {"S": "RUN#skipped-no-assign-topics"},
-        "stage": {"S": "assign_subtopics"},
-        "scope": {"S": "GLOBAL"},
-        "status": {"S": "skipped"},
-        "skip_reason": {"S": "delta.assign_topics empty (orchestrator T7 placeholder)"},
-        "input_hash": {"S": "skipped:no-assign-topics"}
-      },
-      "ResultPath": "$.assign_envelope",
-      "Next": "TopTopic"
-    },
-
-    "Assign": {
+    "DeriveDirtyTopics": {
       "Type": "Task",
-      "Resource": "${AssignLambdaArn}",
+      "Comment": "Groups the delta PMIDs' scored TOPIC# rows (PmidIndex GSI) by topic, dropping topics with no approved hierarchy draft. Produces the assign_topics array AssignFanOut iterates and the assign_input_hash BuildAssignSummary stamps. Reuses the onboarding DeriveDirtyTopics Lambda — the {pmids} event routes to its PMID-keyed mode (#119).",
+      "Resource": "${DeriveDirtyTopicsLambdaArn}",
       "Parameters": {
-        "topic_id.$": "$.orchestrate.input.delta.assign_topics[0].topic_id",
-        "delta_pmids.$": "$.orchestrate.input.delta.assign_topics[0].delta_pmids"
+        "pmids.$": "$.orchestrate.input.delta.all_pmids"
       },
-      "ResultPath": "$.assign_envelope",
+      "ResultPath": "$.assign",
       "Retry": [
         {
           "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
@@ -126,17 +98,104 @@
           "Next": "WriteHotRunFailed"
         }
       ],
-      "Next": "WriteAssignStageRow"
+      "Next": "CheckAssignNeeded"
     },
 
-    "WriteAssignStageRow": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::dynamodb:putItem",
-      "Parameters": {
-        "TableName": "reciterai",
-        "Item.$": "$.assign_envelope"
+    "CheckAssignNeeded": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.assign.assign_topics[0]",
+          "IsPresent": false,
+          "Next": "AssignSkipped"
+        }
+      ],
+      "Default": "AssignFanOut"
+    },
+
+    "AssignSkipped": {
+      "Type": "Pass",
+      "Comment": "Stub envelope when DeriveDirtyTopics produced no dirty topics with an approved hierarchy draft. Already in DDB attribute-typed format so WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.",
+      "Result": {
+        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
+        "SK": {"S": "RUN#skipped-no-assign-topics"},
+        "stage": {"S": "assign_subtopics"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "skipped"},
+        "skip_reason": {"S": "the delta produced no dirty topics with an approved hierarchy draft"},
+        "input_hash": {"S": "skipped:no-assign-topics"}
       },
-      "ResultPath": null,
+      "ResultPath": "$.assign_envelope",
+      "Next": "TopTopic"
+    },
+
+    "AssignFanOut": {
+      "Type": "Map",
+      "Comment": "Per-topic fan-out (#119). One iteration per dirty topic: AssignOne runs reciterai-hot-assign for that topic's PMIDs, then WriteAssignStageRowOne writes that topic's STAGE#assign_subtopics#topic row (D-07 crash-safety). BuildAssignSummary then synthesizes the single envelope WriteHotRunComplete reads. MaxConcurrency bounds concurrent Bedrock + DynamoDB load.",
+      "ItemsPath": "$.assign.assign_topics",
+      "MaxConcurrency": 4,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "AssignOne",
+        "States": {
+          "AssignOne": {
+            "Type": "Task",
+            "Comment": "Reused hot Lambda reciterai-hot-assign; its {topic_id, delta_pmids} event contract is exactly the Map item.",
+            "Resource": "${AssignLambdaArn}",
+            "Parameters": {
+              "topic_id.$": "$.topic_id",
+              "delta_pmids.$": "$.delta_pmids"
+            },
+            "ResultPath": "$.assign_one_envelope",
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                "IntervalSeconds": 10,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Next": "WriteAssignStageRowOne"
+          },
+          "WriteAssignStageRowOne": {
+            "Type": "Task",
+            "Comment": "Per-topic STAGE#assign_subtopics#topic:{topic} row, written inside the iteration so each topic's audit row lands as its assign completes (D-07).",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "reciterai",
+              "Item.$": "$.assign_one_envelope"
+            },
+            "ResultPath": null,
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.assign_map",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteHotRunFailed"
+        }
+      ],
+      "Next": "BuildAssignSummary"
+    },
+
+    "BuildAssignSummary": {
+      "Type": "Pass",
+      "Comment": "Synthesizes the single $.assign_envelope WriteHotRunComplete reads (input_hash -> the hot_run row's assign_input_hash). The real per-topic detail is the N STAGE#assign_subtopics#topic rows the Map wrote; topic_count is States.ArrayLength of the Map output.",
+      "Parameters": {
+        "PK": {"S": "STAGE#assign_subtopics#GLOBAL"},
+        "SK": {"S": "RUN#hot-assign-fanout"},
+        "stage": {"S": "assign_subtopics"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "complete"},
+        "input_hash": {"S.$": "$.assign.assign_input_hash"},
+        "topic_count": {"N.$": "States.Format('{}', States.ArrayLength($.assign_map))"}
+      },
+      "ResultPath": "$.assign_envelope",
       "Next": "TopTopic"
     },
 
@@ -185,40 +244,68 @@
           "Next": "RollupSkipped"
         }
       ],
-      "Default": "Rollup"
+      "Default": "RollupFanOut"
     },
 
     "RollupSkipped": {
       "Type": "Pass",
-      "Comment": "Stub envelope when delta.dirty_cwids is empty. Same typing rationale as AssignSkipped.",
+      "Comment": "Stub envelope when delta.dirty_cwids is empty (the delta intersected no faculty publications). Same typing rationale as AssignSkipped.",
       "Result": {
         "PK": {"S": "STAGE#rollup_by_cwid#GLOBAL"},
         "SK": {"S": "RUN#skipped-no-dirty-cwids"},
         "stage": {"S": "rollup_by_cwid"},
         "scope": {"S": "GLOBAL"},
         "status": {"S": "skipped"},
-        "skip_reason": {"S": "delta.dirty_cwids empty (orchestrator T7 placeholder)"},
+        "skip_reason": {"S": "the delta intersected no faculty publications"},
         "input_hash": {"S": "skipped:no-dirty-cwids"}
       },
       "ResultPath": "$.rollup_envelope",
       "Next": "WriteHotRunComplete"
     },
 
-    "Rollup": {
-      "Type": "Task",
-      "Resource": "${RollupLambdaArn}",
-      "Parameters": {
-        "dirty_cwids.$": "$.orchestrate.input.delta.dirty_cwids"
-      },
-      "ResultPath": "$.rollup_envelope",
-      "Retry": [
-        {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-          "IntervalSeconds": 10,
-          "MaxAttempts": 2,
-          "BackoffRate": 2.0
+    "RollupFanOut": {
+      "Type": "Map",
+      "Comment": "Per-CWID fan-out (#119). One iteration per dirty CWID: RollupOne runs reciterai-hot-rollup in its {cwid} DynamoDB-sourced mode (rollup_by_cwid --cwid), then WriteRollupStageRowOne writes that CWID's STAGE#rollup_by_cwid#cwid row (D-07). BuildRollupSummary then synthesizes the single envelope WriteHotRunComplete reads. MaxConcurrency bounds concurrent DynamoDB load.",
+      "ItemsPath": "$.orchestrate.input.delta.dirty_cwids",
+      "MaxConcurrency": 4,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "RollupOne",
+        "States": {
+          "RollupOne": {
+            "Type": "Task",
+            "Comment": "Reused hot Lambda reciterai-hot-rollup; the Map item is a bare CWID string, so {cwid.$: $} routes to the PMID-aware rollup_by_cwid --cwid path.",
+            "Resource": "${RollupLambdaArn}",
+            "Parameters": {
+              "cwid.$": "$"
+            },
+            "ResultPath": "$.rollup_one_envelope",
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                "IntervalSeconds": 10,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Next": "WriteRollupStageRowOne"
+          },
+          "WriteRollupStageRowOne": {
+            "Type": "Task",
+            "Comment": "Per-CWID STAGE#rollup_by_cwid#cwid:{cwid} row, written inside the iteration so each CWID's audit row lands as its rollup completes (D-07).",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "reciterai",
+              "Item.$": "$.rollup_one_envelope"
+            },
+            "ResultPath": null,
+            "End": true
+          }
         }
-      ],
+      },
+      "ResultPath": "$.rollup_map",
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
@@ -226,17 +313,22 @@
           "Next": "WriteHotRunFailed"
         }
       ],
-      "Next": "WriteRollupStageRow"
+      "Next": "BuildRollupSummary"
     },
 
-    "WriteRollupStageRow": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::dynamodb:putItem",
+    "BuildRollupSummary": {
+      "Type": "Pass",
+      "Comment": "Synthesizes the single $.rollup_envelope WriteHotRunComplete reads (input_hash -> the hot_run row's rollup_input_hash). The real per-CWID detail is the N STAGE#rollup_by_cwid#cwid rows the Map wrote; input_hash is the orchestrator's run-level rollup_input_hash; cwid_count is States.ArrayLength of the Map output.",
       "Parameters": {
-        "TableName": "reciterai",
-        "Item.$": "$.rollup_envelope"
+        "PK": {"S": "STAGE#rollup_by_cwid#GLOBAL"},
+        "SK": {"S": "RUN#hot-rollup-fanout"},
+        "stage": {"S": "rollup_by_cwid"},
+        "scope": {"S": "GLOBAL"},
+        "status": {"S": "complete"},
+        "input_hash": {"S.$": "$.orchestrate.input.delta.rollup_input_hash"},
+        "cwid_count": {"N.$": "States.Format('{}', States.ArrayLength($.rollup_map))"}
       },
-      "ResultPath": null,
+      "ResultPath": "$.rollup_envelope",
       "Next": "WriteHotRunComplete"
     },
 

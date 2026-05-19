@@ -563,3 +563,59 @@ def check_enrichment_coverage(pmids: list[str]) -> dict[str, list[str]]:
         "complete": sorted(complete),
         "incomplete": sorted(set(wanted) - complete),
     }
+
+
+# ---------------------------------------------------------------------------
+# Hot path — PMID-set to dirty-CWID resolution (#119)
+# ---------------------------------------------------------------------------
+
+CWIDS_BY_PMIDS_SQL = """
+SELECT DISTINCT au.personIdentifier AS cwid
+FROM analysis_summary_author au
+JOIN identity id ON id.cwid = au.personIdentifier
+WHERE au.pmid IN :pmid_list
+    AND id.fullTimeFaculty = 'yes'
+    AND au.authorPosition IN ('first', 'last')
+ORDER BY au.personIdentifier
+"""
+# The inverse of PMIDS_BY_CWID_SQL: given a publication set, return the
+# full-time-faculty CWIDs whose first/last-author work intersects it. The
+# hot orchestrator uses this to derive the per-run dirty-CWID set for the
+# weekly Rollup fan-out (#119).
+#
+# Author scope is first/last position only — the v1 faculty-facing scope,
+# matching PMIDS_BY_CWID_SQL and FACULTY_GAP_SCAN_SQL. fullTimeFaculty is
+# filtered via the identity join, the same as AUTHOR_MAPPING_SQL.
+#
+# No analysis_summary_article join: unlike FACULTY_GAP_SCAN_SQL, the caller
+# passes PMIDs already scoped to Academic Articles / articleYear >= 2020 —
+# the hot orchestrator's delta query (and the retry sweep that feeds it)
+# apply that filter upstream. Here the PMID set is itself the scope.
+
+
+def get_cwids_for_pmids(pmids: list[str]) -> list[str]:
+    """Return the full-time-faculty CWIDs attributed to any of `pmids` (#119).
+
+    The inverse of `get_pmids_for_cwid`: given a publication set, return the
+    faculty whose first/last-author work intersects it. The hot path uses
+    this to derive the dirty-CWID set the weekly Rollup fan-out iterates.
+
+    `pmids` is trusted to be pre-scoped to Academic Articles / articleYear
+    >= 2020 (see `CWIDS_BY_PMIDS_SQL`). CWIDs are returned sorted and
+    de-duplicated; an empty or blank-only input returns `[]` without
+    opening a DB connection.
+    """
+    wanted = sorted({str(p) for p in pmids if str(p).strip()})
+    if not wanted:
+        return []
+    from sqlalchemy import bindparam, text
+
+    stmt = text(CWIDS_BY_PMIDS_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(stmt, {"pmid_list": wanted})
+        return sorted({str(row[0]) for row in rows})
+    finally:
+        conn.close()

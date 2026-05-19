@@ -242,6 +242,27 @@ def test_input_hash_sensitive_to_cwid():
     assert h_1 != h_2
 
 
+def test_input_hash_pmid_scoped_when_no_cwid():
+    """With cwid omitted (the hot path), the hash is scoped by the PMID set:
+    two different PMID sets differ, and a hot-path hash never collides with
+    an onboarding cwid-scoped hash over the same topic work."""
+    rows_one = [_row("hematology", "1")]
+    h_hot = af.derive_dirty_topics(
+        pmids=["1"], topic_activity_rows=rows_one, draft_covered_topics=_COVERED,
+    )["assign_input_hash"]
+    h_hot_other = af.derive_dirty_topics(
+        pmids=["1", "2"],
+        topic_activity_rows=[_row("hematology", "1"), _row("hematology", "2")],
+        draft_covered_topics=_COVERED,
+    )["assign_input_hash"]
+    h_cwid = af.derive_dirty_topics(
+        cwid="abc1234", pmids=["1"],
+        topic_activity_rows=rows_one, draft_covered_topics=_COVERED,
+    )["assign_input_hash"]
+    assert h_hot != h_hot_other
+    assert h_hot != h_cwid
+
+
 # ---------------------------------------------------------------------------
 # handler — I/O wiring
 # ---------------------------------------------------------------------------
@@ -261,9 +282,26 @@ def _wire(monkeypatch, *, rows, covered=_COVERED):
     return captured
 
 
-def test_handler_requires_cwid():
-    with pytest.raises(ValueError, match="no 'cwid'"):
-        af.handler({"pmids": ["1"]})
+def _wire_pmids(monkeypatch, *, rows, covered=_COVERED):
+    """Stub the hot-path handler's I/O. Returns the captured pmids list."""
+    captured: dict = {}
+    monkeypatch.setattr(af, "get_table", lambda *a, **k: MagicMock())
+
+    def _fetch(table, pmids):
+        captured["pmids"] = list(pmids)
+        return rows
+
+    monkeypatch.setattr(af, "fetch_topic_activity_for_pmids", _fetch)
+    monkeypatch.setattr(af, "_load_draft_coverage", lambda: set(covered))
+    return captured
+
+
+def test_handler_blank_cwid_raises(monkeypatch):
+    """An onboarding event (the cwid key is present) with a blank value is
+    an operator error — not a silent fall-through to the hot PMID path."""
+    monkeypatch.setattr(af, "get_table", lambda *a, **k: MagicMock())
+    with pytest.raises(ValueError, match="blank 'cwid'"):
+        af.handler({"cwid": "   ", "pmids": ["1"]})
 
 
 def test_handler_strips_cwid_whitespace(monkeypatch):
@@ -310,3 +348,44 @@ def test_handler_coerces_event_pmids_to_str(monkeypatch):
     assert result["assign_topics"] == [
         {"topic_id": "hematology", "delta_pmids": ["5"]},
     ]
+
+
+# ---------------------------------------------------------------------------
+# handler — hot-path {pmids} event (#119)
+# ---------------------------------------------------------------------------
+
+
+def test_handler_pmids_event_routes_to_pmid_index(monkeypatch):
+    """A {pmids} event (no cwid key) is the hot path: it reads TOPIC#
+    activity by PMID and derives the fan-out."""
+    captured = _wire_pmids(
+        monkeypatch,
+        rows=[
+            _row("cardiovascular_disease", "1"),
+            _row("hematology", "2"),
+        ],
+    )
+    result = af.handler({"pmids": ["1", "2"]})
+    assert captured["pmids"] == ["1", "2"]
+    assert [t["topic_id"] for t in result["assign_topics"]] == [
+        "cardiovascular_disease",
+        "hematology",
+    ]
+    assert result["assign_input_hash"]
+    assert result["dropped_topics"] == []
+
+
+def test_handler_pmids_event_empty_is_a_valid_empty_fan_out(monkeypatch):
+    """An empty delta (empty pmids) is legitimate — an empty fan-out, not a
+    raise. CheckAssignNeeded routes the empty assign_topics past the Map."""
+    _wire_pmids(monkeypatch, rows=[])
+    result = af.handler({"pmids": []})
+    assert result["assign_topics"] == []
+    assert result["dropped_topics"] == []
+    assert result["assign_input_hash"]
+
+
+def test_handler_pmids_event_coerces_pmids_to_str(monkeypatch):
+    captured = _wire_pmids(monkeypatch, rows=[_row("hematology", "5")])
+    af.handler({"pmids": [5]})
+    assert captured["pmids"] == ["5"]

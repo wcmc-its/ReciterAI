@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # CWID-scoped rollup read a CWID's TOPIC# activity through one code path.
 # rollup_by_cwid's module-level imports are all light (utils/* + boto3);
 # its ReciterDB import is function-local, so this does not pull SQL deps.
-from rollup_by_cwid import fetch_cwid_topic_activity
+from rollup_by_cwid import fetch_cwid_topic_activity, fetch_topic_activity_for_pmids
 from utils.dynamodb_helpers import TABLE_NAME, get_table
 from utils.stage_records import compute_input_hash
 
@@ -78,17 +78,19 @@ def _load_draft_coverage() -> set[str]:
 
 def derive_dirty_topics(
     *,
-    cwid: str,
+    cwid: str | None = None,
     pmids: list[str],
     topic_activity_rows: list[dict],
     draft_covered_topics: set[str],
 ) -> dict[str, Any]:
-    """Group a CWID's `TOPIC#` activity into the `Map`'s work list. Pure.
+    """Group `TOPIC#` activity into the Assign `Map`'s work list. Pure.
 
-    `topic_activity_rows` is `fetch_cwid_topic_activity`'s output — one
-    dict per activity row with `topic_id` / `pmid` / `primary_subtopic_id`.
-    `pmids` is the run's full accepted PMID set (`$.orchestrate.input.pmids`);
-    a topic's `delta_pmids` is its activity PMIDs intersected with that set.
+    `topic_activity_rows` is the projected activity rows — one dict per row
+    with `topic_id` / `pmid` / `primary_subtopic_id` — from
+    `fetch_cwid_topic_activity` (onboarding, per-CWID) or
+    `fetch_topic_activity_for_pmids` (hot path, per-PMID-set, #119).
+    `pmids` is the run's full accepted PMID set; a topic's `delta_pmids` is
+    its activity PMIDs intersected with that set.
 
     Passing the *full* accepted set (not just the run's net work) is
     deliberate and self-healing: `fetch_cwid_topic_activity` only returns
@@ -131,10 +133,14 @@ def derive_dirty_topics(
     # Content-addressed label for the workflow's assign-stage summary row.
     # `compute_input_hash` canonicalizes with sorted keys, so the nested
     # topic map is order-stable; the pmid lists are pre-sorted above.
+    # Scope: the CWID for an onboarding run, or the run's PMID set for a
+    # hot-path run (#119), which has no single CWID — so two runs with
+    # structurally-identical topic work but a different scope still differ.
+    scope = {"cwid": cwid} if cwid else {"pmids": sorted(run)}
     assign_input_hash = compute_input_hash(
         _ASSIGN_FANOUT_STAGE,
         {
-            "cwid": cwid,
+            **scope,
             "topics": {t["topic_id"]: t["delta_pmids"] for t in assign_topics},
         },
     )
@@ -151,25 +157,43 @@ def derive_dirty_topics(
 
 
 def handler(event: dict, context: Any = None) -> dict:
-    """`DeriveDirtyTopics` Task — group the CWID's `TOPIC#` rows for the `Map`.
+    """`DeriveDirtyTopics` Task — group `TOPIC#` activity for the Assign `Map`.
 
-    Expected event (from the ASL `DeriveDirtyTopics` Task Parameters):
+    Two event shapes; the `cwid` key is the discriminator.
+
+    Onboarding (#80 Phase 2 / PR 4) — one CWID's activity:
         {"cwid": "abc1234", "pmids": ["...", ...]}
+    Routes to `fetch_cwid_topic_activity` (FacultyIndex). A blank `cwid` is
+    an operator error and raises.
+
+    Hot path (#119) — the weekly delta PMID set's activity:
+        {"pmids": ["...", ...]}
+    Routes to `fetch_topic_activity_for_pmids` (PmidIndex). An empty `pmids`
+    list is legitimate (an empty delta) — it yields an empty fan-out, which
+    `CheckAssignNeeded` routes past the `Map`.
 
     Returns the `derive_dirty_topics` result; the state machine routes the
-    `Map` over `$.assign.assign_topics` and threads `$.assign.assign_input_hash`
-    onto the assign-stage summary row. A missing `cwid` is an operator error
-    and raises (the state machine's Catch writes the failed row).
+    `Map` over `$.assign.assign_topics` and threads
+    `$.assign.assign_input_hash` onto the assign-stage summary row.
     """
-    cwid = (event.get("cwid") or "").strip()
-    if not cwid:
-        raise ValueError(
-            "DeriveDirtyTopics: event has no 'cwid'; the onboarding state "
-            "machine populates it from $.orchestrate.input.cwid"
-        )
     pmids = [str(p) for p in event.get("pmids") or []]
+    table = get_table(TABLE_NAME)
 
-    rows = fetch_cwid_topic_activity(get_table(TABLE_NAME), cwid)
+    if "cwid" in event:
+        cwid: str | None = (event.get("cwid") or "").strip()
+        if not cwid:
+            raise ValueError(
+                "DeriveDirtyTopics: onboarding event has a blank 'cwid'; the "
+                "onboarding state machine populates it from "
+                "$.orchestrate.input.cwid"
+            )
+        rows = fetch_cwid_topic_activity(table, cwid)
+        scope_label = f"cwid={cwid}"
+    else:
+        cwid = None
+        rows = fetch_topic_activity_for_pmids(table, pmids)
+        scope_label = f"pmids[{len(pmids)}]"
+
     result = derive_dirty_topics(
         cwid=cwid,
         pmids=pmids,
@@ -179,14 +203,14 @@ def handler(event: dict, context: Any = None) -> dict:
 
     if result["dropped_topics"]:
         logger.warning(
-            "DeriveDirtyTopics: cwid=%s dropped %d topic(s) with no approved "
+            "DeriveDirtyTopics: %s dropped %d topic(s) with no approved "
             "hierarchy draft — their papers get topic-level scoring but no "
             "subtopic assignment: %s",
-            cwid, len(result["dropped_topics"]), result["dropped_topics"],
+            scope_label, len(result["dropped_topics"]), result["dropped_topics"],
         )
     logger.info(
-        "DeriveDirtyTopics: cwid=%s pmids=%d activity_rows=%d -> %d dirty "
+        "DeriveDirtyTopics: %s pmids=%d activity_rows=%d -> %d dirty "
         "topic(s) for the Assign fan-out",
-        cwid, len(pmids), len(rows), len(result["assign_topics"]),
+        scope_label, len(pmids), len(rows), len(result["assign_topics"]),
     )
     return result

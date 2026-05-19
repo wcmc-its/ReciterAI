@@ -11,8 +11,8 @@ operator runbook (docs/hot-cold-paths.md) and the verification clause
 in PLAN T14 promise:
 
 - STAGE#score_publications#…       (Score → WriteScoreStageRow)
-- STAGE#assign_subtopics#…         (Assign → WriteAssignStageRow)
-- STAGE#rollup_by_cwid#…           (Rollup → WriteRollupStageRow)
+- STAGE#assign_subtopics#…         (AssignFanOut → WriteAssignStageRowOne)
+- STAGE#rollup_by_cwid#…           (RollupFanOut → WriteRollupStageRowOne)
 - STAGE#hot_run#GLOBAL  status=complete (WriteHotRunComplete)
 - STAGE#hot_run#GLOBAL  status=failed   (WriteHotRunFailed via Catch)
 """
@@ -42,6 +42,7 @@ def asl(asl_raw) -> dict:
 EXPECTED_PLACEHOLDERS = {
     "${OrchestratorLambdaArn}",
     "${ScoreLambdaArn}",
+    "${DeriveDirtyTopicsLambdaArn}",
     "${AssignLambdaArn}",
     "${TopTopicLambdaArn}",
     "${RollupLambdaArn}",
@@ -77,16 +78,17 @@ def test_required_states_present(asl):
         "CheckLockOrProceed",
         "Score",
         "WriteScoreStageRow",
+        "DeriveDirtyTopics",
         "CheckAssignNeeded",
         "AssignSkipped",
-        "Assign",
-        "WriteAssignStageRow",
+        "AssignFanOut",
+        "BuildAssignSummary",
         "TopTopic",
         "WriteTopTopicStageRow",
         "CheckRollupNeeded",
         "RollupSkipped",
-        "Rollup",
-        "WriteRollupStageRow",
+        "RollupFanOut",
+        "BuildRollupSummary",
         "WriteHotRunComplete",
         "WriteHotRunFailed",
         "NotifyError",
@@ -97,8 +99,12 @@ def test_required_states_present(asl):
 
 def test_every_task_state_has_catch_to_write_hot_run_failed(asl):
     """A Python crash mid-handler must NOT lose the completion signal:
-    every Lambda Task state has a Catch routing to WriteHotRunFailed."""
-    task_lambda_states = ("Orchestrate", "Score", "Assign", "TopTopic", "Rollup")
+    every Lambda Task and fan-out Map state has a Catch routing to
+    WriteHotRunFailed."""
+    task_lambda_states = (
+        "Orchestrate", "Score", "DeriveDirtyTopics", "TopTopic",
+        "AssignFanOut", "RollupFanOut",
+    )
     for name in task_lambda_states:
         state = asl["States"][name]
         catch = state.get("Catch") or []
@@ -165,20 +171,21 @@ def test_check_lock_skip_branch_routes_to_end(asl):
 
 
 def test_check_assign_needed_short_circuits_when_topics_empty(asl):
-    """When delta.assign_topics is empty the gate must route to AssignSkipped."""
+    """When DeriveDirtyTopics produced no assign_topics the gate routes to
+    AssignSkipped; a non-empty set proceeds to the AssignFanOut Map."""
     choice = asl["States"]["CheckAssignNeeded"]
     assert choice["Type"] == "Choice"
-    assert choice["Default"] == "Assign"
+    assert choice["Default"] == "AssignFanOut"
     rule = choice["Choices"][0]
     assert rule["IsPresent"] is False
-    assert rule["Variable"] == "$.orchestrate.input.delta.assign_topics[0]"
+    assert rule["Variable"] == "$.assign.assign_topics[0]"
     assert rule["Next"] == "AssignSkipped"
 
 
 def test_check_rollup_needed_short_circuits_when_dirty_cwids_empty(asl):
     choice = asl["States"]["CheckRollupNeeded"]
     assert choice["Type"] == "Choice"
-    assert choice["Default"] == "Rollup"
+    assert choice["Default"] == "RollupFanOut"
     rule = choice["Choices"][0]
     assert rule["IsPresent"] is False
     assert rule["Variable"] == "$.orchestrate.input.delta.dirty_cwids[0]"
