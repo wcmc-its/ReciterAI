@@ -22,6 +22,7 @@ from pipeline_enrichment.daily_job import (
     run_daily_enrichment,
     run_enrichment_backfill,
 )
+from pipeline_enrichment.cost_guard import estimate_run_cost
 from pipeline_enrichment.watermark import Watermark
 from utils.bedrock_client import SONNET_MODEL
 
@@ -218,7 +219,7 @@ def test_empty_delta_returns_no_op_without_touching_watermark(fake_engine, fake_
 
 def test_cost_guard_trips_marks_failed_without_invoking_llm(fake_engine, fake_watermark, fake_writer):
     """Anomalously large delta → refused before any LLM call."""
-    huge_delta = _delta_rows(list(range(1, 3500)))  # 3499 pmids × $0.010 = $34.99 > $30
+    huge_delta = _delta_rows(list(range(1, 3500)))  # 3499 pmids × default rate > $30 threshold
     syn = MagicMock(side_effect=AssertionError("LLM must not be called"))
     imp = MagicMock(side_effect=AssertionError("LLM must not be called"))
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
@@ -420,7 +421,7 @@ def test_run_id_from_mark_started_propagates_to_result(fake_engine, fake_waterma
 # ---------------------------------------------------------------------------
 
 def test_alert_fires_on_cost_guard_trip(fake_engine, fake_watermark, fake_writer):
-    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 pmids × $0.010 = $39.99 > $30
+    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 pmids × default rate > $30 threshold
     alert_mock = MagicMock(return_value=True)
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
         result = run_daily_enrichment(
@@ -578,7 +579,7 @@ def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, 
 
 def test_cost_observed_is_none_on_cost_guard_tripped(fake_engine, fake_watermark, fake_writer):
     """Cost guard refuses BEFORE any LLM call. Nothing measured to report."""
-    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 × $0.010 trips
+    huge_delta = _delta_rows(list(range(1, 4000)))  # 3999 × default rate trips
     with patch.object(daily_job, "fetch_new_publications", return_value=huge_delta):
         result = run_daily_enrichment(
             engine=fake_engine,
@@ -813,7 +814,7 @@ def test_backfill_all_succeed_writes_synopsis_impact_and_ddb_batch(
         "IMPACT#pmid_1", "IMPACT#pmid_2", "IMPACT#pmid_3",
     ]
     # Cost is both estimated (pre-run, conservative) and observed (post-run).
-    assert result.cost_estimate_usd == Decimal("0.010") * 3
+    assert result.cost_estimate_usd == estimate_run_cost(3)
     assert result.cost_observed_usd == _EXPECTED_PER_PMID_USD * 3
 
 
@@ -953,7 +954,7 @@ def test_backfill_dry_run_generates_nothing(fake_engine):
         )
     assert result.dry_run is True
     assert result.attempted == 0
-    assert result.cost_estimate_usd == Decimal("0.010") * 2
+    assert result.cost_estimate_usd == estimate_run_cost(2)
     syn.assert_not_called()
     wb.assert_not_called()
 

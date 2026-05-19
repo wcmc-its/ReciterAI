@@ -12,6 +12,7 @@ common failures.
 | **Spotlight refresh** | 1st of each month, 13:00 UTC | EventBridge → Lambda | No | Dirty-check gate; if dirty enough, regenerates the spotlight; otherwise writes a `skipped` STAGE# row. |
 | **Drift evaluator** | Daily 14:00 UTC | EventBridge → Lambda | No | Writes one `DRIFT#evaluation` row; dispatches WARN/ERROR alerts. |
 | **Onboarding** | Per-CWID, operator-triggered; detector daily 13:00 UTC | `aws stepfunctions start-execution` (workflow); EventBridge → Lambda (detector) | No | Full CWID-scoped backfill — score, subtopic-assign, top-topic, rollup for a researcher's whole accepted-publication set, regardless of publication date. The daily detector files GitHub issues for CWIDs needing a run. |
+| **Daily enrichment** | Daily 11:00 UTC | EventBridge → ECS `RunTask` (Fargate) | No | Synopsis + impact for new WCM-faculty publications since the last successful tick — `reciterai_synopsis` + `reciterai_impact` rows in MariaDB and an `IMPACT#` row in DynamoDB per PMID. Bedrock Claude Sonnet 4.6 on the happy path; OpenAI gpt-5.1 on the content-filter fallback (#37 D3). Same task definition handles the #112 backfill and the annual rescore on-demand. |
 
 Cron schedules are defined in `infra/eventbridge.json` and applied by
 `scripts/deploy_cron.sh`. All schedules are tunable in JSON without

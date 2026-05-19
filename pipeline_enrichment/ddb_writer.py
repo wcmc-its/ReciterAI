@@ -12,9 +12,13 @@ Item shape — locked in `~/Dropbox/Projects/ReciterAI - Planning/
     pmid            string
     impact_score    int 0–100
     justification   string  — bounded by IMPACT_SCHEMA.justification.maxLength
-    model           string  — dated OpenAI response.model from impact call
+    model           string  — model actually used for the impact call (the
+                              Bedrock Sonnet model ID on the happy path, or
+                              `gpt-5.1` when the content-filter fallback fired)
     synopsis        string  — bounded by SYNOPSIS_SCHEMA.synopsis.maxLength
-    synopsis_model  string  — dated OpenAI response.model from synopsis call
+    synopsis_model  string  — model actually used for the synopsis call
+                              (same rule as `model` — Sonnet primary, gpt-5.1
+                              fallback)
     enriched_at     string  — ISO 8601 (UTC, "Z"); single timestamp for
                               both attributes since they're computed within
                               seconds of each other in the same per-pmid

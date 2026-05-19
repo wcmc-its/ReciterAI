@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
         "--per-paper-usd",
         type=Decimal,
         default=None,
-        help="Override cost-guard per-paper assumption (default: $0.010).",
+        help="Override cost-guard per-paper assumption (default: $0.018).",
     )
     p.add_argument(
         "--pmids",

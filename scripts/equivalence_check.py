@@ -11,6 +11,14 @@ Acceptance criteria (per #37 step 1 gate):
   anything wider on >2/20 is a red flag worth investigating before
   step 2 (the scheduled job).
 
+NOT a gate for the Bedrock migration (#37 PR 1–4). This script was built
+as a *same-model* port-validation tool — gpt-5.1 POC code path vs.
+gpt-5.1 ported code path. With the runtime path now on Bedrock Claude
+Sonnet 4.6, comparing new Sonnet scores against old gpt-5.1 scores
+diverges by design (see `37-bedrock-model-decision.md` Key Finding +
+`feedback_equivalence_check_drift`). The Bedrock migration's gate is
+the §7-B smoke run + the spike's robustness numbers, not this script.
+
 Usage:
     python -m scripts.equivalence_check --n 20
     python -m scripts.equivalence_check --n 20 --output /tmp/eq.json

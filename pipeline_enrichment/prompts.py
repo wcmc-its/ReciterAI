@@ -85,7 +85,13 @@ IMPACT_PROMPT_VERSIONS = {
         "description": "Parity constraint + boosted clinical anchors + counterfactual check",
         "bias_correlation": -0.306,
         "gap": 6.3,
+        # Historical: the model v2 was *tuned against*. The runtime model is
+        # now per-row — Bedrock Sonnet 4.6 on the happy path, with a gpt-5.1
+        # content-filter fallback (#37 D3) — and is recorded on each row by
+        # `ImpactResult.model` / the MariaDB `model` column / the IMPACT# row.
         "model": "gpt-5.1",
+        # Historical, GPT-5-specific: Bedrock Converse has no equivalent
+        # parameter and the runtime path is plain Converse (#37 PR 2).
         "reasoning_effort": "medium",
         "notes": "Gap now better than NIH iCite. Top 25% tier: +11.2 -> +4.3",
     },
