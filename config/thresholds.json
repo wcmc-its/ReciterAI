@@ -23,5 +23,6 @@
   "retry_sweep_quarantine_after": 3,
   "retry_sweep_min_age_days": 7,
   "onboarding_cost_guard_max_pmids": 300,
-  "onboarding_detector_cold_start_threshold": 100
+  "onboarding_detector_cold_start_threshold": 100,
+  "spotlight_theme_similarity_max": 0.8
 }
