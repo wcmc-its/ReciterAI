@@ -52,10 +52,9 @@ LAMBDAS=(
   "reciterai-hot-orchestrator|pipeline_hot.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json|"
   "reciterai-hot-score|pipeline_hot.handlers.score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json|"
   # assign also bundles the approved hierarchy_draft_*.json files (step 3b
-  # below) as of #80 Phase 2 / PR 4: the onboarding Assign fan-out runs
-  # assign_subtopics per topic, which loads hierarchy_draft_<topic>.json. The
-  # hot path's own assign is still a Pass stub, so the drafts are additive —
-  # the zip carries data it does not yet exercise. Redeployed in PR 6.
+  # below): both the onboarding Assign fan-out (#80 Phase 2 / PR 4) and the
+  # hot path's AssignFanOut Map (#119) run assign_subtopics per topic, which
+  # loads hierarchy_draft_<topic>.json.
   "reciterai-hot-assign|pipeline_hot.handlers.assign||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/assign.py assign_subtopics.py taxonomy_v2.json prompts|"
   "reciterai-hot-top-topic|pipeline_hot.handlers.top_topic||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/top_topic.py compute_top_topic.py|"
   # rollup gets pymysql + sqlalchemy as of #80 Phase 2 / #90: the onboarding
@@ -93,8 +92,10 @@ LAMBDAS=(
   # lightweight — it no longer drags in the score_publications tree — so this
   # lean zip can carry it. score_publications.py itself is NOT bundled.
   "reciterai-onboarding-detector|pipeline_onboarding.detector|pymysql>=1.1.0 sqlalchemy>=2.0.0 pyyaml>=6.0.1|pipeline_onboarding/__init__.py pipeline_onboarding/detector.py pipeline_onboarding/github_issues.py pipeline_onboarding/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.sql_queries pipeline_onboarding.orchestrator utils.llm_cost"
-  # derive-topics bundles rollup_by_cwid.py for fetch_cwid_topic_activity;
-  # DynamoDB-only (no ReciterDB call on this path), so no pip deps.
+  # derive-topics bundles rollup_by_cwid.py for its two TOPIC#-activity
+  # readers — fetch_cwid_topic_activity (onboarding {cwid}) and
+  # fetch_topic_activity_for_pmids (hot path {pmids}, #119). Both are
+  # DynamoDB-only (no ReciterDB call on either path), so no pip deps.
   "reciterai-onboarding-derive-topics|pipeline_onboarding.assign_fanout||pipeline_onboarding/__init__.py pipeline_onboarding/assign_fanout.py rollup_by_cwid.py|"
   # enrich.py runs run_enrichment_backfill (#112) — synopsis + impact for the
   # CWID's PMID set, the onboarding cascade's Enrich stage. It imports

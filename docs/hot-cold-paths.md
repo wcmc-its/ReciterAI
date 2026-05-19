@@ -31,13 +31,20 @@ required in normal operation.
 **State machine** (`pipeline_hot/state_machine.asl.json`):
 
 ```
-orchestrator → score → assign → rollup → write-hot-run-row → end
+orchestrator → score → derive-dirty-topics
+            → assign-fan-out (Map, per topic) → top-topic
+            → rollup-fan-out (Map, per CWID) → write-hot-run-row → end
 ```
 
-Each handler is an envelope-mode Lambda invocation of the matching
-script (`score_publications.py`, `assign_subtopics.py`,
-`rollup_by_cwid.py`). The state machine `Catch`-es every Task and
-writes a `STAGE#…#failed` row plus a Notify state (alert dispatch).
+Each stage is an envelope-mode Lambda invocation of the matching script
+(`score_publications.py`, `assign_subtopics.py`, `compute_top_topic.py`,
+`rollup_by_cwid.py`). `DeriveDirtyTopics` groups the scored delta's
+`TOPIC#` rows into the per-topic assign work; `AssignFanOut` and
+`RollupFanOut` are Step Functions `Map`s — one iteration per dirty topic
+and per dirty CWID (#119). `CheckAssignNeeded` / `CheckRollupNeeded`
+route an empty work set past its `Map`. The state machine `Catch`-es
+every Task and Map and writes a `STAGE#…#failed` row plus a Notify state
+(alert dispatch).
 
 **Locking** (Open Q 10.5): at start, the orchestrator does a
 `ListExecutions` on the state machine. If any execution is `RUNNING`,
@@ -67,6 +74,28 @@ aws dynamodb query \
 ```
 
 The top row is the latest tick; `status == complete` confirms success.
+
+### Deploying the #119 hot Assign + Rollup change
+
+#119 added the `DeriveDirtyTopics` Task and the `AssignFanOut` /
+`RollupFanOut` Maps. After merge:
+
+1. **Rebuild the changed zips** — `reciterai-hot-orchestrator` (the
+   orchestrator now derives `dirty_cwids`) and
+   `reciterai-onboarding-derive-topics` (its handler gained the hot-path
+   `{pmids}` mode). `reciterai-hot-rollup` may be rebuilt for currency;
+   its behaviour is unchanged.
+   ```bash
+   scripts/build_lambda_zips.sh reciterai-hot-orchestrator
+   scripts/build_lambda_zips.sh reciterai-onboarding-derive-topics
+   ```
+2. **Redeploy those Lambda functions** (`aws lambda update-function-code`).
+3. **Redeploy the state machine** — `scripts/deploy_state_machine.sh`
+   (`--dry-run` first). It now also requires `DERIVE_DIRTY_TOPICS_LAMBDA_ARN`:
+   the ARN of the existing `reciterai-onboarding-derive-topics` function,
+   which the hot `AssignFanOut` reuses — no new Lambda (POLICIES #2).
+4. **Smoke** — `scripts/smoke_hot_path.sh`. The first non-empty weekly
+   tick is the end-to-end check of `DeriveDirtyTopics` + both Maps.
 
 ---
 
@@ -407,9 +436,9 @@ Any miss → stop and resolve before proceeding.
    aws lambda update-function-configuration --function-name reciterai-hot-assign \
      --environment "Variables={RECITERAI_HIERARCHY_VERSION=<version>,...existing...}"
    ```
-   Additive for the hot path (its `CheckAssignNeeded` keeps the always-empty
-   `assign_topics` on the `AssignSkipped` branch — it never reaches the
-   assign Lambda today). Re-run `scripts/smoke_hot_path.sh` after.
+   The hot path's `AssignFanOut` Map invokes this same Lambda (#119), so the
+   redeploy keeps every caller on the draft-bundled build. Re-run
+   `scripts/smoke_hot_path.sh` after.
 5. **Deploy the state machine** — export the 8 ARN env vars +
    `STATE_MACHINE_ROLE_ARN`, run `scripts/deploy_onboarding_state_machine.sh`
    (`--dry-run` first).

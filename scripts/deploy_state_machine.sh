@@ -18,6 +18,8 @@
 # Required env vars (all are full Lambda function ARNs):
 #   ORCHESTRATOR_LAMBDA_ARN      → resolves ${OrchestratorLambdaArn}
 #   SCORE_LAMBDA_ARN             → resolves ${ScoreLambdaArn}
+#   DERIVE_DIRTY_TOPICS_LAMBDA_ARN → resolves ${DeriveDirtyTopicsLambdaArn}  (#119;
+#                                  the reused reciterai-onboarding-derive-topics)
 #   ASSIGN_LAMBDA_ARN            → resolves ${AssignLambdaArn}
 #   TOP_TOPIC_LAMBDA_ARN         → resolves ${TopTopicLambdaArn}  (#68)
 #   ROLLUP_LAMBDA_ARN            → resolves ${RollupLambdaArn}
@@ -56,6 +58,7 @@ fi
 REQUIRED=(
   ORCHESTRATOR_LAMBDA_ARN
   SCORE_LAMBDA_ARN
+  DERIVE_DIRTY_TOPICS_LAMBDA_ARN
   ASSIGN_LAMBDA_ARN
   TOP_TOPIC_LAMBDA_ARN
   ROLLUP_LAMBDA_ARN
@@ -82,12 +85,13 @@ render_asl() {
 import json, os, sys
 src = open(sys.argv[1]).read()
 mapping = {
-    "OrchestratorLambdaArn":     os.environ["ORCHESTRATOR_LAMBDA_ARN"],
-    "ScoreLambdaArn":            os.environ["SCORE_LAMBDA_ARN"],
-    "AssignLambdaArn":           os.environ["ASSIGN_LAMBDA_ARN"],
-    "TopTopicLambdaArn":         os.environ["TOP_TOPIC_LAMBDA_ARN"],
-    "RollupLambdaArn":           os.environ["ROLLUP_LAMBDA_ARN"],
-    "AlertDispatcherLambdaArn":  os.environ["ALERT_DISPATCHER_LAMBDA_ARN"],
+    "OrchestratorLambdaArn":      os.environ["ORCHESTRATOR_LAMBDA_ARN"],
+    "ScoreLambdaArn":             os.environ["SCORE_LAMBDA_ARN"],
+    "DeriveDirtyTopicsLambdaArn": os.environ["DERIVE_DIRTY_TOPICS_LAMBDA_ARN"],
+    "AssignLambdaArn":            os.environ["ASSIGN_LAMBDA_ARN"],
+    "TopTopicLambdaArn":          os.environ["TOP_TOPIC_LAMBDA_ARN"],
+    "RollupLambdaArn":            os.environ["ROLLUP_LAMBDA_ARN"],
+    "AlertDispatcherLambdaArn":   os.environ["ALERT_DISPATCHER_LAMBDA_ARN"],
 }
 for key, val in mapping.items():
     src = src.replace("${" + key + "}", val)
