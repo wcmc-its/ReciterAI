@@ -1,0 +1,44 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for the ReciterAI daily-enrichment Fargate task role (#37 PR 4). Attach to the task role referenced by `ecs_task_definition.json.taskRoleArn`. No `bedrock:InvokeModel` — the task authenticates to Bedrock via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8 / PR-4 D-Q1), so SigV4 IAM auth against the task role is intentionally not load-bearing. Dropping the IAM grant gives the task the loud-failure mode on a missing/stale bearer token: SigV4 fallback against the role → 403 → CloudWatch error → Teams alert on the next tick. Adding `bedrock:InvokeModel` back is a one-line policy edit if the auth substrate ever changes.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBReciterAITableWatermarkAndImpactWrites",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai",
+        "arn:aws:dynamodb:*:*:table/reciterai/index/*"
+      ]
+    },
+    {
+      "Sid": "SecretsManagerEnrichmentTaskSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:*:*:secret:reciterai/reciter-analysis-db-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/openai-api-key-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/teams-webhook-url-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/bedrock-api-key-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/reciterai-enrichment:*"
+    }
+  ]
+}

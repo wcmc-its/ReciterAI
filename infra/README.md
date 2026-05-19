@@ -1,25 +1,24 @@
 # ReciterAI infrastructure (single-file IaC, D-10)
 
 This directory is Phase 10's IaC v1. It is deliberately simple: a JSON
-file of EventBridge rules + targets, a JSON file of the minimum-
-privilege Lambda IAM policy, and a thin bash deploy wrapper at
+file of EventBridge rules + targets, JSON files of the minimum-
+privilege IAM policies (one for Lambda execution roles, one for the
+Fargate enrichment task role), and a thin bash deploy wrapper at
 `scripts/deploy_cron.sh`. No Terraform, no CDK, no per-environment
 overlays.
 
 ## Files
 
-- **`eventbridge.json`** — four cron rules and their targets:
+- **`eventbridge.json`** — five cron rules and their targets:
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
   - `reciterai-spotlight-monthly` → Lambda `reciterai-spotlight-orchestrator` (1st of month, 13:00 UTC).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
   - `reciterai-onboarding-detector-daily` → Lambda `reciterai-onboarding-detector` (daily 13:00 UTC; #80 Phase 2).
-  - **Note:** the daily enrichment job (#37) is intentionally NOT scheduled here.
-    It runs as an operator-typed CLI from the operator's laptop until an
-    org-managed OpenAI API key replaces the current personal key. See
-    `docs/daily-enrichment.md` for the operator guide and the trigger for
-    revisiting automation.
+  - `reciterai-enrichment-daily` → ECS Fargate `RunTask` on task definition `reciterai-enrichment` (daily 11:00 UTC; #37 PR 4). The first ECS target — adds a new compute substrate alongside Lambda + Step Functions.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role.
-- **`../scripts/deploy_cron.sh`** — `aws events put-rule` + `aws events put-targets` + `aws lambda add-permission` per rule. Supports `--dry-run` and `--rule <name>`.
+- **`enrichment_task_iam_policy.json`** (#37 PR 4) — minimum permissions for the Fargate enrichment task role (DDB write, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
+- **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
+- **`../scripts/deploy_cron.sh`** — `aws events put-rule` + `aws events put-targets` + `aws lambda add-permission` per rule. Supports `--dry-run` and `--rule <name>`. ECS target kind (#37 PR 4) needs `RECITERAI_ENRICHMENT_SUBNETS` + `RECITERAI_ENRICHMENT_SECURITY_GROUPS` env vars (comma-separated).
 
 ## Operator quickstart
 
@@ -76,6 +75,21 @@ declares its infra in this directory alongside the hot path, and the two
 migrate together in one batch. Revisit trigger: ReCiter-CDK#11 closing with
 a named, deployable hosting path.
 
+**#37 PR 4 update (2026-05) — the revisit trigger fired, and overshot
+further.** ReCiter-CDK#11 closed on the operator's pivot decision, and the
+named hosting path is this PR's ECS Fargate task definition. The CDK
+migration revisit (per plan §4.5 / D6): the #37 deploy extends this
+directory **once more**, exactly as #80 onboarding did — a fifth cron rule
+(`reciterai-enrichment-daily`), a new compute substrate (ECS Fargate
+alongside Lambda + Step Functions), and a second IAM policy file
+(`enrichment_task_iam_policy.json`). That overshoots the D-10 threshold
+further still; the overshoot is acknowledged, not ignored. A full CDK
+migration of all ReciterAI infra remains worthwhile but is **its own
+deferred Phase**, not a blocker for #37. With ReCiter-CDK#11 closed, the
+closed-loop reference for the eventual revisit is this PR + the #80
+onboarding deploy — both demonstrate a named, deployable hosting path
+under the single-file IaC convention.
+
 When the threshold fires, file the migration as its own Phase. Reciter-
 CDK (the existing IaC repo for the Java retrieval services) is the
 natural target if cross-repo coupling is acceptable; otherwise a new
@@ -89,15 +103,23 @@ they are the rollback path.
   `{region}` placeholders in `eventbridge.json` are substituted by
   `deploy_cron.sh` using `AWS_ACCOUNT_ID` and `AWS_REGION` env vars.
 - **IAM roles are not created here.** The script assumes the Lambda
-  execution roles and the EventBridge → Step Functions invocation role
-  (`reciterai-eventbridge-invoke-states`) already exist with the
-  policy from `lambda_iam_policy.json` attached.
+  execution roles, the EventBridge → Step Functions invocation role
+  (`reciterai-eventbridge-invoke-states`), the EventBridge → ECS
+  RunTask role (`reciterai-eventbridge-invoke-ecs`), and the Fargate
+  task role already exist with the policies from
+  `lambda_iam_policy.json` and `enrichment_task_iam_policy.json`
+  attached.
 - **Cron expressions are tunable in this file.** No code change is
   required to change schedules; edit `schedule_expression` in
   `eventbridge.json` and re-run `deploy_cron.sh`.
 - **Lambda permissions are idempotent on re-run.** `add-permission`
   uses a deterministic statement-id; re-running prints a notice but
   does not fail.
+- **ECS target networking is env-var-driven.** Subnets and security
+  groups for the `reciterai-enrichment-daily` rule come from
+  `RECITERAI_ENRICHMENT_SUBNETS` and `RECITERAI_ENRICHMENT_SECURITY_GROUPS`
+  at deploy time, not from `eventbridge.json` — VPC layout is
+  account-specific and should not be committed.
 
 ## Onboarding state-machine role (#80 Phase 2)
 
@@ -147,6 +169,7 @@ state-machine role.
 ## Related
 
 - `docs/data-model-and-queries.md` — DynamoDB record types these crons write.
-- `docs/hot-cold-paths.md` (T13) — operator guide for hot/cold/spotlight/drift invocation.
+- `docs/hot-cold-paths.md` (T13) — operator guide for hot/cold/spotlight/drift/onboarding/enrichment invocation.
+- `docs/daily-enrichment.md` — operator guide for the daily enrichment job; §"Deploying the enrichment job" is the PR 4 deploy runbook (ECR push, secrets, task def register, cron apply, smoke gate, #112 backfill).
 - `docs/severity.md` — alert severity table; conditions referenced by the drift evaluator.
 - `pipeline_hot/state_machine.asl.json` — the Step Functions definition the hot-weekly rule starts.

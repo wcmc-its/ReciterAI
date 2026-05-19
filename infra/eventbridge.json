@@ -67,12 +67,34 @@
           "trigger": "eventbridge:reciterai-onboarding-detector-daily"
         }
       }
+    },
+    {
+      "name": "reciterai-enrichment-daily",
+      "description": "Daily enrichment: scheduled ECS Fargate RunTask invocation (#37 PR 4). Generates `reciterai_synopsis` + `reciterai_impact` rows in MariaDB and `IMPACT#` rows in DynamoDB for new WCM-faculty publications since the last successful tick. Bedrock Claude Sonnet 4.6 on the happy path; OpenAI gpt-5.1 on the content-filter fallback (D3).",
+      "schedule_expression": "cron(0 11 * * ? *)",
+      "schedule_comment": "Daily 11:00 UTC = 07:00 EDT. Slot picked to land after the overnight ReciterDB refresh and BEFORE the onboarding detector (13:00 UTC) so its faculty gap scan sees the morning's freshly-enriched papers; also before drift (14:00 UTC). Override: edit this rule + redeploy via scripts/deploy_cron.sh.",
+      "state": "ENABLED",
+      "target": {
+        "id": "enrichment-fargate",
+        "kind": "ecs",
+        "arn_template": "arn:aws:ecs:{region}:{account_id}:cluster/reciterai-cluster",
+        "role_arn_template": "arn:aws:iam::{account_id}:role/reciterai-eventbridge-invoke-ecs",
+        "task_definition_template": "arn:aws:ecs:{region}:{account_id}:task-definition/reciterai-enrichment",
+        "launch_type": "FARGATE",
+        "platform_version": "LATEST",
+        "network_configuration": {
+          "subnets_env": "RECITERAI_ENRICHMENT_SUBNETS",
+          "security_groups_env": "RECITERAI_ENRICHMENT_SECURITY_GROUPS",
+          "assign_public_ip": "DISABLED"
+        }
+      }
     }
   ],
 
   "deploy_notes": {
     "templating": "{account_id} is read from $AWS_ACCOUNT_ID at deploy time. {region} resolves from the top-level region field. scripts/deploy_cron.sh handles substitution before passing to aws CLI.",
-    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, and the Lambda execution role attached to the named function for the three Lambda targets. Minimum policies are documented in infra/lambda_iam_policy.json.",
+    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, the Lambda execution role attached to the named function for the Lambda targets, and reciterai-eventbridge-invoke-ecs for the ECS RunTask target (Fargate enrichment). Minimum policies are documented in infra/lambda_iam_policy.json (Lambdas) and infra/enrichment_task_iam_policy.json (Fargate task role).",
+    "ecs_targets": "ECS targets need RECITERAI_ENRICHMENT_SUBNETS and RECITERAI_ENRICHMENT_SECURITY_GROUPS env vars at deploy time (comma-separated). Subnets must reach ReciterDB; security groups must permit egress to Bedrock + OpenAI + MariaDB + Secrets Manager. Reuse the hot-path Lambdas' VPC layout — same network requirements.",
     "override_cadence": "All cron expressions are tunable here without code changes. Change the schedule_expression, re-run scripts/deploy_cron.sh, and EventBridge picks up the new schedule within ~1 minute."
   }
 }
