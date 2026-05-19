@@ -1,45 +1,26 @@
 """Per-CWID rollup builder.
 
-Reads `cwid_topic_counts.csv` and `cwid_subtopic_counts.csv`, aggregates per
-`personIdentifier` (CWID), and writes `cwid_rollup.csv` sorted by
-`-n_activities, cwid_asc` (the secondary key was implicit before; now
-explicit so incremental and full runs produce byte-identical outputs).
+Two rollup modes:
 
-Phase 10 D-07 / D-08 wiring:
+**GLOBAL CSV rollup (default — the cold path).** Reads
+`cwid_topic_counts.csv` and the exclusive subtopic-counts CSV, aggregates
+per `personIdentifier` (CWID), and writes `cwid_rollup.csv` sorted by
+`-n_activities, cwid_asc` (the secondary key is explicit so runs produce
+byte-identical output). `--emit-envelope` (Phase 10 hot path) instead
+emits the STAGE# complete/skipped record as JSON on stdout for the Step
+Functions DynamoDB:PutItem SDK integration to consume.
 
-- `--cwids 'c1,c2,...'` (or `--cwids @/path/to/file`) switches to
-  *incremental mode*: read prior `cwid_rollup.csv`, recompute only the
-  listed CWIDs from the breakdown CSVs filtered to those CWIDs, and
-  merge into the prior output. CWIDs not in the dirty set carry over
-  from the prior file unchanged. Dirty CWIDs that have no rows in the
-  breakdown CSVs are removed from the rollup.
-- `--emit-envelope` mode (Phase 10 hot path): on exit, emits the
-  STAGE# complete/skipped record as JSON on stdout instead of writing
-  to DynamoDB. Step Functions DynamoDB:PutItem SDK integration
-  consumes the envelope.
-
-#80 Phase 2 / #90 — CWID-scoped, PMID-aware rollup:
-
-- `--cwid CWID` switches to *CWID-scoped mode*. Instead of the CSV
-  breakdowns it reads, for one CWID, its live accepted-publication
-  PMID set (ReciterDB `analysis_summary_author`, via
-  `get_pmids_for_cwid`) and its scored `TOPIC#` activity rows
-  (DynamoDB `FacultyIndex`), computes the rollup over the PMID-aware
-  intersection of the two — stale `TOPIC#` rows for de-attributed
-  PMIDs do not inflate the counts — and writes a
-  `STAGE#rollup_by_cwid#cwid:{cwid}` row carrying `input_pmid_set`
-  (the snapshot, consumed by the onboarding detector's R9 churn
-  check) and `rollup_counts` (the four per-CWID tallies). Mutually
-  exclusive with `--cwids`; the hot/cold CSV paths are unchanged.
-
-Parity contract (T5 acceptance gate):
-
-    full_rollup(N) == incremental_rollup(dirty_subset) merged with
-                     prior_rollup(N \\ dirty_subset)
-
-Byte-identical CSVs after the deterministic sort. The parity test in
-`tests/test_rollup_incremental_parity.py` is the highest-risk gate of
-Phase 10 (D-08); a regression there blocks the wave.
+**CWID-scoped, PMID-aware rollup — #80 Phase 2 / #90 (`--cwid CWID`).**
+For one CWID, reads its live accepted-publication PMID set (ReciterDB
+`analysis_summary_author`, via `get_pmids_for_cwid`) and its scored
+`TOPIC#` activity rows (DynamoDB `FacultyIndex`), computes the rollup over
+the PMID-aware intersection of the two — stale `TOPIC#` rows for
+de-attributed PMIDs do not inflate the counts — and writes a
+`STAGE#rollup_by_cwid#cwid:{cwid}` row carrying `input_pmid_set` (the
+snapshot, consumed by the onboarding detector's R9 churn check) and
+`rollup_counts` (the four per-CWID tallies). This is the path the hot
+`RollupFanOut` Map (one iteration per dirty CWID, #119) and the
+onboarding Rollup stage both drive.
 """
 
 from __future__ import annotations
@@ -130,15 +111,11 @@ def _cwid_scope(cwid: str) -> str:
 def aggregate_from_breakdowns(
     topic_csv: Path,
     subtopic_csv: Path,
-    *,
-    cwid_filter: set[str] | None = None,
 ) -> dict[str, tuple[int, int, int, int]]:
     """Aggregate per-CWID counts from the two breakdown CSVs.
 
     Returns {cwid: (n_activities, n_distinct_topics, n_subtopic_activities,
                     n_distinct_subtopics)}.
-
-    When `cwid_filter` is provided, only those CWIDs are aggregated.
     """
     n_activities: dict[str, int] = defaultdict(int)
     n_topics: dict[str, set] = defaultdict(set)
@@ -148,8 +125,6 @@ def aggregate_from_breakdowns(
     with open(topic_csv) as f:
         for row in csv.DictReader(f):
             cwid = row["personIdentifier"]
-            if cwid_filter is not None and cwid not in cwid_filter:
-                continue
             n_activities[cwid] += int(row["n_activities"])
             n_topics[cwid].add(row["topic_id"])
 
@@ -158,8 +133,6 @@ def aggregate_from_breakdowns(
         sub_id_key = _pick_subtopic_id_column(reader.fieldnames, subtopic_csv)
         for row in reader:
             cwid = row["personIdentifier"]
-            if cwid_filter is not None and cwid not in cwid_filter:
-                continue
             n_subtopic_activities[cwid] += int(row["n_activities"])
             n_subtopics[cwid].add(row[sub_id_key])
 
@@ -195,7 +168,7 @@ def write_rollup_csv(path: Path, rollup: dict[str, tuple[int, int, int, int]]) -
 
 
 def read_rollup_csv(path: Path) -> dict[str, tuple[int, int, int, int]]:
-    """Inverse of write_rollup_csv. Used by incremental mode for the prior."""
+    """Inverse of write_rollup_csv."""
     rollup: dict[str, tuple[int, int, int, int]] = {}
     with open(path) as f:
         for row in csv.DictReader(f):
@@ -208,38 +181,13 @@ def read_rollup_csv(path: Path) -> dict[str, tuple[int, int, int, int]]:
     return rollup
 
 
-# --- Full and incremental rollups -----------------------------------------
+# --- Full rollup -----------------------------------------------------------
 
 
 def full_rollup(
     topic_csv: Path, subtopic_csv: Path
 ) -> dict[str, tuple[int, int, int, int]]:
     return aggregate_from_breakdowns(topic_csv, subtopic_csv)
-
-
-def incremental_rollup(
-    topic_csv: Path,
-    subtopic_csv: Path,
-    *,
-    dirty_cwids: set[str],
-    prior_rollup: dict[str, tuple[int, int, int, int]],
-) -> dict[str, tuple[int, int, int, int]]:
-    """Merge a recomputed dirty subset into the prior rollup.
-
-    Dirty CWIDs that no longer appear in the breakdown CSVs (e.g., all
-    their activities were removed) drop out of the rollup. CWIDs not in
-    the dirty set carry over from `prior_rollup` unchanged.
-    """
-    dirty_aggregated = aggregate_from_breakdowns(
-        topic_csv, subtopic_csv, cwid_filter=dirty_cwids
-    )
-    merged = {
-        cwid: vals for cwid, vals in prior_rollup.items() if cwid not in dirty_cwids
-    }
-    for cwid in dirty_cwids:
-        if cwid in dirty_aggregated:
-            merged[cwid] = dirty_aggregated[cwid]
-    return merged
 
 
 # --- input_hash ------------------------------------------------------------
@@ -253,29 +201,25 @@ def compute_rollup_input_hash(
     *,
     topic_csv: Path,
     subtopic_csv: Path,
-    cwids: list[str] | None,
 ) -> str:
-    """Content-addressed input_hash for a rollup run.
+    """Content-addressed input_hash for a (full-corpus) rollup run.
 
     Substitutes file-content sha256 of each breakdown CSV for the
     `score_version` / `hierarchy_version` placeholders until Phase 11
     stamps those first-class on every record (spec §3, D-2).
 
-    `cwids` is the sorted-and-deduped dirty subset for incremental
-    runs, or None for a full run (encoded as the sentinel "*ALL*" so
-    full vs. empty-incremental don't collide).
+    `cwid_set` is the frozen sentinel "*ALL*": the GLOBAL CSV rollup is
+    always whole-corpus. It was a per-run dirty-CWID list when the
+    incremental `--cwids` mode existed; that mode was removed (#127) once
+    the hot path moved to the per-CWID `--cwid` rollup, so the sentinel
+    is now constant — kept verbatim so the skip-gate hash is unchanged.
     """
-    cwid_key: object
-    if cwids is None:
-        cwid_key = "*ALL*"
-    else:
-        cwid_key = sorted({str(c) for c in cwids})
     return compute_input_hash(
         STAGE_NAME,
         {
             "score_version_sha256": _sha256_path(topic_csv),
             "hierarchy_version_sha256": _sha256_path(subtopic_csv),
-            "cwid_set": cwid_key,
+            "cwid_set": "*ALL*",
         },
     )
 
@@ -567,22 +511,6 @@ def run_cwid_rollup(
 # --- CLI helpers -----------------------------------------------------------
 
 
-def _parse_cwid_list_arg(value: str | None) -> list[str] | None:
-    """Parse --cwids: 'c1,c2,...' or '@/path/to/file' (one CWID per line)."""
-    if value is None:
-        return None
-    if value.startswith("@"):
-        path = Path(value[1:])
-        if not path.exists():
-            raise SystemExit(f"--cwids file not found: {path}")
-        return [
-            line.strip()
-            for line in path.read_text().splitlines()
-            if line.strip() and not line.startswith("#")
-        ]
-    return [s.strip() for s in value.split(",") if s.strip()]
-
-
 def _print_top_rows(rollup: dict[str, tuple[int, int, int, int]], n: int = 10) -> None:
     rows = sort_rollup_rows(rollup)
     print(f"\nTop {min(n, len(rows))} by n_activities:")
@@ -616,22 +544,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Output CSV path (default: cwid_rollup.csv)",
     )
     parser.add_argument(
-        "--cwids", default=None, metavar="LIST",
-        help=(
-            "Phase 10 incremental mode. Comma-separated CWIDs or '@/path' "
-            "to a one-CWID-per-line file. Recomputes only the listed CWIDs "
-            "and merges into the prior --out CSV. Default: full re-rollup."
-        ),
-    )
-    parser.add_argument(
         "--cwid", default=None, metavar="CWID",
         help=(
             "#80 Phase 2 / #90 CWID-scoped mode. A single (bare) CWID. "
             "Reads the CWID's live accepted PMID set (ReciterDB) and its "
             "TOPIC# activity rows (DynamoDB), and writes a "
             "STAGE#rollup_by_cwid#cwid:{cwid} row with input_pmid_set + "
-            "rollup_counts. Ignores --topic-csv/--subtopic-csv/--out; "
-            "mutually exclusive with --cwids."
+            "rollup_counts. Ignores --topic-csv/--subtopic-csv/--out."
         ),
     )
     parser.add_argument(
@@ -652,11 +571,6 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- #80 Phase 2 / #90: CWID-scoped rollup mode ---
     if args.cwid:
-        if args.cwids:
-            parser.error(
-                "--cwid (CWID-scoped onboarding rollup) and --cwids (CSV "
-                "incremental mode) are mutually exclusive"
-            )
         if args.skip_stage_write:
             parser.error(
                 "--skip-stage-write is not supported with --cwid: the "
@@ -672,8 +586,6 @@ def main(argv: list[str] | None = None) -> int:
     stage_started_at = now_iso()
     t_stage_start = time.monotonic()
 
-    dirty_cwids = _parse_cwid_list_arg(args.cwids)
-
     # Phase 12 D-13: resolve canonical subtopic CSV name (with legacy fallback).
     subtopic_csv = _resolve_subtopic_csv(args.subtopic_csv)
 
@@ -684,7 +596,6 @@ def main(argv: list[str] | None = None) -> int:
     input_hash = compute_rollup_input_hash(
         topic_csv=args.topic_csv,
         subtopic_csv=subtopic_csv,
-        cwids=dirty_cwids,
     )
 
     # --- STAGE# should_skip gate ---
@@ -720,21 +631,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
     # --- Compute rollup ---
-    if dirty_cwids is None:
-        rollup = full_rollup(args.topic_csv, subtopic_csv)
-        mode_label = "full"
-    else:
-        prior = read_rollup_csv(args.out)
-        rollup = incremental_rollup(
-            args.topic_csv,
-            subtopic_csv,
-            dirty_cwids=set(dirty_cwids),
-            prior_rollup=prior,
-        )
-        mode_label = f"incremental(|dirty|={len(dirty_cwids)})"
+    rollup = full_rollup(args.topic_csv, subtopic_csv)
 
     n_written = write_rollup_csv(args.out, rollup)
-    print(f"Wrote {args.out} ({n_written:,} rows, mode={mode_label})")
+    print(f"Wrote {args.out} ({n_written:,} rows)")
     _print_top_rows(rollup)
 
     # --- STAGE# complete row ---

@@ -445,11 +445,6 @@ def test_cli_cwid_routes_to_run_cwid_rollup(monkeypatch):
     assert table.put_items[0]["PK"] == "STAGE#rollup_by_cwid#cwid:abc123"
 
 
-def test_cli_cwid_and_cwids_are_mutually_exclusive():
-    with pytest.raises(SystemExit):
-        rbc.main(["--cwid", "abc", "--cwids", "x,y"])
-
-
 def test_cli_cwid_rejects_skip_stage_write():
     with pytest.raises(SystemExit):
         rbc.main(["--cwid", "abc", "--skip-stage-write"])
