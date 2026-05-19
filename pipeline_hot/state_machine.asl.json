@@ -355,6 +355,66 @@
         }
       },
       "ResultPath": null,
+      "Next": "CheckStageSkipAnomaly"
+    },
+
+    "CheckStageSkipAnomaly": {
+      "Type": "Choice",
+      "Comment": "#121 — a run with real input (a non-empty delta or retry-sweep set) that nonetheless skipped Assign or Rollup is flagged. The skip sentinels (skipped:no-assign-topics / skipped:no-dirty-cwids) are otherwise a passive signal nobody reads. A legitimately empty skip — no draft-covered topics, or the delta intersected no faculty — yields a dismissible WARN; the cost asymmetry favours over-alerting.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Or": [
+                {"Variable": "$.orchestrate.input.delta.size", "NumericGreaterThan": 0},
+                {"Variable": "$.orchestrate.input.delta.retry_size", "NumericGreaterThan": 0}
+              ]
+            },
+            {
+              "Or": [
+                {"Variable": "$.assign_envelope.input_hash.S", "StringMatches": "skipped:*"},
+                {"Variable": "$.rollup_envelope.input_hash.S", "StringMatches": "skipped:*"}
+              ]
+            }
+          ],
+          "Next": "NotifyStageSkipAnomaly"
+        }
+      ],
+      "Default": "End"
+    },
+
+    "NotifyStageSkipAnomaly": {
+      "Type": "Task",
+      "Comment": "#121 — best-effort stage-skip alert to Teams via the alert dispatcher. Passes the triggering run under hot_run; the dispatcher (stage_skip.resolve) reads recent hot_run history and classifies WARN (this run skipped a stage) or ERROR (a streak of work-present runs all skipped). Terminal and Catches to End: the hot_run complete row is already written, so an alerting fault must never flip a completed run's execution to failed.",
+      "Resource": "${AlertDispatcherLambdaArn}",
+      "Parameters": {
+        "source": "hot_path.stage_skip",
+        "execution_arn.$": "$$.Execution.Id",
+        "hot_run": {
+          "run_id.$": "$.orchestrate.input.run_id",
+          "started_at.$": "$.orchestrate.input.started_at",
+          "delta_size.$": "$.orchestrate.input.delta.size",
+          "retry_size.$": "$.orchestrate.input.delta.retry_size",
+          "assign_input_hash.$": "$.assign_envelope.input_hash.S",
+          "rollup_input_hash.$": "$.rollup_envelope.input_hash.S"
+        }
+      },
+      "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "End"
+        }
+      ],
       "End": true
     },
 
@@ -383,6 +443,7 @@
       "Parameters": {
         "severity": "ERROR",
         "source": "hot_path",
+        "title": "Hot path failure",
         "message.$": "$.error.Cause",
         "execution_arn.$": "$$.Execution.Id"
       },

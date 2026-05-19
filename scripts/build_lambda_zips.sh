@@ -44,8 +44,9 @@ mkdir -p "$BUILD_DIR"
 #   Empty for most rows (note the trailing `|`).
 #
 # All Lambdas (except reciterai-hot-alert-dispatcher) get utils/ +
-# pipeline_common/ + config/ as common baselines. alert-dispatcher is the
-# stub — only pipeline_common/ for the eventual real-dispatch swap.
+# pipeline_common/ + config/ as common baselines. alert-dispatcher needs
+# no DB / thresholds / SQL, so it takes only pipeline_common/; it bundles
+# its Teams transport (pipeline_enrichment/alerting.py) as first-party.
 
 LAMBDAS=(
   # ---- Hot path (6) -------------------------------------------------------
@@ -63,7 +64,10 @@ LAMBDAS=(
   # makes the import-check load it — otherwise a missing pymysql wheel would
   # build green and crash only on the first `--cwid` invocation.
   "reciterai-hot-rollup|pipeline_hot.handlers.rollup|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/rollup.py rollup_by_cwid.py|utils.sql_queries"
-  "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py|"
+  # alert-dispatcher sends Teams alerts via pipeline_enrichment.alerting and
+  # classifies stage-skip streaks via stage_skip.py (#121); bundle both
+  # modules + the pipeline_enrichment package marker as first-party files.
+  "reciterai-hot-alert-dispatcher|pipeline_hot.handlers.alert_dispatcher||pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/alert_dispatcher.py pipeline_hot/handlers/stage_skip.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|"
   # ---- New-researcher onboarding (5) — #80 Phase 2 ----------------------
   # orchestrator.py imports score_publications inside evaluate_onboarding —
   # function-local since #102, so importing the orchestrator module stays

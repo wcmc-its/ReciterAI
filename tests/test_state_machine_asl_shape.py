@@ -90,6 +90,8 @@ def test_required_states_present(asl):
         "RollupFanOut",
         "BuildRollupSummary",
         "WriteHotRunComplete",
+        "CheckStageSkipAnomaly",
+        "NotifyStageSkipAnomaly",
         "WriteHotRunFailed",
         "NotifyError",
         "End",
@@ -149,6 +151,7 @@ def test_notify_error_calls_alert_dispatcher_with_severity_error(asl):
     params = notify["Parameters"]
     assert params["severity"] == "ERROR"
     assert params["source"] == "hot_path"
+    assert params["title"] == "Hot path failure"
 
 
 def test_dynamodb_writes_target_reciterai_chatbot_table(asl):
@@ -250,7 +253,62 @@ def test_write_score_stage_row_passes_typed_envelope_directly(asl):
 
 
 def test_final_states_terminate(asl):
-    """WriteHotRunComplete, NotifyError, and End are terminal."""
-    assert asl["States"]["WriteHotRunComplete"].get("End") is True
-    assert asl["States"]["NotifyError"].get("End") is True
-    assert asl["States"]["End"]["Type"] == "Succeed"
+    """NotifyStageSkipAnomaly, NotifyError, and End terminate; #121 made
+    WriteHotRunComplete flow into the stage-skip check instead."""
+    states = asl["States"]
+    assert states["WriteHotRunComplete"].get("End") is not True
+    assert states["WriteHotRunComplete"]["Next"] == "CheckStageSkipAnomaly"
+    assert states["NotifyStageSkipAnomaly"].get("End") is True
+    assert states["NotifyError"].get("End") is True
+    assert states["End"]["Type"] == "Succeed"
+
+
+# ---------------------------------------------------------------------------
+# #121 — inline silent stage-skip check
+# ---------------------------------------------------------------------------
+
+
+def test_check_stage_skip_anomaly_predicate(asl):
+    """A non-empty run (delta or retry-sweep) that skipped Assign or Rollup
+    routes to the WARN notifier; every other run terminates at End."""
+    choice = asl["States"]["CheckStageSkipAnomaly"]
+    assert choice["Type"] == "Choice"
+    assert choice["Default"] == "End"
+    rule = choice["Choices"][0]
+    assert rule["Next"] == "NotifyStageSkipAnomaly"
+
+    work_clause, skip_clause = rule["And"]
+    # had real input: delta.size > 0 OR delta.retry_size > 0
+    work = {c["Variable"]: c["NumericGreaterThan"] for c in work_clause["Or"]}
+    assert work == {
+        "$.orchestrate.input.delta.size": 0,
+        "$.orchestrate.input.delta.retry_size": 0,
+    }
+    # yet a stage skipped: assign OR rollup input_hash matches "skipped:*"
+    skip = {c["Variable"]: c["StringMatches"] for c in skip_clause["Or"]}
+    assert skip == {
+        "$.assign_envelope.input_hash.S": "skipped:*",
+        "$.rollup_envelope.input_hash.S": "skipped:*",
+    }
+
+
+def test_notify_stage_skip_anomaly_routes_run_to_dispatcher(asl):
+    """The #121 notifier passes the triggering run to the alert dispatcher,
+    which classifies WARN vs ERROR from the run history — so no literal
+    severity here. Terminal and Catches to End: a post-complete alert fault
+    must never route to WriteHotRunFailed and flip a successful run to
+    failed."""
+    notify = asl["States"]["NotifyStageSkipAnomaly"]
+    assert notify["Resource"] == "${AlertDispatcherLambdaArn}"
+    params = notify["Parameters"]
+    assert params["source"] == "hot_path.stage_skip"
+    assert "severity" not in params, "dispatcher computes severity from the streak"
+    hot_run = params["hot_run"]
+    for key in ("run_id.$", "started_at.$", "delta_size.$", "retry_size.$",
+                "assign_input_hash.$", "rollup_input_hash.$"):
+        assert key in hot_run, f"hot_run missing {key}"
+    assert notify.get("End") is True
+    catch_targets = [c.get("Next") for c in notify.get("Catch", [])]
+    assert catch_targets == ["End"], (
+        "a failed stage-skip alert must terminate at End, not WriteHotRunFailed"
+    )
