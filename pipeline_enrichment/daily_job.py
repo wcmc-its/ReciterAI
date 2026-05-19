@@ -48,17 +48,16 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Callable, Optional
 
-from openai import OpenAI
 from sqlalchemy.engine import Engine
 
 from pipeline_enrichment import alerting, cost_guard, ddb_writer, mariadb_writer
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
+from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_table as _default_get_table
 from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
-from utils.openai_client import GPT5_MODEL
 from utils.sql_queries import (
     check_enrichment_coverage,
     fetch_new_publications,
@@ -135,7 +134,7 @@ def run_daily_enrichment(
     threshold_usd: Decimal = cost_guard.DEFAULT_THRESHOLD_USD,
     per_paper_usd: Decimal = cost_guard.DEFAULT_PER_PAPER_USD,
     engine: Engine,
-    openai_client: Optional[OpenAI] = None,
+    client: Optional[BedrockClient] = None,
     ddb_table: Any = None,
     generate_synopsis: Callable = _default_generate_synopsis,
     score_impact: Callable = _default_score_impact,
@@ -150,8 +149,8 @@ def run_daily_enrichment(
             first on anomalous deltas (default trip ~500 papers).
         threshold_usd, per_paper_usd: cost-guard overrides.
         engine: sqlalchemy Engine for MariaDB (required).
-        openai_client: optional injected OpenAI client; defaults to the
-            lazy singleton in pipeline_enrichment.synopsis/impact.
+        client: optional injected Bedrock client; defaults to the shared
+            lazy singleton in pipeline_enrichment.llm_call.
         ddb_table: optional injected DDB Table resource for the
             watermark; defaults to utils.dynamodb_helpers.get_table().
         generate_synopsis, score_impact, alert_fn: injectable for
@@ -236,7 +235,7 @@ def run_daily_enrichment(
         outcome = _process_one_pmid(
             row,
             engine=engine,
-            openai_client=openai_client,
+            client=client,
             generate_synopsis=generate_synopsis,
             score_impact=score_impact,
             accumulator=accumulator,
@@ -366,7 +365,7 @@ def _process_one_pmid(
     row: dict,
     *,
     engine: Engine,
-    openai_client: Optional[OpenAI],
+    client: Optional[BedrockClient],
     generate_synopsis: Callable,
     score_impact: Callable,
     accumulator: CostAccumulator,
@@ -379,10 +378,12 @@ def _process_one_pmid(
 
     Cost is recorded against the accumulator after each LLM call (success
     OR failure — error-path results carry input_tokens=0 / output_tokens=0
-    so they contribute nothing). Recording uses the price-table model key
-    `GPT5_MODEL` ("gpt-5.1"), NOT the dated `response.model` that lands in
-    MariaDB. OpenAI prices by requested model; the dated snapshot is for
-    audit only.
+    so they contribute nothing). Recording keys on each result's `.model`
+    — the model actually used: `us.anthropic.claude-sonnet-4-6` on the
+    Bedrock happy path, or `gpt-5.1` when the content-filter fallback
+    fired. Both are `config/llm_prices.yaml` keys, and the same string is
+    persisted to the MariaDB `model` column and the DDB IMPACT# item, so
+    cost attribution and the recorded model are one value.
     """
     pmid = str(row["pmid"])
     outcome = PmidOutcome(pmid=pmid)
@@ -402,11 +403,11 @@ def _process_one_pmid(
         journal=row.get("journalTitleVerbose"),
         year=row.get("articleYear"),
         abstract=row.get("abstractVarchar"),
-        client=openai_client,
+        client=client,
     )
     if syn.input_tokens or syn.output_tokens:
         accumulator.record(
-            model=GPT5_MODEL,
+            model=syn.model,
             input_tokens=syn.input_tokens,
             output_tokens=syn.output_tokens,
         )
@@ -429,10 +430,10 @@ def _process_one_pmid(
     outcome.synopsis_model = syn.model
 
     # --- Impact (only on synopsis success) ---
-    imp = score_impact(pub_data=row, client=openai_client)
+    imp = score_impact(pub_data=row, client=client)
     if imp.input_tokens or imp.output_tokens:
         accumulator.record(
-            model=GPT5_MODEL,
+            model=imp.model,
             input_tokens=imp.input_tokens,
             output_tokens=imp.output_tokens,
         )
@@ -514,7 +515,7 @@ def run_enrichment_backfill(
     *,
     pmids: list[str],
     engine: Engine,
-    openai_client: Optional[OpenAI] = None,
+    client: Optional[BedrockClient] = None,
     ddb_table: Any = None,
     generate_synopsis: Callable = _default_generate_synopsis,
     score_impact: Callable = _default_score_impact,
@@ -533,7 +534,7 @@ def run_enrichment_backfill(
     Args:
         pmids: the work set; de-duplicated internally.
         engine: sqlalchemy Engine for MariaDB (required).
-        openai_client, ddb_table, generate_synopsis, score_impact, alert_fn:
+        client, ddb_table, generate_synopsis, score_impact, alert_fn:
             injectable for testing, as in `run_daily_enrichment`.
         per_paper_usd: per-paper rate for the surfaced cost ESTIMATE only.
             The backfill is bootstrap-class — it surfaces the estimate but
@@ -626,7 +627,7 @@ def run_enrichment_backfill(
         outcome = _process_one_pmid(
             row,
             engine=engine,
-            openai_client=openai_client,
+            client=client,
             generate_synopsis=generate_synopsis,
             score_impact=score_impact,
             accumulator=accumulator,
