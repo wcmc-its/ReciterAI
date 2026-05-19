@@ -54,13 +54,20 @@ review, not a spec.
 
 Before drafting a plan for code that touches existing systems — writers, readers,
 schemas, modules, and their READMEs / contract docs / config comments — read them
-first. Reading almost always collapses planned scope; designing in the abstract
-overstates it and risks compatibility breaks.
+first. Read-first is a phase that *precedes* planning, not one interleaved with it.
+Reading re-cuts planned scope as often up as down; designing in the abstract gets
+the premise wrong and risks compatibility breaks.
 
-*Example:* #37 — three surfaces, each collapsed after the read. The 2026-05-18
-onboarding deploy — the "hierarchy version mismatch" dissolved once the bundled
-drafts were compared against the live hierarchy, and the per-Lambda VPC question
-resolved after reading `assign_fanout.py` and the build-script comments.
+*Watch-for:* the failure mode is plan → verify mid-plan → discover the premise was
+wrong → rewrite the plan. If a read during planning changes the plan, that read
+should have come first.
+
+*Examples:* #37 — three surfaces, each collapsed after the read. The 2026-05-18
+onboarding deploy — the "hierarchy version mismatch" dissolved once bundled drafts
+were compared against the live hierarchy. #119 — planning opened with #116 as a
+prerequisite PR; the read showed the hot `--cwids` rollup is structurally
+non-viable in Lambda (three independent issues), so #116 was absorbed and the
+scope re-cut before any code.
 
 *Source:* `~/Dropbox/Projects/ReciterAI - Planning/process-notes.md` § "Read existing code before designing infrastructure".
 
