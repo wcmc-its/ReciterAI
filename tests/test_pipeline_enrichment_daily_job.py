@@ -23,6 +23,7 @@ from pipeline_enrichment.daily_job import (
     run_enrichment_backfill,
 )
 from pipeline_enrichment.watermark import Watermark
+from utils.bedrock_client import SONNET_MODEL
 
 
 # Defensive default: ensure tests never fire real Teams alerts even if a
@@ -52,7 +53,7 @@ def _stub_default_ddb_table():
 class FakeSynopsisResult:
     pmid: str
     synopsis: Optional[str]
-    model: str = "gpt-5.1"
+    model: str = SONNET_MODEL
     input_tokens: int = 100
     output_tokens: int = 30
     error: Optional[str] = None
@@ -63,7 +64,7 @@ class FakeImpactResult:
     pmid: str
     impact_score: Optional[int]
     justification: Optional[str] = None
-    model: str = "gpt-5.1"
+    model: str = SONNET_MODEL
     prompt_version: str = "v2"
     input_tokens: int = 200
     output_tokens: int = 80
@@ -514,12 +515,13 @@ def test_default_alert_fn_is_alerting_module_function():
 # CostAccumulator wiring
 # ---------------------------------------------------------------------------
 
-# GPT-5.1 prices from config/llm_prices.yaml (Batch tier, 2026-05-13):
-#   input  $1.25/Mtok   output $10.00/Mtok
-# FakeSynopsisResult: 100 in / 30 out → 100*1.25/1M + 30*10/1M = $0.000425
-# FakeImpactResult:   200 in / 80 out → 200*1.25/1M + 80*10/1M = $0.001050
-# Per-pmid total: $0.001475
-_EXPECTED_PER_PMID_USD = Decimal("0.001475")
+# Sonnet 4.6 prices from config/llm_prices.yaml: input $3.00/Mtok, output
+# $15.00/Mtok. The Fake*Result.model defaults are SONNET_MODEL (the Bedrock
+# happy path), so the orchestrator's accumulator.record keys each call on it.
+# FakeSynopsisResult: 100 in / 30 out → 100*3/1M + 30*15/1M = $0.00075
+# FakeImpactResult:   200 in / 80 out → 200*3/1M + 80*15/1M = $0.00180
+# Per-pmid total: $0.00255
+_EXPECTED_PER_PMID_USD = Decimal("0.00255")
 
 
 def test_cost_observed_usd_sums_across_pmids(fake_engine, fake_watermark, fake_writer):
@@ -550,9 +552,10 @@ def test_cost_summary_present_on_complete(fake_engine, fake_watermark, fake_writ
     assert summary["call_count"] == 4
     assert summary["total_input_tokens"] == 2 * (100 + 200)
     assert summary["total_output_tokens"] == 2 * (30 + 80)
-    # by_model groups under the price-table key, not the dated response model.
-    assert "gpt-5.1" in summary["by_model"]
-    assert "gpt-5.1-2025-11-13" not in summary["by_model"]
+    # by_model groups under each result's actual model — the Bedrock happy
+    # path here, so SONNET_MODEL, never the gpt-5.1 content-filter fallback.
+    assert SONNET_MODEL in summary["by_model"]
+    assert "gpt-5.1" not in summary["by_model"]
 
 
 def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, fake_writer):
@@ -570,7 +573,7 @@ def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, 
     assert result.status == "failed"
     # Synopsis succeeded → tokens recorded. Impact returned a result with
     # tokens=0 (error path) → no impact tokens contributed.
-    assert result.cost_observed_usd == Decimal("0.000425")  # synopsis only
+    assert result.cost_observed_usd == Decimal("0.00075")  # synopsis only (Sonnet)
 
 
 def test_cost_observed_is_none_on_cost_guard_tripped(fake_engine, fake_watermark, fake_writer):
@@ -613,6 +616,36 @@ def test_zero_token_results_do_not_record_to_accumulator(fake_engine, fake_water
     assert result.cost_observed_usd == Decimal("0")
     summary = result.cost_summary
     assert summary["call_count"] == 0
+
+
+def test_cost_attributed_per_model_when_fallback_fires(fake_engine, fake_watermark, fake_writer):
+    """The M1 fix: each LLM call's cost is recorded against its result's
+    actual `.model`, not a hardcoded constant. A run whose impact call
+    content-filtered to the gpt-5.1 fallback attributes synopsis cost to
+    Sonnet and impact cost to gpt-5.1 — by_model carries both keys."""
+    delta = _delta_rows([1])
+
+    def _impact_via_fallback(*, pub_data, client=None):
+        # The content-filter fallback fired: the result records gpt-5.1 as
+        # the model actually used (see pipeline_enrichment.llm_call).
+        return FakeImpactResult(
+            pmid=str(pub_data["pmid"]), impact_score=50,
+            justification="ok", model="gpt-5.1",
+        )
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,       # Sonnet happy path
+            score_impact=_impact_via_fallback,    # gpt-5.1 content-filter fallback
+            alert_fn=MagicMock(),
+        )
+    assert result.status == STATUS_COMPLETE
+    by_model = result.cost_summary["by_model"]
+    assert set(by_model) == {SONNET_MODEL, "gpt-5.1"}
+    # Synopsis on Sonnet (100/30 → $0.00075) + impact on gpt-5.1
+    # (200/80 → $0.00105) — each priced against its own model's rate.
+    assert result.cost_observed_usd == Decimal("0.0018")
 
 
 # ---------------------------------------------------------------------------
@@ -668,9 +701,9 @@ def test_dual_write_item_carries_full_contract_attributes(
     assert item["pmid"] == "3001"
     assert item["impact_score"] == 50
     assert item["justification"] == "ok"
-    assert item["model"] == "gpt-5.1"
+    assert item["model"] == SONNET_MODEL
     assert item["synopsis"] == "synopsis for 3001"
-    assert item["synopsis_model"] == "gpt-5.1"
+    assert item["synopsis_model"] == SONNET_MODEL
     assert item["enriched_at"]  # non-empty ISO 8601 string
     assert "hierarchy_version" not in item  # explicitly dropped in 3.1
 
