@@ -481,26 +481,35 @@ def test_state_machine_asl_is_valid_json():
         "Orchestrate",
         "CheckLockOrProceed",
         "Score", "WriteScoreStageRow",
-        "Assign", "WriteAssignStageRow",
+        "DeriveDirtyTopics", "CheckAssignNeeded",
+        "AssignSkipped", "AssignFanOut", "BuildAssignSummary",
         "TopTopic", "WriteTopTopicStageRow",
-        "Rollup", "WriteRollupStageRow",
+        "CheckRollupNeeded",
+        "RollupSkipped", "RollupFanOut", "BuildRollupSummary",
         "WriteHotRunComplete", "WriteHotRunFailed", "NotifyError", "End",
     ]:
         assert name in states, f"missing state: {name}"
 
 
 def test_state_machine_asl_has_catch_on_every_task():
-    """Every Task state (other than the StageRow writers and Notify) must
-    route failures to WriteHotRunFailed so completion never silently drops."""
+    """Every Task / Map state that does real work must route failures to
+    WriteHotRunFailed so completion never silently drops."""
     asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
     asl = json.loads(asl_path.read_text())
-    for name in ("Orchestrate", "Score", "Assign", "TopTopic", "Rollup"):
+    for name, expected_type in (
+        ("Orchestrate", "Task"),
+        ("Score", "Task"),
+        ("DeriveDirtyTopics", "Task"),
+        ("TopTopic", "Task"),
+        ("AssignFanOut", "Map"),
+        ("RollupFanOut", "Map"),
+    ):
         state = asl["States"][name]
-        assert state["Type"] == "Task"
+        assert state["Type"] == expected_type
         catches = state.get("Catch") or []
         assert any(
             c.get("Next") == "WriteHotRunFailed" for c in catches
-        ), f"{name} missing Catch → WriteHotRunFailed"
+        ), f"{name} missing Catch -> WriteHotRunFailed"
 
 
 def test_state_machine_top_topic_consumes_all_pmids():
@@ -520,6 +529,53 @@ def test_state_machine_hot_run_row_records_retry_metadata():
     item = asl["States"]["WriteHotRunComplete"]["Parameters"]["Item"]
     assert "retry_size" in item
     assert item["run_kind"]["S.$"] == "$.orchestrate.input.run_kind"
+
+
+# ---------- ASL: DeriveDirtyTopics + the Assign / Rollup Maps (#119) ----------
+
+
+def test_derive_dirty_topics_feeds_the_assign_fanout():
+    """DeriveDirtyTopics runs post-Score and writes $.assign; CheckAssignNeeded
+    and AssignFanOut both read that array, not the orchestrator's input."""
+    asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
+    states = json.loads(asl_path.read_text())["States"]
+    assert states["WriteScoreStageRow"]["Next"] == "DeriveDirtyTopics"
+    ddt = states["DeriveDirtyTopics"]
+    assert ddt["Type"] == "Task"
+    assert ddt["ResultPath"] == "$.assign"
+    assert ddt["Parameters"]["pmids.$"] == "$.orchestrate.input.delta.all_pmids"
+    assert (
+        states["CheckAssignNeeded"]["Choices"][0]["Variable"]
+        == "$.assign.assign_topics[0]"
+    )
+    fan = states["AssignFanOut"]
+    assert fan["Type"] == "Map"
+    assert fan["ItemsPath"] == "$.assign.assign_topics"
+
+
+def test_rollup_fanout_maps_over_dirty_cwids():
+    """RollupFanOut iterates the orchestrator's dirty_cwids; each iteration
+    invokes the rollup Lambda's per-CWID {cwid} mode with the bare item."""
+    asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
+    states = json.loads(asl_path.read_text())["States"]
+    fan = states["RollupFanOut"]
+    assert fan["Type"] == "Map"
+    assert fan["ItemsPath"] == "$.orchestrate.input.delta.dirty_cwids"
+    assert fan["ItemProcessor"]["States"]["RollupOne"]["Parameters"] == {
+        "cwid.$": "$"
+    }
+
+
+def test_build_summary_states_feed_hot_run_complete():
+    """The Map outputs are arrays; BuildAssignSummary / BuildRollupSummary
+    collapse each to the single envelope WriteHotRunComplete reads."""
+    asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
+    states = json.loads(asl_path.read_text())["States"]
+    assert states["BuildAssignSummary"]["ResultPath"] == "$.assign_envelope"
+    assert states["BuildRollupSummary"]["ResultPath"] == "$.rollup_envelope"
+    item = states["WriteHotRunComplete"]["Parameters"]["Item"]
+    assert item["assign_input_hash"]["S.$"] == "$.assign_envelope.input_hash.S"
+    assert item["rollup_input_hash"]["S.$"] == "$.rollup_envelope.input_hash.S"
 
 
 # ---------- retry sweep: state-machine input shape ----------
