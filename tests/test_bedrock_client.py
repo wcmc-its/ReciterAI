@@ -11,11 +11,12 @@ on biomedical mouse-study abstracts, every dense pass crashed with
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from utils.bedrock_client import (
+    BedrockCallResult,
     BedrockClient,
     BedrockEmptyContentError,
     SONNET_MODEL,
@@ -120,3 +121,79 @@ def test_empty_content_error_is_runtime_error_subclass():
     err = BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL)
     assert isinstance(err, RuntimeError)
     assert isinstance(err, Exception)
+
+
+# ---------------------------------------------------------------------------
+# call_with_usage — the usage-returning substrate method (#37 Bedrock rewire)
+# ---------------------------------------------------------------------------
+
+
+def test_call_with_usage_returns_text_and_token_counts():
+    """call_with_usage returns a BedrockCallResult: text + usage + stopReason."""
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry",
+                       return_value=_happy_response('{"synopsis": "ok"}')):
+        result = client.call_with_usage(
+            model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}],
+        )
+
+    assert isinstance(result, BedrockCallResult)
+    assert result.text == '{"synopsis": "ok"}'
+    assert result.input_tokens == 100
+    assert result.output_tokens == 10
+    assert result.stop_reason == "end_turn"
+
+
+def test_call_with_usage_raises_structured_error_on_content_filter():
+    """An empty content block raises BedrockEmptyContentError carrying the
+    stopReason, so the enrichment helper can branch to the OpenAI fallback."""
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry",
+                       return_value=_content_filtered_response()):
+        with pytest.raises(BedrockEmptyContentError) as exc_info:
+            client.call_with_usage(
+                model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}],
+            )
+
+    assert exc_info.value.stop_reason == "content_filtered"
+    assert exc_info.value.model == SONNET_MODEL
+
+
+def test_call_with_usage_defaults_missing_usage_block_to_zero():
+    """A response with content but no `usage` key yields zero token counts,
+    not a KeyError."""
+    client = BedrockClient()
+    resp = {
+        "output": {"message": {"role": "assistant", "content": [{"text": "hi"}]}},
+        "stopReason": "end_turn",
+    }
+    with patch.object(client, "_call_with_retry", return_value=resp):
+        result = client.call_with_usage(
+            model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}],
+        )
+
+    assert result.text == "hi"
+    assert result.input_tokens == 0
+    assert result.output_tokens == 0
+
+
+def test_call_with_usage_retries_on_throttling_then_succeeds():
+    """call_with_usage inherits _call_with_retry's throttle backoff."""
+    from botocore.exceptions import ClientError
+
+    throttle = ClientError(
+        {"Error": {"Code": "ThrottlingException", "Message": "slow down"}},
+        "Converse",
+    )
+    fake_boto = MagicMock()
+    fake_boto.converse.side_effect = [throttle, _happy_response('{"ok": 1}')]
+
+    client = BedrockClient()
+    with patch.object(client, "_get_client", return_value=fake_boto), \
+         patch("utils.bedrock_client.time.sleep"):
+        result = client.call_with_usage(
+            model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}],
+        )
+
+    assert result.text == '{"ok": 1}'
+    assert fake_boto.converse.call_count == 2

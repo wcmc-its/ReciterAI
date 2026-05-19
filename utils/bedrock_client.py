@@ -32,6 +32,7 @@ import re
 import time
 import logging
 import os
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,23 @@ class BedrockEmptyContentError(RuntimeError):
             f"Bedrock returned empty content from model={model} "
             f"(stopReason={stop_reason!r})"
         )
+
+
+@dataclass
+class BedrockCallResult:
+    """One Bedrock Converse call outcome — response text plus token usage.
+
+    Returned by ``BedrockClient.call_with_usage``. ``call`` / ``call_json``
+    discard the Converse ``usage`` block; callers that attribute per-call
+    cost — the daily-enrichment synopsis + impact workers — need it, so
+    this carries the ``usage.{inputTokens,outputTokens}`` counts and the
+    ``stopReason`` alongside the response text.
+    """
+
+    text: str
+    input_tokens: int
+    output_tokens: int
+    stop_reason: str
 
 
 class BedrockClient:
@@ -241,6 +259,66 @@ class BedrockClient:
             )
             retry_cleaned = re.sub(r'```json\n?|\n?```', '', retry_content).strip()
             return json.loads(retry_cleaned)
+
+    def call_with_usage(
+        self,
+        model: str,
+        messages: list,
+        system: str = None,
+        max_tokens: int = 4096,
+        temperature: float | None = 0.0,
+    ) -> BedrockCallResult:
+        """
+        Make a Bedrock Converse API call and return text + token usage.
+
+        Like ``call``, but returns a ``BedrockCallResult`` carrying the
+        ``usage.{inputTokens,outputTokens}`` counts and the ``stopReason``,
+        not just the response string. Used by callers that attribute
+        per-call cost — the daily-enrichment synopsis + impact workers.
+
+        ``call`` / ``call_json`` are deliberately left untouched so their
+        existing callers (``score_publications`` etc.) are unaffected; the
+        few lines of response handling below are intentionally duplicated
+        rather than refactored into a shared private helper.
+
+        Args:
+            model: Bedrock model ID (e.g., HAIKU_MODEL, SONNET_MODEL).
+            messages: OpenAI-style message list, as for ``call``.
+            system: Optional system prompt string.
+            max_tokens: Maximum tokens in response (default 4096).
+            temperature: Sampling temperature (default 0.0). Pass ``None``
+                to omit it — see ``call``.
+
+        Returns:
+            BedrockCallResult with the response text and token usage.
+
+        Raises:
+            BedrockEmptyContentError: If Bedrock returns no content blocks
+                (e.g. stopReason='content_filtered'). Callers inspect
+                ``stop_reason`` to branch to a content-filter fallback.
+            botocore.exceptions.ClientError: On non-retryable Bedrock errors.
+        """
+        messages_converse, system_list = self._translate_messages(messages, system)
+        response = self._call_with_retry(
+            model=model,
+            messages_converse=messages_converse,
+            system_list=system_list,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        content_blocks = response.get('output', {}).get('message', {}).get('content') or []
+        if not content_blocks:
+            raise BedrockEmptyContentError(
+                stop_reason=response.get('stopReason', 'unknown'),
+                model=model,
+            )
+        usage = response.get('usage') or {}
+        return BedrockCallResult(
+            text=content_blocks[0]['text'],
+            input_tokens=int(usage.get('inputTokens') or 0),
+            output_tokens=int(usage.get('outputTokens') or 0),
+            stop_reason=response.get('stopReason', 'unknown'),
+        )
 
     def _call_with_retry(
         self,

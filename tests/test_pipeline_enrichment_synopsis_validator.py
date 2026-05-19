@@ -1,10 +1,14 @@
-"""Unit tests for the synopsis length validator (#50).
+"""Unit tests for synopsis generation on the Bedrock path (#37 / #50).
 
-Validates the retry-and-flag behavior added 2026-05-14:
-- First call returns ≤95 chars → returned cleanly.
-- First call >95 chars → reinforcement retry → if retry returns ≤95, cleanly.
-- Both calls >95 chars → returned with error flag, model's actual output
-  preserved (NEVER truncated — see #50 / feedback_no_arbitrary_truncation).
+`generate_synopsis` now runs on AWS Bedrock Sonnet 4.6 via
+`pipeline_enrichment.llm_call`, with an OpenAI gpt-5.1 content-filter
+fallback. These tests inject a fake Bedrock client and exercise:
+- a ≤95-char first attempt → returned cleanly;
+- an overrun → reinforcement retry; the loop is the initial call + 2 retries;
+- every attempt overruns → returned with an error flag, the model's actual
+  output preserved (NEVER truncated — #50 / feedback_no_arbitrary_truncation);
+- empty / unparseable returns;
+- the content-filter fallback to gpt-5.1.
 """
 from __future__ import annotations
 
@@ -12,113 +16,241 @@ import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from pipeline_enrichment import synopsis as synopsis_mod
-from pipeline_enrichment.synopsis import SYNOPSIS_MAX_CHARS, generate_synopsis
+from pipeline_enrichment import llm_call as llm_call_mod
+from pipeline_enrichment.synopsis import (
+    SYNOPSIS_MAX_ATTEMPTS,
+    SYNOPSIS_MAX_CHARS,
+    generate_synopsis,
+)
+from utils.bedrock_client import BedrockCallResult, BedrockEmptyContentError, SONNET_MODEL
+from utils.openai_client import GPT5_MODEL
 
 
-def _make_response(text: str, *, model: str = "gpt-5.1-2025-11-13",
-                   prompt_tokens: int = 100, completion_tokens: int = 20):
-    """Build a stand-in OpenAI ChatCompletion response object."""
+class _FakeBedrock:
+    """Stand-in BedrockClient: each call_with_usage consumes one queued
+    item — a BedrockCallResult is returned, an Exception is raised."""
+
+    def __init__(self, items):
+        self._items = list(items)
+        self.call_count = 0
+        self.calls = []
+
+    def call_with_usage(self, *, model, messages, system, max_tokens):
+        self.call_count += 1
+        self.calls.append({"model": model, "messages": messages, "system": system})
+        item = self._items.pop(0)
+        if isinstance(item, BaseException):
+            raise item
+        return item
+
+
+def _bedrock_synopsis(text: str, *, input_tokens=100,
+                      output_tokens=20) -> BedrockCallResult:
+    """A Bedrock response whose text is the synopsis JSON object."""
+    return BedrockCallResult(
+        text=json.dumps({"synopsis": text}),
+        input_tokens=input_tokens, output_tokens=output_tokens,
+        stop_reason="end_turn",
+    )
+
+
+def _openai_completion(content: str, *, prompt_tokens=150, completion_tokens=30):
     return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(
-            content=json.dumps({"synopsis": text})
-        ))],
-        model=model,
-        usage=SimpleNamespace(prompt_tokens=prompt_tokens,
-                              completion_tokens=completion_tokens),
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
     )
 
 
 def test_synopsis_first_attempt_within_limit_returns_clean():
-    syn = "A 70-character synopsis that fits comfortably under the limit oh yes"  # ~70 chars
+    syn = "A 70-character synopsis that fits comfortably under the limit oh yes"
     assert len(syn) <= SYNOPSIS_MAX_CHARS
 
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.return_value = _make_response(syn)
-        result = generate_synopsis(pmid="1", title="T", abstract="A")
+    fake = _FakeBedrock([_bedrock_synopsis(syn)])
+    result = generate_synopsis(pmid="1", title="T", abstract="A", client=fake)
 
-    assert mock_call.call_count == 1  # no retry
+    assert fake.call_count == 1  # no retry
     assert result.synopsis == syn
     assert result.error is None
+    assert result.model == SONNET_MODEL
     assert result.input_tokens == 100
     assert result.output_tokens == 20
 
 
 def test_synopsis_first_overrun_retries_and_succeeds():
-    over = "x" * 110  # 110 chars, over the 95 limit
+    over = "x" * 110  # over the 95 limit
     under = "x" * 80
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.side_effect = [_make_response(over), _make_response(under)]
-        result = generate_synopsis(pmid="2", title="T", abstract="A")
+    fake = _FakeBedrock([_bedrock_synopsis(over), _bedrock_synopsis(under)])
+    result = generate_synopsis(pmid="2", title="T", abstract="A", client=fake)
 
-    assert mock_call.call_count == 2
+    assert fake.call_count == 2
     assert result.synopsis == under
     assert result.error is None
     # Token usage accumulates across both attempts.
     assert result.input_tokens == 200
     assert result.output_tokens == 40
-
-    # The retry must have augmented the user prompt with the violation hint.
-    second_user = mock_call.call_args_list[1].kwargs["user_prompt"]
+    # The retry augmented the user prompt with the violation hint.
+    second_user = fake.calls[1]["messages"][0]["content"]
     assert "previous attempt was 110 characters" in second_user
     assert "Count characters" in second_user
 
 
-def test_synopsis_two_overruns_returns_violation_flag_preserves_output():
-    """Both attempts overrun. The model's actual output is preserved (NOT
+def test_synopsis_uses_three_attempts_before_giving_up():
+    """D4: the loop is the initial call + 2 reinforcement retries."""
+    assert SYNOPSIS_MAX_ATTEMPTS == 3
+    over1, over2 = "x" * 110, "x" * 105
+    under = "x" * 60
+    fake = _FakeBedrock([
+        _bedrock_synopsis(over1), _bedrock_synopsis(over2), _bedrock_synopsis(under),
+    ])
+    result = generate_synopsis(pmid="3", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 3
+    assert result.synopsis == under
+    assert result.error is None
+
+
+def test_synopsis_all_attempts_overrun_returns_violation_flag_preserves_output():
+    """Every attempt overruns: the model's actual output is preserved (NOT
     truncated) and the error field flags the length violation."""
-    first = "x" * 110
-    second = "x" * 100  # still over 95
+    a, b, c = "x" * 110, "x" * 108, "x" * 100  # all over 95
+    fake = _FakeBedrock([
+        _bedrock_synopsis(a), _bedrock_synopsis(b), _bedrock_synopsis(c),
+    ])
+    result = generate_synopsis(pmid="4", title="T", abstract="A", client=fake)
 
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.side_effect = [_make_response(first), _make_response(second)]
-        result = generate_synopsis(pmid="3", title="T", abstract="A")
-
-    assert mock_call.call_count == 2
-    # Critical: actual output preserved, not truncated.
-    assert result.synopsis == second
-    assert len(result.synopsis) == 100  # NOT clipped to 95
+    assert fake.call_count == 3
+    # Critical: actual output preserved, not clipped to 95.
+    assert result.synopsis == c
+    assert len(result.synopsis) == 100
     assert result.error is not None
     assert "length violation" in result.error
     assert "100 chars" in result.error
     assert "limit 95" in result.error
 
 
-def test_synopsis_empty_response_short_circuits_no_retry():
-    """Empty-string synopsis is a different failure mode — return immediately,
-    don't burn a retry trying to shorten an empty string."""
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.return_value = _make_response("")
-        result = generate_synopsis(pmid="4", title="T", abstract="A")
+def test_synopsis_empty_field_short_circuits_no_retry():
+    """An empty `synopsis` field is a distinct failure mode — return
+    immediately, don't burn a retry trying to shorten an empty string."""
+    fake = _FakeBedrock([_bedrock_synopsis("")])
+    result = generate_synopsis(pmid="5", title="T", abstract="A", client=fake)
 
-    assert mock_call.call_count == 1
+    assert fake.call_count == 1
     assert result.synopsis is None
     assert result.error == "empty synopsis in response"
 
 
-def test_synopsis_api_error_returns_immediately():
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.side_effect = RuntimeError("rate limit")
-        result = generate_synopsis(pmid="5", title="T", abstract="A")
+def test_synopsis_unparseable_json_returns_error():
+    fake = _FakeBedrock([BedrockCallResult(
+        text="not json at all", input_tokens=10, output_tokens=5,
+        stop_reason="end_turn",
+    )])
+    result = generate_synopsis(pmid="6", title="T", abstract="A", client=fake)
 
-    assert mock_call.call_count == 1
+    assert fake.call_count == 1
     assert result.synopsis is None
-    assert "rate limit" in result.error
+    assert "json decode" in result.error
+
+
+def test_synopsis_call_error_returns_immediately():
+    fake = _FakeBedrock([RuntimeError("bedrock exploded")])
+    result = generate_synopsis(pmid="7", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 1
+    assert result.synopsis is None
+    assert "bedrock exploded" in result.error
 
 
 def test_synopsis_exactly_at_limit_is_accepted():
     """The boundary case: exactly 95 chars is allowed (≤ not <)."""
     exactly = "x" * SYNOPSIS_MAX_CHARS
-    with patch.object(synopsis_mod, "call_with_retry") as mock_call, \
-         patch.object(synopsis_mod, "get_default_client", return_value=object()):
-        mock_call.return_value = _make_response(exactly)
-        result = generate_synopsis(pmid="6", title="T", abstract="A")
+    fake = _FakeBedrock([_bedrock_synopsis(exactly)])
+    result = generate_synopsis(pmid="8", title="T", abstract="A", client=fake)
 
-    assert mock_call.call_count == 1
+    assert fake.call_count == 1
     assert result.synopsis == exactly
     assert result.error is None
+
+
+def test_synopsis_content_filter_falls_back_to_openai():
+    """A Bedrock content-filter block recovers via the OpenAI fallback; the
+    result records gpt-5.1 as the model actually used."""
+    syn = "Sonnet was filtered; this synopsis came from the gpt-5.1 fallback"
+    assert len(syn) <= SYNOPSIS_MAX_CHARS
+
+    fake = _FakeBedrock([
+        BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
+    ])
+    with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
+         patch.object(llm_call_mod, "openai_call_with_retry",
+                      return_value=_openai_completion(json.dumps({"synopsis": syn}))):
+        result = generate_synopsis(pmid="9", title="T", abstract="A", client=fake)
+
+    assert result.synopsis == syn
+    assert result.error is None
+    assert result.model == GPT5_MODEL
+    assert result.input_tokens == 150
+    assert result.output_tokens == 30
+
+
+def test_synopsis_non_filter_empty_retries_bedrock_then_succeeds():
+    """A non-content-filter empty Bedrock return retries once inside
+    llm_call, transparently to generate_synopsis."""
+    syn = "Recovered on the Bedrock retry after a transient empty return"
+    fake = _FakeBedrock([
+        BedrockEmptyContentError(stop_reason="end_turn", model=SONNET_MODEL),
+        _bedrock_synopsis(syn),
+    ])
+    result = generate_synopsis(pmid="10", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 2
+    assert result.synopsis == syn
+    assert result.error is None
+    assert result.model == SONNET_MODEL
+
+
+def test_synopsis_content_filter_mid_loop_after_overrun_accumulates_tokens():
+    """Attempt 1 overruns on Sonnet; attempt 2 content-filters and recovers
+    via the gpt-5.1 fallback. Tokens accumulate across both models, and the
+    result records the model that produced the synopsis that was kept."""
+    kept = "Recovered via the gpt-5.1 fallback on the loop's second attempt"
+    assert len(kept) <= SYNOPSIS_MAX_CHARS
+
+    fake = _FakeBedrock([
+        _bedrock_synopsis("x" * 110),  # attempt 1 — Sonnet, overruns
+        BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
+    ])
+    with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
+         patch.object(llm_call_mod, "openai_call_with_retry",
+                      return_value=_openai_completion(json.dumps({"synopsis": kept}))):
+        result = generate_synopsis(pmid="11", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 2
+    assert result.synopsis == kept
+    assert result.error is None
+    assert result.model == GPT5_MODEL  # the model that produced the kept synopsis
+    # Sonnet attempt-1 tokens (100/20) + gpt-5.1 fallback tokens (150/30).
+    assert result.input_tokens == 250
+    assert result.output_tokens == 50
+
+
+def test_synopsis_overrunning_fallback_re_enters_length_loop():
+    """A gpt-5.1 fallback whose own output overruns 95 chars re-enters the
+    reinforcement loop; the next attempt goes back to Bedrock (the fallback
+    is one-shot per call_with_fallback invocation)."""
+    kept = "Second attempt came back from Bedrock within the limit cleanly"
+    assert len(kept) <= SYNOPSIS_MAX_CHARS
+
+    fake = _FakeBedrock([
+        BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
+        _bedrock_synopsis(kept),  # attempt 2 — Bedrock, within limit
+    ])
+    with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
+         patch.object(llm_call_mod, "openai_call_with_retry",
+                      return_value=_openai_completion(json.dumps({"synopsis": "x" * 110}))) as mock_openai:
+        result = generate_synopsis(pmid="12", title="T", abstract="A", client=fake)
+
+    assert fake.call_count == 2
+    assert mock_openai.call_count == 1  # fallback fired only on attempt 1
+    assert result.synopsis == kept
+    assert result.error is None
+    assert result.model == SONNET_MODEL

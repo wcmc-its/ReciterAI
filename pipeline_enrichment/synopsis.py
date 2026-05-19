@@ -1,15 +1,17 @@
 """Synopsis generation — per-PMID worker.
 
-Ported from POC `core/synopsis.py` (publications path only, multi-entity
-generality dropped). Calls GPT-5.1 via Chat Completions with the
-SYNOPSIS_SCHEMA structured response format.
+Generates a ≤95-char publication synopsis on AWS Bedrock Claude Sonnet 4.6,
+with a one-shot OpenAI gpt-5.1 content-filter fallback (see
+`pipeline_enrichment.llm_call`). Ported from POC `core/synopsis.py`.
 
 Inputs: (pmid, title, journal, year, abstract)
-Output: SynopsisResult dataclass — synopsis string + usage metadata for
-cost attribution + the OpenAI response model for traceability.
+Output: SynopsisResult — synopsis string + token usage for cost
+attribution + the model actually used (Sonnet, or gpt-5.1 on a fallback).
 
-Scheduled wiring (watermark, MariaDB write, error rollup) lands in #37
-step 2; this module is just the per-PMID worker.
+Length enforcement: Bedrock Converse has no strict-JSON `maxLength`, so the
+≤95-char rule is enforced solely by the Python reinforcement-retry loop
+below (initial call + up to two retries). The model's actual output is
+never truncated — see #50 / feedback_no_arbitrary_truncation.
 """
 from __future__ import annotations
 
@@ -18,25 +20,25 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from openai import OpenAI
-
-from pipeline_enrichment.prompts import (
-    SYNOPSIS_SCHEMA,
-    SYNOPSIS_SYSTEM,
-    build_synopsis_user_content,
-)
-from utils.openai_client import GPT5_MODEL, call_with_retry, get_default_client
+from pipeline_enrichment.llm_call import call_with_fallback, parse_json_lenient
+from pipeline_enrichment.prompts import SYNOPSIS_SYSTEM, build_synopsis_user_content
+from utils.bedrock_client import BedrockClient, SONNET_MODEL
 
 logger = logging.getLogger(__name__)
 
-# Defense-in-depth on the ≤95-char synopsis rule, in addition to the
-# schema-level maxLength on SYNOPSIS_SCHEMA. If the API ever returns a
-# longer string (maxLength is best-effort, not a hard refusal), retry
-# once with a reinforcement message; on second overrun, surface the
-# actual model output with a length-violation error. NEVER truncate —
-# truncation drops content the model considered necessary and is a
-# silent quality regression for user-facing faculty-page text. (See #50.)
+# The ≤95-char synopsis rule is enforced by a reinforcement-retry loop: an
+# initial call plus up to two retries, each retry reinforcing the limit in
+# the prompt. Bedrock Converse has no strict-JSON `maxLength` to lean on
+# (the retired OpenAI path used a `json_schema`), so this loop is the SOLE
+# enforcement. On a final overrun the model's actual output is preserved
+# with a length-violation error — NEVER truncated, since truncation
+# silently drops content the model considered necessary for user-facing
+# faculty-page text (see #50).
 SYNOPSIS_MAX_CHARS = 95
+
+# Initial call + 2 reinforcement retries. Widened from 1 retry (D4): the
+# Bedrock model spike overran 95 chars on ~23% of first attempts.
+SYNOPSIS_MAX_ATTEMPTS = 3
 
 
 @dataclass
@@ -44,8 +46,9 @@ class SynopsisResult:
     """One synopsis generation outcome.
 
     `synopsis` is None when the call failed; `error` holds the message.
-    `input_tokens` / `output_tokens` come from `response.usage` and feed
-    `utils.llm_cost.CostAccumulator.record`.
+    `model` is the model actually used — Bedrock Sonnet 4.6, or `gpt-5.1`
+    when the content-filter fallback fired. `input_tokens` / `output_tokens`
+    feed `utils.llm_cost.CostAccumulator.record`.
     """
 
     pmid: str
@@ -56,17 +59,6 @@ class SynopsisResult:
     error: Optional[str] = None
 
 
-# Matches POC `core/synopsis.py` response_format shape exactly.
-_RESPONSE_FORMAT = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "synopsis",
-        "strict": True,
-        "schema": SYNOPSIS_SCHEMA["schema"],
-    },
-}
-
-
 def generate_synopsis(
     *,
     pmid: str,
@@ -74,64 +66,61 @@ def generate_synopsis(
     journal: str | None = None,
     year: int | None = None,
     abstract: str | None = None,
-    client: OpenAI | None = None,
-    model: str = GPT5_MODEL,
-    max_completion_tokens: int = 8000,
-    reasoning_effort: str | None = None,
+    client: BedrockClient | None = None,
+    model: str = SONNET_MODEL,
+    max_tokens: int = 512,
 ) -> SynopsisResult:
-    """Generate a ≤95-char synopsis for one PMID.
+    """Generate a ≤95-char synopsis for one PMID on Bedrock Sonnet 4.6.
 
     Args:
         pmid: PMID string, used only for tagging the result + log lines.
         title: publication title (required).
         journal, year, abstract: optional context; abstract is the
             primary driver of synopsis content.
-        client: OpenAI client; defaults to the module's lazy singleton.
-        model: model ID (default GPT5_MODEL = "gpt-5.1").
-        max_completion_tokens: GPT-5 reasoning + visible-token ceiling.
-        reasoning_effort: forwarded to GPT-5 ("minimal"/"low"/"medium"/"high"),
-            None lets the model use its default.
+        client: Bedrock client; defaults to the shared lazy singleton in
+            `pipeline_enrichment.llm_call`. The OpenAI content-filter
+            fallback's client is managed inside that module.
+        model: Bedrock model ID (default SONNET_MODEL).
+        max_tokens: Bedrock response token cap. The synopsis JSON object
+            is tiny, so 512 is ample.
 
     Returns:
-        SynopsisResult. On success, `.synopsis` is the produced string.
-        On failure, `.synopsis` is None and `.error` describes the issue.
+        SynopsisResult. On success `.synopsis` is the produced string and
+        `.model` is the model actually used. On failure `.synopsis` is None
+        and `.error` describes the issue.
     """
-    client = client or get_default_client()
     user_content = build_synopsis_user_content(
         title=title, journal=journal, year=year, abstract=abstract
     )
 
     input_tokens_total = 0
     output_tokens_total = 0
-    response_model: Optional[str] = None
+    response_model: str = model
     synopsis_text = ""
 
-    for attempt in range(2):  # initial call + 1 reinforcement retry
+    for attempt in range(SYNOPSIS_MAX_ATTEMPTS):
         try:
-            response = call_with_retry(
-                client,
-                model=model,
+            call_result = call_with_fallback(
                 system_prompt=SYNOPSIS_SYSTEM,
                 user_prompt=user_content,
-                response_format=_RESPONSE_FORMAT,
-                max_completion_tokens=max_completion_tokens,
-                reasoning_effort=reasoning_effort,
+                model=model,
+                max_tokens=max_tokens,
+                bedrock_client=client,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("synopsis call failed for pmid=%s: %s", pmid, e)
             return SynopsisResult(
-                pmid=pmid, synopsis=None, model=model,
+                pmid=pmid, synopsis=None, model=response_model,
                 input_tokens=input_tokens_total, output_tokens=output_tokens_total,
                 error=str(e),
             )
 
-        input_tokens_total += _safe_input_tokens(response)
-        output_tokens_total += _safe_output_tokens(response)
-        response_model = response.model
+        input_tokens_total += call_result.input_tokens
+        output_tokens_total += call_result.output_tokens
+        response_model = call_result.model
 
-        raw = response.choices[0].message.content or ""
         try:
-            payload = json.loads(raw)
+            payload = parse_json_lenient(call_result.text)
         except json.JSONDecodeError as e:
             return SynopsisResult(
                 pmid=pmid, synopsis=None, model=response_model,
@@ -139,7 +128,10 @@ def generate_synopsis(
                 error=f"json decode: {e}",
             )
 
-        synopsis_text = (payload.get("synopsis") or "").strip() if isinstance(payload, dict) else ""
+        synopsis_text = (
+            (payload.get("synopsis") or "").strip()
+            if isinstance(payload, dict) else ""
+        )
         if not synopsis_text:
             return SynopsisResult(
                 pmid=pmid, synopsis=None, model=response_model,
@@ -152,36 +144,25 @@ def generate_synopsis(
                 input_tokens=input_tokens_total, output_tokens=output_tokens_total,
                 error=None,
             )
-        # First overrun: reinforce the limit and retry once.
+        # Overrun — reinforce the limit and retry (unless this was the last
+        # attempt, in which case the loop falls through to the block below).
         logger.info(
-            "synopsis length=%d > %d for pmid=%s (attempt %d); retrying with reinforcement",
-            len(synopsis_text), SYNOPSIS_MAX_CHARS, pmid, attempt + 1,
+            "synopsis length=%d > %d for pmid=%s (attempt %d/%d); "
+            "retrying with reinforcement",
+            len(synopsis_text), SYNOPSIS_MAX_CHARS, pmid,
+            attempt + 1, SYNOPSIS_MAX_ATTEMPTS,
         )
         user_content += (
             f"\n\nYour previous attempt was {len(synopsis_text)} characters "
-            f"(hard limit {SYNOPSIS_MAX_CHARS}). Produce a strictly shorter version. "
-            f"Count characters before answering."
+            f"(hard limit {SYNOPSIS_MAX_CHARS}). Produce a strictly shorter "
+            f"version. Count characters before answering."
         )
 
-    # Second overrun: preserve the model's actual output, flag the violation.
-    # NEVER truncate — drops content the model considered necessary (see #50).
+    # Every attempt overran. Preserve the model's actual output, flag the
+    # violation — NEVER truncate (see #50).
     return SynopsisResult(
         pmid=pmid, synopsis=synopsis_text, model=response_model,
         input_tokens=input_tokens_total, output_tokens=output_tokens_total,
-        error=f"length violation: {len(synopsis_text)} chars (limit {SYNOPSIS_MAX_CHARS})",
+        error=f"length violation: {len(synopsis_text)} chars "
+              f"(limit {SYNOPSIS_MAX_CHARS})",
     )
-
-
-def _safe_input_tokens(response) -> int:
-    """Pull prompt_tokens off the OpenAI response.usage object defensively."""
-    try:
-        return int(response.usage.prompt_tokens or 0)
-    except Exception:
-        return 0
-
-
-def _safe_output_tokens(response) -> int:
-    try:
-        return int(response.usage.completion_tokens or 0)
-    except Exception:
-        return 0
