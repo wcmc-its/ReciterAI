@@ -357,45 +357,6 @@ def test_assign_handler_passes_topic_and_pmids(monkeypatch):
 # ---------- rollup handler ----------
 
 
-def test_rollup_handler_passes_cwids(monkeypatch):
-    captured = []
-
-    def fake_run(cmd, **kwargs):
-        captured.append(cmd)
-        return subprocess.CompletedProcess(
-            args=cmd, returncode=0,
-            stdout='{"PK":"STAGE#rollup_by_cwid#GLOBAL","status":"complete"}\n',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    env = rollup_handler.handler({"dirty_cwids": ["alice", "bob"]})
-    # DDB attribute-typed return so WriteRollupStageRow can consume it.
-    assert env["PK"] == {"S": "STAGE#rollup_by_cwid#GLOBAL"}
-    cmd = captured[0]
-    assert "--cwids" in cmd and "alice,bob" in cmd
-    assert "--emit-envelope" in cmd
-
-
-def test_rollup_handler_omits_cwids_when_empty(monkeypatch):
-    captured = []
-
-    def fake_run(cmd, **kwargs):
-        captured.append(cmd)
-        return subprocess.CompletedProcess(
-            args=cmd, returncode=0,
-            stdout='{"PK":"STAGE#rollup_by_cwid#GLOBAL","status":"complete"}\n',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    rollup_handler.handler({"dirty_cwids": []})
-    assert "--cwids" not in captured[0]
-
-
-# ---------- rollup handler: onboarding {cwid} event (#80 Phase 2 / #90) ----------
-
-
 def test_rollup_handler_routes_cwid_event(monkeypatch):
     captured = []
 
@@ -414,8 +375,6 @@ def test_rollup_handler_routes_cwid_event(monkeypatch):
     cmd = captured[0]
     assert "--cwid" in cmd and "abc1234" in cmd
     assert "--emit-envelope" in cmd
-    # An onboarding event must NOT carry the hot-path dirty-CWID flag.
-    assert "--cwids" not in cmd
 
 
 def test_rollup_handler_cwid_event_strips_whitespace(monkeypatch):
@@ -449,24 +408,18 @@ def test_rollup_handler_empty_cwid_raises(monkeypatch):
         rollup_handler.handler({"cwid": "   "})
 
 
-def test_rollup_handler_dirty_cwids_path_carries_no_cwid_flag(monkeypatch):
-    """Regression guard for the two-shape branch: a {dirty_cwids} event
-    still routes to --cwids and never to the onboarding --cwid path."""
-    captured = []
-
-    def fake_run(cmd, **kwargs):
-        captured.append(cmd)
-        return subprocess.CompletedProcess(
-            args=cmd, returncode=0,
-            stdout='{"PK":"STAGE#rollup_by_cwid#GLOBAL","status":"complete"}\n',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    rollup_handler.handler({"dirty_cwids": ["alice"]})
-    cmd = captured[0]
-    assert "--cwids" in cmd and "alice" in cmd
-    assert "--cwid" not in cmd
+def test_rollup_handler_missing_cwid_raises(monkeypatch):
+    """An event with no 'cwid' key is a contract violation — both callers
+    (the hot RollupFanOut Map and the onboarding Rollup stage) send
+    {cwid}. subprocess must not run."""
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **kw: pytest.fail("subprocess must not run for missing cwid"),
+    )
+    with pytest.raises(ValueError, match="no 'cwid'"):
+        rollup_handler.handler({})
+    with pytest.raises(ValueError, match="no 'cwid'"):
+        rollup_handler.handler({"dirty_cwids": ["alice"]})
 
 
 # ---------- ASL static validation ----------
