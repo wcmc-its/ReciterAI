@@ -19,6 +19,8 @@ the migration completes.
 """
 from __future__ import annotations
 
+import html
+
 # =============================================================================
 # Synopsis (≤95-char publication synopsis)
 # =============================================================================
@@ -55,12 +57,20 @@ def build_synopsis_user_content(*, title: str, journal: str | None,
     """User-content builder for the synopsis call.
 
     Matches the format produced by POC `core/synopsis.py::_one` (line 147–153).
+
+    Title + abstract are run through `html.unescape` because upstream MariaDB
+    rows can carry undecoded entities (e.g., `&#x3b2;ARKnt` instead of
+    `βARKnt`, `&#xa0;` for non-breaking space). 2026-05-20 #112 backfill
+    confirmed: PMID 33548241's `&#x3b2;ARKnt` mouse-cardiology abstract caused
+    Bedrock Sonnet 4.6 to return an empty synopsis on two consecutive calls
+    — same input, same empty output, not non-determinism. Decoding restores
+    the proper Unicode characters before the prompt reaches the model.
     """
     return (
-        f"Title: {title}\n"
+        f"Title: {html.unescape(title)}\n"
         f"Journal: {journal or 'N/A'}\n"
         f"Year: {year if year is not None else 'N/A'}\n"
-        f"Abstract: {(abstract or '(no abstract)')}\n\n"
+        f"Abstract: {(html.unescape(abstract) if abstract else '(no abstract)')}\n\n"
         "Return JSON only."
     )
 
@@ -337,8 +347,11 @@ def build_impact_user_content(pub_data: dict) -> str:
     """
     parts: list[str] = []
 
+    # html.unescape on title + abstract — upstream MariaDB rows can carry
+    # undecoded entities (see build_synopsis_user_content docstring for the
+    # 2026-05-20 #112 backfill incident). Idempotent on clean text.
     if pub_data.get("articleTitle"):
-        parts.append(f"Title: {pub_data['articleTitle']}")
+        parts.append(f"Title: {html.unescape(pub_data['articleTitle'])}")
 
     journal = pub_data.get("journalTitleVerbose", "Unknown journal")
     year = pub_data.get("articleYear", "Unknown year")
@@ -362,6 +375,7 @@ def build_impact_user_content(pub_data: dict) -> str:
 
     abstract = pub_data.get("abstractVarchar")
     if abstract:
+        abstract = html.unescape(abstract)
         # POC truncates very long abstracts to 3000 chars; keep behavior.
         if len(abstract) > 3000:
             abstract = abstract[:3000] + "..."

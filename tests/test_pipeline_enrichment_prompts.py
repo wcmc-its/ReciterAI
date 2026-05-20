@@ -98,6 +98,41 @@ def test_synopsis_user_content_handles_missing_fields():
     assert "Abstract: (no abstract)" in out
 
 
+def test_synopsis_user_content_html_unescapes_title_and_abstract():
+    """Upstream MariaDB rows can carry undecoded HTML entities; the prompt
+    builder must decode them so Bedrock sees proper Unicode, not literal
+    `&#x3b2;` escape sequences. Reproduces the actual abstract shape that
+    caused PMID 33548241 to return an empty synopsis in the 2026-05-20 #112
+    backfill (and on a deterministic resample retry)."""
+    out = build_synopsis_user_content(
+        title="GRK2 &#x3b2;ARKnt mice",
+        journal="J Mol Cell Cardiol",
+        year=2021,
+        abstract=(
+            "&#x3b2;ARKnt mice did not undergo the expected transition to "
+            "heart failure. ATP production without metabolite&#xa0;switching."
+        ),
+    )
+    assert "GRK2 βARKnt mice" in out
+    assert "βARKnt mice did not undergo" in out
+    assert "metabolite switching" in out  #   = non-breaking space
+    assert "&#x3b2;" not in out  # no leftover entities
+    assert "&#xa0;" not in out
+
+
+def test_synopsis_user_content_html_unescape_is_idempotent_on_clean_text():
+    """Plain text without entities flows through unchanged (no false positives
+    on stray ampersands like 'Smith & Co.')."""
+    out = build_synopsis_user_content(
+        title="Smith & Co. report on heart disease",
+        journal="NEJM",
+        year=2024,
+        abstract="No entities here. Just plain prose & one ampersand.",
+    )
+    assert "Smith & Co. report on heart disease" in out
+    assert "plain prose & one ampersand" in out
+
+
 # ---------- impact ----------
 
 
@@ -175,6 +210,22 @@ def test_impact_user_content_truncates_long_abstract():
     # 3000 char body + "..." marker
     assert "x" * 3000 + "..." in out
     assert "x" * 3001 not in out
+
+
+def test_impact_user_content_html_unescapes_title_and_abstract():
+    """Same html.unescape applied to the impact prompt (parallel to the
+    synopsis prompt) — see 2026-05-20 #112 backfill failure on PMID 33548241."""
+    out = build_impact_user_content({
+        "articleTitle": "GRK2 &#x3b2;ARKnt mice",
+        "journalTitleVerbose": "JMCC",
+        "articleYear": 2021,
+        "abstractVarchar": "&#x3b2;ARKnt mice. ATP production without metabolite&#xa0;switching.",
+    })
+    assert "Title: GRK2 βARKnt mice" in out
+    assert "βARKnt mice" in out
+    assert "metabolite switching" in out
+    assert "&#x3b2;" not in out
+    assert "&#xa0;" not in out
 
 
 def test_impact_user_content_omits_missing_optionals():
