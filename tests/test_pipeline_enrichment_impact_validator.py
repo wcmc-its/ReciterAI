@@ -79,6 +79,40 @@ def test_impact_first_attempt_within_limits_returns_clean():
     assert result.output_tokens == 80
 
 
+def test_impact_max_tokens_default_accommodates_chain_of_thought():
+    """Pins the max_tokens default at a value that fits Sonnet 4.6's typical
+    reasoning + JSON envelope (~600–800 tokens). 512 was insufficient — the
+    2026-05-20 11:00 UTC tick failed because the model's chain-of-thought
+    analysis filled the 512 budget before emitting the closing JSON fence,
+    truncating the response into unparseable prose."""
+    import inspect
+    sig = inspect.signature(score_impact)
+    default = sig.parameters["max_tokens"].default
+    assert default >= 2048, (
+        f"max_tokens={default} is too tight for Sonnet 4.6's reasoning; "
+        f"the observed envelope on PMID 42119587 was ~500 prose tokens + ~60 "
+        f"tokens of JSON, so any default ≤1024 risks the same truncation."
+    )
+
+
+def test_impact_threads_max_tokens_through_to_bedrock():
+    """The max_tokens parameter is plumbed into the Bedrock call so an
+    operator override (or a regression to a too-tight default) shows up
+    on the wire."""
+    j = "Solid methodology and modest impact"
+    fake = _FakeBedrock([_bedrock_impact(55, j)])
+
+    captured = {}
+
+    def capture(self, *, model, messages, system, max_tokens):
+        captured["max_tokens"] = max_tokens
+        return _bedrock_impact(55, j)
+
+    fake.call_with_usage = capture.__get__(fake, _FakeBedrock)
+    score_impact(pub_data=_PUB, client=fake, max_tokens=2048)
+    assert captured["max_tokens"] == 2048
+
+
 def test_impact_word_overrun_retries_and_succeeds():
     over = ("Strong methods, clear novelty, broad applicability and excellent "
             "translational potential demonstrated")
