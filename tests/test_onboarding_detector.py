@@ -13,7 +13,9 @@ from decimal import Decimal
 import pytest
 
 import pipeline_onboarding.detector as det
-from utils.sql_queries import FACULTY_GAP_SCAN_SQL
+from unittest.mock import MagicMock
+
+from utils.sql_queries import FACULTY_GAP_SCAN_SQL, scan_faculty_publication_gaps
 
 
 NOW = datetime(2026, 5, 17, 6, 0, 0, tzinfo=timezone.utc)
@@ -56,7 +58,7 @@ class _FakeTable:
 
 
 # ---------------------------------------------------------------------------
-# FACULTY_GAP_SCAN_SQL — author-position scope
+# FACULTY_GAP_SCAN_SQL — shape + scope contracts
 # ---------------------------------------------------------------------------
 
 
@@ -65,6 +67,100 @@ def test_faculty_gap_scan_sql_scopes_to_first_last_author():
     spotlight/author_resolver.py). Shape test — no behavioral test here
     executes the SQL, so nothing else guards the filter against silent loss."""
     assert "authorPosition IN ('first', 'last')" in FACULTY_GAP_SCAN_SQL
+
+
+def test_faculty_gap_scan_sql_does_not_join_reciterai_synopsis():
+    """Post-#142, synopsis presence is a DDB lookup, not a SQL LEFT JOIN.
+    Load-bearing: scan_faculty_publication_gaps now post-processes the
+    has_synopsis flag — a regression that re-introduces the join would
+    double-count `has_synopsis` evidence from two stores."""
+    assert "reciterai_synopsis" not in FACULTY_GAP_SCAN_SQL
+
+
+# ---------------------------------------------------------------------------
+# scan_faculty_publication_gaps — Python cross-store join (#142)
+# ---------------------------------------------------------------------------
+
+
+def _fake_sql_conn(sql_rows):
+    """SQLAlchemy connection double whose execute().mappings().all() returns rows."""
+    conn = MagicMock()
+    result = MagicMock()
+    result.mappings.return_value.all.return_value = sql_rows
+    conn.execute.return_value = result
+    return conn
+
+
+def test_scan_populates_has_synopsis_from_ddb(monkeypatch):
+    """SQL returns {cwid, pmid} rows; the synopsis flag is sourced from a
+    fetch_synopses_for_pmids call against DDB. PMID 1 and 3 carry a synopsis;
+    PMID 2 does not. The returned shape is unchanged."""
+    import utils.sql_queries as sq
+
+    conn = _fake_sql_conn([
+        {"cwid": "c1", "pmid": 1},
+        {"cwid": "c1", "pmid": 2},
+        {"cwid": "c2", "pmid": 3},
+    ])
+    monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.fetch_synopses_for_pmids",
+        lambda client, pmids: {"1": "syn1", "3": "syn3"},
+    )
+
+    client = MagicMock()
+    rows = scan_faculty_publication_gaps(client=client)
+
+    assert rows == [
+        {"cwid": "c1", "pmid": "1", "has_synopsis": True},
+        {"cwid": "c1", "pmid": "2", "has_synopsis": False},
+        {"cwid": "c2", "pmid": "3", "has_synopsis": True},
+    ]
+    conn.close.assert_called_once()
+
+
+def test_scan_empty_sql_result_skips_ddb_lookup(monkeypatch):
+    """No SQL rows → no DDB call (BatchGetItem on an empty key set is wasted
+    work). Matches the empty-input short-circuit in fetch_synopses_for_pmids."""
+    import utils.sql_queries as sq
+
+    conn = _fake_sql_conn([])
+    monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
+
+    fetch = MagicMock()
+    monkeypatch.setattr("utils.dynamodb_helpers.fetch_synopses_for_pmids", fetch)
+    get_client = MagicMock()
+    monkeypatch.setattr("utils.dynamodb_helpers.get_dynamo_client", get_client)
+
+    assert scan_faculty_publication_gaps() == []
+    fetch.assert_not_called()
+    get_client.assert_not_called()
+
+
+def test_scan_dedupes_pmids_before_ddb_lookup(monkeypatch):
+    """A PMID appearing under multiple CWIDs (co-authorship) is looked up
+    once in DDB. Mirrors fetch_synopses_for_pmids' own dedup behaviour."""
+    import utils.sql_queries as sq
+
+    conn = _fake_sql_conn([
+        {"cwid": "c1", "pmid": 1},
+        {"cwid": "c2", "pmid": 1},
+    ])
+    monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
+
+    captured = {}
+
+    def _fake_fetch(client, pmids):
+        captured["pmids"] = list(pmids)
+        return {"1": "syn"}
+
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.fetch_synopses_for_pmids", _fake_fetch
+    )
+
+    rows = scan_faculty_publication_gaps(client=MagicMock())
+    assert captured["pmids"] == ["1"]
+    assert all(r["has_synopsis"] for r in rows)
 
 
 # ---------------------------------------------------------------------------
