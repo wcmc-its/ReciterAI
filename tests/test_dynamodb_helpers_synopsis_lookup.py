@@ -1,8 +1,11 @@
-"""Tests for ``fetch_synopses_for_pmids`` + ``scan_all_synopses`` (#38).
+"""Tests for DDB-side IMPACT# row reads (#38, #141).
 
-The DDB-side replacement for the old MariaDB synopsis joins. Unit-level
-coverage with MagicMock'd boto3 client — behavioural coverage against real
-DDB is covered by the cold-run smoke tests downstream.
+``fetch_synopses_for_pmids`` + ``scan_all_synopses`` (#38) — the DDB-side
+replacement for the old MariaDB synopsis joins.
+``check_enrichment_coverage`` (#141) — the DDB-side replacement for the
+MariaDB synopsis+impact idempotency cull. Unit-level coverage with
+MagicMock'd boto3 client — behavioural coverage against real DDB is
+covered by the cold-run smoke tests downstream.
 """
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ from utils.dynamodb_helpers import (
     IMPACT_PK_PREFIX,
     IMPACT_SK,
     TABLE_NAME,
+    check_enrichment_coverage,
     fetch_synopses_for_pmids,
     scan_all_synopses,
 )
@@ -164,3 +168,128 @@ def test_scan_drops_empty_synopses_defensively():
     }
     out = scan_all_synopses(client)
     assert out == {"2": "real"}
+
+
+# ---------------------------------------------------------------------------
+# check_enrichment_coverage (#141) — synopsis ∩ impact_score partition
+# ---------------------------------------------------------------------------
+
+def test_coverage_empty_input_skips_ddb():
+    client = MagicMock()
+    result = check_enrichment_coverage(client, [])
+    assert result == {"complete": [], "incomplete": []}
+    client.batch_get_item.assert_not_called()
+
+
+def test_coverage_complete_requires_both_synopsis_and_impact_score():
+    """100 has both → complete; 200 synopsis-only → incomplete;
+    300 impact-only → incomplete; 400 row missing entirely → incomplete."""
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}100"},
+            "synopsis": {"S": "syn"},
+            "impact_score": {"N": "75"},
+        },
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}200"},
+            "synopsis": {"S": "syn"},
+            # no impact_score
+        },
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}300"},
+            "impact_score": {"N": "60"},
+            # no synopsis
+        },
+        # 400 absent
+    ])
+    result = check_enrichment_coverage(client, ["100", "200", "300", "400"])
+    assert result["complete"] == ["100"]
+    assert result["incomplete"] == ["200", "300", "400"]
+
+
+def test_coverage_treats_empty_synopsis_as_incomplete():
+    """A row whose synopsis attribute is the empty string is incomplete
+    (mirrors the legacy MariaDB ``synopsis != ''`` filter)."""
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}1"},
+            "synopsis": {"S": ""},
+            "impact_score": {"N": "10"},
+        },
+    ])
+    result = check_enrichment_coverage(client, ["1"])
+    assert result == {"complete": [], "incomplete": ["1"]}
+
+
+def test_coverage_dedupes_and_stringifies_input():
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}100"},
+            "synopsis": {"S": "syn"},
+            "impact_score": {"N": "50"},
+        },
+    ])
+    result = check_enrichment_coverage(client, [100, "100", 100, "  ", ""])
+    assert result == {"complete": ["100"], "incomplete": []}
+    keys_sent = client.batch_get_item.call_args.kwargs["RequestItems"][TABLE_NAME]["Keys"]
+    assert keys_sent == [{"PK": {"S": f"{IMPACT_PK_PREFIX}100"}, "SK": {"S": IMPACT_SK}}]
+
+
+def test_coverage_all_incomplete_when_nothing_present():
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([])
+    result = check_enrichment_coverage(client, ["1", "2"])
+    assert result == {"complete": [], "incomplete": ["1", "2"]}
+
+
+def test_coverage_chunks_into_groups_of_100():
+    """DDB BatchGetItem max is 100 keys per request — must paginate."""
+    pmids = [str(i) for i in range(250)]
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([])
+
+    check_enrichment_coverage(client, pmids)
+
+    assert client.batch_get_item.call_count == 3
+    chunk_sizes = [
+        len(call.kwargs["RequestItems"][TABLE_NAME]["Keys"])
+        for call in client.batch_get_item.call_args_list
+    ]
+    assert chunk_sizes == [100, 100, 50]
+
+
+def test_coverage_retries_unprocessed_keys_in_same_request():
+    client = MagicMock()
+    pk = f"{IMPACT_PK_PREFIX}77"
+    client.batch_get_item.side_effect = [
+        {
+            "Responses": {TABLE_NAME: []},
+            "UnprocessedKeys": {
+                TABLE_NAME: {
+                    "Keys": [{"PK": {"S": pk}, "SK": {"S": IMPACT_SK}}],
+                    "ProjectionExpression": "PK, synopsis, impact_score",
+                },
+            },
+        },
+        _make_batch_get([
+            {"PK": {"S": pk}, "synopsis": {"S": "syn"},
+             "impact_score": {"N": "70"}},
+        ]),
+    ]
+    result = check_enrichment_coverage(client, ["77"])
+    assert client.batch_get_item.call_count == 2
+    assert result == {"complete": ["77"], "incomplete": []}
+
+
+def test_coverage_uses_projection_with_both_attributes():
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([])
+    check_enrichment_coverage(client, ["1"])
+    projection = (
+        client.batch_get_item.call_args.kwargs["RequestItems"][TABLE_NAME]
+        ["ProjectionExpression"]
+    )
+    assert projection == "PK, synopsis, impact_score"

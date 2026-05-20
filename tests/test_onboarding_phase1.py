@@ -1,16 +1,18 @@
 """Tests for #80 new-researcher onboarding — Phase 1 backend primitives.
 
-Covers the four primitives delivered in Phase 1:
+Covers the primitives still delivered in Phase 1 (post-#141):
 
 - `get_pmids_for_cwid` — CWID-scoped accepted-publication PMID set.
-- `check_synopsis_coverage` — synopsis-precondition partition (R3 step 1).
 - `score_publications.py --pmids` — explicit work set, idempotent (R2).
 - `onboarding_cost_guard_tripped` + the `--pmids` cost guard (R5).
 
-The fifth checklist item (`STAGE#rollup_by_cwid` `input_pmid_set`) is a
-verified deferral — `rollup_by_cwid.py` is CSV-count-driven and writes a
-GLOBAL-scoped row, so it has no PMID set to record; that rework belongs
-to Phase 2's CWID-scoped rollup stage.
+`check_synopsis_coverage` was the R3-step-1 synopsis-precondition partition;
+it was retired in #141 once the Enrich stage moved to inline
+`run_enrichment_backfill`. The fifth original checklist item
+(`STAGE#rollup_by_cwid` `input_pmid_set`) is a verified deferral —
+`rollup_by_cwid.py` is CSV-count-driven and writes a GLOBAL-scoped row, so
+it has no PMID set to record; that rework belongs to Phase 2's CWID-scoped
+rollup stage.
 """
 
 from __future__ import annotations
@@ -74,38 +76,6 @@ def test_pmids_by_cwid_sql_scopes_to_first_last_author():
     spotlight/author_resolver.py). Shape test — the get_pmids_for_cwid
     tests mock the connection, so nothing else guards the SQL filter."""
     assert "authorPosition IN ('first', 'last')" in sq.PMIDS_BY_CWID_SQL
-
-
-# ---------------------------------------------------------------------------
-# check_synopsis_coverage — synopsis precondition (#80 R3 step 1)
-# ---------------------------------------------------------------------------
-
-
-def test_check_synopsis_coverage_partitions_present_and_missing(monkeypatch):
-    # reciterai_synopsis has rows for 111 and 333; 222 has none.
-    conn = _fake_conn([("111",), ("333",)])
-    monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
-
-    result = sq.check_synopsis_coverage(["222", "111", "333"])
-
-    assert result == {"present": ["111", "333"], "missing": ["222"]}
-    # The wanted PMID set is passed as the expanding bind param.
-    assert conn.execute.call_args.args[1] == {"pmid_list": ["111", "222", "333"]}
-    conn.close.assert_called_once()
-
-
-def test_check_synopsis_coverage_all_missing(monkeypatch):
-    conn = _fake_conn([])  # no synopsis rows at all
-    monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
-    result = sq.check_synopsis_coverage(["5", "6"])
-    assert result == {"present": [], "missing": ["5", "6"]}
-
-
-def test_check_synopsis_coverage_empty_input_skips_db(monkeypatch):
-    get_conn = MagicMock()
-    monkeypatch.setattr(sq, "get_db_connection", get_conn)
-    assert sq.check_synopsis_coverage([]) == {"present": [], "missing": []}
-    get_conn.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

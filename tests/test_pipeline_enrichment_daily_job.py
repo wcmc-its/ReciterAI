@@ -1177,5 +1177,6 @@ def test_backfill_dedupes_requested_pmids(fake_engine, fake_writer):
             score_impact=_ok_impact,
         )
     assert result.requested == 1
-    # check_enrichment_coverage receives the de-duplicated set.
-    assert cov.call_args.args[0] == ["1"]
+    # check_enrichment_coverage receives the de-duplicated set as its second
+    # positional arg (the first is the DDB client created at the call site).
+    assert cov.call_args.args[1] == ["1"]

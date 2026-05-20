@@ -265,13 +265,11 @@ ORDER BY a.pmid DESC
 """
 # Per-CWID accepted-publication set for the onboarding workflow (#80 R2).
 #
-# Deliberately NOT a variant of PUBLICATION_EXTRACTION_SQL. That query
-# INNER-joins reciterai_synopsis on a non-null synopsis — building the
-# CWID query on top of it would silently drop exactly the synopsis-less
-# PMIDs that the onboarding synopsis-precondition check (R3 step 1, see
-# check_synopsis_coverage) exists to surface. This query returns the
-# CWID's first/last-author Academic-Article set (articleYear >= 2020 per
-# D4); synopsis coverage is a separate, explicit check.
+# Returns the CWID's first/last-author Academic-Article set (articleYear
+# >= 2020 per D4). Synopsis presence is not filtered here — the Enrich
+# stage runs `run_enrichment_backfill` inline over this PMID set (#80
+# Phase 2 / #112), and the PROCESSING# checkpoint culls already-scored
+# PMIDs downstream.
 #
 # Author scope: first/last position only (`authorPosition IN ('first',
 # 'last')`) — the v1 faculty-facing scope. spotlight/author_resolver.py
@@ -289,9 +287,9 @@ def get_pmids_for_cwid(cwid: str) -> list[str]:
 
     Academic Articles only, articleYear >= 2020 (the D4 cutoff), first/last
     author position only (the v1 faculty-facing scope). PMIDs are returned
-    as strings, newest first. Synopsis and score coverage are NOT
-    filtered here — callers run `check_synopsis_coverage` and the
-    PROCESSING# checkpoint separately.
+    as strings, newest first. Synopsis presence is not filtered here —
+    the Enrich stage runs `run_enrichment_backfill` inline over this PMID
+    set; PROCESSING# culls already-scored PMIDs downstream.
 
     An empty/blank CWID, or a CWID with no accepted publications, returns
     an empty list.
@@ -306,48 +304,6 @@ def get_pmids_for_cwid(cwid: str) -> list[str]:
         return [str(row[0]) for row in rows]
     finally:
         conn.close()
-
-
-SYNOPSIS_COVERAGE_SQL = """
-SELECT external_id
-FROM reciterai_synopsis
-WHERE entity_type = 'publication'
-    AND synopsis IS NOT NULL
-    AND synopsis != ''
-    AND external_id IN :pmid_list
-"""
-# Synopsis-precondition check for the onboarding workflow (#80 R3 step 1).
-# `external_id` holds the PMID as varchar (per the A6 correction noted on
-# PUBLICATION_EXTRACTION_SQL), so it is matched against stringified PMIDs.
-
-
-def check_synopsis_coverage(pmids: list[str]) -> dict[str, list[str]]:
-    """Partition `pmids` by whether a non-empty reciterai_synopsis row exists.
-
-    Returns ``{"present": [...], "missing": [...]}`` — both lists sorted
-    and stringified. The onboarding orchestrator (#80 R3 step 1) uses
-    `missing` to decide whether to defer a run pending synopsis backfill.
-
-    Empty input returns empty lists without opening a DB connection.
-    """
-    wanted = sorted({str(p) for p in pmids if str(p).strip()})
-    if not wanted:
-        return {"present": [], "missing": []}
-    from sqlalchemy import bindparam, text
-
-    stmt = text(SYNOPSIS_COVERAGE_SQL).bindparams(
-        bindparam("pmid_list", expanding=True)
-    )
-    conn = get_db_connection()
-    try:
-        rows = conn.execute(stmt, {"pmid_list": wanted})
-        present = {str(row[0]) for row in rows}
-    finally:
-        conn.close()
-    return {
-        "present": sorted(present),
-        "missing": sorted(set(wanted) - present),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -500,59 +456,6 @@ def fetch_publications_for_enrichment(engine, pmids: list[str]) -> list[dict]:
             stmt, {"pmid_list": [str(p) for p in pmids]}
         ).mappings().all()
     return [dict(r) for r in rows]
-
-
-IMPACT_COVERAGE_SQL = """
-SELECT external_id
-FROM reciterai_impact
-WHERE entity_type = 'publication'
-    AND impactScore IS NOT NULL
-    AND external_id IN :pmid_list
-"""
-# Impact-coverage check for the enrichment backfill's idempotency cull
-# (#112) — the impact-side mirror of SYNOPSIS_COVERAGE_SQL. `external_id`
-# holds the PMID as varchar (per the A6 correction noted on
-# PUBLICATION_EXTRACTION_SQL), so it is matched against stringified PMIDs.
-
-
-def check_enrichment_coverage(pmids: list[str]) -> dict[str, list[str]]:
-    """Partition `pmids` by enrichment completeness (#112).
-
-    A PMID is ``complete`` iff it has BOTH a non-empty `reciterai_synopsis`
-    row AND a non-null `reciterai_impact` row; ``incomplete`` is missing
-    either. `run_enrichment_backfill` uses ``incomplete`` as its idempotency
-    cull — only those PMIDs are sent to the LLM (unless --force).
-
-    Returns ``{"complete": [...], "incomplete": [...]}`` — both lists
-    sorted, stringified, de-duplicated. Empty input returns empty lists
-    without opening a DB connection.
-    """
-    wanted = sorted({str(p) for p in pmids if str(p).strip()})
-    if not wanted:
-        return {"complete": [], "incomplete": []}
-    from sqlalchemy import bindparam, text
-
-    syn_stmt = text(SYNOPSIS_COVERAGE_SQL).bindparams(
-        bindparam("pmid_list", expanding=True)
-    )
-    imp_stmt = text(IMPACT_COVERAGE_SQL).bindparams(
-        bindparam("pmid_list", expanding=True)
-    )
-    conn = get_db_connection()
-    try:
-        synopsis_present = {
-            str(row[0]) for row in conn.execute(syn_stmt, {"pmid_list": wanted})
-        }
-        impact_present = {
-            str(row[0]) for row in conn.execute(imp_stmt, {"pmid_list": wanted})
-        }
-    finally:
-        conn.close()
-    complete = synopsis_present & impact_present
-    return {
-        "complete": sorted(complete),
-        "incomplete": sorted(set(wanted) - complete),
-    }
 
 
 # ---------------------------------------------------------------------------

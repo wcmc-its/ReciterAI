@@ -55,12 +55,15 @@ from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
 from utils.bedrock_client import BedrockClient
-from utils.dynamodb_helpers import get_table as _default_get_table
+from utils.dynamodb_helpers import (
+    check_enrichment_coverage,
+    get_dynamo_client,
+    get_table as _default_get_table,
+)
 from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
 from utils.openai_client import GPT5_MODEL
 from utils.sql_queries import (
-    check_enrichment_coverage,
     fetch_new_publications,
     fetch_publications_for_enrichment,
 )
@@ -586,7 +589,7 @@ def run_enrichment_backfill(
     if force:
         work_pmids, already_complete = requested, 0
     else:
-        coverage = check_enrichment_coverage(requested)
+        coverage = check_enrichment_coverage(get_dynamo_client(), requested)
         work_pmids = coverage["incomplete"]
         already_complete = len(coverage["complete"])
     if not work_pmids:
