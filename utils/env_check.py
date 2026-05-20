@@ -38,14 +38,6 @@ if str(REPO_ROOT) not in sys.path:
 # for each column is named inline so future schema-drift triage starts with
 # "who breaks if this column disappears?"
 EXPECTED_COLUMNS: dict[str, list[str]] = {
-    # Pre-computed publication synopses (the canonical text input for scoring).
-    # Used by: utils/sql_queries.py (PUBLICATION_EXTRACTION_SQL,
-    # SYNOPSIS_EXTRACTION_SQL); import_enrichment.py load_synopses.
-    "reciterai_synopsis": [
-        "external_id",
-        "synopsis",
-        "entity_type",
-    ],
     # WCM faculty profile attributes (FACULTY# DDB enrichment).
     # Used by: utils/sql_queries.py FACULTY_METADATA_SQL; score_publications.py
     # extract_faculty_metadata.
@@ -69,7 +61,6 @@ EXPECTED_COLUMNS: dict[str, list[str]] = {
     ],
     # Publication corpus + article metadata (year, title, journal).
     # Used by: utils/sql_queries.py PUBLICATION_EXTRACTION_SQL;
-    # import_enrichment.py load_article_metadata;
     # pipeline_hot/orchestrator.py delta-PMID resolver.
     "analysis_summary_article": [
         "pmid",
@@ -86,7 +77,6 @@ EXPECTED_COLUMNS: dict[str, list[str]] = {
     ],
     # Author-publication mapping + first/last position attribution.
     # Used by: utils/sql_queries.py AUTHOR_MAPPING_SQL;
-    # import_enrichment.py load_author_positions;
     # spotlight/author_resolver.py resolve_first_last_authors.
     "analysis_summary_author": [
         "pmid",
@@ -111,23 +101,18 @@ EXPECTED_COLUMNS: dict[str, list[str]] = {
         "context",
         "entity_type",
     ],
-    # Per-publication impact scores (GPT-5.1 upstream — IMPACT# substrate).
-    # Used by: utils/sql_queries.py IMPACT_EXTRACTION_SQL;
-    # import_enrichment.py load_impact_scores.
-    "reciterai_impact": [
-        "external_id",
-        "impactScore",
-        "justification",
-        "model",
-        "entity_type",
-    ],
 }
+# `reciterai_synopsis` / `reciterai_impact` removed in #38 — synopsis and
+# impact_score now live on DDB `IMPACT#pmid_{pmid}` rows (#37 dual-write),
+# read via `utils.dynamodb_helpers.fetch_synopses_for_pmids` /
+# `scan_all_synopses`. The MariaDB tables remain populated by the daily job
+# until #37 step 6 decommissions the writes, but the ReciterAI pipeline no
+# longer reads them.
 
 # Tables that have a bespoke Check-N block below with additional logic
 # (sample query, count check, etc.). Excluded from the generic coverage
 # loop because they're already validated upstream.
 _BESPOKE_CHECKED_TABLES = {
-    "reciterai_synopsis",
     "analysis_summary_person",
     "reciterai_keyword_relevance",
 }
@@ -168,13 +153,15 @@ def run_env_checks():
 
     Checks:
     1. DB_USERNAME environment variable is set (Open Question 1)
-    2. reciterai_synopsis columns — external_id, synopsis (Open Question 3 / A6 correction)
-    3. analysis_summary_person column names (Open Question 2)
-    4. reciterai_keyword_relevance schema and data presence (Open Question 4)
-    4b. Generic column coverage for every other table in EXPECTED_COLUMNS
+    2. analysis_summary_person column names (Open Question 2)
+    3. reciterai_keyword_relevance schema and data presence (Open Question 4)
+    3b. Generic column coverage for every other table in EXPECTED_COLUMNS
         (analysis_summary_article, reporting_abstracts, analysis_summary_author,
-        identity, reciterai_tools, reciterai_impact) — G-1 expansion.
-    5. config/thresholds.json schema validation (Phase 12 D-27)
+        identity, reciterai_tools) — G-1 expansion.
+    4. config/thresholds.json schema validation (Phase 12 D-27)
+
+    `reciterai_synopsis` + `reciterai_impact` are no longer checked: their
+    read path moved to DynamoDB IMPACT# rows in #38.
 
     Exits with code 1 if any critical check fails.
     """
@@ -214,21 +201,10 @@ def run_env_checks():
         # Use sqlalchemy text() for raw SQL
         from sqlalchemy import text
 
-        # --- Check 2: reciterai_synopsis columns (Open Question 3 / A6 correction) ---
-        print("\n[CHECK] reciterai_synopsis schema:")
-        synopsis_cols = _describe_table(conn, 'reciterai_synopsis')
-        synopsis_col_names = [c['Field'] for c in synopsis_cols]
-        print(f"  Columns: {synopsis_col_names}")
-
-        for col in EXPECTED_COLUMNS['reciterai_synopsis']:
-            if col not in synopsis_col_names:
-                errors.append(
-                    f"CRITICAL: reciterai_synopsis.{col} NOT FOUND. "
-                    f"Actual columns: {synopsis_col_names}"
-                )
-            else:
-                results[f'reciterai_synopsis.{col}'] = 'EXISTS'
-                print(f"  [OK] {col} column confirmed")
+        # Check 2 (reciterai_synopsis schema) was removed in #38: the
+        # synopsis read path moved to DDB IMPACT# rows. The `reciterai_synopsis`
+        # MariaDB table is still written by the daily job until #37 step 6, but
+        # ReciterAI no longer reads it.
 
         # --- Check 3: analysis_summary_person columns (Open Question 2) ---
         print("\n[CHECK] analysis_summary_person schema:")

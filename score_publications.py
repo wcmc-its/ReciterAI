@@ -53,7 +53,7 @@ from utils.openai_client import (
 from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
     mark_processing_failed, get_processing_status, to_decimal, make_score_sk,
-    batch_write, release_quarantine,
+    batch_write, release_quarantine, fetch_synopses_for_pmids,
 )
 from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
@@ -256,11 +256,17 @@ class ScoringResult:
 
 def extract_publications(delta_since: str | None = None) -> list:
     """
-    Extract publications from ReciterDB using PUBLICATION_EXTRACTION_SQL.
+    Extract publications from ReciterDB and join synopsis from DynamoDB.
 
     Returns a list of dicts with keys: pmid, title, synopsis, abstract.
     Minimal — only what's needed for LLM scoring. Article metadata
     is looked up from ReciterDB at query time.
+
+    Synopsis source moved from MariaDB ``reciterai_synopsis`` to DynamoDB
+    ``IMPACT#`` rows in #38 (after the #138 historical lift). The SQL fetches
+    corpus + abstracts only; ``fetch_synopses_for_pmids`` then joins synopsis
+    text from DDB. PMIDs without a synopsis in DDB are dropped here — same
+    behaviour as the legacy ``INNER JOIN reciterai_synopsis`` filter.
 
     When `delta_since` is supplied (hot-path mode), restricts the result
     set to publications added to Entrez on or after that ISO-8601
@@ -287,15 +293,45 @@ def extract_publications(delta_since: str | None = None) -> list:
         from sqlalchemy import text
         result = conn.execute(text(sql), params)
         rows = result.mappings().all()
-        publications = [dict(row) for row in rows]
-        if delta_since:
-            print(f"Extracted {len(publications)} publications from ReciterDB "
-                  f"(delta-since={delta_since})")
-        else:
-            print(f"Extracted {len(publications)} publications from ReciterDB")
-        return publications
+        corpus = [dict(row) for row in rows]
     finally:
         conn.close()
+
+    publications = _attach_synopses_from_ddb(corpus)
+    if delta_since:
+        print(f"Extracted {len(publications)} publications from ReciterDB "
+              f"(delta-since={delta_since}, "
+              f"{len(corpus) - len(publications)} dropped — no DDB synopsis)")
+    else:
+        print(f"Extracted {len(publications)} publications from ReciterDB "
+              f"({len(corpus) - len(publications)} dropped — no DDB synopsis)")
+    return publications
+
+
+def _attach_synopses_from_ddb(rows: list[dict]) -> list[dict]:
+    """Join DDB synopsis text onto SQL corpus rows.
+
+    Mirrors the legacy ``INNER JOIN reciterai_synopsis`` filter from
+    PUBLICATION_EXTRACTION_SQL: a corpus row without a corresponding
+    non-empty DDB synopsis is dropped.
+
+    Pulled out so ``extract_publications`` and
+    ``extract_publications_by_pmids`` share one DDB-roundtrip implementation.
+    """
+    if not rows:
+        return []
+    pmids = [str(r["pmid"]) for r in rows]
+    synopses = fetch_synopses_for_pmids(get_dynamo_client(), pmids)
+    enriched: list[dict] = []
+    for row in rows:
+        pmid_str = str(row["pmid"])
+        synopsis = synopses.get(pmid_str)
+        if not synopsis:
+            continue
+        enriched_row = dict(row)
+        enriched_row["synopsis"] = synopsis
+        enriched.append(enriched_row)
+    return enriched
 
 
 def extract_publications_by_pmids(pmids: list[str]) -> list:
@@ -307,16 +343,18 @@ def extract_publications_by_pmids(pmids: list[str]) -> list:
     PUBLICATION_EXTRACTION_SQL still applies — pre-2020 PMIDs are silently
     excluded just as they are elsewhere in the pipeline.
 
+    Synopsis source: see ``extract_publications`` — same MariaDB→DDB switch
+    (#38). PMIDs with no DDB synopsis are dropped after the SQL fetch.
+
     Args:
         pmids: List of PMID strings. Empty list returns [].
 
     Returns:
         List of publication dicts (same shape as extract_publications).
-        PMIDs not present in `analysis_summary_article` (or filtered out
-        by the year cutoff / synopsis-existence requirement in
-        PUBLICATION_EXTRACTION_SQL) are silently omitted; caller should
-        compare the returned length against the input length to detect
-        missing PMIDs.
+        PMIDs not present in `analysis_summary_article`, filtered out by
+        the year cutoff, or without a synopsis on their IMPACT# row, are
+        silently omitted; caller should compare the returned length against
+        the input length to detect missing PMIDs.
     """
     if not pmids:
         return []
@@ -331,15 +369,17 @@ def extract_publications_by_pmids(pmids: list[str]) -> list:
         stmt = text(sql).bindparams(bindparam("pmid_list", expanding=True))
         result = conn.execute(stmt, {"pmid_list": pmids})
         rows = result.mappings().all()
-        publications = [dict(row) for row in rows]
-        print(
-            f"Extracted {len(publications)} publications from ReciterDB "
-            f"({len(pmids)} requested by PMID, "
-            f"{len(pmids) - len(publications)} not found / pre-2020 / no synopsis)"
-        )
-        return publications
+        corpus = [dict(row) for row in rows]
     finally:
         conn.close()
+
+    publications = _attach_synopses_from_ddb(corpus)
+    print(
+        f"Extracted {len(publications)} publications from ReciterDB "
+        f"({len(pmids)} requested by PMID, "
+        f"{len(pmids) - len(publications)} not found / pre-2020 / no synopsis)"
+    )
+    return publications
 
 
 def extract_faculty_metadata() -> dict:

@@ -68,12 +68,8 @@ PUBLICATION_EXTRACTION_SQL = """
 SELECT DISTINCT
     a1.pmid,
     a1.articleTitle AS title,
-    s.synopsis,
     r.abstractVarchar AS abstract
 FROM analysis_summary_article a1
-JOIN reciterai_synopsis s ON s.external_id = CAST(a1.pmid AS CHAR) COLLATE utf8mb4_unicode_ci
-    AND s.entity_type = 'publication'
-    AND s.synopsis IS NOT NULL AND s.synopsis != ''
 LEFT JOIN reporting_abstracts r ON r.pmid = a1.pmid
 WHERE a1.publicationTypeCanonical = 'Academic Article'
     AND a1.articleYear >= 2020
@@ -83,11 +79,13 @@ ORDER BY a1.pmid DESC
 # Author mapping is a separate query (AUTHOR_MAPPING_SQL) so we can
 # expand to middle authors without rescoring.
 #
-# NOTE: Uses s.external_id (NOT s.entity_id) for the reciterai_synopsis join.
-# Rationale:
-#   1. RESEARCH.md A6 correction explicitly specifies external_id
-#   2. Schema: reciterai_synopsis.external_id is varchar(50) matching PMID format;
-#      entity_id is bigint (internal numeric ID, not the PMID)
+# Synopsis used to be INNER-joined here from `reciterai_synopsis`; #38
+# moved the synopsis read to DynamoDB (`IMPACT#pmid_{pmid}` / SK SCORE,
+# `synopsis` attribute). The MariaDB synopsis table is being decommissioned
+# in #37 step 6; this query is now corpus + abstract only. The caller
+# (`score_publications.extract_publications*`) post-joins synopsis from
+# DDB via `utils.dynamodb_helpers.fetch_synopses_for_pmids`, dropping
+# PMIDs without a synopsis to preserve the legacy INNER-JOIN semantics.
 
 
 # ---------------------------------------------------------------------------
@@ -110,19 +108,11 @@ ORDER BY a.pmid, a.personIdentifier
 
 
 # ---------------------------------------------------------------------------
-# Synopsis extraction SQL (for taxonomy generation input)
+# Synopsis extraction
 # ---------------------------------------------------------------------------
-
-SYNOPSIS_EXTRACTION_SQL = """
-SELECT external_id AS pmid, synopsis
-FROM reciterai_synopsis
-WHERE entity_type = 'publication'
-    AND synopsis IS NOT NULL
-    AND synopsis != ''
-ORDER BY external_id
-"""
-# NOTE: Uses external_id AS pmid per A6 correction.
-# external_id is the PMID for publication records (varchar(50)).
+# `SYNOPSIS_EXTRACTION_SQL` was removed in #38: taxonomy generation now
+# reads synopses from DynamoDB (IMPACT# rows) via
+# `utils.dynamodb_helpers.scan_all_synopses` instead of `reciterai_synopsis`.
 
 
 # ---------------------------------------------------------------------------

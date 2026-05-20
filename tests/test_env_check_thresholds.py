@@ -151,12 +151,21 @@ def test_expected_columns_is_data_driven():
     ec = env_check.EXPECTED_COLUMNS
     assert isinstance(ec, dict), "EXPECTED_COLUMNS must be a dict"
     assert len(ec) >= 3, f"Expected >= 3 tables in EXPECTED_COLUMNS, got {len(ec)}: {list(ec.keys())}"
-    # Spot-check: reciterai_synopsis must have external_id
-    assert "reciterai_synopsis" in ec, "reciterai_synopsis missing from EXPECTED_COLUMNS"
-    assert "external_id" in ec["reciterai_synopsis"], (
-        "external_id missing from EXPECTED_COLUMNS['reciterai_synopsis']"
+    # Spot-check: analysis_summary_article (the publication corpus) must have pmid
+    assert "analysis_summary_article" in ec, "analysis_summary_article missing from EXPECTED_COLUMNS"
+    assert "pmid" in ec["analysis_summary_article"], (
+        "pmid missing from EXPECTED_COLUMNS['analysis_summary_article']"
     )
     # analysis_summary_person must be present
     assert "analysis_summary_person" in ec, "analysis_summary_person missing from EXPECTED_COLUMNS"
     # reciterai_keyword_relevance must be present
     assert "reciterai_keyword_relevance" in ec, "reciterai_keyword_relevance missing from EXPECTED_COLUMNS"
+    # reciterai_synopsis + reciterai_impact removed in #38: read path moved to
+    # DDB IMPACT# rows. The MariaDB tables stay populated until #37 step 6 but
+    # ReciterAI no longer reads from them.
+    assert "reciterai_synopsis" not in ec, (
+        "reciterai_synopsis should NOT be in EXPECTED_COLUMNS — read path moved to DDB (#38)"
+    )
+    assert "reciterai_impact" not in ec, (
+        "reciterai_impact should NOT be in EXPECTED_COLUMNS — read path moved to DDB (#38)"
+    )

@@ -33,7 +33,7 @@ from pathlib import Path
 # D-01: Add ReciterAI to path for database connection management
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
-from utils.sql_queries import SYNOPSIS_EXTRACTION_SQL, get_db_connection
+from utils.dynamodb_helpers import get_dynamo_client, scan_all_synopses
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,25 +69,21 @@ VALIDATION_QUERIES = [
 
 def extract_synopses() -> list[str]:
     """
-    Extract all publication synopses from ReciterDB using SYNOPSIS_EXTRACTION_SQL.
+    Extract all publication synopses from DynamoDB IMPACT# rows.
+
+    Synopsis source moved from MariaDB `reciterai_synopsis` to DDB in #38
+    (after the #138 historical lift). `scan_all_synopses` scans every
+    `IMPACT#` row with a non-empty `synopsis` attribute.
 
     Returns:
         List of non-empty synopsis strings.
-
-    Raises:
-        AssertionError: If DB_USERNAME environment variable is not set.
     """
-    logger.info("Connecting to ReciterDB to extract synopses...")
-    conn = get_db_connection()
-    try:
-        from sqlalchemy import text
-        result = conn.execute(text(SYNOPSIS_EXTRACTION_SQL))
-        rows = result.fetchall()
-        synopses = [row[1] for row in rows if row[1] and row[1].strip()]
-        print(f"Extracted {len(synopses)} synopses from ReciterDB")
-        return synopses
-    finally:
-        conn.close()
+    logger.info("Scanning DynamoDB for publication synopses...")
+    client = get_dynamo_client()
+    synopses_by_pmid = scan_all_synopses(client)
+    synopses = [s for s in synopses_by_pmid.values() if s and s.strip()]
+    print(f"Extracted {len(synopses)} synopses from DynamoDB")
+    return synopses
 
 
 def make_batch_prompt(synopses: list[str]) -> str:
@@ -425,7 +421,10 @@ def main():
         logger.info(f"Synopses cached to {cache_path}")
 
     if not synopses:
-        logger.error("No synopses extracted. Check DB connection and SYNOPSIS_EXTRACTION_SQL.")
+        logger.error(
+            "No synopses extracted. Check DDB IMPACT# rows carry the "
+            "`synopsis` attribute (run scripts/backfill_legacy_synopsis_to_ddb.py)."
+        )
         sys.exit(1)
 
     # -------------------------------------------------------------------------

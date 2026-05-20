@@ -604,3 +604,110 @@ def release_quarantine(client, table_name: str, pmid: str) -> dict:
         'retry_count': retry_count,
         'last_error': last_error,
     }
+
+
+# ---------------------------------------------------------------------------
+# Synopsis lookup against IMPACT# rows (#38 read-switch)
+# ---------------------------------------------------------------------------
+
+IMPACT_PK_PREFIX = "IMPACT#pmid_"
+IMPACT_SK = "SCORE"
+
+
+def fetch_synopses_for_pmids(client, pmids: list[str]) -> dict[str, str]:
+    """Look up the ``synopsis`` attribute on ``IMPACT#pmid_{pmid}`` rows.
+
+    The DDB-side equivalent of the old ``JOIN reciterai_synopsis`` clause
+    in ``PUBLICATION_EXTRACTION_SQL``. The legacy join INNER-joined on a
+    non-empty synopsis, so this function reproduces that filter: PMIDs
+    whose IMPACT# row is missing OR has an empty ``synopsis`` are absent
+    from the result dict.
+
+    Uses ``BatchGetItem`` in 100-key chunks (DDB API max) with a projection
+    on ``PK + synopsis``, and re-queues ``UnprocessedKeys``.
+
+    Args:
+        client: boto3 DynamoDB client.
+        pmids: PMID strings. Duplicates are de-duped; empty list returns {}.
+
+    Returns:
+        ``{pmid: synopsis}`` for every PMID with a non-empty synopsis.
+    """
+    if not pmids:
+        return {}
+
+    unique = sorted({str(p) for p in pmids if str(p).strip()})
+    if not unique:
+        return {}
+
+    chunk_size = 100
+    result: dict[str, str] = {}
+
+    for i in range(0, len(unique), chunk_size):
+        chunk = unique[i:i + chunk_size]
+        request = {
+            TABLE_NAME: {
+                "Keys": [
+                    {"PK": {"S": f"{IMPACT_PK_PREFIX}{p}"},
+                     "SK": {"S": IMPACT_SK}}
+                    for p in chunk
+                ],
+                "ProjectionExpression": "PK, synopsis",
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(TABLE_NAME, []):
+                pk = item.get("PK", {}).get("S", "")
+                if not pk.startswith(IMPACT_PK_PREFIX):
+                    continue
+                synopsis = item.get("synopsis", {}).get("S", "")
+                if not synopsis:
+                    continue
+                pmid = pk[len(IMPACT_PK_PREFIX):]
+                result[pmid] = synopsis
+            request = response.get("UnprocessedKeys") or None
+
+    return result
+
+
+def scan_all_synopses(client) -> dict[str, str]:
+    """Return ``{pmid: synopsis}`` for every ``IMPACT#`` row with a synopsis.
+
+    The full-table equivalent of the old ``SYNOPSIS_EXTRACTION_SQL``: used
+    by ``generate_taxonomy.py`` to build the input for taxonomy generation
+    (offline one-shot — not in any hot or daily path). DDB ``Scan`` with
+    a filter expression; paginates on ``LastEvaluatedKey``.
+
+    Args:
+        client: boto3 DynamoDB client.
+
+    Returns:
+        ``{pmid: synopsis}`` covering every IMPACT# row with a non-empty
+        synopsis attribute (post-#138 lift: ~9K PMIDs).
+    """
+    result: dict[str, str] = {}
+    kwargs = {
+        "TableName": TABLE_NAME,
+        "FilterExpression": (
+            "begins_with(PK, :p) AND attribute_exists(synopsis)"
+        ),
+        "ExpressionAttributeValues": {":p": {"S": "IMPACT#"}},
+        "ProjectionExpression": "PK, synopsis",
+    }
+    while True:
+        response = client.scan(**kwargs)
+        for item in response.get("Items", []):
+            pk = item.get("PK", {}).get("S", "")
+            if not pk.startswith(IMPACT_PK_PREFIX):
+                continue
+            synopsis = item.get("synopsis", {}).get("S", "")
+            if not synopsis:
+                continue
+            pmid = pk[len(IMPACT_PK_PREFIX):]
+            result[pmid] = synopsis
+        lek = response.get("LastEvaluatedKey")
+        if not lek:
+            break
+        kwargs["ExclusiveStartKey"] = lek
+    return result

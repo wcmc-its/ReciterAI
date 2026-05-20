@@ -45,41 +45,78 @@ def test_empty_pmid_list_returns_empty_without_db_call():
         get_conn.assert_not_called()
 
 
-def test_extracts_supplied_pmids_with_in_clause():
-    """The IN-clause variant of the extraction SQL is invoked with the given list."""
+def test_extracts_supplied_pmids_with_in_clause(monkeypatch):
+    """The IN-clause variant of the extraction SQL is invoked with the given list.
+
+    Post-#38: synopsis is no longer joined by the SQL; it's attached
+    afterward from DDB via ``fetch_synopses_for_pmids``.
+    """
     conn = _stub_db_with_rows([
-        {"pmid": "41198049", "synopsis": "s1", "abstract": "a1"},
-        {"pmid": "41485218", "synopsis": "s2", "abstract": "a2"},
+        {"pmid": "41198049", "title": "T1", "abstract": "a1"},
+        {"pmid": "41485218", "title": "T2", "abstract": "a2"},
     ])
+    monkeypatch.setattr(
+        sp, "fetch_synopses_for_pmids",
+        lambda client, pmids: {"41198049": "s1", "41485218": "s2"},
+    )
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+
     with patch.object(sp, "get_db_connection", return_value=conn):
         pubs = sp.extract_publications_by_pmids(["41198049", "41485218"])
 
     assert len(pubs) == 2
     assert pubs[0]["pmid"] == "41198049"
+    assert pubs[0]["synopsis"] == "s1"
     assert pubs[1]["pmid"] == "41485218"
+    assert pubs[1]["synopsis"] == "s2"
 
     # Verify the SQL was the IN-clause variant, not the base query
     call_args = conn.execute.call_args
     sql_text = str(call_args.args[0])
     assert "a1.pmid IN" in sql_text or ":pmid_list" in sql_text
     assert "datePublicationAddedToEntrez" not in sql_text  # No date filter
+    # The SQL must no longer join reciterai_synopsis (#38).
+    assert "reciterai_synopsis" not in sql_text
     # Verify the PMID list was passed as the bound param
     params = call_args.args[1]
     assert params == {"pmid_list": ["41198049", "41485218"]}
 
 
-def test_pmids_not_found_in_db_are_silently_excluded():
+def test_pmids_not_found_in_db_are_silently_excluded(monkeypatch):
     """Returns the subset of requested PMIDs that exist in analysis_summary_article.
     Caller compares lengths to detect missing PMIDs."""
     conn = _stub_db_with_rows([
-        {"pmid": "41198049", "synopsis": "s1", "abstract": "a1"},
+        {"pmid": "41198049", "title": "T1", "abstract": "a1"},
     ])
+    monkeypatch.setattr(
+        sp, "fetch_synopses_for_pmids", lambda client, pmids: {"41198049": "s1"},
+    )
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
     with patch.object(sp, "get_db_connection", return_value=conn):
         pubs = sp.extract_publications_by_pmids(["41198049", "99999999", "88888888"])
 
     # 3 requested, 1 returned — caller can detect the gap
     assert len(pubs) == 1
     assert pubs[0]["pmid"] == "41198049"
+
+
+def test_pmids_without_ddb_synopsis_are_dropped(monkeypatch):
+    """The #38 read-switch must preserve the legacy INNER-JOIN semantics:
+    a PMID whose IMPACT# row has no `synopsis` attribute is silently dropped."""
+    conn = _stub_db_with_rows([
+        {"pmid": "100", "title": "T1", "abstract": "a1"},
+        {"pmid": "200", "title": "T2", "abstract": "a2"},
+        {"pmid": "300", "title": "T3", "abstract": "a3"},
+    ])
+    # DDB has synopsis for 100 and 300, none for 200.
+    monkeypatch.setattr(
+        sp, "fetch_synopses_for_pmids",
+        lambda client, pmids: {"100": "s1", "300": "s3"},
+    )
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    with patch.object(sp, "get_db_connection", return_value=conn):
+        pubs = sp.extract_publications_by_pmids(["100", "200", "300"])
+    assert [p["pmid"] for p in pubs] == ["100", "300"]
 
 
 def test_db_connection_closed_even_on_exception():

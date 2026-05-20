@@ -9,7 +9,7 @@
 | TOPIC# | `TOPIC#{topic_id}` | `SCORE#NNNN#ACTIVITY#pmid_{pmid}#cwid_{cwid}` | ~78K | LLM-scored (Haiku screen + Sonnet dense). Carries `hierarchy_version` (Phase 11 D-01). Rows produced before the Phase 11 writer rollout were backfilled with the sentinel `v0-legacy` on 2026-05-13 (issue #16). |
 | TOOL# | `TOOL#{tool_name}` | `SCORE#NNNN#ACTIVITY#pmid_{pmid}#cwid_{cwid}` | ~15K | reciterai_tools (LLM-extracted) |
 | FACULTY# | `FACULTY#cwid_{cwid}` | `PROFILE` | ~1.5K | ReciterDB analysis_summary_person |
-| IMPACT# | `IMPACT#pmid_{pmid}` | `SCORE` | ~7K | reciterai_impact (GPT-5.1 scored) |
+| IMPACT# | `IMPACT#pmid_{pmid}` | `SCORE` | ~9K | Daily enrichment dual-write (Sonnet 4.6 primary, gpt-5.1 fallback). Carries `synopsis` + `synopsis_model` + `enriched_at` post-#138 lift; this is the authoritative read source for synopsis + impact per #38. |
 | TOOL_INDEX# | `TOOL_INDEX#{functional_category}` | `META` | 15 | Sonnet canonicalization of top tools |
 | TAXONOMY# | `TAXONOMY#{version}` | `META` | 1 | 67 domain topics, versioned |
 | DEEPDIVE# | `DEEPDIVE#{domain}` | `META` | 1 | Deep dive placeholder |
@@ -353,7 +353,7 @@ per-CWID PMID detail; these rows are the run-level summary.
 
 ### Data Coverage
 - **Temporal**: Only publications from 2020 onward with synopses. Earlier work is invisible.
-- **Synopsis dependency**: Publications without synopses in reciterai_synopsis are excluded from scoring. Synopsis coverage depends on upstream ReciterAI pipeline runs.
+- **Synopsis dependency**: Publications without a `synopsis` attribute on their `IMPACT#pmid_{pmid}` row are excluded from scoring. Synopsis coverage depends on the daily enrichment job (#37 dual-write) and the historical #138 lift. The MariaDB read source (`reciterai_synopsis`) was retired in #38.
 - **Author scope**: Currently includes all author positions from analysis_summary_author (first, middle, last) joined with fullTimeFaculty = 'yes'. Expandable to non-faculty without rescoring.
 - **Tool extraction**: Tools are LLM-extracted with confidence >= 7. Lower-confidence extractions are excluded. Tool names are raw (not all canonicalized).
 
