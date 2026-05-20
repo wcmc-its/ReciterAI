@@ -126,6 +126,77 @@ corpus-filter regression, etc.), not "today's run is expensive."
 The backfill and the annual rescore enforce no threshold (they bypass via
 `--from-gap-scan` / `--full`).
 
+## Quarantine + operator triage (#137)
+
+The daily job's all-or-nothing watermark contract is correct for transient
+flakes but pathological for content-specific failures: a PMID that
+consistently breaks a Bedrock call (a structurally truncatable abstract,
+content-filter-adjacent without the exact filter `stop_reason`, a model
+regression on certain text shapes) would stall the entire delta forever,
+every tick burning ~$0.55 of LLM cost without progress. The 2026-05-20
+11:00 UTC tick was exactly that — PMID 42119587 (SURMOUNT-MAINTAIN
+tirzepatide trial) hit `max_tokens=512` mid-JSON in the impact call and
+killed a 36-PMID delta until PR #136 + manual recovery cleared it.
+
+**Per-PMID quarantine** (`pipeline_enrichment/quarantine.py`) tracks
+consecutive failure counts so that the *class* of failure auto-resolves.
+After **3** consecutive failures (`config/thresholds.json` key
+`enrichment_quarantine_threshold`), the threshold-crossing tick itself
+treats the PMID as a write-off for the all-or-nothing gate, advances the
+watermark past it, and fires an ERROR Teams card listing the quarantined
+PMID for operator triage. Subsequent ticks skip the quarantined PMID
+before any LLM call (defense in depth — the watermark has normally already
+advanced past it).
+
+Quarantine state is independent of the cost guard. Quarantined PMIDs still
+count in the cost-guard preflight estimate (the guard fires on the
+*original* delta size); the few cents of over-estimate keeps the contract
+simple.
+
+### Quarantine state in DynamoDB
+
+```
+PK = ENRICHMENT_QUARANTINE#pmid_{pmid}
+SK = STATUS
+attributes: pmid, consecutive_failures, last_failure_at,
+            last_failure_reason, last_attempted_run_id, created_at
+```
+
+**Distinct from `QUARANTINE#pmid_{pmid}`** — the scoring pipeline
+(`utils/dynamodb_helpers.py:quarantine_pmid` + `pipeline_hot/orchestrator.py`)
+uses that other prefix for its own quarantine scheme (different schema,
+companion `PROCESSING#` checkpoint row, `taxonomy_version`-bound). Two
+pipelines, two quarantine schemes, one DDB table — the disambiguation
+matters when scanning the table in the console.
+
+### Operator workflow
+
+When an ERROR card lands listing quarantined PMIDs:
+
+1. **Inspect** the failure reason in the card or the DDB row:
+   ```bash
+   aws dynamodb get-item --table-name reciterai \
+     --key '{"PK":{"S":"ENRICHMENT_QUARANTINE#pmid_42119587"},"SK":{"S":"STATUS"}}'
+   ```
+2. **Replay** every quarantined PMID in one batch (Fargate or local —
+   bypasses watermark, no Teams alerts, prints result JSON):
+   ```bash
+   python -m scripts.run_daily_enrichment --retry-quarantine
+   ```
+   Successes clear their row; failures bump the counter (without a
+   threshold check, since the operator is explicitly probing). Exit 0
+   when every replayed PMID cleared, exit 1 when any row still failing.
+3. **Manual clear** after an out-of-band code fix has made the PMID
+   processable on the next daily tick:
+   ```bash
+   python -m scripts.run_daily_enrichment --clear-quarantine 42119587
+   ```
+   Idempotent — clearing an already-cleared row is a no-op.
+
+`--retry-quarantine` and `--clear-quarantine` are mutually exclusive and
+cannot combine with `--full` / `--pmids` / `--from-gap-scan` — they're
+standalone operator modes.
+
 ## Backfill (#112 / onboarding)
 
 The daily job is **watermark-forward-only**: it enriches `pmid >
