@@ -31,7 +31,8 @@
     "retry_sweep_min_age_days",
     "onboarding_cost_guard_max_pmids",
     "onboarding_detector_cold_start_threshold",
-    "spotlight_theme_similarity_max"
+    "spotlight_theme_similarity_max",
+    "enrichment_quarantine_threshold"
   ],
   "properties": {
     "uncovered_score_floor": {
@@ -172,6 +173,11 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Spotlight rotation selector near-clone gate (#91): two pooled subtopics whose short_description embeddings have a cosine similarity at or above this value are treated as near-clones, and the rotation selector will not place both in the same monthly publish. An embedding-cosine threshold, so it is data- and model-dependent — calibrate via `backfill_spotlight.py --dry-run` against the live pool (the dry-run prints the pool's near-clone neighborhood). Calibrated to 0.70 on 2026-05-19 against the live pool — every near-clone pair observed at or above 0.70 was a genuine duplicate. See spotlight/theme_dedup.py and config/thresholds.md."
+    },
+    "enrichment_quarantine_threshold": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Daily enrichment (#137): per-PMID consecutive-failure count at which the daily job writes the PMID off — the watermark is allowed to advance past it on the threshold-crossing tick, an ERROR Teams card alerts the operator, and the PMID is skipped on subsequent ticks until cleared via `scripts/run_daily_enrichment.py --retry-quarantine` or `--clear-quarantine PMID`. Distinct from `retry_sweep_quarantine_after` (scoring pipeline). State lives in DDB rows at PK `ENRICHMENT_QUARANTINE#pmid_{pmid}`."
     }
   }
 }

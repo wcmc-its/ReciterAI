@@ -11,9 +11,24 @@ from pipeline_enrichment.daily_job import (
     STATUS_FAILED,
     STATUS_NO_OP,
     EnrichmentBackfillResult,
+    QuarantineRetryResult,
     RunResult,
 )
 from scripts.run_daily_enrichment import main
+
+
+def _patch_retry(result=None):
+    return patch(
+        "scripts.run_daily_enrichment.retry_quarantined_pmids",
+        return_value=result or QuarantineRetryResult(),
+    )
+
+
+def _patch_clear():
+    return patch(
+        "scripts.run_daily_enrichment.clear_quarantine_for_pmid",
+        return_value=None,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -127,3 +142,67 @@ def test_exit_code_is_one_on_backfill_failure():
 def test_exit_code_is_zero_on_backfill_no_op():
     with _patch_backfill(EnrichmentBackfillResult(status=STATUS_NO_OP)):
         assert main(["--pmids", "1"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# #137 — Quarantine operator modes
+# ---------------------------------------------------------------------------
+
+def test_retry_quarantine_flag_dispatches_to_the_retry_helper():
+    with _patch_daily() as daily, _patch_backfill() as backfill, \
+         _patch_retry() as retry:
+        rc = main(["--retry-quarantine"])
+    assert rc == 0
+    daily.assert_not_called()
+    backfill.assert_not_called()
+    retry.assert_called_once()
+
+
+def test_clear_quarantine_flag_dispatches_to_the_clear_helper():
+    with _patch_daily() as daily, _patch_backfill() as backfill, \
+         _patch_clear() as clear:
+        rc = main(["--clear-quarantine", "42119587"])
+    assert rc == 0
+    daily.assert_not_called()
+    backfill.assert_not_called()
+    clear.assert_called_once_with("42119587")
+
+
+def test_retry_quarantine_exit_code_one_when_still_failing():
+    """A retry batch that leaves rows unresolved → exit 1 so the operator's
+    shell loop / cron handler notices."""
+    with _patch_retry(QuarantineRetryResult(
+        attempted=2, cleared=1, still_failing=1,
+    )):
+        assert main(["--retry-quarantine"]) == 1
+
+
+def test_retry_quarantine_exit_code_zero_when_all_clear():
+    with _patch_retry(QuarantineRetryResult(
+        attempted=3, cleared=3, still_failing=0,
+    )):
+        assert main(["--retry-quarantine"]) == 0
+
+
+def test_retry_quarantine_exit_code_zero_when_no_rows():
+    with _patch_retry(QuarantineRetryResult()):
+        assert main(["--retry-quarantine"]) == 0
+
+
+def test_retry_and_clear_are_mutually_exclusive():
+    with pytest.raises(SystemExit):
+        main(["--retry-quarantine", "--clear-quarantine", "1"])
+
+
+def test_retry_quarantine_rejects_backfill_and_full():
+    with pytest.raises(SystemExit):
+        main(["--retry-quarantine", "--pmids", "1"])
+    with pytest.raises(SystemExit):
+        main(["--retry-quarantine", "--full"])
+
+
+def test_clear_quarantine_rejects_backfill_and_full():
+    with pytest.raises(SystemExit):
+        main(["--clear-quarantine", "1", "--from-gap-scan"])
+    with pytest.raises(SystemExit):
+        main(["--clear-quarantine", "1", "--full"])
