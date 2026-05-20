@@ -1,12 +1,18 @@
 """
 DynamoDB data loader for ReCiter AI Chatbot.
 
-Loads scored publication data into DynamoDB as 5 record types:
+Loads scored publication data into DynamoDB as 6 record types:
   1. TOPIC# — publication scores per topic (from scoring_results.json)
   2. FACULTY# — faculty profiles with top_topics vector
   3. TOOL# — keyword relevance scores (from reciterai_keyword_relevance)
-  4. DEEPDIVE# — deep dive analysis records
-  5. TAXONOMY# — taxonomy definition for runtime lookup
+  4. TOOL_INDEX# — canonicalized tool definitions by functional category
+  5. DEEPDIVE# — deep dive analysis records
+  6. TAXONOMY# — taxonomy definition for runtime lookup
+
+IMPACT# records are no longer built here — the daily-enrichment job
+(`pipeline_enrichment/daily_job.py`) owns IMPACT# writes (#37 + #138 lift).
+Rebuilding IMPACT# from MariaDB is retired in #143 to avoid clobbering
+the live DDB rows with stale data.
 
 Input files (produced by score_publications.py):
   - scoring_results.json   (pmid + dense_scores with rationales)
@@ -36,7 +42,7 @@ from utils.dynamodb_helpers import (
     get_dynamo_client, TABLE_NAME, batch_write, make_score_sk,
     to_decimal, create_chatbot_table, wait_for_table
 )
-from utils.sql_queries import TOOL_EXTRACTION_SQL, IMPACT_EXTRACTION_SQL, get_raw_db_connection
+from utils.sql_queries import TOOL_EXTRACTION_SQL, get_raw_db_connection
 from utils.env_check import load_thresholds
 from utils.topic_records import build_topic_rows_for_pmid
 
@@ -305,46 +311,7 @@ def build_aging_deep_dive(taxonomy_version: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Record Type 5: IMPACT# score records
-# ---------------------------------------------------------------------------
-
-def build_impact_records() -> list:
-    """
-    Build IMPACT# DynamoDB items from reciterai_impact in ReciterDB.
-
-    One record per publication with impactScore and justification.
-    Independent of taxonomy — scored by a separate rubric.
-    """
-    conn = get_raw_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(IMPACT_EXTRACTION_SQL)
-        rows = cursor.fetchall()
-    finally:
-        conn.close()
-
-    records = []
-    for row in rows:
-        pmid = str(row['pmid'])
-        score = float(row['impact_score'])
-        justification = str(row.get('justification') or '')
-        model = str(row.get('model') or '')
-
-        records.append({
-            'PK': {'S': f'IMPACT#pmid_{pmid}'},
-            'SK': {'S': 'SCORE'},
-            'pmid': {'S': pmid},
-            'impact_score': {'N': str(to_decimal(score))},
-            'justification': {'S': justification},
-            'model': {'S': model},
-        })
-
-    print(f'Built {len(records)} IMPACT# records')
-    return records
-
-
-# ---------------------------------------------------------------------------
-# Record Type 6: TAXONOMY# definition record
+# Record Type 5: TAXONOMY# definition record
 # ---------------------------------------------------------------------------
 
 def build_taxonomy_record(taxonomy: dict) -> dict:
@@ -473,19 +440,14 @@ def main():
     dynamo_client.put_item(TableName=table_name, Item=deep_dive)
     print('Loaded DEEPDIVE#aging_geroscience (review_status: pending)')
 
-    # 5. IMPACT# records
-    print('\n--- Building IMPACT# records ---')
-    impact_records = build_impact_records()
-    load_records(dynamo_client, table_name, impact_records, 'IMPACT#')
-
-    # 6. TOOL_INDEX# records (canonicalized tools by functional category)
+    # 5. TOOL_INDEX# records (canonicalized tools by functional category)
     print('\n--- Building TOOL_INDEX# records ---')
     tool_index_records = build_tool_index_records()
     for rec in tool_index_records:
         dynamo_client.put_item(TableName=table_name, Item=rec)
     print(f'Loaded {len(tool_index_records)} TOOL_INDEX# records')
 
-    # 7. TAXONOMY# record
+    # 6. TAXONOMY# record
     print('\n--- Loading TAXONOMY# record ---')
     taxonomy_record = build_taxonomy_record(taxonomy)
     dynamo_client.put_item(TableName=table_name, Item=taxonomy_record)
@@ -495,7 +457,6 @@ def main():
     topic_count = len(topic_records)
     faculty_count = len(faculty_records)
     tool_count = len(tool_records)
-    impact_count = len(impact_records)
     tool_index_count = len(tool_index_records)
 
     print(f'\n=== DynamoDB Load Summary ===')
@@ -503,7 +464,6 @@ def main():
     print(f'  FACULTY# records:    {faculty_count:>8,}')
     print(f'  TOOL# records:       {tool_count:>8,}')
     print(f'  TOOL_INDEX# records: {tool_index_count:>8,}')
-    print(f'  IMPACT# records:     {impact_count:>8,}')
     print(f'  DEEPDIVE# records:   {1:>8,}')
     print(f'  TAXONOMY# records:   {1:>8,}')
     print(f'  Table: {table_name}')

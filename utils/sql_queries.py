@@ -159,24 +159,6 @@ ORDER BY t.external_id
 
 
 # ---------------------------------------------------------------------------
-# Impact score extraction SQL (for IMPACT# records)
-# ---------------------------------------------------------------------------
-
-IMPACT_EXTRACTION_SQL = """
-SELECT
-    external_id AS pmid,
-    impactScore AS impact_score,
-    justification,
-    model
-FROM reciterai_impact
-WHERE entity_type = 'publication'
-    AND impactScore IS NOT NULL
-ORDER BY external_id
-"""
-# Schema verified in env_check.py: keyword, relevanceScore, external_id, entity_type.
-
-
-# ---------------------------------------------------------------------------
 # DB connection functions
 # ---------------------------------------------------------------------------
 
