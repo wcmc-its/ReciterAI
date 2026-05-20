@@ -58,6 +58,7 @@ from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_table as _default_get_table
 from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
+from utils.openai_client import GPT5_MODEL
 from utils.sql_queries import (
     check_enrichment_coverage,
     fetch_new_publications,
@@ -174,8 +175,19 @@ def run_daily_enrichment(
     delta_size = len(delta)
     logger.info("daily run: delta_size=%d", delta_size)
 
-    # Empty delta — return without touching the watermark.
+    # Empty delta — return without touching the watermark. Still post the
+    # heartbeat: a silent no-op tick is indistinguishable from a missed tick
+    # once the job runs unattended on Fargate (#133).
     if delta_size == 0:
+        _post_success_summary(
+            alert_fn,
+            mode=("scheduled (--full)" if full else "scheduled"),
+            delta_size=0,
+            cost_observed_usd=Decimal("0"),
+            watermark_before=last_max_pmid or None,
+            watermark_after=last_max_pmid or None,
+            content_filter_retries=0,
+        )
         return RunResult(status=STATUS_NO_OP, delta_size=0)
 
     # 3. Cost guard (unless --full).
@@ -312,6 +324,15 @@ def run_daily_enrichment(
         logger.info(
             "daily run: complete — %d/%d succeeded, watermark → %d",
             len(outcomes), delta_size, new_max,
+        )
+        _post_success_summary(
+            alert_fn,
+            mode=("scheduled (--full)" if full else "scheduled"),
+            delta_size=delta_size,
+            cost_observed_usd=accumulator.total_usd,
+            watermark_before=last_max_pmid or None,
+            watermark_after=new_max,
+            content_filter_retries=_count_content_filter_retries(outcomes),
         )
         return RunResult(
             status=STATUS_COMPLETE,
@@ -703,12 +724,74 @@ def run_enrichment_backfill(
     )
     if status in (STATUS_PARTIAL, STATUS_FAILED, STATUS_DDB_BATCH_FAILED):
         _alert_backfill(alert_fn, result, failed)
+    elif status == STATUS_COMPLETE:
+        _post_success_summary(
+            alert_fn,
+            mode="backfill (--force)" if force else "backfill",
+            delta_size=len(succeeded),
+            cost_observed_usd=accumulator.total_usd,
+            watermark_before=None,
+            watermark_after=None,
+            content_filter_retries=_count_content_filter_retries(outcomes),
+        )
     logger.info(
         "enrichment backfill: status=%s succeeded=%d failed=%d "
         "impact_rows_written=%d",
         status, len(succeeded), len(failed), impact_rows_written,
     )
     return result
+
+
+def _count_content_filter_retries(outcomes: list[PmidOutcome]) -> int:
+    """How many synopsis+impact calls hit the OpenAI content-filter fallback.
+
+    Counts model attribution on the outcome objects: a fallback fire is
+    recorded as ``model == GPT5_MODEL`` on the per-pmid result. One outcome
+    can contribute 0, 1, or 2 (synopsis + impact each fall back independently).
+    """
+    return sum(
+        1 for o in outcomes if o.synopsis_model == GPT5_MODEL
+    ) + sum(
+        1 for o in outcomes if o.impact_model == GPT5_MODEL
+    )
+
+
+def _post_success_summary(
+    alert_fn: Callable,
+    *,
+    mode: str,
+    delta_size: int,
+    cost_observed_usd: Optional[Decimal],
+    watermark_before: Optional[int],
+    watermark_after: Optional[int],
+    content_filter_retries: int,
+) -> None:
+    """Heartbeat INFO post at the end of a successful daily / backfill run (#133).
+
+    Silence on success was the laptop-era choice; the Fargate-hosted cron
+    can't distinguish a no-op tick from a broken cron without an explicit
+    heartbeat. `delta_size=0` is the canonical no-op case — still post.
+    """
+    cost = cost_observed_usd if cost_observed_usd is not None else Decimal("0")
+    title = f"Daily enrichment complete — {delta_size} PMID(s), ${cost}"
+    context: dict[str, Any] = {
+        "mode": mode,
+        "delta_size": delta_size,
+        "cost_observed_usd": str(cost),
+        "content_filter_retries": content_filter_retries,
+    }
+    if watermark_before is not None or watermark_after is not None:
+        context["watermark"] = (
+            f"{watermark_before if watermark_before is not None else '∅'} "
+            f"→ {watermark_after if watermark_after is not None else '∅'}"
+        )
+    alert_fn(
+        "INFO",
+        title,
+        f"Run mode: {mode}. Processed {delta_size} PMID(s).",
+        context=context,
+        mention=False,
+    )
 
 
 def _alert_backfill(
@@ -718,8 +801,9 @@ def _alert_backfill(
 ) -> None:
     """Send the operator a Teams alert for a non-clean backfill run.
 
-    `complete` / `no_op` runs do not alert (silent success, as in the daily
-    job); `partial` / `failed` / `ddb_batch_failed` do.
+    `no_op` runs do not alert; `complete` runs route through
+    `_post_success_summary` (#133 heartbeat); `partial` / `failed` /
+    `ddb_batch_failed` go through here.
     """
     if result.status == STATUS_DDB_BATCH_FAILED:
         alert_fn(

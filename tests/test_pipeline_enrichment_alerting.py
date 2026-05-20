@@ -46,9 +46,40 @@ def test_build_card_returns_workflows_envelope(monkeypatch):
 
 def test_build_card_title_includes_severity_prefix(monkeypatch):
     _no_mention_env(monkeypatch)
-    for sev, expected in [("WARN", "[WARN] ReciterAI"), ("ERROR", "[ERROR] ReciterAI")]:
+    for sev, expected in [
+        ("INFO", "[INFO] ReciterAI"),
+        ("WARN", "[WARN] ReciterAI"),
+        ("ERROR", "[ERROR] ReciterAI"),
+    ]:
         card = build_card(sev, "x", "y")["attachments"][0]["content"]
         assert expected in card["body"][0]["text"]
+
+
+def test_info_severity_round_trips_through_build_card_and_alert(monkeypatch):
+    """INFO severity (the #133 heartbeat) builds a no-mention card and
+    POSTs successfully through the same envelope as WARN/ERROR."""
+    _no_mention_env(monkeypatch)
+    monkeypatch.setenv(WEBHOOK_ENV, "https://example.invalid/webhook")
+    card = build_card(
+        "INFO", "Daily enrichment complete — 7 PMID(s), $0.13",
+        "Run mode: scheduled. Processed 7 PMID(s).",
+        context={"mode": "scheduled", "delta_size": 7},
+        mention=False,
+    )["attachments"][0]["content"]
+    assert "[INFO] ReciterAI" in card["body"][0]["text"]
+    assert "msteams" not in card  # mention=False ⇒ no entities block.
+
+    with patch.object(alerting, "_post", return_value=True) as p:
+        ok = alert(
+            "INFO", "x", "y",
+            context={"mode": "scheduled"}, mention=False,
+        )
+    assert ok is True
+    payload = p.call_args.kwargs["webhook_url"], p.call_args.args[0]
+    assert payload[0] == "https://example.invalid/webhook"
+    assert payload[1]["attachments"][0]["content"]["body"][0]["text"].startswith(
+        "[INFO] ReciterAI"
+    )
 
 
 def test_build_card_rejects_invalid_severity():
