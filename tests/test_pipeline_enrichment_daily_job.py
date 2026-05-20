@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pipeline_enrichment import daily_job
+from pipeline_enrichment import daily_job, quarantine
 from pipeline_enrichment.daily_job import (
     STATUS_COMPLETE,
     STATUS_COST_GUARD_TRIPPED,
@@ -40,11 +40,21 @@ def _no_real_webhook(monkeypatch):
 # boto3 / AWS during every happy-path test. The MagicMock natively supports
 # `with mock.batch_writer() as batch: batch.put_item(...)` because
 # MagicMock implements __enter__/__exit__.
+#
+# Also patches `quarantine.get_table` — that's a separately-imported name
+# in the quarantine module's namespace (not daily_job's local alias), and
+# without this patch the failure-path tests would write to PROD DDB via
+# `quarantine.record_failure(pmid, ..., table=None) -> get_table()`. The
+# 2026-05-20 #112 backfill cleanup found 5 stale rows that almost
+# certainly came from this exact path on prior CI / local pytest runs.
 @pytest.fixture(autouse=True)
 def _stub_default_ddb_table():
-    with patch.object(daily_job, "_default_get_table") as fake:
-        fake.return_value = MagicMock(name="fake_ddb_table")
-        yield fake
+    fake_table = MagicMock(name="fake_ddb_table")
+    with patch.object(daily_job, "_default_get_table") as daily_fake, \
+         patch.object(quarantine, "get_table") as quarantine_fake:
+        daily_fake.return_value = fake_table
+        quarantine_fake.return_value = fake_table
+        yield daily_fake
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +287,7 @@ def test_custom_threshold_and_per_paper_overrides_are_honored(fake_engine, fake_
 # ---------------------------------------------------------------------------
 
 def test_synopsis_failure_skips_impact_for_that_pmid(fake_engine, fake_watermark, fake_writer):
-    delta = _delta_rows([2001])
+    delta = _delta_rows([42_002_001])
     impact_mock = MagicMock(wraps=_ok_impact)
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
         result = run_daily_enrichment(
@@ -297,7 +307,7 @@ def test_synopsis_failure_skips_impact_for_that_pmid(fake_engine, fake_watermark
 
 
 def test_impact_failure_leaves_synopsis_row_in_place_but_run_fails(fake_engine, fake_watermark, fake_writer):
-    delta = _delta_rows([3001])
+    delta = _delta_rows([42_003_001])
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
         result = run_daily_enrichment(
             engine=fake_engine,
@@ -316,10 +326,10 @@ def test_impact_failure_leaves_synopsis_row_in_place_but_run_fails(fake_engine, 
 def test_one_failure_among_many_does_not_stop_iteration(fake_engine, fake_watermark, fake_writer):
     """The orchestrator must process every pmid even after a failure, so
     the operator gets a complete report instead of a partial one."""
-    delta = _delta_rows([1, 2, 3, 4, 5])
+    delta = _delta_rows([42_000_001, 42_000_002, 42_000_003, 42_000_004, 42_000_005])
 
     def synopsis_failing_on_3(*, pmid, title, journal=None, year=None, abstract=None, client=None):
-        if pmid == "3":
+        if pmid == "42000003":
             return FakeSynopsisResult(
                 pmid=pmid, synopsis=None,
                 input_tokens=0, output_tokens=0, error="bad abstract",
@@ -335,10 +345,10 @@ def test_one_failure_among_many_does_not_stop_iteration(fake_engine, fake_waterm
 
     assert result.status == STATUS_FAILED
     assert len(result.outcomes) == 5  # all five attempted
-    # pmid 3 failed; the other four are fine but the run is failed overall.
+    # pmid 42000003 failed; the other four are fine but the run is failed overall.
     by_pmid = {o.pmid: o for o in result.outcomes}
-    assert by_pmid["3"].synopsis_ok is False
-    for p in ("1", "2", "4", "5"):
+    assert by_pmid["42000003"].synopsis_ok is False
+    for p in ("42000001", "42000002", "42000004", "42000005"):
         assert by_pmid[p].fully_succeeded
     # Watermark does NOT advance even partially.
     fake_watermark["complete"].assert_not_called()
@@ -348,7 +358,7 @@ def test_one_failure_among_many_does_not_stop_iteration(fake_engine, fake_waterm
 def test_mariadb_synopsis_write_failure_marks_synopsis_failed(fake_engine, fake_watermark):
     """Distinct from LLM-call failure: synopsis returned content but the
     DB write blew up."""
-    delta = _delta_rows([4001])
+    delta = _delta_rows([42_004_001])
     with patch.object(daily_job.mariadb_writer, "ensure_entity", return_value=1), \
          patch.object(
              daily_job.mariadb_writer, "upsert_synopsis",
@@ -370,7 +380,7 @@ def test_mariadb_synopsis_write_failure_marks_synopsis_failed(fake_engine, fake_
 
 
 def test_ensure_entity_failure_blocks_synopsis_and_impact(fake_engine, fake_watermark):
-    delta = _delta_rows([5001])
+    delta = _delta_rows([42_005_001])
     with patch.object(
         daily_job.mariadb_writer, "ensure_entity",
         side_effect=RuntimeError("entity table locked"),
@@ -446,11 +456,11 @@ def test_alert_fires_on_cost_guard_trip(fake_engine, fake_watermark, fake_writer
 
 
 def test_alert_fires_on_run_failure(fake_engine, fake_watermark, fake_writer):
-    delta = _delta_rows([10, 20, 30])
+    delta = _delta_rows([42_000_010, 42_000_020, 42_000_030])
     alert_mock = MagicMock(return_value=True)
 
     def syn_failing_on_20(*, pmid, **kwargs):
-        if pmid == "20":
+        if pmid == "42000020":
             return FakeSynopsisResult(
                 pmid=pmid, synopsis=None,
                 input_tokens=0, output_tokens=0, error="bad abstract",
@@ -534,7 +544,7 @@ def test_failed_run_does_not_double_post_info_alongside_error(
 ):
     """A failing tick posts only the existing ERROR card — no INFO
     heartbeat alongside it (per #133 §3)."""
-    delta = _delta_rows([1, 2])
+    delta = _delta_rows([42_000_001, 42_000_002])
     alert_mock = MagicMock()
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
         run_daily_enrichment(
@@ -638,7 +648,7 @@ def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, 
     """A pmid that succeeded its synopsis but failed its impact still cost
     money. Cost reporting must reflect that — silent on-failure cost is
     the worst kind of cost."""
-    delta = _delta_rows([1])
+    delta = _delta_rows([42_000_001])
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
         result = run_daily_enrichment(
             engine=fake_engine,
@@ -678,7 +688,7 @@ def test_cost_observed_is_none_on_no_op(fake_engine, fake_watermark, fake_writer
 def test_zero_token_results_do_not_record_to_accumulator(fake_engine, fake_watermark, fake_writer):
     """Error-path SynopsisResult sets tokens=0; the accumulator must
     not double-count them or charge a zero-token call."""
-    delta = _delta_rows([1])
+    delta = _delta_rows([42_000_001])
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
         result = run_daily_enrichment(
             engine=fake_engine,
@@ -825,7 +835,7 @@ def test_dual_write_skipped_on_pmid_failure(
     """If any pmid fails in the per-pmid loop, the run is already a
     failure — the DDB batch must NOT run (no partial writes to DDB
     when some pmids didn't make it to MariaDB)."""
-    delta = _delta_rows([5001])
+    delta = _delta_rows([42_005_001])
     with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
          patch.object(daily_job.ddb_writer, "write_impact_batch") as wb:
         result = run_daily_enrichment(
@@ -969,6 +979,46 @@ def test_backfill_partial_failure_commits_succeeded_and_alerts(
     assert sorted(i["PK"] for i in items) == ["IMPACT#pmid_1", "IMPACT#pmid_3"]
     alert.assert_called_once()
     assert alert.call_args.args[0] == "WARN"
+    # Alert context carries a copy-pasteable retry command for the failed
+    # PMID(s) — so the operator can replay them from the Teams card
+    # without grepping the run log. Surfaced by 2026-05-20 #112 backfill.
+    context = alert.call_args.kwargs["context"]
+    assert "retry_command" in context
+    assert context["retry_command"] == (
+        "python -m scripts.run_daily_enrichment --pmids 2"
+    )
+
+
+def test_backfill_retry_command_caps_at_50_pmids_in_alert(
+    fake_engine, fake_writer
+):
+    """If many PMIDs fail, the Teams alert's retry_command caps at 50
+    with a `+N more — see run log` suffix so the card stays readable."""
+    failing_pmids = [str(i) for i in range(1, 61)]  # 60 PMIDs all fail
+    def all_fail(*, pmid, **kwargs):
+        return FakeSynopsisResult(
+            pmid=pmid, synopsis=None,
+            input_tokens=0, output_tokens=0, error="bad abstract",
+        )
+
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": failing_pmids}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows(list(range(1, 61)))), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=0):
+        run_enrichment_backfill(
+            pmids=failing_pmids,
+            engine=fake_engine,
+            generate_synopsis=all_fail,
+            score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    retry_cmd = alert.call_args.kwargs["context"]["retry_command"]
+    # 50 PMIDs listed, then a "+10 more" suffix.
+    assert "--pmids 1,2,3," in retry_cmd
+    assert ",50 " in retry_cmd  # cap boundary
+    assert "(+ 10 more — see run log)" in retry_cmd
 
 
 def test_backfill_complete_posts_info_heartbeat(fake_engine, fake_writer):
