@@ -295,16 +295,10 @@ def get_pmids_for_cwid(cwid: str) -> list[str]:
 FACULTY_GAP_SCAN_SQL = """
 SELECT DISTINCT
     au.personIdentifier AS cwid,
-    a.pmid AS pmid,
-    CASE WHEN s.external_id IS NOT NULL THEN 1 ELSE 0 END AS has_synopsis
+    a.pmid AS pmid
 FROM analysis_summary_author au
 JOIN identity id ON id.cwid = au.personIdentifier
 JOIN analysis_summary_article a ON a.pmid = au.pmid
-LEFT JOIN reciterai_synopsis s
-    ON s.external_id = CAST(a.pmid AS CHAR) COLLATE utf8mb4_unicode_ci
-    AND s.entity_type = 'publication'
-    AND s.synopsis IS NOT NULL
-    AND s.synopsis != ''
 WHERE id.fullTimeFaculty = 'yes'
     AND au.authorPosition IN ('first', 'last')
     AND a.publicationTypeCanonical = 'Academic Article'
@@ -312,14 +306,15 @@ WHERE id.fullTimeFaculty = 'yes'
 ORDER BY au.personIdentifier, a.pmid
 """
 # The onboarding detector's R1 "global gap scan" (#80 PR 5). One row per
-# (CWID, PMID) across every full-time-faculty accepted publication, each
-# tagged with whether a non-empty reciterai_synopsis row exists.
+# (CWID, PMID) across every full-time-faculty accepted publication. The
+# synopsis presence flag is NOT joined here — `scan_faculty_publication_gaps`
+# post-joins it from DDB via `fetch_synopses_for_pmids` (#142).
 #
 # This is the SQL "outer loop" of the cross-store join R1 specifies: SQL is
-# authoritative for "what publications should exist" for a CWID; the detector
-# then BatchGetItems PROCESSING# rows in DynamoDB for the "what is scored"
-# inner check. Score coverage is deliberately NOT joined here — it lives in
-# DynamoDB, not MariaDB.
+# authoritative for "what publications should exist" for a CWID; DDB is
+# authoritative for "what synopsis exists" (post-#37 dual-write + #138 lift).
+# Score coverage is a separate DynamoDB PROCESSING# check the detector runs
+# after the cross-store join.
 #
 # Faculty scope (identity.fullTimeFaculty = 'yes') mirrors AUTHOR_MAPPING_SQL
 # and resolves the spec's OQ-2. Author scope is first/last position only
@@ -328,42 +323,52 @@ ORDER BY au.personIdentifier, a.pmid
 # Publication scope (Academic Article, articleYear >= 2020) matches
 # PMIDS_BY_CWID_SQL / D4; with the matching position filter, a CWID's row
 # set here is identical to what get_pmids_for_cwid would return for it.
-#
-# The synopsis LEFT JOIN repeats PUBLICATION_EXTRACTION_SQL's
-# external_id = CAST(pmid AS CHAR) COLLATE utf8mb4_unicode_ci join (the A6
-# correction): reciterai_synopsis.external_id is a varchar PMID.
 
 
-def scan_faculty_publication_gaps() -> list[dict]:
+def scan_faculty_publication_gaps(client=None) -> list[dict]:
     """Return every full-time-faculty first/last-author accepted publication
     with a synopsis flag.
 
     Drives the onboarding detector's global gap scan (#80 R1, PR 5). One dict
     per (CWID, PMID): ``{"cwid": str, "pmid": str, "has_synopsis": bool}``.
 
-    `has_synopsis` reflects only the MariaDB synopsis precondition; score
-    coverage is a separate DynamoDB PROCESSING# check the detector runs after
-    this query. A CWID appears once per accepted PMID; a PMID appears once per
-    first/last-author faculty CWID (the cross-institution co-authorship case
-    is fine — each CWID is evaluated independently).
+    Implements the cross-store join post-#142: SQL returns ``{cwid, pmid}``
+    pairs; ``has_synopsis`` is a per-PMID DDB ``IMPACT#`` row lookup via
+    ``fetch_synopses_for_pmids``. Score coverage is a separate DynamoDB
+    PROCESSING# check the detector runs after this. A CWID appears once per
+    accepted PMID; a PMID appears once per first/last-author faculty CWID
+    (the cross-institution co-authorship case is fine — each CWID is
+    evaluated independently).
+
+    Args:
+        client: optional boto3 DynamoDB client. Tests inject a mock; production
+            creates a default client via ``get_dynamo_client``.
 
     Returns an empty list only when no full-time faculty have post-2020
-    first/last-author Academic Articles — never the normal case.
+    first/last-author Academic Articles — never the normal case. The DDB
+    lookup is skipped when the SQL result is empty.
     """
     from sqlalchemy import text
+
+    from utils.dynamodb_helpers import fetch_synopses_for_pmids, get_dynamo_client
 
     conn = get_db_connection()
     try:
         rows = conn.execute(text(FACULTY_GAP_SCAN_SQL)).mappings().all()
     finally:
         conn.close()
+
+    sql_rows = [{"cwid": str(r["cwid"]), "pmid": str(r["pmid"])} for r in rows]
+    if not sql_rows:
+        return []
+
+    unique_pmids = sorted({r["pmid"] for r in sql_rows})
+    client = client or get_dynamo_client()
+    synopsis_map = fetch_synopses_for_pmids(client, unique_pmids)
+
     return [
-        {
-            "cwid": str(r["cwid"]),
-            "pmid": str(r["pmid"]),
-            "has_synopsis": bool(r["has_synopsis"]),
-        }
-        for r in rows
+        {**r, "has_synopsis": r["pmid"] in synopsis_map}
+        for r in sql_rows
     ]
 
 

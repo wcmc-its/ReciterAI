@@ -4,14 +4,15 @@
 One-shot helper for picking a §7-A smoke target (#37 PR 4 operator handoff).
 Reads:
   - Latest STAGE#onboarding_detector#GLOBAL row from DDB → flagged CWIDs
-  - FACULTY_GAP_SCAN_SQL from MariaDB → per-PMID has_synopsis flag
+  - scan_faculty_publication_gaps() (MariaDB + DDB cross-store join post-#142)
+    → per-PMID has_synopsis flag
 
-Aggregates: for each flagged CWID, counts PMIDs where has_synopsis=0,
+Aggregates: for each flagged CWID, counts PMIDs where has_synopsis=False,
 then prints the top-20 smallest unscored work sets.
 
 This is a proxy for the orchestrator's net_work_count (which subtracts
 already-COMPLETE PMIDs from the candidate set via the DDB PROCESSING# tracker).
-has_synopsis=0 == needs scoring, so for flagged CWIDs the two sets should
+has_synopsis=False == needs scoring, so for flagged CWIDs the two sets should
 coincide closely. Worst case the smoke runs a slightly larger work set than
 this script reports.
 """
@@ -27,7 +28,7 @@ sys.path.insert(0, REPO_ROOT)
 import boto3
 
 from utils import secrets_loader
-from utils.sql_queries import FACULTY_GAP_SCAN_SQL
+from utils.sql_queries import scan_faculty_publication_gaps
 
 
 def main() -> int:
@@ -61,30 +62,16 @@ def main() -> int:
         file=sys.stderr,
     )
 
-    import pymysql
-
-    conn = pymysql.connect(
-        host=os.environ["DB_HOST"],
-        user=os.environ["DB_USERNAME"],
-        password=os.environ["DB_PASSWORD"],
-        database=os.environ["DB_NAME"],
-        port=int(os.environ.get("DB_PORT", 3306)),
-        connect_timeout=20,
-        read_timeout=180,
-    )
+    gap_rows = scan_faculty_publication_gaps(client=ddb)
 
     total = defaultdict(int)
     unscored = defaultdict(int)
-    with conn.cursor() as cur:
-        cur.execute(FACULTY_GAP_SCAN_SQL)
-        for row in cur:
-            cwid, pmid, has_synopsis = row
-            if cwid not in flagged:
-                continue
-            total[cwid] += 1
-            if not has_synopsis:
-                unscored[cwid] += 1
-    conn.close()
+    for row in gap_rows:
+        if row["cwid"] not in flagged:
+            continue
+        total[row["cwid"]] += 1
+        if not row["has_synopsis"]:
+            unscored[row["cwid"]] += 1
 
     candidates = sorted(
         ((cwid, unscored[cwid], total[cwid]) for cwid in unscored if unscored[cwid] > 0),
