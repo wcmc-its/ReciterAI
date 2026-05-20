@@ -32,11 +32,15 @@ operator action is needed once the task is registered.
 | `RECITERAI_TEAMS_WEBHOOK_URL` | Secrets Manager | Teams alerts on failure / cost-guard trip |
 | `RECITERAI_ALERT_MENTION_UPN`, `RECITERAI_ALERT_MENTION_NAME` | `environment` | @-mention on actionable alerts |
 
-The task role has `dynamodb:*Item` + `BatchWriteItem` on the `reciterai`
-table, `secretsmanager:GetSecretValue` on the secrets listed above, and
-CloudWatch Logs write. Bedrock authentication uses the bearer token
-(`AWS_BEARER_TOKEN_BEDROCK`), so `bedrock:InvokeModel` on the task role is
-not load-bearing for the happy path (#37 D8).
+The task role has `Get/Put/Update/DeleteItem`, `Query`, `Scan`,
+`BatchWriteItem`, and `DescribeTable` on the `reciterai` table,
+`secretsmanager:GetSecretValue` on the secrets listed above, and CloudWatch
+Logs write. `DeleteItem` + `Scan` were added by #137 for the per-PMID
+quarantine module (`pipeline_enrichment/quarantine.py`): the daily loop
+deletes the row on every successful PMID, and `--retry-quarantine` scans
+`ENRICHMENT_QUARANTINE#pmid_*` rows. Bedrock authentication uses the bearer
+token (`AWS_BEARER_TOKEN_BEDROCK`), so `bedrock:InvokeModel` on the task
+role is not load-bearing for the happy path (#37 D8).
 
 ## Prerequisites — local dev (operator laptop)
 
@@ -374,9 +378,19 @@ own deferred Phase).
    ```
 4. **IAM (out-of-band, the `infra/` directory creates no roles):** create
    the Fargate task role with `infra/enrichment_task_iam_policy.json`
-   (covers DynamoDB write, Secrets Manager read on the four secrets, and
-   CloudWatch Logs write — explicitly NO `bedrock:InvokeModel`, see plan
-   D8 / PR-4 D-Q1), and the EventBridge→ECS `RunTask` invocation role.
+   (covers DynamoDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` +
+   `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets
+   Manager read on the four secrets, and CloudWatch Logs write —
+   explicitly NO `bedrock:InvokeModel`, see plan D8 / PR-4 D-Q1), and the
+   EventBridge→ECS `RunTask` invocation role. **Re-applying the inline
+   policy on an existing role** (e.g., to pick up the #137 `DeleteItem` +
+   `Scan` additions on a rebake):
+   ```bash
+   aws iam put-role-policy \
+     --role-name reciterai-enrichment-task \
+     --policy-name reciterai-enrichment-task-policy \
+     --policy-document file://infra/enrichment_task_iam_policy.json
+   ```
 5. **Networking:** confirm the subnets + security group reach ReciterDB
    — reuse the networking the hot-path Lambdas already use for MariaDB.
    Export them for the deploy script:
