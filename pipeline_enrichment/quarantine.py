@@ -43,9 +43,38 @@ SK = "STATUS"
 # same operator-review surface, same truncation budget.
 _REASON_MAX_LEN = 1000
 
+# Real PMIDs are 7–9 digit positive integers; the daily-enrichment delta
+# additionally filters articleYear >= 2020, so live PMIDs are 30M+ in
+# practice. Anything below 1M is almost certainly a test fixture that
+# escaped from a REPL or ad-hoc script running against prod creds — the
+# 2026-05-20 #112 backfill cleanup found 5 such stale rows
+# (pmid_20 / pmid_2001 / pmid_3001 / pmid_4001 / pmid_5001, run_id
+# "run-xyz", test-string reasons like "boom"). Refuse them at the write
+# boundary so the next test escape fails loud rather than silently
+# polluting prod DDB.
+_MIN_REAL_PMID = 1_000_000
+
 
 def _pk(pmid: str) -> str:
     return f"{PK_PREFIX}{pmid}"
+
+
+def _validate_pmid(pmid) -> None:
+    """Reject non-real PMIDs at the write boundary (see _MIN_REAL_PMID)."""
+    try:
+        pmid_int = int(pmid)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"refusing to record enrichment quarantine for non-numeric "
+            f"pmid {pmid!r} — if this is a test, inject a mock table "
+            "instead of writing to prod DynamoDB"
+        )
+    if pmid_int < _MIN_REAL_PMID:
+        raise ValueError(
+            f"refusing to record enrichment quarantine for pmid {pmid_int} "
+            f"(below the {_MIN_REAL_PMID:,} real-PMID floor) — if this is "
+            "a test, inject a mock table instead of writing to prod DynamoDB"
+        )
 
 
 def record_failure(
@@ -61,7 +90,11 @@ def record_failure(
     on a non-existent attribute initializes to 1, and the row is created if
     it didn't exist. `created_at` is written via `if_not_exists` so it
     survives subsequent increments.
+
+    Raises ``ValueError`` if ``pmid`` does not look like a real PMID — a
+    write-boundary guard against test fixtures leaking into prod DDB.
     """
+    _validate_pmid(pmid)
     t = table if table is not None else get_table()
     ts = now_iso()
     try:

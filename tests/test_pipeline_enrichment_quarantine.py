@@ -160,6 +160,38 @@ def test_record_failure_truncates_long_reason(mock_table):
     assert len(vals[":reason"]) == 1000
 
 
+@pytest.mark.parametrize("bad_pmid", ["20", "2001", "3001", "4001", "5001", 999_999])
+def test_record_failure_rejects_pmid_below_real_floor(mock_table, bad_pmid):
+    """PMIDs below the 1M floor are almost certainly test fixtures — refuse
+    at the write boundary. The literal values here are the exact 5 stale rows
+    the 2026-05-20 #112 backfill cleanup found in prod DDB, plus a near-miss."""
+    with pytest.raises(ValueError, match="real-PMID floor"):
+        record_failure(
+            bad_pmid, reason="boom", run_id="run-xyz", table=mock_table,
+        )
+    mock_table.update_item.assert_not_called()
+
+
+def test_record_failure_rejects_non_numeric_pmid(mock_table):
+    with pytest.raises(ValueError, match="non-numeric"):
+        record_failure(
+            "not-a-pmid", reason="boom", run_id="run-xyz", table=mock_table,
+        )
+    mock_table.update_item.assert_not_called()
+
+
+def test_record_failure_accepts_pmid_at_floor(mock_table):
+    """The floor itself is accepted — only strictly-below is rejected."""
+    mock_table.update_item.return_value = {
+        "Attributes": {"consecutive_failures": 1}
+    }
+    record_failure(
+        "1000000", reason="hypothetical floor case", run_id="run-1",
+        table=mock_table,
+    )
+    mock_table.update_item.assert_called_once()
+
+
 # ---------------------------------------------------------------------------
 # is_quarantined
 # ---------------------------------------------------------------------------
@@ -327,7 +359,7 @@ def test_record_failure_uses_default_table_when_none(monkeypatch):
         "Attributes": {"consecutive_failures": 1}
     }
     monkeypatch.setattr(quarantine, "get_table", lambda: default_table)
-    record_failure("X", reason="r", run_id="rid")
+    record_failure("42119587", reason="r", run_id="rid")
     default_table.update_item.assert_called_once()
 
 
