@@ -25,6 +25,7 @@ from pipeline_enrichment.daily_job import (
 from pipeline_enrichment.cost_guard import estimate_run_cost
 from pipeline_enrichment.watermark import Watermark
 from utils.bedrock_client import SONNET_MODEL
+from utils.openai_client import GPT5_MODEL
 
 
 # Defensive default: ensure tests never fire real Teams alerts even if a
@@ -475,9 +476,9 @@ def test_alert_fires_on_run_failure(fake_engine, fake_watermark, fake_writer):
     assert "20" in context["sample_failures"]
 
 
-def test_no_alert_on_full_success(fake_engine, fake_watermark, fake_writer):
-    """Successful runs don't ping the operator — silent success is the norm
-    for cron jobs."""
+def test_info_heartbeat_fires_on_full_success(fake_engine, fake_watermark, fake_writer):
+    """Successful daily run posts a single INFO heartbeat (#133) — once the
+    cron runs unattended, silence is indistinguishable from a broken tick."""
     delta = _delta_rows([100, 200, 300])
     alert_mock = MagicMock()
     with patch.object(daily_job, "fetch_new_publications", return_value=delta):
@@ -488,17 +489,91 @@ def test_no_alert_on_full_success(fake_engine, fake_watermark, fake_writer):
             alert_fn=alert_mock,
         )
     assert result.status == "complete"
-    alert_mock.assert_not_called()
+    alert_mock.assert_called_once()
+    severity, _title, _msg = alert_mock.call_args.args
+    assert severity == "INFO"
+    ctx = alert_mock.call_args.kwargs["context"]
+    assert ctx["mode"] == "scheduled"
+    assert ctx["delta_size"] == 3
+    assert ctx["content_filter_retries"] == 0
+    assert alert_mock.call_args.kwargs["mention"] is False
 
 
-def test_no_alert_on_no_op_empty_delta(fake_engine, fake_watermark, fake_writer):
-    """Empty delta = nothing happened. Operators don't need a daily 'all
-    quiet' notification."""
+def test_info_heartbeat_fires_on_no_op_empty_delta(
+    fake_engine, fake_watermark, fake_writer
+):
+    """Empty delta still posts the heartbeat: the no-op case IS the signal
+    that the cron fired and reached the orchestrator."""
     alert_mock = MagicMock()
     with patch.object(daily_job, "fetch_new_publications", return_value=[]):
         result = run_daily_enrichment(engine=fake_engine, alert_fn=alert_mock)
     assert result.status == "no_op"
-    alert_mock.assert_not_called()
+    alert_mock.assert_called_once()
+    assert alert_mock.call_args.args[0] == "INFO"
+    assert alert_mock.call_args.kwargs["context"]["delta_size"] == 0
+
+
+def test_info_heartbeat_includes_full_flag_in_mode(
+    fake_engine, fake_watermark, fake_writer
+):
+    """`--full` rescore/bootstrap runs distinguish themselves in the
+    heartbeat's `mode` field."""
+    delta = _delta_rows([100])
+    alert_mock = MagicMock()
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine, full=True,
+            generate_synopsis=_ok_synopsis, score_impact=_ok_impact,
+            alert_fn=alert_mock,
+        )
+    assert alert_mock.call_args.kwargs["context"]["mode"] == "scheduled (--full)"
+
+
+def test_failed_run_does_not_double_post_info_alongside_error(
+    fake_engine, fake_watermark, fake_writer
+):
+    """A failing tick posts only the existing ERROR card — no INFO
+    heartbeat alongside it (per #133 §3)."""
+    delta = _delta_rows([1, 2])
+    alert_mock = MagicMock()
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_failing_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=alert_mock,
+        )
+    severities = [c.args[0] for c in alert_mock.call_args_list]
+    assert "INFO" not in severities
+    assert "ERROR" in severities
+
+
+def test_info_heartbeat_counts_content_filter_retries(
+    fake_engine, fake_watermark, fake_writer
+):
+    """When the synopsis stage falls back to gpt-5.1 (content-filter), the
+    heartbeat surfaces the retry count so operators can spot fallback
+    frequency trends without scraping logs."""
+    delta = _delta_rows([1, 2])
+
+    def syn_fallback_on_2(*, pmid, **kwargs):
+        # PMID 2 hit the content filter on Bedrock and resolved via
+        # OpenAI gpt-5.1 — the outcome carries model=GPT5_MODEL.
+        return FakeSynopsisResult(
+            pmid=pmid, synopsis=f"syn-{pmid}",
+            model=GPT5_MODEL if pmid == "2" else SONNET_MODEL,
+        )
+
+    alert_mock = MagicMock()
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=syn_fallback_on_2,
+            score_impact=_ok_impact,
+            alert_fn=alert_mock,
+        )
+    info_call = next(c for c in alert_mock.call_args_list if c.args[0] == "INFO")
+    assert info_call.kwargs["context"]["content_filter_retries"] == 1
 
 
 def test_default_alert_fn_is_alerting_module_function():
@@ -894,6 +969,73 @@ def test_backfill_partial_failure_commits_succeeded_and_alerts(
     assert sorted(i["PK"] for i in items) == ["IMPACT#pmid_1", "IMPACT#pmid_3"]
     alert.assert_called_once()
     assert alert.call_args.args[0] == "WARN"
+
+
+def test_backfill_complete_posts_info_heartbeat(fake_engine, fake_writer):
+    """Operator-driven backfill that completes cleanly also posts the
+    #133 heartbeat — mode='backfill', no watermark in context."""
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=2):
+        result = run_enrichment_backfill(
+            pmids=["1", "2"],
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    assert result.status == STATUS_COMPLETE
+    alert.assert_called_once()
+    assert alert.call_args.args[0] == "INFO"
+    ctx = alert.call_args.kwargs["context"]
+    assert ctx["mode"] == "backfill"
+    assert ctx["delta_size"] == 2
+    assert "watermark" not in ctx  # backfill has no watermark
+    assert alert.call_args.kwargs["mention"] is False
+
+
+def test_backfill_force_mode_label_in_heartbeat(fake_engine, fake_writer):
+    """--force backfills surface the flag in the mode field."""
+    alert = MagicMock()
+    with patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1):
+        run_enrichment_backfill(
+            pmids=["1"], engine=fake_engine, force=True,
+            generate_synopsis=_ok_synopsis, score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    assert alert.call_args.kwargs["context"]["mode"] == "backfill (--force)"
+
+
+def test_backfill_partial_does_not_post_info_heartbeat(fake_engine, fake_writer):
+    """Partial backfills go through _alert_backfill (WARN), not the
+    INFO heartbeat path."""
+    def syn_failing_on_2(*, pmid, **kwargs):
+        if pmid == "2":
+            return FakeSynopsisResult(
+                pmid=pmid, synopsis=None,
+                input_tokens=0, output_tokens=0, error="boom",
+            )
+        return FakeSynopsisResult(pmid=pmid, synopsis=f"syn-{pmid}")
+
+    alert = MagicMock()
+    with patch.object(daily_job, "check_enrichment_coverage",
+                       return_value={"complete": [], "incomplete": ["1", "2"]}), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=_delta_rows([1, 2])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1):
+        run_enrichment_backfill(
+            pmids=["1", "2"], engine=fake_engine,
+            generate_synopsis=syn_failing_on_2, score_impact=_ok_impact,
+            alert_fn=alert,
+        )
+    severities = [c.args[0] for c in alert.call_args_list]
+    assert "INFO" not in severities
+    assert "WARN" in severities
 
 
 def test_backfill_all_fail_skips_ddb_batch_and_alerts_error(

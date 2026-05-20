@@ -42,8 +42,9 @@ MENTION_UPN_ENV = "RECITERAI_ALERT_MENTION_UPN"
 MENTION_NAME_ENV = "RECITERAI_ALERT_MENTION_NAME"
 POST_TIMEOUT_SECONDS = 5
 
-VALID_SEVERITIES = ("WARN", "ERROR")
+VALID_SEVERITIES = ("INFO", "WARN", "ERROR")
 _TITLE_PREFIX = {
+    "INFO": "[INFO] ReciterAI",
     "WARN": "[WARN] ReciterAI",
     "ERROR": "[ERROR] ReciterAI",
 }
@@ -82,7 +83,9 @@ def build_card(
     """Construct the full webhook POST body (envelope + Adaptive Card).
 
     Args:
-        severity: ``WARN`` or ``ERROR``.
+        severity: ``INFO``, ``WARN``, or ``ERROR``. ``INFO`` is the
+            heartbeat severity (clean-run success summary, no operator
+            action expected) — callers should pass ``mention=False``.
         title: short headline shown bold at the top of the card.
         message: body paragraph; the @-tag is prepended if mention=True
             and the mention env vars are set.
@@ -181,7 +184,7 @@ def alert(
     runs without Teams credentials don't fail.
 
     Args:
-        severity: ``WARN`` or ``ERROR``.
+        severity: ``INFO``, ``WARN``, or ``ERROR``.
         title: short headline.
         message: body paragraph.
         context: optional key/value rendering.
