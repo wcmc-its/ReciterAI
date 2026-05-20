@@ -146,8 +146,8 @@ def fetch_history(
     (caller's ``.get(sid)`` returns None → cold-start).
 
     Chunks at ``BATCH_GET_LIMIT`` (25) per BatchGetItem call. Implements
-    one-shot retry on ``UnprocessedKeys`` (T-06-03-03 mitigation, mirrors
-    ``import_enrichment.py:_flush_batch`` pattern). After one retry,
+    one-shot retry on ``UnprocessedKeys`` (T-06-03-03 mitigation, same
+    pattern as ``utils/dynamodb_helpers.batch_write``). After one retry,
     unprocessed subtopics are silently dropped (caller treats them as
     cold-start, which is the safe default).
 

@@ -36,7 +36,7 @@ class AuthorPair(NamedTuple):
 
 
 # ---------------------------------------------------------------------------
-# Lazy SQLAlchemy engine (mirrors import_enrichment.get_db_engine)
+# Lazy SQLAlchemy engine (DB_HOST/DB_USERNAME/DB_PASSWORD/DB_NAME env vars)
 # ---------------------------------------------------------------------------
 
 _default_engine = None

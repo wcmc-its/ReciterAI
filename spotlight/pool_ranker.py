@@ -7,9 +7,7 @@ key). Reads TOPIC# enrichment from DynamoDB via Scan + paginator with
 24-month window, sums ``impact_score`` per ``primary_subtopic_id``, and
 returns the top 50 PoolEntry objects sorted ``(score DESC, subtopic_id ASC)``.
 
-The pattern follows ``import_enrichment.py:scan_topic_records()`` for the
-read path and ``utils/bedrock_client.py:_get_client`` for lazy boto3
-initialization.
+Lazy boto3 initialization follows ``utils/bedrock_client.py:_get_client``.
 """
 
 from __future__ import annotations
@@ -103,7 +101,8 @@ def _extract_paper(item: dict) -> Paper | None:
     TOPIC# rows, the empty-string fallback flows through to the Plan
     06-05 lede generator, which filters out papers with no author identity.
     See Plan 06-02 SUMMARY for follow-up tracking on author-fanout
-    enrichment in import_enrichment.py.
+    enrichment (originally scoped to ``import_enrichment.py``, retired
+    in #143; the new home for that backfill is open).
     """
     pmid = item.get("pmid", {}).get("S")
     if not pmid:
@@ -125,7 +124,7 @@ def _extract_paper(item: dict) -> Paper | None:
     # the per-row faculty_uid + author_position pair, which carries one
     # author per row (the faculty whose score this row represents). This
     # gives partial author identity (one of first/last only) until the
-    # planned import_enrichment.py extension backfills the full pair.
+    # planned author-fanout backfill lands (see _extract_paper docstring).
     if not (first_pid or last_pid):
         faculty_uid = item.get("faculty_uid", {}).get("S", "")
         position = item.get("author_position", {}).get("S", "")

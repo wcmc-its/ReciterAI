@@ -789,9 +789,9 @@ def _run_regen_only(subtopic_id: str) -> int:
 def _run_reset_history() -> int:
     """Truncate SPOTLIGHT_HISTORY# partition. Confirms before deleting.
 
-    Mirrors import_enrichment.py:_flush_batch retry pattern for
-    BatchWriteItem deletes. Used only after annual hierarchy recompute
-    when subtopic IDs rotate (D-06).
+    Uses the same BatchWriteItem retry pattern as
+    ``utils/dynamodb_helpers.batch_write``. Used only after annual
+    hierarchy recompute when subtopic IDs rotate (D-06).
     """
     import boto3
 
@@ -834,7 +834,8 @@ def _run_reset_history() -> int:
 
 
 def _flush_delete_batch(client, table: str, batch: list) -> None:
-    """One-shot retry on UnprocessedItems (mirror of import_enrichment.py)."""
+    """One-shot retry on UnprocessedItems (same shape as
+    ``utils/dynamodb_helpers.batch_write``)."""
     import time
 
     resp = client.batch_write_item(RequestItems={table: batch})
