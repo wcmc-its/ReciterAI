@@ -77,6 +77,29 @@ def test_parse_json_lenient_raises_on_unrecoverable():
         parse_json_lenient("no json object here at all")
 
 
+def test_parse_json_lenient_tolerates_trailing_text():
+    """Sonnet 4.6 sometimes emits commentary after the JSON closing brace.
+
+    Real failure mode from 2026-05-20 #112 backfill — PMIDs 31431602 and
+    35940021 both failed with `Extra data: line 3 column 1` because the
+    response contained a complete JSON object followed by additional prose,
+    and the prior regex fallback `{.*}` greedily matched into that prose
+    when it contained its own braces.
+    """
+    assert parse_json_lenient(
+        '{"synopsis": "Mock synopsis text."}\n\nNote: the above summary '
+        'covers the {primary} findings from the paper.'
+    ) == {"synopsis": "Mock synopsis text."}
+
+
+def test_parse_json_lenient_prefers_first_object_when_multiple():
+    """raw_decode anchors on the start of the string — any subsequent
+    object is trailing content, not a competing candidate."""
+    assert parse_json_lenient(
+        '{"first": 1}\n{"second": 2}'
+    ) == {"first": 1}
+
+
 # --- call_with_fallback: Bedrock happy path ---------------------------------
 
 

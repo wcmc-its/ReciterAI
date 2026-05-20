@@ -88,16 +88,28 @@ def get_default_bedrock_client() -> BedrockClient:
 def parse_json_lenient(text: str) -> dict:
     """Parse a JSON object from an LLM response, tolerating wrapping.
 
-    Bedrock Converse has no strict-JSON response mode, so Claude may wrap
-    the object in a ```json fence or surround it with prose. Strips fences
-    first; if that still does not parse, extracts the first `{...}` block.
+    Bedrock Converse has no strict-JSON response mode, so Sonnet 4.6 may
+    wrap the object in a ```json fence, surround it with prose, OR append
+    additional text after the closing brace (the most common quirk —
+    surfaced by the 2026-05-20 #112 backfill on PMIDs 31431602 / 35940021,
+    where the prior regex fallback ``\\{.*\\}`` greedily matched into
+    trailing content that contained its own braces).
+
+    Strategy:
+      1. Strip ```json fences + surrounding whitespace.
+      2. `JSONDecoder.raw_decode` from the start — parses the first valid
+         JSON object and ignores any trailing content. Covers both the
+         clean case and the trailing-text case.
+      3. If raw_decode fails (the object isn't anchored at the start),
+         regex-extract the first `{...}` block and parse that.
 
     Raises:
         json.JSONDecodeError: if no JSON object can be recovered.
     """
     cleaned = re.sub(r'```json\n?|\n?```', '', text or '').strip()
     try:
-        return json.loads(cleaned)
+        parsed, _ = json.JSONDecoder().raw_decode(cleaned)
+        return parsed
     except json.JSONDecodeError:
         match = re.search(r'\{.*\}', cleaned, re.DOTALL)
         if match:
