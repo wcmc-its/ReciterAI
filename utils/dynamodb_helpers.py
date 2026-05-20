@@ -711,3 +711,66 @@ def scan_all_synopses(client) -> dict[str, str]:
             break
         kwargs["ExclusiveStartKey"] = lek
     return result
+
+
+def check_enrichment_coverage(client, pmids: list[str]) -> dict[str, list[str]]:
+    """Partition ``pmids`` by enrichment completeness against IMPACT# rows (#141).
+
+    The DDB-side replacement for the MariaDB ``reciterai_synopsis`` /
+    ``reciterai_impact`` coverage check. A PMID is ``complete`` iff its
+    ``IMPACT#pmid_{pmid}`` row exists AND carries BOTH a non-empty
+    ``synopsis`` attribute AND an ``impact_score`` attribute;
+    ``incomplete`` is missing either. ``run_enrichment_backfill`` uses
+    ``incomplete`` as its idempotency cull — only those PMIDs are sent to
+    the LLM (unless --force).
+
+    Uses ``BatchGetItem`` in 100-key chunks (DDB API max) with a projection
+    on ``PK + synopsis + impact_score``, and re-queues ``UnprocessedKeys``.
+
+    Args:
+        client: boto3 DynamoDB client.
+        pmids: PMID strings. Duplicates are de-duped; empty list returns
+            empty lists without a DDB call.
+
+    Returns:
+        ``{"complete": [...], "incomplete": [...]}`` — both lists sorted,
+        stringified, de-duplicated.
+    """
+    wanted = sorted({str(p) for p in pmids if str(p).strip()})
+    if not wanted:
+        return {"complete": [], "incomplete": []}
+
+    chunk_size = 100
+    complete: set[str] = set()
+
+    for i in range(0, len(wanted), chunk_size):
+        chunk = wanted[i:i + chunk_size]
+        request = {
+            TABLE_NAME: {
+                "Keys": [
+                    {"PK": {"S": f"{IMPACT_PK_PREFIX}{p}"},
+                     "SK": {"S": IMPACT_SK}}
+                    for p in chunk
+                ],
+                "ProjectionExpression": "PK, synopsis, impact_score",
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(TABLE_NAME, []):
+                pk = item.get("PK", {}).get("S", "")
+                if not pk.startswith(IMPACT_PK_PREFIX):
+                    continue
+                synopsis = item.get("synopsis", {}).get("S", "")
+                if not synopsis:
+                    continue
+                if "impact_score" not in item:
+                    continue
+                pmid = pk[len(IMPACT_PK_PREFIX):]
+                complete.add(pmid)
+            request = response.get("UnprocessedKeys") or None
+
+    return {
+        "complete": sorted(complete),
+        "incomplete": sorted(set(wanted) - complete),
+    }
