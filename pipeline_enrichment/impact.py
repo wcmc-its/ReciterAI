@@ -75,7 +75,7 @@ def score_impact(
     client: BedrockClient | None = None,
     model: str = SONNET_MODEL,
     prompt_version: str | None = None,
-    max_tokens: int = 512,
+    max_tokens: int = 4096,
 ) -> ImpactResult:
     """Score one publication's impact on Bedrock Sonnet 4.6.
 
@@ -89,8 +89,14 @@ def score_impact(
         model: Bedrock model ID (default SONNET_MODEL).
         prompt_version: impact prompt version ("v1" or "v2"). Defaults
             to the current default ("v2" as of 2025-12-28).
-        max_tokens: Bedrock response token cap. The impact JSON object
-            (score + ≤120-char justification) is tiny, so 512 is ample.
+        max_tokens: Bedrock response token cap. Raised from 512 → 4096
+            after the 2026-05-20 11:00 UTC tick failed on PMID 42119587:
+            Sonnet 4.6 emitted ~500 tokens of chain-of-thought analysis
+            before the closing ``json fence, hitting the 512 cap mid-JSON
+            and returning a truncated body the lenient parser couldn't
+            recover. 4096 is well over the observed reasoning + JSON
+            envelope (~600–800 tokens) with cost-neutral headroom —
+            Bedrock bills emitted tokens, not the budget.
 
     Returns:
         ImpactResult with score 0–100 + justification on success, and

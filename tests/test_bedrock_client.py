@@ -159,6 +159,29 @@ def test_call_with_usage_raises_structured_error_on_content_filter():
     assert exc_info.value.model == SONNET_MODEL
 
 
+def test_call_with_usage_raises_on_whitespace_only_text():
+    """Non-empty content_blocks whose text is empty/whitespace is functionally
+    a content-filter equivalent: the lenient JSON parser can't recover. Treat
+    it as the same error path so call_with_fallback's transient-empty retry
+    fires (2026-05-20 11:00 UTC tick: PMID 42119587 impact call returned text
+    that was effectively empty after Bedrock truncated mid-response, dooming
+    the 36-PMID delta until this catch was added)."""
+    client = BedrockClient()
+    for whitespace in ("", "   ", "\n\n", "\t \n"):
+        resp = {
+            "output": {"message": {"role": "assistant", "content": [{"text": whitespace}]}},
+            "stopReason": "end_turn",
+            "usage": {"inputTokens": 100, "outputTokens": 0},
+        }
+        with patch.object(client, "_call_with_retry", return_value=resp):
+            with pytest.raises(BedrockEmptyContentError) as exc_info:
+                client.call_with_usage(
+                    model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}],
+                )
+        assert exc_info.value.stop_reason == "end_turn"
+        assert exc_info.value.model == SONNET_MODEL
+
+
 def test_call_with_usage_defaults_missing_usage_block_to_zero():
     """A response with content but no `usage` key yields zero token counts,
     not a KeyError."""

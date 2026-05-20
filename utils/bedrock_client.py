@@ -307,17 +307,24 @@ class BedrockClient:
             temperature=temperature,
         )
         content_blocks = response.get('output', {}).get('message', {}).get('content') or []
+        stop_reason = response.get('stopReason', 'unknown')
         if not content_blocks:
-            raise BedrockEmptyContentError(
-                stop_reason=response.get('stopReason', 'unknown'),
-                model=model,
-            )
+            raise BedrockEmptyContentError(stop_reason=stop_reason, model=model)
+        text = content_blocks[0].get('text') or ''
+        # Whitespace-only text is functionally empty for JSON-returning enrichment
+        # callers — observed 2026-05-20 11:01 UTC tick where a PMID's impact call
+        # returned non-empty content_blocks with text that wouldn't json-parse,
+        # so call_with_fallback's "transient empty retry" never fired and one bad
+        # response failed the whole 36-PMID delta. Hoisting the empty-text check
+        # here routes that case through the existing retry path.
+        if not text.strip():
+            raise BedrockEmptyContentError(stop_reason=stop_reason, model=model)
         usage = response.get('usage') or {}
         return BedrockCallResult(
-            text=content_blocks[0]['text'],
+            text=text,
             input_tokens=int(usage.get('inputTokens') or 0),
             output_tokens=int(usage.get('outputTokens') or 0),
-            stop_reason=response.get('stopReason', 'unknown'),
+            stop_reason=stop_reason,
         )
 
     def _call_with_retry(
