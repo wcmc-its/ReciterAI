@@ -12,6 +12,10 @@ With `--pmids` or `--from-gap-scan` the CLI instead invokes
 `run_enrichment_backfill`: synopsis + impact for an explicit historical PMID
 set the watermark-forward daily delta cannot reach (#80 / #112).
 
+With `--retry-quarantine` or `--clear-quarantine PMID` the CLI invokes the
+quarantine-recovery entry points (#137) — replaying or clearing PMIDs the
+daily job has written off via the consecutive-failure threshold.
+
 Examples:
 
     # Routine daily run (cost guard active):
@@ -30,6 +34,12 @@ Examples:
 
     # Backfill an explicit PMID set:
     python -m scripts.run_daily_enrichment --pmids 39001234,39005678
+
+    # Operator quarantine retry (#137) — replay every quarantined PMID:
+    python -m scripts.run_daily_enrichment --retry-quarantine
+
+    # Operator quarantine clear (#137) — drop a row after an out-of-band fix:
+    python -m scripts.run_daily_enrichment --clear-quarantine 42119587
 """
 from __future__ import annotations
 
@@ -43,6 +53,8 @@ from decimal import Decimal
 from pipeline_enrichment.daily_job import (
     STATUS_COMPLETE,
     STATUS_NO_OP,
+    clear_quarantine_for_pmid,
+    retry_quarantined_pmids,
     run_daily_enrichment,
     run_enrichment_backfill,
 )
@@ -149,6 +161,23 @@ def main(argv: list[str] | None = None) -> int:
              "cull and reprocess every PMID (operator recovery).",
     )
     p.add_argument(
+        "--retry-quarantine",
+        action="store_true",
+        help="Operator quarantine recovery (#137): replay every quarantined "
+             "PMID through synopsis + impact. Successes clear the row; "
+             "failures bump the counter without a threshold check (the row "
+             "stays until the PMID succeeds or is manually cleared). No "
+             "Teams alerts; result is printed.",
+    )
+    p.add_argument(
+        "--clear-quarantine",
+        metavar="PMID",
+        default=None,
+        help="Operator quarantine recovery (#137): delete the quarantine "
+             "row for PMID. Used after an out-of-band fix that should make "
+             "the PMID processable on the next daily tick. Idempotent.",
+    )
+    p.add_argument(
         "--no-alerts",
         action="store_true",
         help="Suppress Teams alerts (local iteration / dry-run). The "
@@ -171,12 +200,26 @@ def main(argv: list[str] | None = None) -> int:
         logging.getLogger(n).setLevel(logging.WARNING)
 
     backfill_mode = bool(args.pmids) or args.from_gap_scan
+    quarantine_retry_mode = args.retry_quarantine
+    quarantine_clear_mode = args.clear_quarantine is not None
+    quarantine_mode = quarantine_retry_mode or quarantine_clear_mode
 
     # Flag-combination validation.
     if args.pmids and args.from_gap_scan:
         p.error(
             "--pmids and --from-gap-scan are mutually exclusive work-set "
             "sources; pass exactly one"
+        )
+    if quarantine_retry_mode and quarantine_clear_mode:
+        p.error(
+            "--retry-quarantine and --clear-quarantine are mutually "
+            "exclusive; pass exactly one"
+        )
+    if quarantine_mode and (backfill_mode or args.full):
+        p.error(
+            "--retry-quarantine / --clear-quarantine are standalone "
+            "operator modes; do not combine with --pmids / --from-gap-scan "
+            "/ --full"
         )
     if not backfill_mode and (args.dry_run or args.force):
         p.error(
@@ -196,6 +239,20 @@ def main(argv: list[str] | None = None) -> int:
 
     engine = get_engine()
 
+    if quarantine_clear_mode:
+        clear_quarantine_for_pmid(args.clear_quarantine)
+        print(json.dumps({
+            "action": "clear_quarantine",
+            "pmid": args.clear_quarantine,
+            "status": "cleared",
+        }, indent=2))
+        return 0
+    if quarantine_retry_mode:
+        result = retry_quarantined_pmids(engine=engine)
+        print(_result_to_json(result))
+        # Clean exit when nothing was attempted (no rows) OR every retry
+        # cleared its row; otherwise surface the residual count.
+        return 0 if result.still_failing == 0 else 1
     if backfill_mode:
         result = _run_backfill(engine, args)
     else:
