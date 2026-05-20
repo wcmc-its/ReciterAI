@@ -19,16 +19,24 @@ all-or-nothing per run: a failed DDB batch leaves the watermark
 unadvanced and the next retry redoes the whole delta. DDB writes are
 upserts so retry is safe.
 
-Failure model (per #37's "Failed runs leave watermark untouched" spec):
+Failure model (per #37's "Failed runs leave watermark untouched" spec,
+extended for #137):
 - All-or-nothing watermark advancement. If ANY pmid fails (synopsis OR
-  impact OR a MariaDB write), the run is marked failed and the watermark
-  stays at its previous value. The next run re-attempts the same delta;
-  idempotent writes in mariadb_writer make that safe.
+  impact OR a MariaDB write) and isn't quarantined, the run is marked
+  failed and the watermark stays at its previous value. The next run
+  re-attempts the same delta; idempotent writes in mariadb_writer make
+  that safe.
 - Within a single pmid, a failed synopsis short-circuits the impact call
   (no point scoring impact for a paper we couldn't summarize). A failed
   impact after a successful synopsis leaves the synopsis row in place —
   the pmid is still counted as a failure but the next retry only re-does
   the impact.
+- Per-PMID quarantine (#137): a PMID that consistently fails N runs in a
+  row is treated as a write-off for the all-or-nothing gate so one stuck
+  PMID can't stall the whole delta forever. The threshold-crossing tick
+  itself advances the watermark past the quarantined PMID; the operator
+  gets an ERROR Teams card listing the PMID(s) for triage. See
+  `pipeline_enrichment/quarantine.py`.
 
 Bootstrap: per #37, the annual rescore uses `--full` to bypass the cost
 guard. The same flag bootstraps the first daily run on a stale watermark
@@ -51,6 +59,7 @@ from typing import Any, Callable, Optional
 from sqlalchemy.engine import Engine
 
 from pipeline_enrichment import alerting, cost_guard, ddb_writer, mariadb_writer
+from pipeline_enrichment import quarantine
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
@@ -60,6 +69,7 @@ from utils.dynamodb_helpers import (
     get_dynamo_client,
     get_table as _default_get_table,
 )
+from utils.env_check import load_thresholds
 from utils.iso_clock import now_iso
 from utils.llm_cost import CostAccumulator
 from utils.openai_client import GPT5_MODEL
@@ -83,6 +93,14 @@ class PmidOutcome:
 
     All payload fields stay None until the corresponding step succeeds;
     that keeps existing tests (which only read ok/error flags) unchanged.
+
+    Quarantine flags (#137) are independent of success: `quarantine_skipped`
+    is set when a previously-quarantined PMID was skipped before any LLM
+    call; `quarantine_triggered` is set when the per-PMID failure path
+    incremented the consecutive-failure counter to (or past) the threshold
+    on THIS run, marking the PMID as a write-off for the all-or-nothing
+    gate. Both let the gate count the outcome as "effectively passed" even
+    though `fully_succeeded` is False.
     """
 
     pmid: str
@@ -90,6 +108,8 @@ class PmidOutcome:
     impact_ok: bool = False
     synopsis_error: Optional[str] = None
     impact_error: Optional[str] = None
+    quarantine_skipped: bool = False
+    quarantine_triggered: bool = False
     # Payload — populated only on success. Used by ddb_writer.build_impact_item.
     synopsis: Optional[str] = None
     synopsis_model: Optional[str] = None
@@ -101,6 +121,22 @@ class PmidOutcome:
     @property
     def fully_succeeded(self) -> bool:
         return self.synopsis_ok and self.impact_ok
+
+    @property
+    def effectively_passed(self) -> bool:
+        """Counts as a pass for the all-or-nothing watermark gate.
+
+        A PMID effectively passes when it fully succeeded, OR when it was
+        skipped for being already-quarantined, OR when this run crossed the
+        quarantine threshold (the PMID is a write-off). In every case the
+        delta is allowed to advance past the PMID; quarantined ones have
+        no synopsis/impact payload and are excluded from the IMPACT# batch.
+        """
+        return (
+            self.fully_succeeded
+            or self.quarantine_skipped
+            or self.quarantine_triggered
+        )
 
 
 # Status values for RunResult (most are reused by EnrichmentBackfillResult).
@@ -137,6 +173,7 @@ def run_daily_enrichment(
     limit: int = 1000,
     threshold_usd: Decimal = cost_guard.DEFAULT_THRESHOLD_USD,
     per_paper_usd: Decimal = cost_guard.DEFAULT_PER_PAPER_USD,
+    quarantine_threshold: Optional[int] = None,
     engine: Engine,
     client: Optional[BedrockClient] = None,
     ddb_table: Any = None,
@@ -152,6 +189,10 @@ def run_daily_enrichment(
         limit: SQL-level safety cap on rows returned. Cost guard fires
             first on anomalous deltas (default trip ~500 papers).
         threshold_usd, per_paper_usd: cost-guard overrides.
+        quarantine_threshold: per-PMID consecutive-failure count at which
+            a PMID is treated as a write-off (#137). Defaults to
+            ``config/thresholds.json`` key
+            ``enrichment_quarantine_threshold`` (3).
         engine: sqlalchemy Engine for MariaDB (required).
         client: optional injected Bedrock client; defaults to the shared
             lazy singleton in pipeline_enrichment.llm_call.
@@ -164,6 +205,10 @@ def run_daily_enrichment(
     Returns:
         RunResult with status + per-pmid outcomes.
     """
+    if quarantine_threshold is None:
+        quarantine_threshold = int(
+            load_thresholds()["enrichment_quarantine_threshold"]
+        )
     # 1. Read watermark.
     current = wm.read_watermark(table=ddb_table)
     last_max_pmid = (
@@ -244,9 +289,26 @@ def run_daily_enrichment(
     # 5. Loop pmids. The accumulator tracks measured cost across all
     # LLM calls — both successful and failed (token counts on failed
     # SynopsisResult/ImpactResult are 0, so they contribute nothing).
+    #
+    # Quarantine (#137):
+    #   - PRE-check: skip PMIDs already at/above the threshold without any LLM
+    #     call. Defense in depth — the watermark normally advances past them
+    #     on the threshold-crossing tick so they don't re-enter the delta.
+    #   - POST-process: on success, clear the row; on failure, increment the
+    #     counter and flip `quarantine_triggered` if it crossed the threshold
+    #     THIS run. That outcome counts as a pass for the all-or-nothing gate
+    #     so the delta moves forward.
     accumulator = CostAccumulator()
     outcomes: list[PmidOutcome] = []
     for row in delta:
+        pmid = str(row["pmid"])
+        if quarantine.is_quarantined(pmid, quarantine_threshold, table=ddb_table):
+            outcomes.append(PmidOutcome(pmid=pmid, quarantine_skipped=True))
+            logger.info(
+                "daily run: pmid=%s skipped (quarantined, threshold=%d)",
+                pmid, quarantine_threshold,
+            )
+            continue
         outcome = _process_one_pmid(
             row,
             engine=engine,
@@ -256,12 +318,26 @@ def run_daily_enrichment(
             accumulator=accumulator,
         )
         outcomes.append(outcome)
-        if not outcome.fully_succeeded:
+        if outcome.fully_succeeded:
+            quarantine.clear(pmid, table=ddb_table)
+        else:
+            reason = outcome.synopsis_error or outcome.impact_error or "unknown"
+            new_count = quarantine.record_failure(
+                pmid, reason=reason, run_id=run_id, table=ddb_table,
+            )
+            if new_count >= quarantine_threshold:
+                outcome.quarantine_triggered = True
+                logger.warning(
+                    "daily run: pmid=%s crossed quarantine threshold "
+                    "(count=%d, threshold=%d) — write-off, watermark will "
+                    "advance past it",
+                    pmid, new_count, quarantine_threshold,
+                )
             logger.warning(
                 "daily run: pmid=%s failed (synopsis_ok=%s, impact_ok=%s, "
-                "synopsis_err=%s, impact_err=%s)",
+                "synopsis_err=%s, impact_err=%s, quarantine_count=%d)",
                 outcome.pmid, outcome.synopsis_ok, outcome.impact_ok,
-                outcome.synopsis_error, outcome.impact_error,
+                outcome.synopsis_error, outcome.impact_error, new_count,
             )
     logger.info(
         "daily run: measured cost $%s across %d calls (input=%d, output=%d tokens)",
@@ -269,13 +345,16 @@ def run_daily_enrichment(
         accumulator.total_input_tokens, accumulator.total_output_tokens,
     )
 
-    # 6. Advance watermark on all-success.
-    all_succeeded = all(o.fully_succeeded for o in outcomes)
+    # 6. Advance watermark on effective pass (success OR quarantined).
+    all_succeeded = all(o.effectively_passed for o in outcomes)
     if all_succeeded:
         # 6a. End-of-run DDB IMPACT# batch dual-write (#37 step 3 PR 3.1).
         # Sequenced BEFORE mark_run_complete so a DDB batch failure leaves
         # the watermark unadvanced. Next run's retry redoes the same delta;
         # MariaDB upserts and DDB upserts are both idempotent.
+        #
+        # Quarantined outcomes (skipped or threshold-triggered) carry no
+        # synopsis/impact payload and must be excluded from the batch (#137).
         ddb_target = ddb_table if ddb_table is not None else _default_get_table()
         impact_items = [
             ddb_writer.build_impact_item(
@@ -288,6 +367,7 @@ def run_daily_enrichment(
                 enriched_at=o.enriched_at,
             )
             for o in outcomes
+            if o.fully_succeeded
         ]
         try:
             ddb_writer.write_impact_batch(ddb_target, impact_items)
@@ -337,6 +417,17 @@ def run_daily_enrichment(
             watermark_after=new_max,
             content_filter_retries=_count_content_filter_retries(outcomes),
         )
+        # Newly-quarantined PMIDs trip an ERROR card even on a passing run so
+        # the operator triages them (#137). Already-quarantined-then-skipped
+        # PMIDs do NOT refire here — they fired the card on the tick that
+        # crossed the threshold.
+        newly_quarantined = [o for o in outcomes if o.quarantine_triggered]
+        if newly_quarantined:
+            _alert_newly_quarantined(
+                alert_fn, newly_quarantined,
+                threshold=quarantine_threshold,
+                run_id=run_id,
+            )
         return RunResult(
             status=STATUS_COMPLETE,
             delta_size=delta_size,
@@ -349,12 +440,12 @@ def run_daily_enrichment(
         )
 
     wm.mark_run_failed(table=ddb_table)
-    failures = sum(1 for o in outcomes if not o.fully_succeeded)
+    failed_outcomes = [o for o in outcomes if not o.effectively_passed]
+    failures = len(failed_outcomes)
     logger.error(
         "daily run: failed — %d/%d pmids failed, watermark NOT advanced",
         failures, delta_size,
     )
-    failed_outcomes = [o for o in outcomes if not o.fully_succeeded]
     sample_failures = ", ".join(
         f"{o.pmid} ({o.synopsis_error or o.impact_error})"
         for o in failed_outcomes[:3]
@@ -797,6 +888,46 @@ def _post_success_summary(
     )
 
 
+def _alert_newly_quarantined(
+    alert_fn: Callable,
+    quarantined: list[PmidOutcome],
+    *,
+    threshold: int,
+    run_id: str,
+) -> None:
+    """Send the operator an ERROR card listing newly-quarantined PMIDs (#137).
+
+    Fires from the success path: the run advanced the watermark past these
+    PMIDs but each of them crossed the consecutive-failure threshold and now
+    needs operator triage (`python scripts/run_daily_enrichment.py
+    --retry-quarantine` or `--clear-quarantine PMID`).
+
+    Already-quarantined-then-skipped PMIDs do NOT route through here — they
+    fired their ERROR card on the tick that crossed the threshold.
+    """
+    sample = ", ".join(
+        f"{o.pmid} ({o.synopsis_error or o.impact_error or 'unknown'})"
+        for o in quarantined[:5]
+    )
+    if len(quarantined) > 5:
+        sample += f", … (+{len(quarantined) - 5} more)"
+    alert_fn(
+        "ERROR",
+        f"Daily enrichment quarantined {len(quarantined)} PMID(s)",
+        f"{len(quarantined)} PMID(s) crossed the consecutive-failure "
+        f"threshold ({threshold}) and were written off so the delta could "
+        "advance. The watermark moved past them; the run as a whole "
+        "succeeded. Operator triage: `--retry-quarantine` to replay them, "
+        "`--clear-quarantine PMID` to drop a row after a fix.",
+        context={
+            "run_id": run_id,
+            "threshold": threshold,
+            "quarantined_count": len(quarantined),
+            "quarantined_pmids": sample,
+        },
+    )
+
+
 def _alert_backfill(
     alert_fn: Callable,
     result: EnrichmentBackfillResult,
@@ -854,3 +985,136 @@ def _alert_backfill(
             "sample_failures": sample,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# #137 — Operator-driven quarantine retry
+# ---------------------------------------------------------------------------
+#
+# `retry_quarantined_pmids` is the operator's batch-recovery entry point for
+# PMIDs the daily job has written off. Watermark-free, partial-tolerant; on
+# per-PMID success it deletes the quarantine row, on failure it bumps the
+# counter (without any threshold check — the operator is explicitly probing
+# and doesn't want the row deleted by retry). No Teams alerts — the operator
+# reads the printed result.
+
+
+@dataclass
+class QuarantineRetryResult:
+    """Outcome of one `retry_quarantined_pmids` invocation.
+
+    `attempted` is the count of quarantine rows replayed; `cleared` how many
+    have had their row deleted by a successful retry; `still_failing` how many
+    bumped the counter without clearing; `unresolved` rows whose PMIDs aren't
+    in `analysis_summary_article` (pre-2020 or dropped).
+    """
+
+    attempted: int = 0
+    cleared: int = 0
+    still_failing: int = 0
+    unresolved: int = 0
+    outcomes: list[PmidOutcome] = field(default_factory=list)
+    unresolved_pmids: list[str] = field(default_factory=list)
+    cost_observed_usd: Optional[Decimal] = None
+    cost_summary: Optional[dict] = None
+
+
+def retry_quarantined_pmids(
+    *,
+    engine: Engine,
+    client: Optional[BedrockClient] = None,
+    ddb_table: Any = None,
+    generate_synopsis: Callable = _default_generate_synopsis,
+    score_impact: Callable = _default_score_impact,
+    quarantine_threshold: Optional[int] = None,
+) -> QuarantineRetryResult:
+    """Replay every quarantined PMID through `_process_one_pmid`.
+
+    Operator-interactive — no Teams alerts, no watermark touch. A retry that
+    succeeds clears the row; a retry that fails bumps the counter (no
+    threshold check — the row stays until the PMID either succeeds or the
+    operator manually clears it with `clear_quarantine_for_pmid`).
+
+    Returns a `QuarantineRetryResult` summarizing the batch. The caller is
+    `scripts/run_daily_enrichment.py --retry-quarantine`.
+    """
+    if quarantine_threshold is None:
+        quarantine_threshold = int(
+            load_thresholds()["enrichment_quarantine_threshold"]
+        )
+    rows = quarantine.list_quarantined(
+        threshold=quarantine_threshold, table=ddb_table,
+    )
+    if not rows:
+        logger.info("retry-quarantine: no rows at or above threshold=%d",
+                    quarantine_threshold)
+        return QuarantineRetryResult()
+
+    pmids = [r["pmid"] for r in rows]
+    pub_rows = fetch_publications_for_enrichment(engine, pmids)
+    resolved_by_pmid = {str(r["pmid"]): r for r in pub_rows}
+    unresolved = sorted(set(pmids) - set(resolved_by_pmid))
+    if unresolved:
+        logger.warning(
+            "retry-quarantine: %d PMID(s) not in analysis_summary_article "
+            "/ pre-2020 cutoff — skipped: %s%s",
+            len(unresolved), ", ".join(unresolved[:10]),
+            " …" if len(unresolved) > 10 else "",
+        )
+
+    accumulator = CostAccumulator()
+    outcomes: list[PmidOutcome] = []
+    cleared = 0
+    still_failing = 0
+    for pmid in pmids:
+        pub_row = resolved_by_pmid.get(pmid)
+        if pub_row is None:
+            continue
+        outcome = _process_one_pmid(
+            pub_row,
+            engine=engine,
+            client=client,
+            generate_synopsis=generate_synopsis,
+            score_impact=score_impact,
+            accumulator=accumulator,
+        )
+        outcomes.append(outcome)
+        if outcome.fully_succeeded:
+            quarantine.clear(pmid, table=ddb_table)
+            cleared += 1
+            logger.info("retry-quarantine: pmid=%s cleared", pmid)
+        else:
+            reason = outcome.synopsis_error or outcome.impact_error or "unknown"
+            new_count = quarantine.record_failure(
+                pmid, reason=reason,
+                run_id=f"retry-quarantine-{now_iso()}",
+                table=ddb_table,
+            )
+            still_failing += 1
+            logger.warning(
+                "retry-quarantine: pmid=%s still failing (count=%d, reason=%s)",
+                pmid, new_count, reason,
+            )
+
+    return QuarantineRetryResult(
+        attempted=len(outcomes),
+        cleared=cleared,
+        still_failing=still_failing,
+        unresolved=len(unresolved),
+        outcomes=outcomes,
+        unresolved_pmids=unresolved,
+        cost_observed_usd=accumulator.total_usd,
+        cost_summary=accumulator.summary(),
+    )
+
+
+def clear_quarantine_for_pmid(pmid: str, *, ddb_table: Any = None) -> None:
+    """Operator action — delete a specific quarantine row.
+
+    Used after an out-of-band code fix that should make the PMID processable
+    on the next daily tick; the orchestrator's `is_quarantined` check no
+    longer fires for the cleared PMID. Idempotent: clearing a row that
+    doesn't exist is a no-op.
+    """
+    quarantine.clear(pmid, table=ddb_table)
+    logger.info("clear-quarantine: pmid=%s cleared", pmid)

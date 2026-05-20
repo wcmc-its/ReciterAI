@@ -1180,3 +1180,438 @@ def test_backfill_dedupes_requested_pmids(fake_engine, fake_writer):
     # check_enrichment_coverage receives the de-duplicated set as its second
     # positional arg (the first is the DDB client created at the call site).
     assert cov.call_args.args[1] == ["1"]
+
+
+# ---------------------------------------------------------------------------
+# #137 — Per-PMID quarantine
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def fake_quarantine():
+    """Patch the quarantine module's four functions on daily_job.
+
+    Default behavior:
+      - is_quarantined → False for every PMID (no prior quarantine state)
+      - record_failure → returns 1 (the count after the first call)
+      - clear → no-op
+    Tests override the return values via the yielded dict.
+    """
+    with patch.object(daily_job.quarantine, "is_quarantined", return_value=False) as iq, \
+         patch.object(daily_job.quarantine, "record_failure", return_value=1) as rf, \
+         patch.object(daily_job.quarantine, "clear", return_value=None) as cl:
+        yield {"is_quarantined": iq, "record_failure": rf, "clear": cl}
+
+
+def _impact_score(pub_data, score=50, **_):
+    """Score `pub_data["pmid"]`'s impact; default success at 50.
+
+    Used by the failure-mix tests below to pin per-PMID outcomes without
+    repeating the FakeImpactResult boilerplate.
+    """
+    return FakeImpactResult(
+        pmid=str(pub_data["pmid"]),
+        impact_score=score,
+        justification="ok",
+    )
+
+
+def test_quarantine_threshold_crossing_advances_watermark_and_skips_impact_batch(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """Acceptance #1 from #137: after the Nth failure on a PMID, that tick
+    itself advances the watermark past the PMID, an ERROR Teams card lists
+    it, and the IMPACT# batch excludes it."""
+    delta = _delta_rows([4001, 4002, 4003, 4004])
+    # PMID 4003 fails impact this tick; record_failure says count crossed
+    # to 3 (the threshold). Other PMIDs succeed.
+    def selective_impact(*, pub_data, client=None):
+        pmid = str(pub_data["pmid"])
+        if pmid == "4003":
+            return FakeImpactResult(
+                pmid=pmid, impact_score=None,
+                input_tokens=0, output_tokens=0, error="boom",
+            )
+        return _ok_impact(pub_data=pub_data, client=client)
+
+    fake_quarantine["record_failure"].return_value = 3  # crossed threshold
+    alerts: list[tuple] = []
+    def capture_alert(severity, title, message, context=None, mention=True):
+        alerts.append((severity, title, context or {}))
+
+    captured_batches: list[list] = []
+    def capture_batch(table, items):
+        captured_batches.append(items)
+        return len(items)
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      side_effect=capture_batch):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=selective_impact,
+            alert_fn=capture_alert,
+        )
+
+    # Watermark advanced — quarantine-crossed PMID treated as effectively passed.
+    assert result.status == STATUS_COMPLETE
+    assert result.new_watermark_pmid == 4004
+    fake_watermark["complete"].assert_called_once()
+
+    # Outcome for 4003: failed but quarantine-triggered.
+    by_pmid = {o.pmid: o for o in result.outcomes}
+    assert by_pmid["4003"].fully_succeeded is False
+    assert by_pmid["4003"].quarantine_triggered is True
+    assert by_pmid["4003"].effectively_passed is True
+
+    # IMPACT# batch had 3 items (4001/4002/4004), NOT 4 — 4003 carries no
+    # synopsis/impact payload.
+    assert len(captured_batches) == 1
+    written_pmids = sorted(item["pmid"] for item in captured_batches[0])
+    assert written_pmids == ["4001", "4002", "4004"]
+
+    # ERROR Teams card fired listing 4003 as quarantined (in addition to the
+    # INFO success summary).
+    error_alerts = [a for a in alerts if a[0] == "ERROR"]
+    assert len(error_alerts) == 1
+    assert "quarantined" in error_alerts[0][1].lower()
+    assert "4003" in error_alerts[0][2].get("quarantined_pmids", "")
+    assert error_alerts[0][2]["threshold"] == 3
+    assert error_alerts[0][2]["quarantined_count"] == 1
+
+
+def test_quarantine_below_threshold_preserves_all_or_nothing(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """Acceptance #2 from #137: a transient flake (below threshold) still
+    stalls the watermark — protection against accidental advancement on
+    intermittent failures."""
+    delta = _delta_rows([5001, 5002, 5003, 5004])
+    def selective_impact(*, pub_data, client=None):
+        if str(pub_data["pmid"]) == "5003":
+            return FakeImpactResult(
+                pmid="5003", impact_score=None,
+                input_tokens=0, output_tokens=0, error="flake",
+            )
+        return _ok_impact(pub_data=pub_data, client=client)
+
+    # 1st consecutive failure → count=1, below threshold of 3.
+    fake_quarantine["record_failure"].return_value = 1
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=selective_impact,
+        )
+
+    # Run failed → watermark unchanged.
+    assert result.status == STATUS_FAILED
+    fake_watermark["complete"].assert_not_called()
+    fake_watermark["failed"].assert_called_once()
+
+    by_pmid = {o.pmid: o for o in result.outcomes}
+    assert by_pmid["5003"].fully_succeeded is False
+    assert by_pmid["5003"].quarantine_triggered is False
+    assert by_pmid["5003"].effectively_passed is False
+
+    # record_failure WAS called (the counter still moves toward threshold).
+    fake_quarantine["record_failure"].assert_called_once()
+    rf_call = fake_quarantine["record_failure"].call_args
+    assert rf_call.args[0] == "5003"
+    assert "flake" in rf_call.kwargs["reason"]
+
+
+def test_success_after_partial_quarantine_clears_the_row(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """Acceptance #3 from #137: a PMID with 2 prior failures that succeeds
+    this run has its quarantine row deleted — transient blips don't
+    accumulate forever toward eventual quarantine."""
+    delta = _delta_rows([6001, 6002])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=2):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+
+    assert result.status == STATUS_COMPLETE
+    # quarantine.clear called for every successful PMID — idempotent on rows
+    # that don't exist, idempotent on rows that do.
+    cleared = {c.args[0] for c in fake_quarantine["clear"].call_args_list}
+    assert cleared == {"6001", "6002"}
+    fake_quarantine["record_failure"].assert_not_called()
+
+
+def test_already_quarantined_pmid_is_skipped_not_reprocessed(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """Acceptance #4 from #137: a PMID already at/above threshold is skipped
+    before any LLM call; the run still passes; watermark advances; the
+    skipped PMID is excluded from the IMPACT# batch."""
+    delta = _delta_rows([7001, 7002, 7003, 7004])
+    fake_quarantine["is_quarantined"].side_effect = (
+        lambda pmid, threshold, table=None: pmid == "7003"
+    )
+
+    captured_batches: list[list] = []
+    def capture_batch(table, items):
+        captured_batches.append(items)
+        return len(items)
+
+    impact_calls: list[str] = []
+    def tracking_impact(*, pub_data, client=None):
+        impact_calls.append(str(pub_data["pmid"]))
+        return _ok_impact(pub_data=pub_data, client=client)
+
+    alerts: list[tuple] = []
+    def capture_alert(severity, title, message, context=None, mention=True):
+        alerts.append((severity, title, context or {}))
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch",
+                      side_effect=capture_batch):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=tracking_impact,
+            alert_fn=capture_alert,
+        )
+
+    assert result.status == STATUS_COMPLETE
+    assert result.new_watermark_pmid == 7004
+    # Impact (and synopsis) never called for the quarantined PMID.
+    assert "7003" not in impact_calls
+    assert sorted(impact_calls) == ["7001", "7002", "7004"]
+
+    # Outcome carries quarantine_skipped, not _triggered (it was skipped pre-
+    # processing, not crossed-this-tick).
+    by_pmid = {o.pmid: o for o in result.outcomes}
+    assert by_pmid["7003"].quarantine_skipped is True
+    assert by_pmid["7003"].quarantine_triggered is False
+    assert by_pmid["7003"].effectively_passed is True
+
+    # IMPACT# batch carries only the 3 successfully-enriched PMIDs.
+    assert len(captured_batches) == 1
+    written_pmids = sorted(item["pmid"] for item in captured_batches[0])
+    assert written_pmids == ["7001", "7002", "7004"]
+
+    # No ERROR alert this run — the skipped PMID fired its alert on the
+    # threshold-crossing tick (a previous run), not now.
+    error_alerts = [a for a in alerts if a[0] == "ERROR"]
+    assert error_alerts == []
+
+    # record_failure NOT called for the quarantined PMID (we never tried to
+    # process it). clear NOT called either (skipped path bypasses both).
+    rf_pmids = {c.args[0] for c in fake_quarantine["record_failure"].call_args_list}
+    cl_pmids = {c.args[0] for c in fake_quarantine["clear"].call_args_list}
+    assert "7003" not in rf_pmids
+    assert "7003" not in cl_pmids
+
+
+def test_record_failure_receives_run_id_for_idempotency(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """The orchestrator must pass the watermark-claimed run_id so a retried
+    subprocess can't double-count failures within the same tick (#137)."""
+    delta = _delta_rows([8001])
+    fake_watermark["started"].return_value = "run-claimed-uuid"
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_failing_impact,
+        )
+    rf_call = fake_quarantine["record_failure"].call_args
+    assert rf_call.kwargs["run_id"] == "run-claimed-uuid"
+
+
+def test_quarantine_threshold_defaults_from_config_when_not_overridden(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """No explicit override → daily_job reads `enrichment_quarantine_threshold`
+    from config/thresholds.json so the schedule-time tick agrees with the
+    operator's `--retry-quarantine` invocation."""
+    with patch.object(daily_job, "fetch_new_publications", return_value=[]):
+        run_daily_enrichment(engine=fake_engine)
+    # is_quarantined wasn't called (empty delta), but the config-read path
+    # didn't crash and the run reached the empty-delta no-op return.
+    # The default value (3) is pinned by the schema; assert via a second
+    # round-trip through the load_thresholds helper.
+    from utils.env_check import load_thresholds
+    assert int(load_thresholds()["enrichment_quarantine_threshold"]) == 3
+
+
+def test_mixed_quarantine_skipped_and_below_threshold_failure_still_fails_run(
+    fake_engine, fake_watermark, fake_writer, fake_quarantine,
+):
+    """5-PMID delta: PMID #3 already quarantined (skipped), PMID #5 has a
+    transient (below-threshold) failure. Result: run fails because #5 is
+    not effectively-passed, watermark does NOT advance, ERROR alert fires
+    with `failures=1` (the skipped PMID is NOT counted as a failure)."""
+    delta = _delta_rows([9001, 9002, 9003, 9004, 9005])
+    fake_quarantine["is_quarantined"].side_effect = (
+        lambda pmid, threshold, table=None: pmid == "9003"
+    )
+    fake_quarantine["record_failure"].return_value = 1  # below threshold of 3
+
+    def selective_impact(*, pub_data, client=None):
+        pmid = str(pub_data["pmid"])
+        if pmid == "9005":
+            return FakeImpactResult(
+                pmid=pmid, impact_score=None,
+                input_tokens=0, output_tokens=0, error="flake",
+            )
+        return _ok_impact(pub_data=pub_data, client=client)
+
+    alerts: list[tuple] = []
+    def capture_alert(severity, title, message, context=None, mention=True):
+        alerts.append((severity, title, message, context or {}))
+
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        result = run_daily_enrichment(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=selective_impact,
+            alert_fn=capture_alert,
+        )
+
+    assert result.status == STATUS_FAILED
+    fake_watermark["complete"].assert_not_called()
+
+    # ERROR alert: failures=1 (PMID 9005), NOT 2 — the skipped PMID 9003
+    # isn't a failure for accounting.
+    error_alerts = [a for a in alerts if a[0] == "ERROR"]
+    assert len(error_alerts) == 1
+    assert error_alerts[0][3]["failures"] == 1
+    assert "9005" in error_alerts[0][3]["sample_failures"]
+    assert "9003" not in error_alerts[0][3]["sample_failures"]
+
+
+# ---------------------------------------------------------------------------
+# #137 — Operator quarantine retry + clear (`retry_quarantined_pmids` /
+# `clear_quarantine_for_pmid`)
+# ---------------------------------------------------------------------------
+
+from pipeline_enrichment.daily_job import (  # noqa: E402
+    QuarantineRetryResult,
+    clear_quarantine_for_pmid,
+    retry_quarantined_pmids,
+)
+
+
+def test_retry_quarantined_no_rows_returns_empty_result(
+    fake_engine, fake_writer, fake_quarantine,
+):
+    """No quarantine rows ≥ threshold → no work, no LLM calls, empty result."""
+    with patch.object(daily_job.quarantine, "list_quarantined", return_value=[]):
+        result = retry_quarantined_pmids(engine=fake_engine)
+    assert isinstance(result, QuarantineRetryResult)
+    assert result.attempted == 0
+    assert result.cleared == 0
+    assert result.still_failing == 0
+
+
+def test_retry_quarantined_successes_clear_rows(
+    fake_engine, fake_writer, fake_quarantine,
+):
+    """A retry that succeeds deletes the row; the operator's batch shrinks."""
+    quarantined_rows = [
+        {"pmid": "12001", "consecutive_failures": 3},
+        {"pmid": "12002", "consecutive_failures": 5},
+    ]
+    pub_rows = _delta_rows([12001, 12002])
+    with patch.object(daily_job.quarantine, "list_quarantined",
+                       return_value=quarantined_rows), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=pub_rows):
+        result = retry_quarantined_pmids(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    assert result.attempted == 2
+    assert result.cleared == 2
+    assert result.still_failing == 0
+    cleared = {c.args[0] for c in fake_quarantine["clear"].call_args_list}
+    assert cleared == {"12001", "12002"}
+    # record_failure must NOT fire on success paths.
+    fake_quarantine["record_failure"].assert_not_called()
+
+
+def test_retry_quarantined_failures_bump_counter_no_threshold_check(
+    fake_engine, fake_writer, fake_quarantine,
+):
+    """A retry that fails leaves the row in place and bumps the counter —
+    the operator's row survives until they explicitly clear or fix it."""
+    quarantined_rows = [{"pmid": "13001", "consecutive_failures": 3}]
+    pub_rows = _delta_rows([13001])
+    fake_quarantine["record_failure"].return_value = 4  # bumped from 3
+    with patch.object(daily_job.quarantine, "list_quarantined",
+                       return_value=quarantined_rows), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=pub_rows):
+        result = retry_quarantined_pmids(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_failing_impact,
+        )
+    assert result.attempted == 1
+    assert result.cleared == 0
+    assert result.still_failing == 1
+    fake_quarantine["clear"].assert_not_called()
+    fake_quarantine["record_failure"].assert_called_once()
+    # run_id passed to record_failure is a retry-prefixed UUID/timestamp,
+    # distinct from the daily-job watermark run_id so it can't collide.
+    rf_call = fake_quarantine["record_failure"].call_args
+    assert rf_call.kwargs["run_id"].startswith("retry-quarantine-")
+
+
+def test_retry_quarantined_unresolved_pmids_are_skipped(
+    fake_engine, fake_writer, fake_quarantine,
+):
+    """A quarantined PMID not in analysis_summary_article (pre-2020, dropped)
+    is recorded as unresolved and skipped — no LLM call."""
+    quarantined_rows = [
+        {"pmid": "14001", "consecutive_failures": 3},
+        {"pmid": "14002", "consecutive_failures": 3},  # unresolved
+    ]
+    pub_rows = _delta_rows([14001])  # only 14001 resolves
+    impact_calls: list[str] = []
+    def tracking_impact(*, pub_data, client=None):
+        impact_calls.append(str(pub_data["pmid"]))
+        return _ok_impact(pub_data=pub_data, client=client)
+
+    with patch.object(daily_job.quarantine, "list_quarantined",
+                       return_value=quarantined_rows), \
+         patch.object(daily_job, "fetch_publications_for_enrichment",
+                      return_value=pub_rows):
+        result = retry_quarantined_pmids(
+            engine=fake_engine,
+            quarantine_threshold=3,
+            generate_synopsis=_ok_synopsis,
+            score_impact=tracking_impact,
+        )
+    assert result.attempted == 1  # only 14001 actually replayed
+    assert result.cleared == 1
+    assert result.unresolved == 1
+    assert result.unresolved_pmids == ["14002"]
+    assert impact_calls == ["14001"]
+
+
+def test_clear_quarantine_for_pmid_calls_module_clear(fake_quarantine):
+    """The operator-clear helper delegates to quarantine.clear (idempotent
+    DDB DeleteItem)."""
+    clear_quarantine_for_pmid("99999")
+    fake_quarantine["clear"].assert_called_once()
+    assert fake_quarantine["clear"].call_args.args[0] == "99999"
