@@ -833,6 +833,17 @@ def run_enrichment_backfill(
         "impact_rows_written=%d",
         status, len(succeeded), len(failed), impact_rows_written,
     )
+    if failed:
+        # Surface a copy-pasteable retry command so the operator can replay
+        # the failed PMIDs without grepping the per-PMID warnings. Logs are
+        # already large; we print the full list here so it survives a `tail`
+        # to the runbook. The Teams alert (below) caps at 50 PMIDs for
+        # readability.
+        logger.warning(
+            "enrichment backfill: retry %d failed PMID(s) with "
+            "`python -m scripts.run_daily_enrichment --pmids %s`",
+            len(failed), ",".join(str(o.pmid) for o in failed),
+        )
     return result
 
 
@@ -976,6 +987,21 @@ def _alert_backfill(
             f"All {result.attempted} PMID(s) failed — no synopsis or impact "
             "was written. Check the run log for the cause."
         )
+    # Build a copy-pasteable retry command for the operator. Cap at 50
+    # PMIDs so the Teams card stays readable; the run log carries the
+    # full list (see logger.warning in run_enrichment_backfill).
+    failed_pmids = [str(o.pmid) for o in failed_outcomes]
+    if len(failed_pmids) <= 50:
+        retry_command = (
+            f"python -m scripts.run_daily_enrichment --pmids "
+            f"{','.join(failed_pmids)}"
+        )
+    else:
+        retry_command = (
+            f"python -m scripts.run_daily_enrichment --pmids "
+            f"{','.join(failed_pmids[:50])} "
+            f"(+ {len(failed_pmids) - 50} more — see run log)"
+        )
     alert_fn(
         severity, title, message,
         context={
@@ -983,6 +1009,7 @@ def _alert_backfill(
             "succeeded": result.succeeded,
             "failed": result.failed,
             "sample_failures": sample,
+            "retry_command": retry_command,
         },
     )
 
