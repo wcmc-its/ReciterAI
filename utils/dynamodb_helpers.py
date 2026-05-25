@@ -530,6 +530,86 @@ def scan_invalid_pmids(client, table_name: str) -> list:
     return pmids
 
 
+def fetch_scored_provenance(client, table_name: str, pmids: list) -> dict:
+    """Return ``{pmid: {"scored_enriched_at", "scored_synopsis_model"}}`` for the
+    given PMIDs' ``PROCESSING#`` rows (#150 item 2 drift sweep).
+
+    The synopsis provenance the score was based on — stamped by the scorer
+    (``score_one_publication``) and baselined for old scores by
+    ``scripts/backfill_score_provenance.py``. The drift sweep compares this
+    against the current ``IMPACT#`` provenance to find scores whose synopsis was
+    regenerated after scoring. PMIDs absent from DDB are omitted; an un-stamped
+    row yields empty-string fields. BatchGetItem in 100-key chunks, re-queuing
+    ``UnprocessedKeys``.
+    """
+    if not pmids:
+        return {}
+    unique = sorted({str(p) for p in pmids if str(p).strip()})
+    if not unique:
+        return {}
+
+    chunk_size = 100
+    result: dict = {}
+    for i in range(0, len(unique), chunk_size):
+        chunk = unique[i:i + chunk_size]
+        request = {
+            table_name: {
+                "Keys": [
+                    {"PK": {"S": f"PROCESSING#pmid_{p}"}, "SK": {"S": "STATUS"}}
+                    for p in chunk
+                ],
+                "ProjectionExpression": "PK, scored_enriched_at, scored_synopsis_model",
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(table_name, []):
+                pk = item.get("PK", {}).get("S", "")
+                if not pk.startswith("PROCESSING#pmid_"):
+                    continue
+                pmid = pk[len("PROCESSING#pmid_"):]
+                result[pmid] = {
+                    "scored_enriched_at":
+                        item.get("scored_enriched_at", {}).get("S", ""),
+                    "scored_synopsis_model":
+                        item.get("scored_synopsis_model", {}).get("S", ""),
+                }
+            request = response.get("UnprocessedKeys") or None
+    return result
+
+
+def invalidate_stale_score(client, table_name: str, pmid: str) -> bool:
+    """Demote a drifted PMID's ``PROCESSING#`` status ``complete`` -> ``stale``
+    (#150 item 2 drift sweep). Returns True if the row was demoted.
+
+    A drifted score (synopsis regenerated after scoring) is ``complete``, so the
+    cache-respecting ``--additive`` re-score path would skip it. ``stale`` is in
+    none of the eligibility sweep's exclusions (complete/failed/quarantined) and
+    is not skipped by ``get_unscored_publications`` (which only skips
+    ``complete``), so the scorer re-runs it. The ``complete``-guard makes this a
+    no-op if the row already moved on (concurrent change); retry_count / history
+    are preserved.
+    """
+    from botocore.exceptions import ClientError
+    try:
+        client.update_item(
+            TableName=table_name,
+            Key={"PK": {"S": f"PROCESSING#pmid_{pmid}"}, "SK": {"S": "STATUS"}},
+            UpdateExpression="SET #s = :stale",
+            ConditionExpression="#s = :complete",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":stale": {"S": "stale"},
+                ":complete": {"S": "complete"},
+            },
+        )
+        return True
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return False
+        raise
+
+
 def get_processing_rows(client, table_name: str, pmids: list) -> dict:
     """
     Batch-get full PROCESSING# rows for `pmids`.
@@ -747,6 +827,59 @@ def fetch_synopses_for_pmids(client, pmids: list[str]) -> dict[str, str]:
                 result[pmid] = synopsis
             request = response.get("UnprocessedKeys") or None
 
+    return result
+
+
+def fetch_synopsis_records(client, pmids: list[str]) -> dict:
+    """Like ``fetch_synopses_for_pmids`` but also returns synopsis provenance
+    (``synopsis_model``, ``enriched_at``) for #150 item 2.
+
+    The scorer stamps these onto the ``PROCESSING#`` row at score time
+    (``scored_synopsis_model`` / ``scored_enriched_at``) so a later drift sweep
+    can tell whether a publication's synopsis was regenerated after it was
+    scored — ``IMPACT#.enriched_at`` advancing past the stamped
+    ``scored_enriched_at``, or a ``synopsis_model`` change.
+
+    Returns ``{pmid: {"synopsis", "synopsis_model", "enriched_at"}}`` for every
+    PMID whose ``IMPACT#`` row carries a non-empty synopsis (same inner-join
+    filter as ``fetch_synopses_for_pmids``). BatchGetItem in 100-key chunks,
+    re-queuing ``UnprocessedKeys``.
+    """
+    if not pmids:
+        return {}
+    unique = sorted({str(p) for p in pmids if str(p).strip()})
+    if not unique:
+        return {}
+
+    chunk_size = 100
+    result: dict = {}
+    for i in range(0, len(unique), chunk_size):
+        chunk = unique[i:i + chunk_size]
+        request = {
+            TABLE_NAME: {
+                "Keys": [
+                    {"PK": {"S": f"{IMPACT_PK_PREFIX}{p}"}, "SK": {"S": IMPACT_SK}}
+                    for p in chunk
+                ],
+                "ProjectionExpression": "PK, synopsis, synopsis_model, enriched_at",
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(TABLE_NAME, []):
+                pk = item.get("PK", {}).get("S", "")
+                if not pk.startswith(IMPACT_PK_PREFIX):
+                    continue
+                synopsis = item.get("synopsis", {}).get("S", "")
+                if not synopsis:
+                    continue
+                pmid = pk[len(IMPACT_PK_PREFIX):]
+                result[pmid] = {
+                    "synopsis": synopsis,
+                    "synopsis_model": item.get("synopsis_model", {}).get("S", ""),
+                    "enriched_at": item.get("enriched_at", {}).get("S", ""),
+                }
+            request = response.get("UnprocessedKeys") or None
     return result
 
 

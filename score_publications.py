@@ -54,7 +54,7 @@ from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
     mark_processing_failed, get_processing_status, to_decimal, make_score_sk,
     batch_write, release_quarantine, fetch_synopses_for_pmids,
-    scan_invalid_pmids,
+    fetch_synopsis_records, scan_invalid_pmids,
 )
 from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
@@ -322,15 +322,19 @@ def _attach_synopses_from_ddb(rows: list[dict]) -> list[dict]:
     if not rows:
         return []
     pmids = [str(r["pmid"]) for r in rows]
-    synopses = fetch_synopses_for_pmids(get_dynamo_client(), pmids)
+    # #150 item 2: fetch synopsis + its provenance (synopsis_model, enriched_at)
+    # so the scorer can stamp what synopsis each score was based on.
+    records = fetch_synopsis_records(get_dynamo_client(), pmids)
     enriched: list[dict] = []
     for row in rows:
         pmid_str = str(row["pmid"])
-        synopsis = synopses.get(pmid_str)
-        if not synopsis:
+        rec = records.get(pmid_str)
+        if not rec or not rec.get("synopsis"):
             continue
         enriched_row = dict(row)
-        enriched_row["synopsis"] = synopsis
+        enriched_row["synopsis"] = rec["synopsis"]
+        enriched_row["synopsis_model"] = rec.get("synopsis_model", "")
+        enriched_row["enriched_at"] = rec.get("enriched_at", "")
         enriched.append(enriched_row)
     return enriched
 
@@ -832,6 +836,16 @@ def score_one_publication(
             scored_at=datetime.now(timezone.utc).isoformat(),
             screening_passed_topics=list(passed_topics.keys()),
         )
+        # #150 item 2: stamp the synopsis provenance this score was based on, so
+        # a later drift sweep can detect a regenerated synopsis (IMPACT#
+        # enriched_at advancing past scored_enriched_at, or a synopsis_model
+        # change). Written only when known (the synopsis-join path sets them).
+        scored_enriched_at = str(pub.get('enriched_at') or '')
+        if scored_enriched_at:
+            complete_kwargs['scored_enriched_at'] = scored_enriched_at
+        scored_synopsis_model = str(pub.get('synopsis_model') or '')
+        if scored_synopsis_model:
+            complete_kwargs['scored_synopsis_model'] = scored_synopsis_model
         if result.fallback_model:
             complete_kwargs['fallback_model'] = result.fallback_model
         mark_processing(

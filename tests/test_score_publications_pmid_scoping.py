@@ -49,15 +49,19 @@ def test_extracts_supplied_pmids_with_in_clause(monkeypatch):
     """The IN-clause variant of the extraction SQL is invoked with the given list.
 
     Post-#38: synopsis is no longer joined by the SQL; it's attached
-    afterward from DDB via ``fetch_synopses_for_pmids``.
+    afterward from DDB via ``fetch_synopsis_records`` (synopsis + #150 item 2
+    provenance).
     """
     conn = _stub_db_with_rows([
         {"pmid": "41198049", "title": "T1", "abstract": "a1"},
         {"pmid": "41485218", "title": "T2", "abstract": "a2"},
     ])
     monkeypatch.setattr(
-        sp, "fetch_synopses_for_pmids",
-        lambda client, pmids: {"41198049": "s1", "41485218": "s2"},
+        sp, "fetch_synopsis_records",
+        lambda client, pmids: {
+            "41198049": {"synopsis": "s1", "synopsis_model": "m", "enriched_at": "t1"},
+            "41485218": {"synopsis": "s2", "synopsis_model": "m", "enriched_at": "t2"},
+        },
     )
     monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
 
@@ -89,7 +93,10 @@ def test_pmids_not_found_in_db_are_silently_excluded(monkeypatch):
         {"pmid": "41198049", "title": "T1", "abstract": "a1"},
     ])
     monkeypatch.setattr(
-        sp, "fetch_synopses_for_pmids", lambda client, pmids: {"41198049": "s1"},
+        sp, "fetch_synopsis_records",
+        lambda client, pmids: {
+            "41198049": {"synopsis": "s1", "synopsis_model": "m", "enriched_at": "t"},
+        },
     )
     monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
     with patch.object(sp, "get_db_connection", return_value=conn):
@@ -110,8 +117,11 @@ def test_pmids_without_ddb_synopsis_are_dropped(monkeypatch):
     ])
     # DDB has synopsis for 100 and 300, none for 200.
     monkeypatch.setattr(
-        sp, "fetch_synopses_for_pmids",
-        lambda client, pmids: {"100": "s1", "300": "s3"},
+        sp, "fetch_synopsis_records",
+        lambda client, pmids: {
+            "100": {"synopsis": "s1", "synopsis_model": "m", "enriched_at": "t"},
+            "300": {"synopsis": "s3", "synopsis_model": "m", "enriched_at": "t"},
+        },
     )
     monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
     with patch.object(sp, "get_db_connection", return_value=conn):

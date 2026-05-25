@@ -381,6 +381,122 @@ def test_eligibility_sweep_excludes_invalid(monkeypatch):
     assert eligible == ["2", "4"]
 
 
+# ---------- #150 item 2: resolve_drift_sweep ----------
+
+
+def _patch_drift(monkeypatch, *, scored, prov, impact, invalidated):
+    monkeypatch.setattr(
+        orch, "query_pmids_by_status",
+        lambda c, t, tv, status: list(scored) if status == "complete" else [],
+    )
+    monkeypatch.setattr(orch, "fetch_scored_provenance", lambda c, t, pmids: dict(prov))
+    monkeypatch.setattr(orch, "fetch_synopsis_records", lambda c, pmids: dict(impact))
+    monkeypatch.setattr(
+        orch, "invalidate_stale_score",
+        lambda c, t, pmid: invalidated.append(pmid) or True,
+    )
+
+
+def test_drift_sweep_flags_re_enriched_and_demotes(monkeypatch):
+    """A re-enriched synopsis (IMPACT#.enriched_at advanced past the stamped
+    scored_enriched_at) is drift; same-timestamp is not; an un-stamped score is
+    baseline (not drift). Drifted checkpoints are demoted complete->stale."""
+    invalidated: list = []
+    _patch_drift(
+        monkeypatch,
+        scored=["1", "2", "3"],
+        prov={
+            "1": {"scored_enriched_at": "2026-05-01T00:00:00Z", "scored_synopsis_model": "m"},
+            "2": {"scored_enriched_at": "2026-05-10T00:00:00Z", "scored_synopsis_model": "m"},
+            "3": {"scored_enriched_at": "", "scored_synopsis_model": ""},  # un-stamped
+        },
+        impact={
+            "1": {"enriched_at": "2026-05-20T00:00:00Z", "synopsis_model": "m"},  # re-enriched
+            "2": {"enriched_at": "2026-05-10T00:00:00Z", "synopsis_model": "m"},  # unchanged
+            "3": {"enriched_at": "2026-05-20T00:00:00Z", "synopsis_model": "m"},  # un-stamped → skip
+        },
+        invalidated=invalidated,
+    )
+    drifted = orch.resolve_drift_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"drift_sweep_enabled": True, "drift_sweep_max_pmids": 100},
+    )
+    assert drifted == ["1"]
+    assert invalidated == ["1"]
+
+
+def test_drift_sweep_flags_synopsis_model_change(monkeypatch):
+    """Same enriched_at but a synopsis_model upgrade is drift (re-scored under
+    a different summarizer)."""
+    invalidated: list = []
+    _patch_drift(
+        monkeypatch,
+        scored=["1"],
+        prov={"1": {"scored_enriched_at": "2026-05-20T00:00:00Z",
+                    "scored_synopsis_model": "claude-sonnet-4-5"}},
+        impact={"1": {"enriched_at": "2026-05-20T00:00:00Z",
+                      "synopsis_model": "claude-sonnet-4-6"}},
+        invalidated=invalidated,
+    )
+    drifted = orch.resolve_drift_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"drift_sweep_enabled": True, "drift_sweep_max_pmids": 100},
+    )
+    assert drifted == ["1"]
+
+
+def test_drift_sweep_respects_cap_and_demotes_only_capped(monkeypatch):
+    invalidated: list = []
+    n = 10
+    _patch_drift(
+        monkeypatch,
+        scored=[str(i) for i in range(n)],
+        prov={str(i): {"scored_enriched_at": "2026-05-01T00:00:00Z",
+                       "scored_synopsis_model": "m"} for i in range(n)},
+        impact={str(i): {"enriched_at": "2026-05-20T00:00:00Z",
+                         "synopsis_model": "m"} for i in range(n)},
+        invalidated=invalidated,
+    )
+    drifted = orch.resolve_drift_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"drift_sweep_enabled": True, "drift_sweep_max_pmids": 3},
+    )
+    assert len(drifted) == 3
+    assert drifted == sorted([str(i) for i in range(n)])[:3]
+    assert len(invalidated) == 3, "only the capped set is demoted (spend bound)"
+
+
+def test_drift_sweep_disabled_returns_empty_without_querying(monkeypatch):
+    called = {"q": False}
+    monkeypatch.setattr(
+        orch, "query_pmids_by_status",
+        lambda *a, **k: called.__setitem__("q", True) or ["1"],
+    )
+    drifted = orch.resolve_drift_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"drift_sweep_enabled": False},
+    )
+    assert drifted == []
+    assert called["q"] is False, "disabled drift sweep must not query"
+
+
+def test_build_state_machine_input_folds_drift_into_additive():
+    """#150 item 2: drift_pmids join retry+eligibility in the cache-respecting
+    additive set (their checkpoints were demoted to 'stale'), are unioned into
+    all_pmids, and run_kind records the source."""
+    sm = orch.build_state_machine_input(
+        pmids=["1"], last_run_at="t", started_at="t", run_id="r",
+        retry_pmids=["9"], eligibility_pmids=["8"], drift_pmids=["7", "1"],
+    )
+    d = sm["delta"]
+    assert d["drift_pmids"] == ["7", "1"]
+    assert d["drift_size"] == 2
+    assert d["additive_pmids"] == ["1", "7", "8", "9"]  # sorted(retry ∪ elig ∪ drift)
+    assert d["all_pmids"] == ["1", "7", "8", "9"]
+    assert d["force_pmids"] == []
+    assert sm["run_kind"] == "delta+retry+eligibility+drift"
+
+
 # ---------- #150 1a: handler operator override ----------
 
 
@@ -426,6 +542,7 @@ def test_handler_scheduled_input_is_not_an_override(monkeypatch):
     monkeypatch.setattr(orch, "resolve_retry_sweep",
                         lambda *a, **k: {"retry_pmids": [], "quarantined_pmids": []})
     monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
     import utils.sql_queries as sq
     monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: [])
 
@@ -1016,10 +1133,11 @@ def test_handler_ready_path_derives_and_threads_dirty_cwids(monkeypatch):
         orch, "resolve_retry_sweep",
         lambda *a, **k: {"retry_pmids": ["9"], "quarantined_pmids": []},
     )
-    # The ready path also runs the 1b eligibility sweep (#150); stub it so the
-    # handler test does not drive the real full-table DDB scans against the
-    # MagicMock client. Empty → dirty_cwids derive over the delta+retry union.
+    # The ready path also runs the 1b eligibility + item-2 drift sweeps (#150);
+    # stub them so the handler test does not drive the real full-table DDB scans
+    # against the MagicMock client. Empty → dirty_cwids derive over delta+retry.
     monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
 
     seen: list = []
 

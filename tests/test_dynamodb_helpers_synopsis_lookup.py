@@ -17,6 +17,7 @@ from utils.dynamodb_helpers import (
     TABLE_NAME,
     check_enrichment_coverage,
     fetch_synopses_for_pmids,
+    fetch_synopsis_records,
     scan_all_synopses,
 )
 
@@ -114,6 +115,53 @@ def test_fetch_uses_projection_expression_to_minimise_payload():
         ["ProjectionExpression"]
     )
     assert projection == "PK, synopsis"
+
+
+# ---------------------------------------------------------------------------
+# fetch_synopsis_records — #150 item 2 (synopsis + provenance)
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_records_returns_synopsis_and_provenance():
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([
+        {
+            "PK": {"S": f"{IMPACT_PK_PREFIX}100"},
+            "synopsis": {"S": "syn text"},
+            "synopsis_model": {"S": "claude-sonnet-4-6"},
+            "enriched_at": {"S": "2026-05-20T11:00:00Z"},
+        },
+        {  # empty synopsis → dropped (same inner-join filter as fetch_synopses)
+            "PK": {"S": f"{IMPACT_PK_PREFIX}200"},
+            "synopsis": {"S": ""},
+            "synopsis_model": {"S": "m"},
+        },
+    ])
+    out = fetch_synopsis_records(client, ["100", "200"])
+    assert out == {
+        "100": {
+            "synopsis": "syn text",
+            "synopsis_model": "claude-sonnet-4-6",
+            "enriched_at": "2026-05-20T11:00:00Z",
+        },
+    }
+
+
+def test_fetch_records_missing_provenance_defaults_to_empty_strings():
+    """A synopsis row with no model/enriched_at (legacy enrichment) yields
+    empty-string provenance, not a KeyError — the scorer then writes no stamp."""
+    client = MagicMock()
+    client.batch_get_item.return_value = _make_batch_get([
+        {"PK": {"S": f"{IMPACT_PK_PREFIX}300"}, "synopsis": {"S": "s"}},
+    ])
+    out = fetch_synopsis_records(client, ["300"])
+    assert out == {"300": {"synopsis": "s", "synopsis_model": "", "enriched_at": ""}}
+
+
+def test_fetch_records_empty_list_skips_ddb():
+    client = MagicMock()
+    assert fetch_synopsis_records(client, []) == {}
+    client.batch_get_item.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

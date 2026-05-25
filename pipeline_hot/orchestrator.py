@@ -38,9 +38,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import utils.secrets_loader  # noqa: F401
 
 from utils.dynamodb_helpers import (
+    fetch_scored_provenance,
+    fetch_synopsis_records,
     get_dynamo_client,
     get_processing_rows,
     get_table,
+    invalidate_stale_score,
     quarantine_pmid,
     query_failed_pmids,
     query_pmids_by_status,
@@ -361,6 +364,82 @@ def resolve_eligibility_sweep(
     return eligible
 
 
+def resolve_drift_sweep(
+    client: Any,
+    *,
+    table_name: str,
+    taxonomy_version: str,
+    thresholds: dict,
+) -> list[str]:
+    """Re-score PMIDs whose synopsis was regenerated after they were scored
+    (#150 item 2).
+
+    Drifted = a ``complete`` PROCESSING# row whose stamped ``scored_enriched_at``
+    lags the current ``IMPACT#.enriched_at`` (the synopsis was re-enriched after
+    scoring — mangled-abstract fix, content-filter survivor), or whose
+    ``scored_synopsis_model`` differs from the current one (model upgrade).
+    Detection relies on the Part-A provenance stamp; an un-stamped score (no
+    ``scored_enriched_at``) is treated as baseline, not drifted — so this never
+    fires until stamps exist (forward scores + the one-time backfill).
+
+    Drifted PMIDs are ``complete``, so the cache-respecting ``--additive`` path
+    would skip them. This sweep INVALIDATES their checkpoint (``complete`` ->
+    ``stale``) so the scorer re-runs them, and returns them to be folded into
+    the additive set. Capped at ``drift_sweep_max_pmids`` (per-run Bedrock spend
+    bound; overflow waits for the next run), gated by ``drift_sweep_enabled``.
+
+    Order matters: the handler runs this AFTER the eligibility sweep, which
+    reads the ``complete`` snapshot — so a PMID demoted here is not also counted
+    as a (genuinely-unscored) eligibility PMID in the same run.
+    """
+    if not thresholds.get("drift_sweep_enabled", True):
+        logger.info("Drift sweep disabled (drift_sweep_enabled=false).")
+        return []
+    max_pmids = int(thresholds.get("drift_sweep_max_pmids", 200))
+
+    scored = query_pmids_by_status(client, table_name, taxonomy_version, "complete")
+    if not scored:
+        return []
+    prov = fetch_scored_provenance(client, table_name, scored)
+    impact = fetch_synopsis_records(client, scored)
+
+    drifted: list[str] = []
+    for pmid in scored:
+        p = prov.get(pmid)
+        i = impact.get(pmid)
+        if not p or not i:
+            continue
+        scored_ea = p.get("scored_enriched_at") or ""
+        if not scored_ea:
+            continue  # un-stamped → baseline (not drifted)
+        # ISO8601 Z-suffixed timestamps compare lexicographically.
+        re_enriched = i.get("enriched_at", "") > scored_ea
+        scored_sm = p.get("scored_synopsis_model") or ""
+        cur_sm = i.get("synopsis_model") or ""
+        model_changed = bool(scored_sm and cur_sm and cur_sm != scored_sm)
+        if re_enriched or model_changed:
+            drifted.append(pmid)
+
+    drifted = sorted(drifted)
+    if len(drifted) > max_pmids:
+        logger.info(
+            "Drift sweep: %d drifted — capping to %d (overflow waits).",
+            len(drifted), max_pmids,
+        )
+        drifted = drifted[:max_pmids]
+    else:
+        logger.info("Drift sweep: %d drifted.", len(drifted))
+
+    # Invalidate each drifted checkpoint so the --additive re-score reaches it.
+    demoted = [pmid for pmid in drifted if invalidate_stale_score(client, table_name, pmid)]
+    if len(demoted) != len(drifted):
+        logger.info(
+            "Drift sweep: demoted %d/%d (the rest moved off 'complete' concurrently).",
+            len(demoted), len(drifted),
+        )
+    return demoted
+
+
 # ---------------------------------------------------------------------------
 # Open Q5: prior-run-in-progress lock
 # ---------------------------------------------------------------------------
@@ -425,6 +504,7 @@ def build_state_machine_input(
     run_id: str,
     retry_pmids: list[str] | None = None,
     eligibility_pmids: list[str] | None = None,
+    drift_pmids: list[str] | None = None,
     override_pmids: list[str] | None = None,
     dirty_cwids: list[str] | None = None,
 ) -> dict:
@@ -463,6 +543,7 @@ def build_state_machine_input(
     """
     retry_pmids = list(retry_pmids or [])
     eligibility_pmids = list(eligibility_pmids or [])
+    drift_pmids = list(drift_pmids or [])
     override_pmids = list(override_pmids or [])
     dirty_cwids = list(dirty_cwids or [])
 
@@ -475,7 +556,12 @@ def build_state_machine_input(
         run_kind = "override"
     else:
         date_pmids = pmids
-        additive_pmids = sorted(set(retry_pmids) | set(eligibility_pmids))
+        # Drift PMIDs (#150 item 2) ride --additive too: their checkpoint was
+        # demoted complete->stale by resolve_drift_sweep, so --additive re-scores
+        # them (it skips only 'complete'). dedup absorbs any overlap.
+        additive_pmids = sorted(
+            set(retry_pmids) | set(eligibility_pmids) | set(drift_pmids)
+        )
         force_pmids = []
         all_pmids = sorted(set(date_pmids) | set(additive_pmids))
         parts = ["delta"]
@@ -483,6 +569,8 @@ def build_state_machine_input(
             parts.append("retry")
         if eligibility_pmids:
             parts.append("eligibility")
+        if drift_pmids:
+            parts.append("drift")
         run_kind = "+".join(parts)
 
     return {
@@ -497,6 +585,8 @@ def build_state_machine_input(
             "retry_size": len(retry_pmids),
             "eligibility_pmids": eligibility_pmids,
             "eligibility_size": len(eligibility_pmids),
+            "drift_pmids": drift_pmids,
+            "drift_size": len(drift_pmids),
             # Score handler inputs: additive (cache-respecting) vs force
             # (cache-bypassing). Mutually exclusive by construction — an
             # override run clears additive; a normal run clears force.
@@ -710,11 +800,37 @@ def handler(event: dict, context: Any = None) -> dict:
             },
         )
 
+    # 3c. #150 item 2 — drift sweep: scores whose synopsis was regenerated after
+    # scoring. Best-effort like the other sweeps. Runs AFTER the eligibility
+    # sweep (which read the 'complete' snapshot), and demotes drifted checkpoints
+    # complete->stale so the cache-respecting --additive re-score reaches them.
+    drift_pmids: list[str] = []
+    try:
+        drift_pmids = resolve_drift_sweep(
+            get_dynamo_client(),
+            table_name=TABLE_NAME,
+            taxonomy_version=current_taxonomy_version(),
+            thresholds=load_thresholds(),
+        )
+    except Exception as exc:  # noqa: BLE001 — drift recovery is non-critical
+        logger.exception("Drift sweep failed; proceeding without it.")
+        alert.dispatch(
+            "WARN",
+            "Hot path drift sweep failed — delta+retry+eligibility scoring proceeded",
+            {
+                "source": "pipeline_hot.orchestrator",
+                "error": str(exc),
+                "started_at": started_at,
+            },
+        )
+
     # 4. Dirty-CWID set for the Rollup fan-out (#119). Unlike the sweeps, this
     # is a core stage input, not best-effort recovery — a failure here
     # propagates and the state machine's Orchestrate Catch writes the failed
     # hot_run row.
-    all_pmids = sorted(set(pmids) | set(retry_pmids) | set(eligibility_pmids))
+    all_pmids = sorted(
+        set(pmids) | set(retry_pmids) | set(eligibility_pmids) | set(drift_pmids)
+    )
     dirty_cwids = get_cwids_for_pmids(all_pmids)
 
     return {
@@ -726,6 +842,7 @@ def handler(event: dict, context: Any = None) -> dict:
             run_id=run_id,
             retry_pmids=retry_pmids,
             eligibility_pmids=eligibility_pmids,
+            drift_pmids=drift_pmids,
             dirty_cwids=dirty_cwids,
         ),
     }

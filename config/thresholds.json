@@ -24,6 +24,8 @@
   "retry_sweep_min_age_days": 7,
   "eligibility_sweep_enabled": true,
   "eligibility_sweep_max_pmids": 200,
+  "drift_sweep_enabled": true,
+  "drift_sweep_max_pmids": 200,
   "onboarding_cost_guard_max_pmids": 300,
   "onboarding_detector_cold_start_threshold": 100,
   "spotlight_theme_similarity_max": 0.7,
