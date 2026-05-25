@@ -195,6 +195,49 @@ def test_persist_on_invokes_materialization(monkeypatch):
     assert "t1" in spy.call_args.kwargs["dense_scores"]
 
 
+# --- score_one_publication: #150 item 2 synopsis-provenance stamp ------------
+
+
+def _capture_mark_processing(monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(
+        sp, "mark_processing",
+        lambda client, table, pmid, status, tax, **kw: calls.append((status, kw)),
+    )
+    return calls
+
+
+def test_complete_marker_stamps_synopsis_provenance(monkeypatch):
+    """The 'complete' PROCESSING# write records the synopsis provenance the
+    score was based on (scored_enriched_at / scored_synopsis_model), so a later
+    drift sweep can detect a regenerated synopsis."""
+    calls = _capture_mark_processing(monkeypatch)
+    pub = {**_PUB, "synopsis_model": "claude-sonnet-4-6",
+           "enriched_at": "2026-05-20T11:00:00Z"}
+    result = sp.score_one_publication(
+        pub, _FakeBedrockScoring(), _TAXONOMY, MagicMock(), "reciterai",
+        _INT_TO_ID, _ID_TO_INT,
+    )
+    assert result.status == "complete"
+    complete = next(kw for status, kw in calls if status == "complete")
+    assert complete["scored_enriched_at"] == "2026-05-20T11:00:00Z"
+    assert complete["scored_synopsis_model"] == "claude-sonnet-4-6"
+
+
+def test_complete_marker_omits_provenance_when_absent(monkeypatch):
+    """A pub with no IMPACT# provenance marks complete without the stamp — the
+    drift sweep treats an un-stamped score as baseline, not drifted."""
+    calls = _capture_mark_processing(monkeypatch)
+    result = sp.score_one_publication(
+        _PUB, _FakeBedrockScoring(), _TAXONOMY, MagicMock(), "reciterai",
+        _INT_TO_ID, _ID_TO_INT,
+    )
+    assert result.status == "complete"
+    complete = next(kw for status, kw in calls if status == "complete")
+    assert "scored_enriched_at" not in complete
+    assert "scored_synopsis_model" not in complete
+
+
 def test_topic_rows_written_before_complete_marker(monkeypatch):
     """Crash-safety: TOPIC# rows must be materialized before the
     'complete' PROCESSING# marker, so a crash between the two leaves the

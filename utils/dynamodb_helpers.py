@@ -750,6 +750,59 @@ def fetch_synopses_for_pmids(client, pmids: list[str]) -> dict[str, str]:
     return result
 
 
+def fetch_synopsis_records(client, pmids: list[str]) -> dict:
+    """Like ``fetch_synopses_for_pmids`` but also returns synopsis provenance
+    (``synopsis_model``, ``enriched_at``) for #150 item 2.
+
+    The scorer stamps these onto the ``PROCESSING#`` row at score time
+    (``scored_synopsis_model`` / ``scored_enriched_at``) so a later drift sweep
+    can tell whether a publication's synopsis was regenerated after it was
+    scored — ``IMPACT#.enriched_at`` advancing past the stamped
+    ``scored_enriched_at``, or a ``synopsis_model`` change.
+
+    Returns ``{pmid: {"synopsis", "synopsis_model", "enriched_at"}}`` for every
+    PMID whose ``IMPACT#`` row carries a non-empty synopsis (same inner-join
+    filter as ``fetch_synopses_for_pmids``). BatchGetItem in 100-key chunks,
+    re-queuing ``UnprocessedKeys``.
+    """
+    if not pmids:
+        return {}
+    unique = sorted({str(p) for p in pmids if str(p).strip()})
+    if not unique:
+        return {}
+
+    chunk_size = 100
+    result: dict = {}
+    for i in range(0, len(unique), chunk_size):
+        chunk = unique[i:i + chunk_size]
+        request = {
+            TABLE_NAME: {
+                "Keys": [
+                    {"PK": {"S": f"{IMPACT_PK_PREFIX}{p}"}, "SK": {"S": IMPACT_SK}}
+                    for p in chunk
+                ],
+                "ProjectionExpression": "PK, synopsis, synopsis_model, enriched_at",
+            }
+        }
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(TABLE_NAME, []):
+                pk = item.get("PK", {}).get("S", "")
+                if not pk.startswith(IMPACT_PK_PREFIX):
+                    continue
+                synopsis = item.get("synopsis", {}).get("S", "")
+                if not synopsis:
+                    continue
+                pmid = pk[len(IMPACT_PK_PREFIX):]
+                result[pmid] = {
+                    "synopsis": synopsis,
+                    "synopsis_model": item.get("synopsis_model", {}).get("S", ""),
+                    "enriched_at": item.get("enriched_at", {}).get("S", ""),
+                }
+            request = response.get("UnprocessedKeys") or None
+    return result
+
+
 def scan_all_synopses(client) -> dict[str, str]:
     """Return ``{pmid: synopsis}`` for every ``IMPACT#`` row with a synopsis.
 
