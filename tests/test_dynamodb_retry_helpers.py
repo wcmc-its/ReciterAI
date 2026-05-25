@@ -83,7 +83,9 @@ def test_query_failed_pmids_queries_gsi_and_paginates():
 
     first = client.query.call_args_list[0].kwargs
     assert first["IndexName"] == "ProcessingByVersionIndex"
-    assert first["ExpressionAttributeValues"][":failed"] == {"S": "failed"}
+    # query_failed_pmids delegates to the generalized query_pmids_by_status,
+    # which binds the status under :st (was :failed before #150 1b).
+    assert first["ExpressionAttributeValues"][":st"] == {"S": "failed"}
     assert first["ExpressionAttributeValues"][":tv"] == {"S": "taxonomy_v2"}
     # Second query carried the pagination cursor.
     assert "ExclusiveStartKey" in client.query.call_args_list[1].kwargs

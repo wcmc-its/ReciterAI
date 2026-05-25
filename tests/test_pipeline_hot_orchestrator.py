@@ -306,9 +306,11 @@ def test_build_state_machine_input_override_uses_force_and_bypasses_delta():
 # ---------- #150 1b: resolve_eligibility_sweep ----------
 
 
-def _patch_sweep_sets(monkeypatch, *, enriched, scored, failed, quarantined):
+def _patch_sweep_sets(monkeypatch, *, enriched, scored, failed, quarantined,
+                      invalid=()):
     monkeypatch.setattr(orch, "scan_impact_pmids_with_synopsis",
                         lambda *a, **k: list(enriched))
+    monkeypatch.setattr(orch, "scan_invalid_pmids", lambda *a, **k: list(invalid))
 
     def _by_status(client, table, tv, status):
         return {"complete": scored, "failed": failed, "quarantined": quarantined}[status]
@@ -358,6 +360,25 @@ def test_eligibility_sweep_disabled_returns_empty(monkeypatch):
     )
     assert eligible == []
     assert called["scan"] is False, "disabled sweep must not scan"
+
+
+def test_eligibility_sweep_excludes_invalid(monkeypatch):
+    """#150 item 3: ReciterDB-flagged invalid PMIDs (INVALID#pmid_ rows) are
+    culled from the eligible set even when they carry a synopsis IMPACT# row —
+    the enrichment cron synopsized them before the upstream DELETE, and that
+    SQL DELETE never cleans the DDB IMPACT# rows the sweep scans."""
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=["1", "2", "3", "4"],
+        scored=["1"],
+        failed=[], quarantined=[],
+        invalid=["3"],   # flagged invalid → cull despite the synopsis
+    )
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 100},
+    )
+    assert eligible == ["2", "4"]
 
 
 # ---------- #150 1a: handler operator override ----------
@@ -710,15 +731,19 @@ def test_derive_dirty_topics_feeds_the_assign_fanout():
 
 
 def test_rollup_fanout_maps_over_dirty_cwids():
-    """RollupFanOut iterates the orchestrator's dirty_cwids; each iteration
-    invokes the rollup Lambda's per-CWID {cwid} mode with the bare item."""
+    """RollupFanOut iterates the orchestrator's dirty_cwids (bare CWID strings).
+    ItemSelector wraps each as {cwid: <value>} so RollupOne's ResultPath has an
+    object to merge into — a ReferencePath on a scalar item is a
+    States.ReferencePathConflict (#150/#153). RollupOne then invokes the rollup
+    Lambda's per-CWID {cwid} mode reading the wrapped field."""
     asl_path = Path(__file__).parent.parent / "pipeline_hot" / "state_machine.asl.json"
     states = json.loads(asl_path.read_text())["States"]
     fan = states["RollupFanOut"]
     assert fan["Type"] == "Map"
     assert fan["ItemsPath"] == "$.orchestrate.input.delta.dirty_cwids"
+    assert fan["ItemSelector"] == {"cwid.$": "$$.Map.Item.Value"}
     assert fan["ItemProcessor"]["States"]["RollupOne"]["Parameters"] == {
-        "cwid.$": "$"
+        "cwid.$": "$.cwid"
     }
 
 
@@ -991,6 +1016,10 @@ def test_handler_ready_path_derives_and_threads_dirty_cwids(monkeypatch):
         orch, "resolve_retry_sweep",
         lambda *a, **k: {"retry_pmids": ["9"], "quarantined_pmids": []},
     )
+    # The ready path also runs the 1b eligibility sweep (#150); stub it so the
+    # handler test does not drive the real full-table DDB scans against the
+    # MagicMock client. Empty → dirty_cwids derive over the delta+retry union.
+    monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
 
     seen: list = []
 
