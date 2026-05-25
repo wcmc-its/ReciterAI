@@ -344,12 +344,36 @@ def test_onboarding_pmids_run_still_enables_persist_topic_rows(monkeypatch):
     assert gate is True
 
 
-def test_cold_path_run_keeps_persist_topic_rows_off(monkeypatch):
-    """The cold path (no --emit-envelope) leaves persist_topic_rows OFF —
-    its TOPIC# rows are written by the cold loader (load_dynamodb) from the
-    JSON score artifact. PR 4a's cold-path byte-unchanged guarantee holds
-    after #98."""
+def test_full_cold_load_keeps_persist_topic_rows_off(monkeypatch):
+    """The full cold load (no --emit-envelope AND no --pmids — score the
+    whole corpus) leaves persist_topic_rows OFF: its TOPIC# rows are written
+    by the cold loader (load_dynamodb) from the JSON artifact, always paired
+    with that load step. PR 4a's cold-path byte-unchanged guarantee holds."""
     gate = _persist_topic_rows_for_argv(
         monkeypatch, ["score_publications.py"],
     )
     assert gate is False
+
+
+def test_cli_pmids_run_enables_persist_topic_rows(monkeypatch):
+    """#150 regression guard: a plain CLI `--pmids` run (no --emit-envelope)
+    must persist TOPIC# rows INLINE. #98 narrowed the gate to --emit-envelope,
+    which left `score_publications.py --pmids …` runs marking
+    PROCESSING#=complete with no TOPIC# — the "zombie" footgun that produced
+    the 2,606 complete-but-no-TOPIC# PMIDs. Restoring PR-4a's --pmids
+    persistence makes targeted runs atomic (complete <=> TOPIC# persisted)."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch, ["score_publications.py", "--pmids", "111"],
+    )
+    assert gate is True
+
+
+def test_cli_pmids_force_run_enables_persist_topic_rows(monkeypatch):
+    """The operator recovery shape (`--pmids … --force`, no --emit-envelope)
+    also persists inline — this is exactly the invocation that must never
+    again leave a zombie."""
+    gate = _persist_topic_rows_for_argv(
+        monkeypatch,
+        ["score_publications.py", "--pmids", "111", "--force", "--allow-cost-override"],
+    )
+    assert gate is True

@@ -416,26 +416,28 @@ def mark_processing_failed(client, table_name: str, pmid: str, *,
     )
 
 
-def query_failed_pmids(client, table_name: str, taxonomy_version: str) -> list:
+def query_pmids_by_status(
+    client, table_name: str, taxonomy_version: str, status: str
+) -> list:
     """
-    Return PMIDs of every PROCESSING# row with status='failed' under
+    Return PMIDs of every PROCESSING# row with the given `status` under
     `taxonomy_version`.
 
     Uses the `ProcessingByVersionIndex` GSI (taxonomy_version HASH + status
     RANGE). The GSI projection is KEYS_ONLY, so callers that need
     retry_count / failed_at must follow up with `get_processing_rows`.
-    Paginates on LastEvaluatedKey — failure volume is small at the 1%
-    target failure rate, but a backlog week could exceed one page.
+    Paginates on LastEvaluatedKey. `status` is e.g. 'failed' (retry sweep),
+    'complete'/'quarantined' (eligibility sweep, #150 1b).
     """
     pmids: list = []
     kwargs: dict = {
         'TableName': table_name,
         'IndexName': 'ProcessingByVersionIndex',
-        'KeyConditionExpression': 'taxonomy_version = :tv AND #s = :failed',
+        'KeyConditionExpression': 'taxonomy_version = :tv AND #s = :st',
         'ExpressionAttributeNames': {'#s': 'status'},
         'ExpressionAttributeValues': {
             ':tv': {'S': taxonomy_version},
-            ':failed': {'S': 'failed'},
+            ':st': {'S': status},
         },
     }
     while True:
@@ -444,6 +446,46 @@ def query_failed_pmids(client, table_name: str, taxonomy_version: str) -> list:
             pk = item.get('PK', {}).get('S', '')
             if pk.startswith('PROCESSING#pmid_'):
                 pmids.append(pk[len('PROCESSING#pmid_'):])
+        lek = resp.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return pmids
+
+
+def query_failed_pmids(client, table_name: str, taxonomy_version: str) -> list:
+    """PMIDs of every PROCESSING# row with status='failed' under
+    `taxonomy_version` (the retry sweep's recovery set). Thin wrapper over
+    `query_pmids_by_status`."""
+    return query_pmids_by_status(client, table_name, taxonomy_version, 'failed')
+
+
+def scan_impact_pmids_with_synopsis(client, table_name: str) -> list:
+    """
+    Return the PMIDs of every IMPACT# row that carries a `synopsis` attribute.
+
+    `IMPACT#pmid_{pmid}` rows are the authoritative synopsis source (#38); the
+    `synopsis` attribute is present post-#138. Used by the hot-path eligibility
+    sweep (#150 1b) to find *enriched* PMIDs (which the scorer should reach).
+
+    A full-table Scan — there is no GSI keyed on the synopsis attribute — with
+    a server-side FilterExpression so only IMPACT#-with-synopsis rows return.
+    Bounded weekly cost, the same Scan pattern the drift evaluator uses daily.
+    Paginates on LastEvaluatedKey.
+    """
+    pmids: list = []
+    kwargs: dict = {
+        'TableName': table_name,
+        'ProjectionExpression': 'PK',
+        'FilterExpression': 'begins_with(PK, :p) AND attribute_exists(synopsis)',
+        'ExpressionAttributeValues': {':p': {'S': 'IMPACT#pmid_'}},
+    }
+    while True:
+        resp = client.scan(**kwargs)
+        for item in resp.get('Items', []):
+            pk = item.get('PK', {}).get('S', '')
+            if pk.startswith('IMPACT#pmid_'):
+                pmids.append(pk[len('IMPACT#pmid_'):])
         lek = resp.get('LastEvaluatedKey')
         if not lek:
             break

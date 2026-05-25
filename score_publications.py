@@ -1392,13 +1392,18 @@ async def main():
             stage_table=stage_table,
             thresholds=thresholds,
             author_mapping=author_mapping,
-            # #98: materialize TOPIC# activity rows for every --emit-envelope
-            # run (the hot path + onboarding). Envelope mode skips the JSON
-            # writes the cold loader (load_dynamodb) turns into TOPIC# rows,
-            # so otherwise the Assign / TopTopic stages read empty partitions
-            # for newly-scored PMIDs. PR 4a gated this on --pmids; the cold
-            # path (no --emit-envelope) writes JSON and stays byte-unchanged.
-            persist_topic_rows=args.emit_envelope,
+            # Persist TOPIC# rows inline whenever the work set is targeted
+            # (--pmids) OR the hot path runs (--emit-envelope). PR 4a gated
+            # this on --pmids; #98 switched it to --emit-envelope, which
+            # silently regressed plain CLI `--pmids` runs to "mark
+            # PROCESSING#=complete but write no TOPIC#" — the #150 zombie
+            # footgun: a complete checkpoint with no TOPIC# is invisible to
+            # every cache-respecting recovery (--additive, the date-delta,
+            # 1b's "no scored PROCESSING#"). OR-ing the two restores PR-4a's
+            # targeted-run atomicity (complete <=> TOPIC# persisted) while
+            # keeping #98's envelope behavior. The full cold load (neither
+            # flag) still writes JSON for the load_dynamodb.py batch loader.
+            persist_topic_rows=args.emit_envelope or bool(args.pmids),
         )
 
         # --- Summary ---
@@ -1447,7 +1452,18 @@ async def main():
             json.dump(faculty_metadata, f, indent=2)
         print(f"Saved {len(faculty_metadata)} faculty profiles -> {faculty_metadata_path}")
 
-        print("\nResults saved. Run load_dynamodb.py next.")
+        if args.pmids:
+            # A targeted --pmids run already persisted TOPIC# rows inline
+            # (see persist_topic_rows above). Do NOT run the full load_dynamodb.py
+            # on this partial JSON — it rebuilds FACULTY#/taxonomy from the work
+            # set and corrupts faculty profiles on partial input. Use
+            # scripts/debug/load_topic_only.py only if re-loading TOPIC# is needed.
+            print(
+                "\nResults saved. TOPIC# rows were persisted inline (--pmids); "
+                "do NOT run load_dynamodb.py on this partial work set."
+            )
+        else:
+            print("\nResults saved. Run load_dynamodb.py next.")
 
     # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
     completed_at = now_iso()

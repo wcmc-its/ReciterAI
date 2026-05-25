@@ -263,6 +263,160 @@ def test_rollup_input_hash_is_content_addressed_to_the_dirty_set():
     assert _hash([]) != _hash(["a"])
 
 
+def test_build_state_machine_input_folds_eligibility_into_additive():
+    """#150 1b: eligibility PMIDs join the retry sweep in the cache-respecting
+    additive set, are unioned into all_pmids (so Assign/TopTopic/Rollup cover
+    them), and the run_kind records both recovery sources."""
+    sm = orch.build_state_machine_input(
+        pmids=["1", "2"],
+        last_run_at="t", started_at="t", run_id="r",
+        retry_pmids=["9"],
+        eligibility_pmids=["8", "2"],  # "2" overlaps the date delta
+    )
+    d = sm["delta"]
+    assert d["pmids"] == ["1", "2"]
+    assert d["retry_pmids"] == ["9"]
+    assert d["eligibility_pmids"] == ["8", "2"]
+    assert d["additive_pmids"] == ["2", "8", "9"]  # sorted(retry ∪ eligibility)
+    assert d["force_pmids"] == []
+    assert d["all_pmids"] == ["1", "2", "8", "9"]
+    assert sm["run_kind"] == "delta+retry+eligibility"
+
+
+def test_build_state_machine_input_override_uses_force_and_bypasses_delta():
+    """#150 1a: an override REPLACES the date delta — date pmids empty,
+    force_pmids carries the explicit set, additive empty, run_kind=override."""
+    sm = orch.build_state_machine_input(
+        pmids=["1", "2"],           # ignored under override
+        last_run_at="t", started_at="t", run_id="r",
+        retry_pmids=["9"],          # ignored under override
+        override_pmids=["77", "88"],
+        dirty_cwids=["abc1001"],
+    )
+    d = sm["delta"]
+    assert d["pmids"] == []
+    assert d["size"] == 0
+    assert d["force_pmids"] == ["77", "88"]
+    assert d["additive_pmids"] == []
+    assert d["all_pmids"] == ["77", "88"]
+    assert d["dirty_cwids"] == ["abc1001"]
+    assert sm["run_kind"] == "override"
+
+
+# ---------- #150 1b: resolve_eligibility_sweep ----------
+
+
+def _patch_sweep_sets(monkeypatch, *, enriched, scored, failed, quarantined):
+    monkeypatch.setattr(orch, "scan_impact_pmids_with_synopsis",
+                        lambda *a, **k: list(enriched))
+
+    def _by_status(client, table, tv, status):
+        return {"complete": scored, "failed": failed, "quarantined": quarantined}[status]
+
+    monkeypatch.setattr(orch, "query_pmids_by_status", _by_status)
+
+
+def test_eligibility_sweep_excludes_scored_failed_quarantined(monkeypatch):
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=["1", "2", "3", "4", "5"],
+        scored=["1"],        # already has TOPIC#/verdict → skip
+        failed=["2"],        # retry sweep owns it → skip
+        quarantined=["3"],   # parked → skip
+    )
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 100},
+    )
+    assert eligible == ["4", "5"]
+
+
+def test_eligibility_sweep_respects_cap(monkeypatch):
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=[str(i) for i in range(10)],
+        scored=[], failed=[], quarantined=[],
+    )
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 3},
+    )
+    assert len(eligible) == 3
+    # deterministic (sorted) so the same backlog drains the same prefix each run
+    assert eligible == sorted([str(i) for i in range(10)])[:3]
+
+
+def test_eligibility_sweep_disabled_returns_empty(monkeypatch):
+    called = {"scan": False}
+    monkeypatch.setattr(
+        orch, "scan_impact_pmids_with_synopsis",
+        lambda *a, **k: called.__setitem__("scan", True) or ["1"],
+    )
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": False},
+    )
+    assert eligible == []
+    assert called["scan"] is False, "disabled sweep must not scan"
+
+
+# ---------- #150 1a: handler operator override ----------
+
+
+def test_handler_override_bypasses_delta_and_sweeps(monkeypatch):
+    """A manual_catchup SFn input with explicit pmids skips the date-delta,
+    retry sweep, and eligibility sweep, and routes the set as force_pmids."""
+    fake_table = MagicMock()
+    fake_table.query.return_value = {"Items": []}  # resolve_last_successful_hot_run
+    monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
+
+    # None of these may run under override — make them explode if called.
+    monkeypatch.setattr(orch, "resolve_delta_pmids",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("delta ran")))
+    monkeypatch.setattr(orch, "resolve_retry_sweep",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("retry ran")))
+    monkeypatch.setattr(orch, "resolve_eligibility_sweep",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("eligibility ran")))
+
+    import utils.sql_queries as sq
+    monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: ["abc1001"])
+
+    result = orch.handler({
+        "run_id": "override-1",
+        "sfn_input": {"initiated_by": "manual_catchup", "pmids": ["111", "222"]},
+    })
+
+    assert result["status"] == "ready"
+    d = result["input"]["delta"]
+    assert d["force_pmids"] == ["111", "222"]
+    assert d["pmids"] == []
+    assert d["all_pmids"] == ["111", "222"]
+    assert d["dirty_cwids"] == ["abc1001"]
+    assert result["input"]["run_kind"] == "override"
+
+
+def test_handler_scheduled_input_is_not_an_override(monkeypatch):
+    """The weekly cron input (`initiated_by:scheduled`, no pmids) must take
+    the normal delta path, not the override branch."""
+    fake_table = MagicMock()
+    fake_table.query.return_value = {"Items": []}
+    monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
+    monkeypatch.setattr(orch, "resolve_delta_pmids", lambda *a, **k: ["5"])
+    monkeypatch.setattr(orch, "resolve_retry_sweep",
+                        lambda *a, **k: {"retry_pmids": [], "quarantined_pmids": []})
+    monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
+    import utils.sql_queries as sq
+    monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: [])
+
+    result = orch.handler({
+        "run_id": "sched-1",
+        "sfn_input": {"initiated_by": "scheduled", "trigger": "eventbridge:..."},
+    })
+    assert result["input"]["delta"]["force_pmids"] == []
+    assert result["input"]["delta"]["pmids"] == ["5"]
+    assert result["input"]["run_kind"] == "delta"
+
+
 # ---------- score handler ----------
 
 
@@ -320,6 +474,55 @@ def test_score_handler_raises_on_nonzero_exit(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="exited 42"):
         score_handler.handler({"delta": {"pmids": []}})
+
+
+def _capture_score_cmd(monkeypatch, event):
+    captured: list = []
+    envelope = '{"PK":"STAGE#score_publications#GLOBAL","status":"complete","input_hash":"a","duration_ms":1,"cost_observed_usd":"0"}\n'
+    monkeypatch.setattr(
+        subprocess, "Popen",
+        lambda cmd, **kw: captured.append(cmd) or _FakePopen(stdout=envelope),
+    )
+    score_handler.handler(event)
+    return captured[0]
+
+
+def test_score_handler_additive_pmids_use_additive(monkeypatch):
+    """#150 1b: additive_pmids (retry ∪ eligibility) are passed cache-respecting
+    (--additive) on top of the date delta — never --force."""
+    cmd = _capture_score_cmd(monkeypatch, {
+        "delta": {"pmids": ["1"], "size": 1, "additive_pmids": ["8", "9"]},
+        "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
+    })
+    assert "--delta-since" in cmd
+    assert "--additive" in cmd
+    assert "--force" not in cmd
+    assert "8,9" in cmd
+
+
+def test_score_handler_force_pmids_use_force_and_no_delta_since(monkeypatch):
+    """#150 1a: force_pmids (operator override) are scored with --force and the
+    date delta is suppressed (no --delta-since) — an override REPLACES it."""
+    cmd = _capture_score_cmd(monkeypatch, {
+        "delta": {"pmids": [], "size": 0, "force_pmids": ["77", "88"],
+                  "additive_pmids": []},
+        "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
+    })
+    assert "--force" in cmd
+    assert "77,88" in cmd
+    assert "--delta-since" not in cmd
+    assert "--additive" not in cmd
+
+
+def test_score_handler_additive_falls_back_to_retry_pmids(monkeypatch):
+    """Backward-compat: a pre-1b envelope with only retry_pmids (no
+    additive_pmids) still scores them additively."""
+    cmd = _capture_score_cmd(monkeypatch, {
+        "delta": {"pmids": ["1"], "size": 1, "retry_pmids": ["9"]},
+        "last_successful_hot_run_at": "2026-05-05T12:00:00Z",
+    })
+    assert "--additive" in cmd
+    assert "9" in cmd
 
 
 # ---------- assign handler ----------
