@@ -10,10 +10,11 @@ and STAGE#…failed rows over a rolling `drift_window_days` window
 - cold_run_recommended (boolean)
 
 On `cold_run_recommended: true` the evaluator emits a severity-tagged
-alert via `pipeline_common.alert.dispatch` (T11). The condition-to-
-severity mapping (D-11 draft) lives in `pipeline_drift.severity`.
-The evaluator itself returns a structured payload + `severity` field;
-the cron handler dispatches the alert.
+alert via `pipeline_enrichment.alerting.alert` (Teams; migrated from the
+retired `pipeline_common.alert` Slack/`gh` path on the 2026-05-25 deploy).
+The condition-to-severity mapping (D-11 draft) lives in
+`pipeline_drift.severity`. The evaluator itself returns a structured
+payload + `severity` field; the cron handler dispatches the alert.
 """
 
 __version__ = "0.1.0"

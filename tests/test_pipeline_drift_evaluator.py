@@ -261,7 +261,7 @@ def _make_paged_scan(items_by_call: list[list[dict]]):
 
 
 def test_handler_dispatches_no_alert_on_ok_severity(monkeypatch):
-    """Empty window → severity=OK → no alert.dispatch call."""
+    """Empty window → severity=OK → no Teams alert call."""
     from pipeline_drift import evaluator
 
     table = MagicMock()
@@ -282,8 +282,8 @@ def test_handler_dispatches_no_alert_on_ok_severity(monkeypatch):
 
     dispatched: list = []
     monkeypatch.setattr(
-        "pipeline_common.alert.dispatch",
-        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": False, "issue": False},
+        "pipeline_enrichment.alerting.alert",
+        lambda *a, **kw: dispatched.append((a, kw)) or False,
     )
 
     result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
@@ -337,8 +337,8 @@ def test_handler_dispatches_warn_when_low_band_events_exist(monkeypatch):
 
     dispatched: list = []
     monkeypatch.setattr(
-        "pipeline_common.alert.dispatch",
-        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": True, "issue": False},
+        "pipeline_enrichment.alerting.alert",
+        lambda *a, **kw: dispatched.append((a, kw)) or True,
     )
 
     result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
@@ -346,7 +346,8 @@ def test_handler_dispatches_warn_when_low_band_events_exist(monkeypatch):
     assert len(dispatched) == 1
     args, kwargs = dispatched[0]
     assert args[0] == "WARN"
-    assert kwargs.get("open_issue") is False
+    # WARN band is informational → no operator @mention.
+    assert kwargs.get("mention") is False
 
 
 def test_handler_dispatches_error_with_open_issue_on_cold_run_recommended(monkeypatch):
@@ -398,8 +399,8 @@ def test_handler_dispatches_error_with_open_issue_on_cold_run_recommended(monkey
 
     dispatched: list = []
     monkeypatch.setattr(
-        "pipeline_common.alert.dispatch",
-        lambda *a, **kw: dispatched.append((a, kw)) or {"slack": True, "issue": True},
+        "pipeline_enrichment.alerting.alert",
+        lambda *a, **kw: dispatched.append((a, kw)) or True,
     )
 
     result = evaluator.handler({"now": "2026-05-12T12:00:00Z"})
@@ -407,11 +408,12 @@ def test_handler_dispatches_error_with_open_issue_on_cold_run_recommended(monkey
     assert result["cold_run_recommended"] is True
     assert len(dispatched) == 1
     args, kwargs = dispatched[0]
+    # Teams signature: alert(severity, title, message, context, mention=)
     assert args[0] == "ERROR"
-    assert "cold run recommended" in args[1].lower()
-    assert kwargs.get("open_issue") is True
+    assert "cold run recommended" in args[1].lower()  # title carries the cold-run note
+    assert kwargs.get("mention") is True  # cold run → page the operator
     # Context payload carries triage info
-    ctx = args[2]
+    ctx = args[3]
     assert "triggered_thresholds" in ctx
     assert ctx["cold_run_recommended"] is True
 
