@@ -268,6 +268,9 @@
       "Type": "Map",
       "Comment": "Per-CWID fan-out (#119). One iteration per dirty CWID: RollupOne runs reciterai-hot-rollup in its {cwid} DynamoDB-sourced mode (rollup_by_cwid --cwid), then WriteRollupStageRowOne writes that CWID's STAGE#rollup_by_cwid#cwid row (D-07). BuildRollupSummary then synthesizes the single envelope WriteHotRunComplete reads. MaxConcurrency bounds concurrent DynamoDB load.",
       "ItemsPath": "$.orchestrate.input.delta.dirty_cwids",
+      "ItemSelector": {
+        "cwid.$": "$$.Map.Item.Value"
+      },
       "MaxConcurrency": 4,
       "ItemProcessor": {
         "ProcessorConfig": {
@@ -277,10 +280,10 @@
         "States": {
           "RollupOne": {
             "Type": "Task",
-            "Comment": "Reused hot Lambda reciterai-hot-rollup; the Map item is a bare CWID string, so {cwid.$: $} routes to the PMID-aware rollup_by_cwid --cwid path.",
+            "Comment": "Reused hot Lambda reciterai-hot-rollup in its {cwid} DynamoDB-sourced mode (rollup_by_cwid --cwid). The Map's ItemSelector wraps each bare-CWID string item as {cwid: <value>}, so this state's ResultPath ($.rollup_one_envelope) has an object to merge into — applying a ReferencePath to a scalar string item raises States.ReferencePathConflict (#150: first surfaced when a non-empty dirty_cwids set reached this Map).",
             "Resource": "${RollupLambdaArn}",
             "Parameters": {
-              "cwid.$": "$"
+              "cwid.$": "$.cwid"
             },
             "ResultPath": "$.rollup_one_envelope",
             "Retry": [

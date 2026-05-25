@@ -195,6 +195,31 @@ def test_check_rollup_needed_short_circuits_when_dirty_cwids_empty(asl):
     assert rule["Next"] == "RollupSkipped"
 
 
+def test_rollup_fanout_wraps_scalar_cwid_so_resultpath_applies(asl):
+    """#150 regression — RollupFanOut iterates dirty_cwids as bare CWID
+    *strings*, but RollupOne uses ResultPath ($.rollup_one_envelope), which
+    cannot be applied to a scalar item (States.ReferencePathConflict at
+    runtime). The bug stayed latent until a non-empty dirty_cwids set first
+    reached the Map (every prior run had an empty set → RollupSkipped). The
+    Map must wrap each item as an object via ItemSelector, and RollupOne must
+    read the wrapped field rather than the raw scalar ($).
+
+    Contrast AssignFanOut, whose items are already objects (assign_topics =
+    {topic_id, delta_pmids}), so AssignOne's ResultPath needs no wrapping.
+    """
+    m = asl["States"]["RollupFanOut"]
+    assert m["ItemsPath"] == "$.orchestrate.input.delta.dirty_cwids"
+    assert m.get("ItemSelector") == {"cwid.$": "$$.Map.Item.Value"}, (
+        "RollupFanOut must wrap each bare-CWID string as {cwid: <value>} so "
+        "RollupOne's ResultPath has an object to merge into"
+    )
+    rollup_one = m["ItemProcessor"]["States"]["RollupOne"]
+    assert rollup_one["Parameters"] == {"cwid.$": "$.cwid"}, (
+        "RollupOne must read the ItemSelector-wrapped field, not the scalar item"
+    )
+    assert rollup_one["ResultPath"] == "$.rollup_one_envelope"
+
+
 def test_assign_skipped_injects_typed_envelope(asl):
     """Pass state must inject a DDB attribute-typed stub so
     WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.
