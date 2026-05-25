@@ -381,6 +381,55 @@ def test_eligibility_sweep_excludes_invalid(monkeypatch):
     assert eligible == ["2", "4"]
 
 
+def test_eligibility_sweep_filters_to_scoreable_corpus(monkeypatch):
+    """#157: synopsized-but-unscoreable PMIDs (Reviews / pre-2020 / not in the
+    corpus) are dropped via scoreable_filter_fn, so the sweep never hands the
+    scorer a set it drops to 0 and never reselects a starving prefix."""
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=["1", "2", "3", "4", "5"],
+        scored=[], failed=[], quarantined=[],
+    )
+    # Only "3" and "5" are present in the scorer's corpus.
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 100},
+        scoreable_filter_fn=lambda pmids: {"3", "5"},
+    )
+    assert eligible == ["3", "5"]
+
+
+def test_eligibility_sweep_filters_before_cap(monkeypatch):
+    """#157: the corpus filter runs BEFORE the cap, so the cap budget is spent
+    on scoreable PMIDs — not consumed by an un-scoreable prefix."""
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=[str(i) for i in range(10)],
+        scored=[], failed=[], quarantined=[],
+    )
+    # Corpus = evens {0,2,4,6,8}; cap 2 → first two sorted scoreable PMIDs.
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 2},
+        scoreable_filter_fn=lambda pmids: {p for p in pmids if int(p) % 2 == 0},
+    )
+    assert eligible == ["0", "2"]
+
+
+def test_eligibility_sweep_no_filter_fn_is_backcompat(monkeypatch):
+    """Without a scoreable_filter_fn the sweep applies no corpus filter (the
+    unit-test contract); production always wires filter_scoreable_pmids."""
+    _patch_sweep_sets(
+        monkeypatch,
+        enriched=["1", "2", "3"], scored=[], failed=[], quarantined=[],
+    )
+    eligible = orch.resolve_eligibility_sweep(
+        MagicMock(), table_name="reciterai", taxonomy_version="taxonomy_v2",
+        thresholds={"eligibility_sweep_enabled": True, "eligibility_sweep_max_pmids": 100},
+    )
+    assert eligible == ["1", "2", "3"]
+
+
 # ---------- #150 item 2: resolve_drift_sweep ----------
 
 

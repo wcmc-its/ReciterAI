@@ -308,6 +308,7 @@ def resolve_eligibility_sweep(
     table_name: str,
     taxonomy_version: str,
     thresholds: dict,
+    scoreable_filter_fn: Any = None,
 ) -> list[str]:
     """Recover enriched-but-unscored PMIDs the date-delta misses (#150 1b).
 
@@ -322,6 +323,15 @@ def resolve_eligibility_sweep(
     Relies on the Part-1 invariant (`complete` ⟺ TOPIC# persisted): a scored
     PROCESSING# row now reliably means a topic verdict was reached, so excluding
     them does not skip genuinely-unscored work.
+
+    #157: `enriched` (IMPACT# carries a synopsis) is a *looser* population than
+    the scorer's corpus — the synopsis pipeline also synopsizes Reviews,
+    pre-2020, and not-in-corpus PMIDs the scorer never scores. When
+    `scoreable_filter_fn` is supplied (production wires
+    `utils.sql_queries.filter_scoreable_pmids`), candidates are intersected with
+    the scorer's corpus BEFORE the sort/cap, so the sweep never hands over a
+    work set the scorer drops to 0 and the cap budget is spent on real work.
+    Without it (the unit-test default) no corpus filter is applied.
 
     Cost guard (D-150): capped at `eligibility_sweep_max_pmids` and gated by
     `eligibility_sweep_enabled`. A large enrichment backfill could otherwise
@@ -348,19 +358,27 @@ def resolve_eligibility_sweep(
     # known-invalid PMID (the SQL DELETE does not clean these DDB rows).
     invalid = set(scan_invalid_pmids(client, table_name))
 
-    eligible = sorted(enriched - scored - failed - quarantined - invalid)
-    if len(eligible) > max_pmids:
-        logger.info(
-            "Eligibility sweep: %d enriched, %d invalid-culled, %d eligible — "
-            "capping to %d (overflow waits for the next run).",
-            len(enriched), len(enriched & invalid), len(eligible), max_pmids,
-        )
+    candidates = enriched - scored - failed - quarantined - invalid
+    # #157: restrict to the scorer's corpus BEFORE the sort/cap. Filtering here
+    # (not post-cap) keeps the per-run cap spending its budget on PMIDs the
+    # scorer will actually accept, instead of an un-scoreable prefix that gets
+    # reselected every run and starves the scoreable tail.
+    n_uncorpus = 0
+    if scoreable_filter_fn is not None and candidates:
+        scoreable = set(scoreable_filter_fn(sorted(candidates)))
+        n_uncorpus = len(candidates - scoreable)
+        candidates &= scoreable
+    eligible = sorted(candidates)
+    capped = len(eligible) > max_pmids
+    logger.info(
+        "Eligibility sweep: %d enriched, %d invalid-culled, %d non-corpus-culled, "
+        "%d eligible%s.",
+        len(enriched), len(enriched & invalid), n_uncorpus, len(eligible),
+        f" — capping to {max_pmids} (overflow waits for the next run)"
+        if capped else "",
+    )
+    if capped:
         eligible = eligible[:max_pmids]
-    else:
-        logger.info(
-            "Eligibility sweep: %d enriched, %d invalid-culled, %d eligible.",
-            len(enriched), len(enriched & invalid), len(eligible),
-        )
     return eligible
 
 
@@ -696,6 +714,7 @@ def handler(event: dict, context: Any = None) -> dict:
     # get_cwids_for_pmids (the Rollup fan-out's dirty set).
     last_run_at = resolve_last_successful_hot_run(table)
     from utils.sql_queries import (  # local import: tests stub
+        filter_scoreable_pmids,
         get_cwids_for_pmids,
         get_db_connection,
     )
@@ -787,6 +806,9 @@ def handler(event: dict, context: Any = None) -> dict:
             table_name=TABLE_NAME,
             taxonomy_version=current_taxonomy_version(),
             thresholds=load_thresholds(),
+            # #157: drop synopsized-but-unscoreable PMIDs (Reviews, pre-2020,
+            # not-in-corpus) so the sweep never reselects a starving prefix.
+            scoreable_filter_fn=filter_scoreable_pmids,
         )
     except Exception as exc:  # noqa: BLE001 — eligibility recovery is non-critical
         logger.exception("Eligibility sweep failed; proceeding without it.")
