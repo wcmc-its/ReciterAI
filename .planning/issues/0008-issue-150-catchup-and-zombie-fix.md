@@ -61,7 +61,10 @@ The 05-20 manual catchup (#150) hit the same trap from the other side: it
   whole delta to `scoring_results.json` → `load_dynamodb.py`), move the `complete`
   marking **into `load_dynamodb.py`**, after `TOPIC#` is written. A CLI scoring run
   that hasn't been loaded leaves PMIDs in a non-terminal status (re-scoreable), not
-  `complete`.
+  `complete`. **DEFERRED → tracked as #156** (status-vocabulary ripple risk; the
+  `--pmids` footgun above was the actual cause of every observed zombie, so this
+  cold-path half is belt-and-suspenders). The `--pmids` inline-persist half shipped
+  in PR #152 (item 4).
 
 Result: no future run can mark `complete` without `TOPIC#`. This also restores the
 trustworthiness of #150's original 1b predicate ("no scored PROCESSING#") — see
