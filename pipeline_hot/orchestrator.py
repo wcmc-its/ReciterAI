@@ -43,6 +43,8 @@ from utils.dynamodb_helpers import (
     get_table,
     quarantine_pmid,
     query_failed_pmids,
+    query_pmids_by_status,
+    scan_impact_pmids_with_synopsis,
     TABLE_NAME,
 )
 from utils.env_check import load_thresholds
@@ -61,6 +63,13 @@ logger = logging.getLogger(__name__)
 HOT_RUN_STAGE = "hot_run"
 HOT_RUN_SCOPE = "GLOBAL"
 SKIP_REASON_LOCKED = "prior_run_in_progress"
+
+# #150 1a — operator-override safety valve. When the SFn execution input
+# carries `initiated_by` on this allowlist AND a non-empty `pmids` list, the
+# orchestrator bypasses the date-delta + sweeps and scores exactly that set
+# with `--force` (cache-bypassing). Scheduled runs (`initiated_by:scheduled`)
+# never match, so the weekly cron is unaffected.
+OVERRIDE_INITIATORS = frozenset({"manual_catchup", "operator_rerun"})
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +294,68 @@ def _alert_quarantined(pmids: list[str], *, started_at: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #150 1b: eligibility sweep (enriched-but-unscored recovery)
+# ---------------------------------------------------------------------------
+
+
+def resolve_eligibility_sweep(
+    client: Any,
+    *,
+    table_name: str,
+    taxonomy_version: str,
+    thresholds: dict,
+) -> list[str]:
+    """Recover enriched-but-unscored PMIDs the date-delta misses (#150 1b).
+
+    Eligible = a PMID with an IMPACT# row carrying a synopsis (enriched) but
+    **no scored PROCESSING# row** under the active taxonomy, excluding `failed`
+    (the retry sweep owns those) and `quarantined` (deliberately parked). These
+    are PMIDs the daily enrichment synopsized *after* their Entrez-arrival date
+    fell out of the weekly date-delta window — invisible to both the date delta
+    and the cache-respecting `--additive` path, so without this sweep they never
+    get a TOPIC# row (the #150 gap).
+
+    Relies on the Part-1 invariant (`complete` ⟺ TOPIC# persisted): a scored
+    PROCESSING# row now reliably means a topic verdict was reached, so excluding
+    them does not skip genuinely-unscored work.
+
+    Cost guard (D-150): capped at `eligibility_sweep_max_pmids` and gated by
+    `eligibility_sweep_enabled`. A large enrichment backfill could otherwise
+    hand the scorer an unbounded work set; the cap directly bounds per-run
+    Bedrock spend and drains a backlog over successive weekly runs (the
+    overflow waits). (The scorer's onboarding cost guard does NOT apply here —
+    it fires only for plain `--pmids` runs, not the `--additive` path this
+    set rides; the cap is the sole bound on the eligibility work set.)
+    """
+    if not thresholds.get("eligibility_sweep_enabled", True):
+        logger.info("Eligibility sweep disabled (eligibility_sweep_enabled=false).")
+        return []
+    max_pmids = int(thresholds.get("eligibility_sweep_max_pmids", 200))
+
+    enriched = set(scan_impact_pmids_with_synopsis(client, table_name))
+    scored = set(query_pmids_by_status(client, table_name, taxonomy_version, "complete"))
+    failed = set(query_pmids_by_status(client, table_name, taxonomy_version, "failed"))
+    quarantined = set(
+        query_pmids_by_status(client, table_name, taxonomy_version, "quarantined")
+    )
+
+    eligible = sorted(enriched - scored - failed - quarantined)
+    if len(eligible) > max_pmids:
+        logger.info(
+            "Eligibility sweep: %d enriched, %d eligible — capping to %d "
+            "(overflow waits for the next run).",
+            len(enriched), len(eligible), max_pmids,
+        )
+        eligible = eligible[:max_pmids]
+    else:
+        logger.info(
+            "Eligibility sweep: %d enriched, %d eligible.",
+            len(enriched), len(eligible),
+        )
+    return eligible
+
+
+# ---------------------------------------------------------------------------
 # Open Q5: prior-run-in-progress lock
 # ---------------------------------------------------------------------------
 
@@ -347,6 +418,8 @@ def build_state_machine_input(
     started_at: str,
     run_id: str,
     retry_pmids: list[str] | None = None,
+    eligibility_pmids: list[str] | None = None,
+    override_pmids: list[str] | None = None,
     dirty_cwids: list[str] | None = None,
 ) -> dict:
     """Produce the dict the state machine's first Task receives.
@@ -355,60 +428,89 @@ def build_state_machine_input(
     envelopes. Kept small: the corpus itself stays in DynamoDB / S3;
     we pass identifiers, not bytes.
 
-    `retry_pmids` is the hot-path retry sweep's recovered-PMID list. It is
-    kept distinct from the date-delta `pmids` so:
+    Three sources feed the work set, surfaced as distinct `delta.*` lists so
+    the hot_run STAGE# row and the Score handler can tell them apart:
 
-    - `delta.size` stays a pure date-delta count (the hot_run STAGE# row
-      reads it), and `delta.retry_size` carries the sweep count separately;
-    - the Score handler can pass exactly the retry list to
-      `score_publications --pmids … --additive`;
-    - `delta.all_pmids` (the union) is what TopTopic consumes, so a retry
-      PMID that scores successfully also gets its top topic recomputed.
+    - `pmids` — the date-delta (publications added to Entrez since the last
+      successful run). `delta.size` stays a pure date-delta count.
+    - `retry_pmids` — the retry sweep's recovered failures (#119/D-11).
+    - `eligibility_pmids` — enriched-but-unscored PMIDs the date-delta misses
+      (#150 1b): IMPACT# w/ synopsis and no scored PROCESSING# row.
+    - `override_pmids` — an explicit operator work set (#150 1a), present only
+      when the SFn input carries `initiated_by ∈ OVERRIDE_INITIATORS` + `pmids`.
 
-    `run_kind` tags the run for the hot_run STAGE# row — "delta" vs.
-    "delta+retry" — so a retry-sweep run is distinguishable from a pure
-    delta run when auditing the substrate.
+    The Score handler reads two derived lists:
 
-    `dirty_cwids` is the per-run dirty-CWID set (CWIDs whose first/last-
-    author work intersects `all_pmids`) — the `RollupFanOut` Map iterates
-    it, and `rollup_input_hash` content-addresses it for the hot_run row.
-    `assign_topics` is deliberately absent: it depends on the TOPIC# rows
-    the Score stage writes, which do not exist when the orchestrator runs,
-    so the post-Score DeriveDirtyTopics Task computes it instead (#119).
+    - `additive_pmids` = retry ∪ eligibility — passed as `--pmids … --additive`
+      (cache-respecting), unioned onto the `--delta-since` date delta.
+    - `force_pmids` = override — passed as `--pmids … --force` (cache-bypassing,
+      no `--delta-since`), so cache-poisoned/`complete` PMIDs are re-scored. An
+      override run REPLACES the date-delta + sweeps entirely.
+
+    `delta.all_pmids` (everything that will be scored) is what DeriveDirtyTopics
+    and TopTopic consume; `dirty_cwids` (computed by the caller from all_pmids)
+    is the RollupFanOut ItemsPath, so recovered/override PMIDs flow through the
+    full Assign → TopTopic → Rollup chain — not just Score (the gap that left
+    the 05-20 manual catchup's rollups stale).
+
+    `run_kind` tags the run for the hot_run STAGE# row.
     """
     retry_pmids = list(retry_pmids or [])
+    eligibility_pmids = list(eligibility_pmids or [])
+    override_pmids = list(override_pmids or [])
     dirty_cwids = list(dirty_cwids or [])
-    all_pmids = sorted(set(pmids) | set(retry_pmids))
+
+    if override_pmids:
+        # 1a operator override: explicit set, bypass date-delta + sweeps, --force.
+        all_pmids = sorted(set(override_pmids))
+        date_pmids: list[str] = []
+        additive_pmids: list[str] = []
+        force_pmids = all_pmids
+        run_kind = "override"
+    else:
+        date_pmids = pmids
+        additive_pmids = sorted(set(retry_pmids) | set(eligibility_pmids))
+        force_pmids = []
+        all_pmids = sorted(set(date_pmids) | set(additive_pmids))
+        parts = ["delta"]
+        if retry_pmids:
+            parts.append("retry")
+        if eligibility_pmids:
+            parts.append("eligibility")
+        run_kind = "+".join(parts)
+
     return {
         "run_id": run_id,
         "started_at": started_at,
         "last_successful_hot_run_at": last_run_at,
-        "run_kind": "delta+retry" if retry_pmids else "delta",
+        "run_kind": run_kind,
         "delta": {
-            "pmids": pmids,
-            "size": len(pmids),
+            "pmids": date_pmids,
+            "size": len(date_pmids),
             "retry_pmids": retry_pmids,
             "retry_size": len(retry_pmids),
+            "eligibility_pmids": eligibility_pmids,
+            "eligibility_size": len(eligibility_pmids),
+            # Score handler inputs: additive (cache-respecting) vs force
+            # (cache-bypassing). Mutually exclusive by construction — an
+            # override run clears additive; a normal run clears force.
+            "additive_pmids": additive_pmids,
+            "force_pmids": force_pmids,
+            "force_size": len(force_pmids),
             "all_pmids": all_pmids,
-            # `dirty_cwids` — CWIDs whose first/last-author work
-            # intersects this run's PMID set (#119). `CheckRollupNeeded`
-            # routes an empty list past the Rollup fan-out; a non-empty
-            # one is the `RollupFanOut` Map's ItemsPath. `rollup_input_hash`
-            # is the run-level summary hash `BuildRollupSummary` stamps on
-            # the hot_run row — the per-CWID detail is the N
-            # STAGE#rollup_by_cwid#cwid rows the Map writes.
-            #
-            # `assign_topics` is NOT here: it needs the TOPIC# rows the
-            # Score stage writes, absent when the orchestrator runs. The
-            # post-Score DeriveDirtyTopics Task computes it; the ASL reads
-            # `$.assign.assign_topics`.
+            # `dirty_cwids` — CWIDs whose first/last-author work intersects
+            # `all_pmids` (#119). `CheckRollupNeeded` routes an empty list
+            # past the Rollup fan-out; a non-empty one is the `RollupFanOut`
+            # Map's ItemsPath. `assign_topics` is NOT here: it needs the
+            # TOPIC# rows the Score stage writes; DeriveDirtyTopics computes
+            # it post-Score (the ASL reads `$.assign.assign_topics`).
             "dirty_cwids": dirty_cwids,
             "rollup_input_hash": compute_input_hash(
                 "rollup_fanout", {"dirty_cwids": sorted(dirty_cwids)}
             ),
         },
         "trace": {
-            "orchestrator_version": "0.3.0",
+            "orchestrator_version": "0.4.0",
         },
     }
 
@@ -421,12 +523,21 @@ def build_state_machine_input(
 def handler(event: dict, context: Any = None) -> dict:
     """Orchestrator Lambda handler.
 
-    Expected event:
+    Expected event (the ASL Orchestrate Task supplies these — context fields
+    plus `sfn_input`, the verbatim Step Functions execution input):
         {
           "state_machine_arn": "arn:aws:states:...:stateMachine:reciterai-hot",
           "execution_arn":     "arn:aws:states:...:execution:reciterai-hot:...",
-          "run_id":            "2026-05-13T12:00:00Z-abcdef"
+          "run_id":            "2026-05-13T12:00:00Z-abcdef",
+          "sfn_input":         {"initiated_by": "scheduled" | "manual_catchup"
+                                 | "operator_rerun", "pmids": [...]?}
         }
+
+    #150 1a — operator override: when `sfn_input.initiated_by` is on
+    OVERRIDE_INITIATORS and `sfn_input.pmids` is non-empty, the date-delta +
+    retry/eligibility sweeps are bypassed and exactly that PMID set is scored
+    with `--force` (re-scoring cache-poisoned/`complete` PMIDs the normal,
+    cache-respecting path would skip).
 
     Returns either:
         {"status": "ready", "input": <state_machine_input>}  — proceed to Score
@@ -438,6 +549,14 @@ def handler(event: dict, context: Any = None) -> dict:
     )
     self_execution_arn = event.get("execution_arn")
     run_id = event.get("run_id") or started_at
+
+    # #150 1a — operator override from the SFn execution input (the ASL passes
+    # it through as `sfn_input`). Scheduled cron runs carry
+    # `initiated_by:scheduled` and no `pmids`, so they never match.
+    sfn_input = event.get("sfn_input") or {}
+    initiated_by = sfn_input.get("initiated_by")
+    override_pmids = [str(p) for p in (sfn_input.get("pmids") or [])]
+    is_override = initiated_by in OVERRIDE_INITIATORS and bool(override_pmids)
 
     table = get_table(TABLE_NAME)
 
@@ -477,13 +596,38 @@ def handler(event: dict, context: Any = None) -> dict:
                 "started_at": started_at,
             }
 
-    # 2. Resolve last successful hot run + delta PMID set.
+    # Both branches need last_run_at (the hot_run STAGE# row records it) and
+    # get_cwids_for_pmids (the Rollup fan-out's dirty set).
     last_run_at = resolve_last_successful_hot_run(table)
     from utils.sql_queries import (  # local import: tests stub
         get_cwids_for_pmids,
         get_db_connection,
     )
 
+    # 2a. #150 1a — operator override. Score exactly `override_pmids`, bypassing
+    # the date-delta + both sweeps, with --force (see build_state_machine_input).
+    # Still routes through the full Assign → TopTopic → Rollup chain via
+    # all_pmids/dirty_cwids, so an override catchup does not leave rollups stale.
+    if is_override:
+        logger.warning(
+            "Hot path OVERRIDE: initiated_by=%s, %d explicit PMID(s) — bypassing "
+            "date-delta + retry/eligibility sweeps, scoring with --force.",
+            initiated_by, len(override_pmids),
+        )
+        dirty_cwids = get_cwids_for_pmids(sorted(set(override_pmids)))
+        return {
+            "status": "ready",
+            "input": build_state_machine_input(
+                pmids=[],
+                last_run_at=last_run_at,
+                started_at=started_at,
+                run_id=run_id,
+                override_pmids=override_pmids,
+                dirty_cwids=dirty_cwids,
+            ),
+        }
+
+    # 2b. Normal weekly run: date-delta PMID set.
     def _ddb_to_pmid_query(since_iso: str) -> list[str]:
         # Delta PMID resolution against ReciterDB. `analysis_summary_article`
         # carries `datePublicationAddedToEntrez` as the only "added since"
@@ -536,11 +680,35 @@ def handler(event: dict, context: Any = None) -> dict:
             },
         )
 
-    # 4. Dirty-CWID set for the Rollup fan-out (#119). Unlike the retry
-    # sweep, this is a core stage input, not best-effort recovery — a
-    # failure here propagates and the state machine's Orchestrate Catch
-    # writes the failed hot_run row.
-    all_pmids = sorted(set(pmids) | set(retry_pmids))
+    # 3b. #150 1b — eligibility sweep: enriched-but-unscored PMIDs the
+    # date-delta misses (IMPACT# w/ synopsis and no scored PROCESSING# row).
+    # Best-effort like the retry sweep — a DDB scan failure must not block the
+    # weekly delta scoring. Capped in resolve_eligibility_sweep (cost guard).
+    eligibility_pmids: list[str] = []
+    try:
+        eligibility_pmids = resolve_eligibility_sweep(
+            get_dynamo_client(),
+            table_name=TABLE_NAME,
+            taxonomy_version=current_taxonomy_version(),
+            thresholds=load_thresholds(),
+        )
+    except Exception as exc:  # noqa: BLE001 — eligibility recovery is non-critical
+        logger.exception("Eligibility sweep failed; proceeding without it.")
+        alert.dispatch(
+            "WARN",
+            "Hot path eligibility sweep failed — delta+retry scoring proceeded",
+            {
+                "source": "pipeline_hot.orchestrator",
+                "error": str(exc),
+                "started_at": started_at,
+            },
+        )
+
+    # 4. Dirty-CWID set for the Rollup fan-out (#119). Unlike the sweeps, this
+    # is a core stage input, not best-effort recovery — a failure here
+    # propagates and the state machine's Orchestrate Catch writes the failed
+    # hot_run row.
+    all_pmids = sorted(set(pmids) | set(retry_pmids) | set(eligibility_pmids))
     dirty_cwids = get_cwids_for_pmids(all_pmids)
 
     return {
@@ -551,6 +719,7 @@ def handler(event: dict, context: Any = None) -> dict:
             started_at=started_at,
             run_id=run_id,
             retry_pmids=retry_pmids,
+            eligibility_pmids=eligibility_pmids,
             dirty_cwids=dirty_cwids,
         ),
     }

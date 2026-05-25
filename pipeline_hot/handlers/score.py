@@ -98,22 +98,37 @@ def handler(event: dict, context: Any = None) -> dict:
         # Hot-path date-delta event.
         delta = event.get("delta", {})
         delta_since = event.get("last_successful_hot_run_at")
-        retry_pmids = delta.get("retry_pmids", [])
+        # `force_pmids` (#150 1a operator override) and `additive_pmids`
+        # (retry ∪ eligibility, #150 1b) are mutually exclusive by
+        # construction — the orchestrator sets one or the other. `additive_pmids`
+        # falls back to `retry_pmids` for pre-1b envelopes.
+        force_pmids = delta.get("force_pmids") or []
+        additive_pmids = delta.get("additive_pmids")
+        if additive_pmids is None:
+            additive_pmids = delta.get("retry_pmids", [])
 
         cmd = [sys.executable, "-m", "score_publications", "--emit-envelope"]
-        if delta_since:
-            cmd += ["--delta-since", delta_since]
-        if retry_pmids:
-            # The retry sweep's recovered PMIDs union onto the date delta:
-            # --pmids + --additive (cache-respecting), never --force.
-            cmd += [
-                "--pmids", ",".join(str(p) for p in retry_pmids),
-                "--additive",
-            ]
+        if force_pmids:
+            # Operator override: score exactly this set, bypassing the
+            # date-delta AND the PROCESSING# checkpoint (--force) so
+            # cache-poisoned / already-`complete` PMIDs are re-scored. No
+            # --delta-since: the override REPLACES the date delta.
+            cmd += ["--pmids", ",".join(str(p) for p in force_pmids), "--force"]
+        else:
+            if delta_since:
+                cmd += ["--delta-since", delta_since]
+            if additive_pmids:
+                # Recovered PMIDs (retry + eligibility) union onto the date
+                # delta: --pmids + --additive (cache-respecting), never --force.
+                cmd += [
+                    "--pmids", ",".join(str(p) for p in additive_pmids),
+                    "--additive",
+                ]
 
         logger.info(
             f"score handler invoking: {' '.join(cmd)} "
-            f"({delta.get('size', 0)} delta pmids, {len(retry_pmids)} retry pmids)"
+            f"({delta.get('size', 0)} delta pmids, "
+            f"{len(additive_pmids)} additive pmids, {len(force_pmids)} force pmids)"
         )
 
     # Stream subprocess output to Lambda stdout (CloudWatch) line-by-line so

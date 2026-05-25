@@ -8,7 +8,8 @@
       "Parameters": {
         "state_machine_arn.$": "$$.StateMachine.Id",
         "execution_arn.$": "$$.Execution.Id",
-        "run_id.$": "$$.Execution.Name"
+        "run_id.$": "$$.Execution.Name",
+        "sfn_input.$": "$"
       },
       "ResultPath": "$.orchestrate",
       "Retry": [
