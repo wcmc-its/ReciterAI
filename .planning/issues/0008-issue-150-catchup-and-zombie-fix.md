@@ -1,6 +1,6 @@
 # Issue #150 — Scoring catchup + the "complete-but-no-TOPIC#" zombie root cause
 
-**Status:** Part 2 (recovery) DONE 2026-05-25 · Part 1 (prevention) + Part 3 (1a/1b) pending implementation
+**Status:** Part 2 (recovery) DONE 2026-05-25 · Part 1 (prevention) + Part 3 (1a/1b) IMPLEMENTED 2026-05-25 (PR pending review + deploy)
 **Tracks:** wcmc-its/ReciterAI#150
 **Date:** 2026-05-25
 **Branch:** `fix/150-scoring-zombie-prevention` (this doc); drift work is separate (PR #151)
