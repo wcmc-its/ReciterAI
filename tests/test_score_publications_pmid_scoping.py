@@ -318,3 +318,38 @@ def test_additive_unions_onto_date_delta(monkeypatch):
     # 999 + 111 from the delta, 222 unioned from the additive set;
     # 111 is NOT double-counted.
     assert captured["pmids"] == ["111", "222", "999"]
+
+
+# ---------------------------------------------------------------------------
+# cull_invalid_publications — #150 item 3 consume-time invalid exclude
+# ---------------------------------------------------------------------------
+
+
+def test_cull_invalid_drops_flagged_pmids_and_reports_them():
+    pubs = [{"pmid": "111"}, {"pmid": "222"}, {"pmid": "333"}]
+    kept, culled = sp.cull_invalid_publications(pubs, {"222"})
+    assert [p["pmid"] for p in kept] == ["111", "333"]
+    assert culled == ["222"]
+
+
+def test_cull_invalid_empty_set_is_noop_same_object():
+    pubs = [{"pmid": "111"}, {"pmid": "222"}]
+    kept, culled = sp.cull_invalid_publications(pubs, set())
+    assert kept is pubs           # untouched — no scan hit, no copy
+    assert culled == []
+
+
+def test_cull_invalid_no_overlap_is_noop():
+    pubs = [{"pmid": "111"}, {"pmid": "222"}]
+    kept, culled = sp.cull_invalid_publications(pubs, {"999"})
+    assert kept is pubs
+    assert culled == []
+
+
+def test_cull_invalid_normalizes_pmid_types():
+    """Work-set PMIDs are strings; the invalid set may arrive as ints — both
+    sides are normalized so the membership test still matches."""
+    pubs = [{"pmid": 111}, {"pmid": "222"}]
+    kept, culled = sp.cull_invalid_publications(pubs, {111})
+    assert [p["pmid"] for p in kept] == ["222"]
+    assert culled == ["111"]

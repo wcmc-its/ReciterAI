@@ -45,6 +45,7 @@ from utils.dynamodb_helpers import (
     query_failed_pmids,
     query_pmids_by_status,
     scan_impact_pmids_with_synopsis,
+    scan_invalid_pmids,
     TABLE_NAME,
 )
 from utils.env_check import load_thresholds
@@ -338,19 +339,24 @@ def resolve_eligibility_sweep(
     quarantined = set(
         query_pmids_by_status(client, table_name, taxonomy_version, "quarantined")
     )
+    # #150 item 3: PMIDs ReciterDB flagged invalid. The enrichment cron may have
+    # synopsized them before the upstream DELETE, so their IMPACT# rows show up
+    # in `enriched`; cull them here so the sweep never hands the scorer a
+    # known-invalid PMID (the SQL DELETE does not clean these DDB rows).
+    invalid = set(scan_invalid_pmids(client, table_name))
 
-    eligible = sorted(enriched - scored - failed - quarantined)
+    eligible = sorted(enriched - scored - failed - quarantined - invalid)
     if len(eligible) > max_pmids:
         logger.info(
-            "Eligibility sweep: %d enriched, %d eligible — capping to %d "
-            "(overflow waits for the next run).",
-            len(enriched), len(eligible), max_pmids,
+            "Eligibility sweep: %d enriched, %d invalid-culled, %d eligible — "
+            "capping to %d (overflow waits for the next run).",
+            len(enriched), len(enriched & invalid), len(eligible), max_pmids,
         )
         eligible = eligible[:max_pmids]
     else:
         logger.info(
-            "Eligibility sweep: %d enriched, %d eligible.",
-            len(enriched), len(eligible),
+            "Eligibility sweep: %d enriched, %d invalid-culled, %d eligible.",
+            len(enriched), len(enriched & invalid), len(eligible),
         )
     return eligible
 

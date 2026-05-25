@@ -493,6 +493,43 @@ def scan_impact_pmids_with_synopsis(client, table_name: str) -> list:
     return pmids
 
 
+def scan_invalid_pmids(client, table_name: str) -> list:
+    """
+    Return the PMIDs of every `INVALID#pmid_{pmid}` row (the invalid-PMID
+    exclude list, #150 item 3).
+
+    These are PMIDs ReciterDB flagged as corrupt/disjoint/empty (verdicts in
+    `invalid_pmids.txt`, loaded into DDB by `scripts/load_invalid_pmids.py`).
+    DDB is the runtime source of truth because it is the only invalid signal
+    that survives in the Lambda/Fargate environment — the txt file lives in the
+    ReciterDB repo, and the upstream `DELETE FROM reporting_abstracts` does not
+    touch the `IMPACT#` rows the eligibility sweep scans. Consumed by the
+    hot-path eligibility sweep (#150 1b) and the scorer, which cull these so the
+    pipeline never spends a Bedrock call on a known-invalid PMID.
+
+    A full-table Scan (no GSI), server-side FilterExpression, paginated — the
+    same pattern as `scan_impact_pmids_with_synopsis`.
+    """
+    pmids: list = []
+    kwargs: dict = {
+        'TableName': table_name,
+        'ProjectionExpression': 'PK',
+        'FilterExpression': 'begins_with(PK, :p)',
+        'ExpressionAttributeValues': {':p': {'S': 'INVALID#pmid_'}},
+    }
+    while True:
+        resp = client.scan(**kwargs)
+        for item in resp.get('Items', []):
+            pk = item.get('PK', {}).get('S', '')
+            if pk.startswith('INVALID#pmid_'):
+                pmids.append(pk[len('INVALID#pmid_'):])
+        lek = resp.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return pmids
+
+
 def get_processing_rows(client, table_name: str, pmids: list) -> dict:
     """
     Batch-get full PROCESSING# rows for `pmids`.

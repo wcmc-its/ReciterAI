@@ -148,6 +148,15 @@
       "minimum": 1,
       "description": "Maximum number of failed PMIDs the hot orchestrator's weekly retry sweep appends to the score set per run. Bounds the cost of a bad week; overflow candidates wait for the next sweep."
     },
+    "eligibility_sweep_enabled": {
+      "type": "boolean",
+      "description": "Hot orchestrator (#150 1b): when true, the weekly run sweeps for enriched-but-unscored PMIDs (IMPACT#-with-synopsis minus scored/failed/quarantined/invalid) and folds them into the cache-respecting additive score set, self-healing the date-delta's post-synopsis gap. Set false to disable the sweep (e.g. during incident triage)."
+    },
+    "eligibility_sweep_max_pmids": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hot orchestrator (#150 1b): cap on the number of eligible PMIDs the weekly eligibility sweep adds per run. Directly bounds per-run Bedrock spend; a larger backlog drains over successive weekly runs (overflow waits). The scorer's onboarding cost guard does not apply to this --additive path, so this cap is the sole bound on the eligibility work set."
+    },
     "retry_sweep_quarantine_after": {
       "type": "integer",
       "minimum": 1,

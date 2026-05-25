@@ -54,6 +54,7 @@ from utils.dynamodb_helpers import (
     get_dynamo_client, get_table, TABLE_NAME, mark_processing,
     mark_processing_failed, get_processing_status, to_decimal, make_score_sk,
     batch_write, release_quarantine, fetch_synopses_for_pmids,
+    scan_invalid_pmids,
 )
 from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
@@ -1045,6 +1046,27 @@ def serialize_results(results: list) -> list:
     return output
 
 
+def cull_invalid_publications(publications, invalid_pmids):
+    """Drop publications whose PMID is in the invalid exclude set (#150 item 3).
+
+    Returns ``(kept, culled_pmids)`` where ``culled_pmids`` is the sorted list
+    of dropped PMIDs (for logging). ``invalid_pmids`` is the set of
+    ReciterDB-flagged PMIDs from ``scan_invalid_pmids``; an empty set is a
+    no-op. Pure function — the DDB read happens in the caller.
+    """
+    if not invalid_pmids:
+        return publications, []
+    invalid = {str(p) for p in invalid_pmids}
+    culled = sorted(
+        (str(p['pmid']) for p in publications if str(p['pmid']) in invalid),
+        key=lambda s: (len(s), s),
+    )
+    if not culled:
+        return publications, []
+    kept = [p for p in publications if str(p['pmid']) not in invalid]
+    return kept, culled
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1286,6 +1308,20 @@ async def main():
                 "pre-2020 / no synopsis)"
             )
             publications = publications + extra
+    # --- #150 item 3: cull ReciterDB-flagged invalid PMIDs (consume-time) ---
+    # INVALID#pmid_ rows are the runtime exclude list. The orchestrator's
+    # eligibility sweep already culls these on the automated hot path; this
+    # covers the direct-CLI paths (manual catchup, recovery, --pmids) that
+    # bypass the orchestrator, and any delta still carrying a not-yet-DELETEd
+    # invalid PMID. Logged (not silent) so an operator override that names an
+    # invalid PMID sees why it was dropped.
+    invalid_pmids = set(scan_invalid_pmids(dynamo_client, TABLE_NAME))
+    publications, culled = cull_invalid_publications(publications, invalid_pmids)
+    if culled:
+        shown = ', '.join(culled[:10]) + (' …' if len(culled) > 10 else '')
+        print(f"[invalid-cull] dropped {len(culled)} ReciterDB-flagged "
+              f"invalid PMID(s): {shown}")
+
     author_mapping = extract_author_mapping()
     faculty_metadata = extract_faculty_metadata()
 
