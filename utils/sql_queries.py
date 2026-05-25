@@ -88,6 +88,21 @@ ORDER BY a1.pmid DESC
 # PMIDs without a synopsis to preserve the legacy INNER-JOIN semantics.
 
 
+# #157: the corpus-membership predicate the scorer enforces — the WHERE of
+# PUBLICATION_EXTRACTION_SQL, minus the abstract join. The hot-path eligibility
+# sweep (#150 1b) uses this to drop synopsized-but-unscoreable PMIDs (Reviews,
+# pre-2020, not-in-corpus) before handing the scorer a work set. Keep this
+# predicate in lockstep with PUBLICATION_EXTRACTION_SQL and the orchestrator
+# date-delta query (consolidation tracked in #157).
+SCOREABLE_CORPUS_PMIDS_SQL = """
+SELECT pmid
+FROM analysis_summary_article
+WHERE publicationTypeCanonical = 'Academic Article'
+    AND articleYear >= 2020
+    AND pmid IN :pmid_list
+"""
+
+
 # ---------------------------------------------------------------------------
 # Author mapping SQL (separate from scoring — expandable to middle authors)
 # ---------------------------------------------------------------------------
@@ -497,5 +512,37 @@ def get_cwids_for_pmids(pmids: list[str]) -> list[str]:
     try:
         rows = conn.execute(stmt, {"pmid_list": wanted})
         return sorted({str(row[0]) for row in rows})
+    finally:
+        conn.close()
+
+
+def filter_scoreable_pmids(pmids: list[str]) -> set[str]:
+    """Return the subset of `pmids` the scorer's corpus accepts (#157).
+
+    A PMID is scoreable iff it is present in `analysis_summary_article` as
+    `publicationTypeCanonical = 'Academic Article'` with `articleYear >= 2020`
+    — the same predicate `PUBLICATION_EXTRACTION_SQL` enforces when the scorer
+    pulls the corpus. The hot-path eligibility sweep (#150 1b) keys eligibility
+    off "the IMPACT# row carries a synopsis", but the synopsis pipeline also
+    synopsizes Reviews, pre-2020, and not-in-corpus PMIDs the scorer never
+    scores. Without this filter the sweep selected those phantoms (the scorer
+    dropped them to 0) and — ascending sort + per-run cap — reselected the same
+    un-scoreable prefix every run, starving the genuinely scoreable tail.
+
+    Returns a set for O(1) intersection. An empty/blank-only input returns an
+    empty set without opening a DB connection.
+    """
+    wanted = sorted({str(p) for p in pmids if str(p).strip()})
+    if not wanted:
+        return set()
+    from sqlalchemy import bindparam, text
+
+    stmt = text(SCOREABLE_CORPUS_PMIDS_SQL).bindparams(
+        bindparam("pmid_list", expanding=True)
+    )
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(stmt, {"pmid_list": wanted})
+        return {str(row[0]) for row in rows}
     finally:
         conn.close()
