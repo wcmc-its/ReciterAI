@@ -38,7 +38,7 @@
     },
     {
       "name": "reciterai-drift-daily",
-      "description": "Drift evaluator: daily Lambda invocation. Reads UNCOVERED_PMID#, LOW_CONFIDENCE_ASSIGNMENT#, and STAGE#...failed rows over drift_window_days; writes DRIFT#evaluation; dispatches severity-tagged alerts via pipeline_common.alert (T11).",
+      "description": "Drift evaluator: daily Lambda invocation. Reads UNCOVERED_PMID#, LOW_CONFIDENCE_ASSIGNMENT#, and STAGE#...failed rows over drift_window_days; writes DRIFT#evaluation; dispatches severity-tagged Teams alerts via pipeline_enrichment.alerting (T11; migrated from pipeline_common.alert on the 2026-05-25 deploy).",
       "schedule_expression": "cron(0 14 * * ? *)",
       "schedule_comment": "Daily 14:00 UTC = 10:00 EDT. Two hours after the hot path, one hour after the spotlight rule, so all upstream STAGE# rows for the most recent run are in place before the rolling 14-day window is evaluated.",
       "state": "ENABLED",

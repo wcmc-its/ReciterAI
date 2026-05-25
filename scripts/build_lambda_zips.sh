@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Build the 11 ReciterAI Lambda zips — 6 hot-path + 5 new-researcher
-# onboarding (#80 Phase 2).
+# Build the 12 ReciterAI Lambda zips — 6 hot-path + 5 new-researcher
+# onboarding (#80 Phase 2) + 1 daily drift evaluator (Phase 10, deployed
+# 2026-05-25).
 #
 # Each zip is built in a clean staging dir under build/, with pip deps
 # installed via the public.ecr.aws/lambda/python:3.12 image so any
@@ -9,7 +10,7 @@
 # this script reusable for Lambdas that pull in C extensions.
 #
 # Usage:
-#   scripts/build_lambda_zips.sh                                # build all 11
+#   scripts/build_lambda_zips.sh                                # build all 12
 #   scripts/build_lambda_zips.sh reciterai-onboarding-detector  # build just one
 #
 # Output: build/<zip_basename>.zip for each Lambda.
@@ -109,6 +110,19 @@ LAMBDAS=(
   # sqlalchemy, pyyaml) — no extra_imports needed. No score_publications.py:
   # daily_job does not import it, so this zip skips the scoring tree.
   "reciterai-onboarding-enrich|pipeline_onboarding.enrich|pymysql>=1.1.0 sqlalchemy>=2.0.0 openai>=2.0.0 pyyaml>=6.0.1|pipeline_onboarding/__init__.py pipeline_onboarding/enrich.py pipeline_enrichment|"
+  # ---- Drift (1) — Phase 10 daily DRIFT# evaluator, deployed 2026-05-25 ---
+  # DynamoDB scans + Teams alerting only (no SQL, no scoring tree) → no pip
+  # deps; boto3 is in the runtime, thresholds come from the bundled
+  # config/thresholds.json, and the Teams transport is pure urllib. The
+  # handler reaches utils.dynamodb_helpers, utils.event_records, and
+  # pipeline_enrichment.alerting only via function-local imports, so a plain
+  # `import pipeline_drift.evaluator` would load none of the three — they are
+  # listed in extra_imports so the build's import-check verifies the bundle
+  # actually carries them (a missing pipeline_enrichment/ would otherwise build
+  # green and crash on the first WARN/ERROR dispatch). Alerting was migrated
+  # off pipeline_common.alert (Slack/`gh`, dead in the Lambda runtime) to the
+  # Teams transport on this deploy, matching the hot path + enrichment.
+  "reciterai-drift-evaluator|pipeline_drift.evaluator||pipeline_drift/__init__.py pipeline_drift/evaluator.py pipeline_drift/severity.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.dynamodb_helpers utils.event_records pipeline_enrichment.alerting"
 )
 
 # Common dirs included in every zip except where commented otherwise.

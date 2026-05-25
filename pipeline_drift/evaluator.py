@@ -415,16 +415,17 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
       2. Scan three event-row types within drift_window_days.
       3. Count new PMIDs in window for the uncovered_rate denominator.
       4. Run evaluator + persist DRIFT# row.
-      5. Dispatch a severity-tagged alert via pipeline_common.alert.
+      5. Dispatch a severity-tagged alert via pipeline_enrichment.alerting (Teams).
 
-    OK → no alert. WARN → Slack only. ERROR → Slack + GitHub issue
-    (open_issue=True; the dispatcher dedupes on the open drift-alert
-    label so daily fires don't spam new issues).
+    OK → no alert. WARN → Teams card, no @mention (informational). ERROR
+    (cold run recommended) → Teams card with an operator @mention. The
+    Teams transport is the same one the hot path + enrichment use; it
+    replaces the retired pipeline_common.alert Slack/`gh` path.
     """
     # Local imports keep cold-start fast and let tests avoid pulling boto3.
     from utils.dynamodb_helpers import get_table, TABLE_NAME
     from utils.event_records import load_thresholds
-    from pipeline_common import alert
+    from pipeline_enrichment import alerting
 
     event = event or {}
     thresholds_path = event.get("thresholds_path")
@@ -463,13 +464,17 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
     severity = result["severity"]
     if severity in ("WARN", "ERROR"):
         cold_run = result["cold_run_recommended"]
-        message = (
-            "Drift threshold tripped"
-            + (" — cold run recommended" if cold_run else "")
-            + f": {', '.join(result['triggered_thresholds']) or 'no specific threshold'}"
+        title = "Drift threshold tripped" + (
+            " — cold run recommended" if cold_run else ""
         )
-        alert.dispatch(
+        message = "Triggered: " + (
+            ", ".join(result["triggered_thresholds"]) or "no specific threshold"
+        )
+        # @mention only when a cold run is recommended (actionable); WARN-band
+        # drift is informational, so it posts a card without paging the operator.
+        alerting.alert(
             severity,  # type: ignore[arg-type]
+            title,
             message,
             {
                 "source": "pipeline_drift.evaluator",
@@ -481,7 +486,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
                 "triggered_thresholds": result["triggered_thresholds"],
                 "cold_run_recommended": cold_run,
             },
-            open_issue=cold_run,
+            mention=cold_run,
         )
 
     return result
