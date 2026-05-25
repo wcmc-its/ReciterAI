@@ -20,7 +20,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from utils.dynamodb_helpers import (
+    fetch_scored_provenance,
     get_processing_rows,
+    invalidate_stale_score,
     mark_processing_failed,
     quarantine_pmid,
     query_failed_pmids,
@@ -268,3 +270,52 @@ def test_release_quarantine_idempotent_when_no_state_exists():
         "last_error": "",
     }
     client.delete_item.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# fetch_scored_provenance / invalidate_stale_score — #150 item 2 drift sweep
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_scored_provenance_parses_stamps_and_defaults():
+    client = MagicMock()
+    client.batch_get_item.return_value = {
+        "Responses": {"reciterai": [
+            {"PK": {"S": "PROCESSING#pmid_5"},
+             "scored_enriched_at": {"S": "2026-05-20T11:00:00Z"},
+             "scored_synopsis_model": {"S": "claude-sonnet-4-6"}},
+            {"PK": {"S": "PROCESSING#pmid_6"}},  # un-stamped → empty strings
+        ]},
+        "UnprocessedKeys": {},
+    }
+    out = fetch_scored_provenance(client, "reciterai", ["5", "6"])
+    assert out["5"] == {"scored_enriched_at": "2026-05-20T11:00:00Z",
+                        "scored_synopsis_model": "claude-sonnet-4-6"}
+    assert out["6"] == {"scored_enriched_at": "", "scored_synopsis_model": ""}
+
+
+def test_fetch_scored_provenance_empty_input_skips_db():
+    client = MagicMock()
+    assert fetch_scored_provenance(client, "reciterai", []) == {}
+    client.batch_get_item.assert_not_called()
+
+
+def test_invalidate_stale_score_flips_complete_to_stale():
+    client = MagicMock()
+    assert invalidate_stale_score(client, "reciterai", "999") is True
+    kwargs = client.update_item.call_args.kwargs
+    assert kwargs["Key"]["PK"] == {"S": "PROCESSING#pmid_999"}
+    assert kwargs["ExpressionAttributeValues"][":stale"] == {"S": "stale"}
+    assert kwargs["ExpressionAttributeValues"][":complete"] == {"S": "complete"}
+    assert kwargs["ConditionExpression"] == "#s = :complete"
+
+
+def test_invalidate_stale_score_noop_when_not_complete():
+    """The complete-guard makes a concurrent status change a no-op (False),
+    not an error."""
+    from botocore.exceptions import ClientError
+    client = MagicMock()
+    client.update_item.side_effect = ClientError(
+        {"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem",
+    )
+    assert invalidate_stale_score(client, "reciterai", "999") is False

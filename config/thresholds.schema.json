@@ -157,6 +157,15 @@
       "minimum": 1,
       "description": "Hot orchestrator (#150 1b): cap on the number of eligible PMIDs the weekly eligibility sweep adds per run. Directly bounds per-run Bedrock spend; a larger backlog drains over successive weekly runs (overflow waits). The scorer's onboarding cost guard does not apply to this --additive path, so this cap is the sole bound on the eligibility work set."
     },
+    "drift_sweep_enabled": {
+      "type": "boolean",
+      "description": "Hot orchestrator (#150 item 2): when true, the weekly run re-scores publications whose synopsis was regenerated after scoring (IMPACT#.enriched_at advancing past the stamped scored_enriched_at, or a synopsis_model change). It demotes each drifted PROCESSING# checkpoint complete->stale so the cache-respecting --additive path re-scores it. Set false to disable the sweep."
+    },
+    "drift_sweep_max_pmids": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hot orchestrator (#150 item 2): cap on the number of drifted PMIDs the weekly drift sweep re-scores per run. Bounds per-run Bedrock spend on a large re-enrichment event (e.g. a model upgrade); the overflow waits for the next run."
+    },
     "retry_sweep_quarantine_after": {
       "type": "integer",
       "minimum": 1,
