@@ -48,6 +48,10 @@ build/
 # Local-only Claude config (per repo)
 .claude/
 
+# GSD planning workspace — local planning scratch (ROADMAP, STATE, POLICIES,
+# issues). Not tracked in this repo.
+.planning/
+
 # Bulk data archives
 *.xlsx
 *.parquet
@@ -60,3 +64,7 @@ build/
 # Migration diff logs (operator-generated; not for source control)
 spotlight_history_migration_*.log
 topic_hierarchy_version_backfill_*.log
+
+# Debug/spike scripts under scripts/debug/ ARE tracked; their generated
+# JSON result dumps are not.
+scripts/debug/*.json
