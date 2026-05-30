@@ -245,7 +245,7 @@ def test_7_generate_lede_propagates_prior_failure():
 
 def test_8_no_model_id_string_literal_in_source():
     """Test 8: source must not type the Bedrock model ID literally."""
-    src_path = Path(__file__).parent / "spotlight" / "lede_generator.py"
+    src_path = Path(__file__).parent.parent / "spotlight" / "lede_generator.py"
     source = src_path.read_text(encoding="utf-8")
     assert "us.anthropic.claude" not in source, (
         "lede_generator.py must import OPUS_MODEL from utils.bedrock_client; "

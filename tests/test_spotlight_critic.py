@@ -495,7 +495,7 @@ def test_14_run_critic_loop_deterministic_fail_then_pass():
 def test_15_critic_prompt_file_exists_with_fenced_body():
     """Test 15: prompts/spotlight_critic_v0.md exists with operator
     notes header and a fenced ```markdown ... ``` prompt body."""
-    path = Path(__file__).parent / "prompts" / "spotlight_critic_v0.md"
+    path = Path(__file__).parent.parent / "prompts" / "spotlight_critic_v0.md"
     assert path.is_file(), f"missing critic prompt: {path}"
     content = path.read_text(encoding="utf-8")
     # Header + fenced body (mirror spotlight_synopsis_v0.md structure).

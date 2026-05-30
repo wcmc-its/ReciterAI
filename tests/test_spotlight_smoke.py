@@ -25,7 +25,7 @@ import pytest
 # Fixture paths (module-level constants — fixtures live in tests/fixtures/)
 # ---------------------------------------------------------------------------
 
-REPO_ROOT = Path(__file__).parent
+REPO_ROOT = Path(__file__).parent.parent
 VALID_FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "spotlight_valid_min.json"
 INVALID_FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "spotlight_invalid.json"
 SCHEMA_PATH = REPO_ROOT / "docs" / "spotlight.schema.json"
