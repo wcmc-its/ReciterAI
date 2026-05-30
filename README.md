@@ -23,10 +23,33 @@ Standalone service that produces the canonical research-domain hierarchy, public
 
 ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from S3 + DynamoDB into its application database. ReciterAI does not call SPS, does not depend on SPS at runtime, and ships independently. Contract source-of-truth lives in [`docs/hierarchy-contract.md`](docs/hierarchy-contract.md) and [`docs/spotlight-contract.md`](docs/spotlight-contract.md) in this repo.
 
+## Architecture
+
+Four version-controlled diagrams, generated from plain-data specs by a dependency-free SVG toolkit in [`scripts/diagrams/`](scripts/diagrams/). Regenerate with `node scripts/diagrams/build.mjs`; the full gallery (zoomable, ⌘P → PDF) is [`docs/architecture/index.html`](docs/architecture/index.html).
+
+**① System context** — what feeds ReciterAI and who consumes it.
+
+![System context: ReciterAI reads the publication corpus from ReciterDB and a frozen taxonomy, runs a seven-stage LLM pipeline on AWS Bedrock (with an OpenAI fallback), and publishes to two S3 buckets + DynamoDB that the Scholars Profile System pulls from.](docs/architecture/system-context.svg)
+
+**② Processing pipeline** — the seven stages from corpus to artifact, and the model each calls.
+
+![Processing pipeline: score_publications (Haiku screen then Sonnet dense score) feeds discover/assign subtopics and rollup_by_cwid; a separate daily-enrichment job adds synopsis and impact; spotlight synthesizes a lede; the hierarchy publisher composes the canonical artifact. Stages write to DynamoDB and S3.](docs/architecture/processing-pipeline.svg)
+
+**③ AWS runtime topology** — how it's scheduled and deployed.
+
+![AWS runtime topology: five EventBridge cron rules drive a Step Functions hot path, a Fargate enrichment task, and three Lambdas, reaching Bedrock, DynamoDB, S3, and Secrets Manager; the targets read ReciterDB and egress to OpenAI and Teams.](docs/architecture/aws-topology.svg)
+
+**④ Publish contract** — the one-way hand-off to the Scholars Profile System.
+
+![Publish contract: ReciterAI publishers write two versioned S3 channels (hierarchy and artifacts, each with a latest/ pointer, a co-published JSON Schema, and a sha256 manifest) plus DynamoDB record types; the SPS ETLs pull each into its Prisma/MySQL application database.](docs/architecture/publish-contract.svg)
+
+> The diagrams are the picture, not the source of truth — edit the specs in [`scripts/diagrams/`](scripts/diagrams/README.md) and rebuild. The SVGs above are committed and render inline on GitHub; PNGs are gitignored and regenerable.
+
 ## Documentation
 
 - [GETTING_STARTED.md](GETTING_STARTED.md) — local setup, env vars, running each pipeline
 - [ARCHITECTURE.md](ARCHITECTURE.md) — data flow, axes, publishing channels
+- [docs/architecture/](docs/architecture/index.html) — rendered architecture diagrams (system context, pipeline, AWS topology, publish contract); regenerate with `node scripts/diagrams/build.mjs`, edit via [`scripts/diagrams/`](scripts/diagrams/README.md)
 - [docs/RECITERAI-SPEC.md](docs/RECITERAI-SPEC.md) — architectural decisions and execution status (read this before picking up any architectural work)
 - [docs/stage-records-and-gates.md](docs/stage-records-and-gates.md) — Phase 9 substrate guide for new stage authors
 - [docs/taxonomy-methodology.md](docs/taxonomy-methodology.md) — design principles for the Axis 1 taxonomy
@@ -41,9 +64,11 @@ ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from
 
 | Use | Model | Why |
 |---|---|---|
-| Screening (recall-first) | `anthropic.claude-haiku-4-5` via Bedrock | Cheap (~$0.0005/activity), wide net |
-| Dense scoring + synthesis | `anthropic.claude-sonnet-4-6` via Bedrock | Calibrated scores, narrative quality |
-| Lede generation | `anthropic.claude-opus-4-7` via Bedrock | Highest fidelity for spotlight openers |
+| Screening (recall-first) | `us.anthropic.claude-haiku-4-5-20251001-v1:0` via Bedrock | Cheap (~$0.0005/activity), wide net |
+| Dense scoring + synthesis | `us.anthropic.claude-sonnet-4-6` via Bedrock | Calibrated scores, narrative quality |
+| Lede generation | `us.anthropic.claude-opus-4-7` via Bedrock | Highest fidelity for spotlight openers |
+
+Model IDs are pinned in [`utils/bedrock_client.py`](utils/bedrock_client.py) (`HAIKU_MODEL` / `SONNET_MODEL` / `OPUS_MODEL`), keyed per pipeline stage in `MODEL_IDS_BY_STAGE`. When Bedrock content-filters a synopsis/impact call, the daily-enrichment job falls back to OpenAI `gpt-5.1` via [`utils/openai_client.py`](utils/openai_client.py).
 
 ## Related repos
 
