@@ -68,3 +68,10 @@ topic_hierarchy_version_backfill_*.log
 # Debug/spike scripts under scripts/debug/ ARE tracked; their generated
 # JSON result dumps are not.
 scripts/debug/*.json
+
+# Architecture diagrams: commit the SVGs, regenerate PNGs locally
+docs/architecture/*.png
+
+# Playwright MCP working artifacts (screenshots, transcripts)
+.playwright-mcp/
+gallery-view*.png
