@@ -158,7 +158,7 @@ def invoke_backfill_spotlight(*, runner: Callable | None = None) -> int:
     """
     invoker = runner if runner is not None else subprocess.run
     proc = invoker(
-        [sys.executable, "backfill_spotlight.py", "--publish"],
+        [sys.executable, "-m", "cli.backfill_spotlight", "--publish"],
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,

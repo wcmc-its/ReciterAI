@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure repo root is on sys.path for utils imports
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
 from utils.dynamodb_helpers import get_table, TABLE_NAME
@@ -55,7 +55,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Constants ---
-TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
+TAXONOMY_FILE = Path(__file__).parent.parent / "taxonomy_v2.json"
 # Lifted to config/thresholds.json `score_floor` (G-18) — same value the
 # rest of the pipeline (assign_subtopics, backfill_topic, backfill_all,
 # score_publications, load_dynamodb) consumes.

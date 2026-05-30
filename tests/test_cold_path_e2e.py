@@ -52,7 +52,7 @@ from unittest.mock import MagicMock, patch
 import jsonschema
 import pytest
 
-import aggregate_subtopic_scores as agg
+import cli.aggregate_subtopic_scores as agg
 from pipeline_hierarchy import publish as _publish_module
 from pipeline_hierarchy.bundler import bundle
 

@@ -53,7 +53,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.dynamodb_subtopic_migration import (
@@ -72,7 +72,7 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 logging.getLogger("boto3").setLevel(logging.WARNING)
 
 
-TAXONOMY_FILE = Path(__file__).parent / "taxonomy_v2.json"
+TAXONOMY_FILE = Path(__file__).parent.parent / "taxonomy_v2.json"
 DEFAULT_OUTPUT_DIR = Path(".planning/phases/04-subtopic-system")
 FACULTY_UID_PREFIX = "cwid_"  # P-10 isolation point (CLAUDE.md §personIdentifier)
 

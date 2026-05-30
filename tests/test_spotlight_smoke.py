@@ -326,7 +326,7 @@ def test_schema_validation_fails_invalid_fixture():
 def test_backfill_spotlight_help_lists_all_flags():
     """CLI surface smoke: every flag named in the plan + handoff appears in --help."""
     # One-line invocation pattern: subprocess.run backfill_spotlight.py --help (CLI surface acceptance check).
-    result = subprocess.run([sys.executable, "backfill_spotlight.py", "--help"], capture_output=True, text=True, timeout=10, cwd=REPO_ROOT)
+    result = subprocess.run([sys.executable, "-m", "cli.backfill_spotlight", "--help"], capture_output=True, text=True, timeout=10, cwd=REPO_ROOT)
     assert result.returncode == 0, (
         f"backfill_spotlight.py --help failed (rc={result.returncode}): {result.stderr}"
     )

@@ -90,9 +90,9 @@ Two-pass via Bedrock Batch API. Pass 1 (Haiku) screens every pub against the ful
 ### 3. Subtopic discovery + assignment
 
 ```bash
-python3 discover_subtopics.py           # per-topic inductive clustering
+python3 -m cli.discover_subtopics           # per-topic inductive clustering
 python3 assign_subtopics.py             # label each publication with subtopics
-python3 aggregate_subtopic_scores.py    # roll up to per-faculty subtopic scores
+python3 -m cli.aggregate_subtopic_scores    # roll up to per-faculty subtopic scores
 ```
 
 ### 4. Faculty rollups
@@ -111,7 +111,7 @@ Composes the canonical hierarchy artifact + JSON Schema + manifest, uploads to `
 ### 6. Spotlight generation + publish
 
 ```bash
-python3 backfill_spotlight.py
+python3 -m cli.backfill_spotlight
 ```
 
 Runs the spotlight assembly pipeline (lede generation, critic, pool ranker, sensitive gate, publish) and uploads to `s3://wcmc-reciterai-artifacts/spotlight/`.

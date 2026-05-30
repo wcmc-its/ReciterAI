@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-import aggregate_subtopic_scores as agg
+import cli.aggregate_subtopic_scores as agg
 
 
 # ---------------------------------------------------------------------------

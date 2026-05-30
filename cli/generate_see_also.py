@@ -49,7 +49,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure repo root is on sys.path for utils / prompts imports
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
 from prompts.see_also_generation import (

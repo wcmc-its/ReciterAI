@@ -198,7 +198,7 @@ def test_writer_emits_three_files(tmp_path: Path, monkeypatch):
     - faculty_subtopic_counts_inclusive.csv  (new inclusive)
     - cwid_subtopic_counts.csv              (legacy dual-write, Phase 12 D-13)
     """
-    import count_by_cwid as cbc
+    import cli.count_by_cwid as cbc
 
     # Exclusive counts: (cwid, subtopic_id) -> n
     exclusive_counts = {("alice", "afib"): 2, ("bob", "stroke"): 3}
@@ -224,7 +224,7 @@ def test_legacy_and_new_exclusive_have_identical_content(tmp_path: Path, monkeyp
     """The legacy cwid_subtopic_counts.csv is byte-identical to
     faculty_subtopic_counts_exclusive.csv (the legacy file is a copy per D-13).
     """
-    import count_by_cwid as cbc
+    import cli.count_by_cwid as cbc
 
     exclusive_counts = {
         ("alice", "afib"): 5,
@@ -252,7 +252,7 @@ def test_inclusive_csv_distinct_from_exclusive(tmp_path: Path, monkeypatch):
     (inclusive_counts > exclusive_counts for that subtopic), the inclusive
     CSV must differ from the exclusive CSV.
     """
-    import count_by_cwid as cbc
+    import cli.count_by_cwid as cbc
 
     # alice has a secondary assignment (stroke) that doesn't appear in exclusive.
     exclusive_counts = {("alice", "afib"): 5, ("bob", "stroke"): 3}
