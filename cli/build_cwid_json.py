@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Ensure repo root is importable regardless of cwd, so utils/* resolves
 # when the script is run as `python build_cwid_json.py`.
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # IN-05: shared with rollup_by_cwid.py via utils/csv_paths.py to keep the
 # Phase 12 D-13 dual-name resolver and the dual-header column picker in

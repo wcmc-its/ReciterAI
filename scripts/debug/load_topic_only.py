@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import utils.secrets_loader  # noqa: F401,E402
 
-from load_dynamodb import build_topic_records, load_records, DEFAULT_MIN_SCORE  # noqa: E402
+from cli.load_dynamodb import build_topic_records, load_records, DEFAULT_MIN_SCORE  # noqa: E402
 from utils.dynamodb_helpers import get_dynamo_client, TABLE_NAME  # noqa: E402
 
 

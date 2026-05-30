@@ -74,7 +74,7 @@ The pipelines run in this order. Most are idempotent and resumable. All persist 
 ### 1. Taxonomy generation (one-time per taxonomy version)
 
 ```bash
-python3 generate_taxonomy.py
+python3 -m cli.generate_taxonomy
 ```
 
 Produces `taxonomy_v{N}.json` from the corpus of publication synopses. **Freeze for human review before scoring** — taxonomy bugs waste the dense-scoring budget.
@@ -98,7 +98,7 @@ python3 aggregate_subtopic_scores.py    # roll up to per-faculty subtopic scores
 ### 4. Faculty rollups
 
 ```bash
-python3 build_cwid_json.py
+python3 -m cli.build_cwid_json
 python3 rollup_by_cwid.py
 ```
 
@@ -119,7 +119,7 @@ Runs the spotlight assembly pipeline (lede generation, critic, pool ranker, sens
 ## DynamoDB load
 
 ```bash
-python3 load_dynamodb.py
+python3 -m cli.load_dynamodb
 ```
 
 Writes scored publications, faculty profiles, and spotlight records to DynamoDB with appropriate GSIs.

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 class TestComputeMRR(unittest.TestCase):
     def setUp(self):
-        from eval_golden_queries import compute_mrr
+        from cli.eval_golden_queries import compute_mrr
         self.compute_mrr = compute_mrr
 
     def test_hit_at_rank_2_returns_half(self):
@@ -49,7 +49,7 @@ class TestComputeMRR(unittest.TestCase):
 
 class TestComputeRecallAt10(unittest.TestCase):
     def setUp(self):
-        from eval_golden_queries import compute_recall_at_10
+        from cli.eval_golden_queries import compute_recall_at_10
         self.compute_recall_at_10 = compute_recall_at_10
 
     def test_three_of_five_returns_point_six(self):
@@ -81,7 +81,7 @@ class TestComputeRecallAt10(unittest.TestCase):
 
 class TestZeroScores(unittest.TestCase):
     def setUp(self):
-        from eval_golden_queries import compute_mrr, compute_recall_at_10
+        from cli.eval_golden_queries import compute_mrr, compute_recall_at_10
         self.compute_mrr = compute_mrr
         self.compute_recall_at_10 = compute_recall_at_10
 
@@ -111,7 +111,7 @@ class TestZeroScores(unittest.TestCase):
 
 class TestDiffReport(unittest.TestCase):
     def setUp(self):
-        from eval_golden_queries import diff_report
+        from cli.eval_golden_queries import diff_report
         self.diff_report = diff_report
 
     def _make_result(self, query_id, query_type, returned_faculty, expected_faculty):
@@ -228,7 +228,7 @@ class TestIntegrationHarnessRun(unittest.TestCase):
     def test_full_run_writes_report(self):
         """Full harness run with 2 fake queries writes regression_gate_report.md."""
         import importlib
-        import eval_golden_queries as egq
+        import cli.eval_golden_queries as egq
 
         with tempfile.TemporaryDirectory() as tmpdir:
             queries_path = os.path.join(tmpdir, "golden-queries.json")
