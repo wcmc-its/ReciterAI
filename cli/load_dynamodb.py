@@ -37,7 +37,7 @@ from collections import defaultdict
 
 from tqdm import tqdm
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.dynamodb_helpers import (
     get_dynamo_client, TABLE_NAME, batch_write, make_score_sk,
     to_decimal, create_chatbot_table, wait_for_table
@@ -249,7 +249,7 @@ def build_tool_index_records() -> list:
     Reads tool_index.json (produced by canonicalization pass) and creates
     DynamoDB records the chat runtime can use to resolve tool queries.
     """
-    index_path = Path(__file__).parent / 'tool_index.json'
+    index_path = Path(__file__).parent.parent / 'tool_index.json'
     assert index_path.exists(), (
         'tool_index.json not found — run the tool canonicalization step first'
     )
@@ -378,10 +378,10 @@ def main():
     min_score = args.min_score
 
     # --- Load input files ---
-    scoring_path = Path(__file__).parent / 'scoring_results.json'
-    author_path = Path(__file__).parent / 'author_mapping.json'
-    faculty_path = Path(__file__).parent / 'faculty_metadata.json'
-    taxonomy_path = Path(__file__).parent / 'taxonomy_v2.json'
+    scoring_path = Path(__file__).parent.parent / 'scoring_results.json'
+    author_path = Path(__file__).parent.parent / 'author_mapping.json'
+    faculty_path = Path(__file__).parent.parent / 'faculty_metadata.json'
+    taxonomy_path = Path(__file__).parent.parent / 'taxonomy_v2.json'
 
     assert scoring_path.exists(), f'scoring_results.json not found — run score_publications.py first'
     assert author_path.exists(), f'author_mapping.json not found — run score_publications.py first'

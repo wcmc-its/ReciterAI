@@ -230,7 +230,7 @@ def _query_topic_items(topic_id: str, score_floor: float = 0.3) -> list:
 
     Returns a list of item dicts (DocumentClient style — plain Python types).
     """
-    sys.path.insert(0, str(Path(__file__).parent))
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from utils.dynamodb_helpers import get_table, TABLE_NAME
     from boto3.dynamodb.conditions import Key
 

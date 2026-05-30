@@ -98,7 +98,7 @@ def test_assign_subtopics_constants_pick_up_config_values(tmp_path: Path):
         ("backfill_topic", "SCORE_FLOOR"),
         ("backfill_all", "SCORE_FLOOR"),
         ("score_publications", "SCREENING_THRESHOLD"),
-        ("load_dynamodb", "DEFAULT_MIN_SCORE"),
+        ("cli.load_dynamodb", "DEFAULT_MIN_SCORE"),
     ],
 )
 def test_pipeline_score_floor_constants_read_from_config(module_name, attr_name):

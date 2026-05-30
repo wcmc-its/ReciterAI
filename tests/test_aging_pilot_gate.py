@@ -19,7 +19,7 @@ def test_compute_coverage_pass():
     """
     100 items, 90 have primary_subtopic_id -> coverage = 0.9 -> PASS
     """
-    from aging_pilot_gate import compute_coverage
+    from cli.aging_pilot_gate import compute_coverage
 
     items = []
     for i in range(90):
@@ -35,7 +35,7 @@ def test_compute_coverage_fail():
     """
     5 items with primary_subtopic_id out of 10 -> coverage = 0.5 -> FAIL at 0.85 threshold
     """
-    from aging_pilot_gate import compute_coverage
+    from cli.aging_pilot_gate import compute_coverage
 
     items = []
     for i in range(5):
@@ -49,7 +49,7 @@ def test_compute_coverage_fail():
 
 def test_compute_coverage_empty():
     """Empty items -> coverage = 0.0"""
-    from aging_pilot_gate import compute_coverage
+    from cli.aging_pilot_gate import compute_coverage
 
     coverage = compute_coverage([])
     assert coverage == 0.0
@@ -57,7 +57,7 @@ def test_compute_coverage_empty():
 
 def test_compute_coverage_all_assigned():
     """All items assigned -> coverage = 1.0"""
-    from aging_pilot_gate import compute_coverage
+    from cli.aging_pilot_gate import compute_coverage
 
     items = [{"pmid": str(i), "score": 0.5, "primary_subtopic_id": "sub_x"} for i in range(20)]
     coverage = compute_coverage(items)
@@ -73,7 +73,7 @@ def test_compute_pairwise_overlap_fail():
     s1={1,2,3,4}, s2={3,4} -> intersection={3,4}=2, min(|s1|,|s2|)=min(4,2)=2
     overlap = 2/2 = 1.0 -> FAIL at 40% threshold
     """
-    from aging_pilot_gate import compute_pairwise_overlap
+    from cli.aging_pilot_gate import compute_pairwise_overlap
 
     pmid_sets = {
         "s1": {1, 2, 3, 4},
@@ -90,7 +90,7 @@ def test_compute_pairwise_overlap_pass():
     """
     No overlap between subtopics -> all overlap = 0.0 -> PASS at 40% threshold
     """
-    from aging_pilot_gate import compute_pairwise_overlap
+    from cli.aging_pilot_gate import compute_pairwise_overlap
 
     pmid_sets = {
         "s1": {1, 2, 3},
@@ -108,7 +108,7 @@ def test_compute_pairwise_overlap_partial():
     s1={1,2,3,4}, s2={3,4,5,6} -> intersection={3,4}=2, min(4,4)=4
     overlap = 2/4 = 0.5
     """
-    from aging_pilot_gate import compute_pairwise_overlap
+    from cli.aging_pilot_gate import compute_pairwise_overlap
 
     pmid_sets = {
         "s1": {1, 2, 3, 4},
@@ -122,7 +122,7 @@ def test_compute_pairwise_overlap_partial():
 
 def test_compute_pairwise_overlap_empty_subtopic():
     """Subtopic with no pmids: skip that pair to avoid division by zero."""
-    from aging_pilot_gate import compute_pairwise_overlap
+    from cli.aging_pilot_gate import compute_pairwise_overlap
 
     pmid_sets = {
         "s1": {1, 2, 3},
@@ -137,7 +137,7 @@ def test_compute_pairwise_overlap_empty_subtopic():
 
 def test_compute_pairwise_overlap_single_subtopic():
     """Only one subtopic -> no pairs -> empty result."""
-    from aging_pilot_gate import compute_pairwise_overlap
+    from cli.aging_pilot_gate import compute_pairwise_overlap
 
     pmid_sets = {"s1": {1, 2, 3}}
     overlaps = compute_pairwise_overlap(pmid_sets)
@@ -152,7 +152,7 @@ def test_build_blind_check_worksheet_count():
     """
     build_blind_check_worksheet returns exactly 10 dicts with n=10, seed=42
     """
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = []
     for i in range(50):
@@ -176,7 +176,7 @@ def test_build_blind_check_worksheet_fields():
     """
     Each row must have pmid, title, synopsis, candidate_subtopics, reviewer_picks
     """
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = [
         {"pmid": str(i), "title": f"Title {i}", "synopsis": f"Synopsis {i}",
@@ -199,7 +199,7 @@ def test_build_blind_check_worksheet_fields():
 
 def test_build_blind_check_worksheet_reviewer_picks_empty():
     """reviewer_picks must be empty (for reviewer to fill in)"""
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = [
         {"pmid": str(i), "title": f"Title {i}", "synopsis": f"Synopsis {i}"}
@@ -216,7 +216,7 @@ def test_build_blind_check_worksheet_reviewer_picks_empty():
 
 def test_build_blind_check_worksheet_reproducible():
     """Same seed => same sample (reproducible via random.Random(seed))"""
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = [
         {"pmid": str(i), "title": f"Title {i}", "synopsis": f"Synopsis {i}"}
@@ -234,7 +234,7 @@ def test_build_blind_check_worksheet_reproducible():
 
 def test_build_blind_check_worksheet_different_seeds():
     """Different seeds should produce different samples (probabilistically)"""
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = [
         {"pmid": str(i), "title": f"Title {i}", "synopsis": f"Synopsis {i}"}
@@ -253,7 +253,7 @@ def test_build_blind_check_worksheet_different_seeds():
 
 def test_build_blind_check_worksheet_fewer_than_n():
     """If fewer than n activities, return all of them"""
-    from aging_pilot_gate import build_blind_check_worksheet
+    from cli.aging_pilot_gate import build_blind_check_worksheet
 
     activities = [
         {"pmid": str(i), "title": f"Title {i}", "synopsis": f"Synopsis {i}"}
@@ -275,7 +275,7 @@ def test_knee_point_detects_drop():
     Largest relative drop is between c=800 and d=100 (ratio 8x).
     knee_point returns d (=100) as the candidate floor — value in (50, 800).
     """
-    from aging_pilot_gate import knee_point
+    from cli.aging_pilot_gate import knee_point
 
     weights = {"a": 1000, "b": 900, "c": 800, "d": 100, "e": 50}
     result = knee_point(weights)
@@ -287,7 +287,7 @@ def test_knee_point_detects_drop():
 
 def test_knee_point_uniform_weights():
     """Uniform weights have no knee — return the second-to-last or last value"""
-    from aging_pilot_gate import knee_point
+    from cli.aging_pilot_gate import knee_point
 
     weights = {"a": 100, "b": 100, "c": 100, "d": 100}
     result = knee_point(weights)
@@ -297,7 +297,7 @@ def test_knee_point_uniform_weights():
 
 def test_knee_point_single_value():
     """Single entry — return that value"""
-    from aging_pilot_gate import knee_point
+    from cli.aging_pilot_gate import knee_point
 
     weights = {"only": 500}
     result = knee_point(weights)
@@ -306,7 +306,7 @@ def test_knee_point_single_value():
 
 def test_knee_point_two_values():
     """Two entries — knee is between them; return the second"""
-    from aging_pilot_gate import knee_point
+    from cli.aging_pilot_gate import knee_point
 
     weights = {"a": 1000, "b": 10}
     result = knee_point(weights)
@@ -315,7 +315,7 @@ def test_knee_point_two_values():
 
 def test_knee_point_returns_float():
     """Return type should be numeric (int or float)"""
-    from aging_pilot_gate import knee_point
+    from cli.aging_pilot_gate import knee_point
 
     weights = {"a": 1000.5, "b": 500.5, "c": 50.5}
     result = knee_point(weights)

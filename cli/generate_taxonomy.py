@@ -31,7 +31,7 @@ import argparse
 from pathlib import Path
 
 # D-01: Add ReciterAI to path for database connection management
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
 from utils.dynamodb_helpers import get_dynamo_client, scan_all_synopses
 
@@ -395,8 +395,8 @@ def main():
     )
     args = parser.parse_args()
 
-    output_path = Path(__file__).parent / "taxonomy_v1.json"
-    cache_path = Path(__file__).parent / "synopses_cache.json"
+    output_path = Path(__file__).parent.parent / "taxonomy_v1.json"
+    cache_path = Path(__file__).parent.parent / "synopses_cache.json"
 
     client = BedrockClient()
 

@@ -4,7 +4,7 @@ cold-path wrapper build_topic_records that delegates to it."""
 
 from __future__ import annotations
 
-import load_dynamodb
+from cli import load_dynamodb
 from utils.dynamodb_helpers import make_score_sk
 from utils.topic_records import build_topic_rows_for_pmid
 
