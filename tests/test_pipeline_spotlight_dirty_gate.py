@@ -217,7 +217,7 @@ def test_run_gate_invokes_backfill_and_writes_complete_when_dirty():
     # backfill_spotlight was invoked exactly once.
     assert len(runner_calls) == 1
     cmd = runner_calls[0]
-    assert any("backfill_spotlight.py" in part for part in cmd)
+    assert any("cli.backfill_spotlight" in part for part in cmd)
     assert "--publish" in cmd
 
     rows = [it for it in captured if it.get("PK") == "STAGE#spotlight_refresh#GLOBAL"]

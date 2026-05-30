@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from relabel_subtopics import (
+from cli.relabel_subtopics import (
     _collect_parent_prefix_violations,
     _retry_parent_prefix_violations,
     find_parent_prefix_violation,

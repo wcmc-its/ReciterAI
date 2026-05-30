@@ -80,7 +80,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.env_check import load_thresholds  # noqa: E402
 
@@ -95,7 +95,7 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 
 
 # --- Constants ---
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 TAXONOMY_FILE = REPO_ROOT / "taxonomy_v2.json"
 PHASE_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
 AGING_PILOT_RESULTS = PHASE_DIR / "aging_pilot_results.md"
@@ -256,7 +256,7 @@ def _run_topic(
     """
     cmd = [
         sys.executable,
-        str(REPO_ROOT / "backfill_topic.py"),
+        str(REPO_ROOT / "cli" / "backfill_topic.py"),
         "--topic",
         topic_id,
     ]
@@ -366,7 +366,7 @@ def _run_see_also() -> list:
     """Invoke generate_see_also.py and return the merged see_also[] list."""
     cmd = [
         sys.executable,
-        str(REPO_ROOT / "generate_see_also.py"),
+        str(REPO_ROOT / "cli" / "generate_see_also.py"),
         "--input",
         str(HIERARCHY_FULL_OUT),
         "--output",

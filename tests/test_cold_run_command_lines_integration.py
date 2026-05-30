@@ -142,8 +142,8 @@ def _check_assign(command: list[str]) -> None:
     the desired flags and call _parse_args directly — it returns the
     namespace, no work runs, no sentinel needed.
     """
-    argv = _argv_after_python_script(command)
-    import backfill_all
+    argv = _argv_after_python_module(command)
+    from cli import backfill_all
 
     with patch.object(sys, "argv", ["backfill_all.py"] + argv):
         backfill_all._parse_args()
@@ -151,22 +151,22 @@ def _check_assign(command: list[str]) -> None:
 
 def _check_relabel(command: list[str]) -> None:
     """`python relabel_subtopics.py`."""
-    argv = _argv_after_python_script(command)
-    import relabel_subtopics
+    argv = _argv_after_python_module(command)
+    from cli import relabel_subtopics
 
     _intercept_and_parse(relabel_subtopics.main, argv)
 
 
 def _check_count(command: list[str]) -> None:
     """`python count_by_cwid.py` — no argparse parser; assert importable."""
-    argv = _argv_after_python_script(command)
+    argv = _argv_after_python_module(command)
     assert argv == [], (
         f"Cold-stage `count` command carries args {argv!r}, but "
         f"count_by_cwid.py does not define an argparse parser. Either add "
         f"a parser to the script or remove the args from the cold-stage "
         f"command."
     )
-    importlib.import_module("count_by_cwid")
+    importlib.import_module("cli.count_by_cwid")
 
 
 def _check_rollup(command: list[str]) -> None:
@@ -190,8 +190,8 @@ def _check_feedback_sweep(command: list[str]) -> None:
 
 def _check_backfill_spotlight(command: list[str]) -> None:
     """`python backfill_spotlight.py --publish` — `_parse_args` reads sys.argv."""
-    argv = _argv_after_python_script(command)
-    import backfill_spotlight
+    argv = _argv_after_python_module(command)
+    from cli import backfill_spotlight
 
     with patch.object(sys, "argv", ["backfill_spotlight.py"] + argv):
         backfill_spotlight._parse_args()

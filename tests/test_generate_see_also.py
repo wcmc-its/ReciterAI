@@ -17,7 +17,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from generate_see_also import _apply_bidirectionality_filter, generate_see_also
+from cli.generate_see_also import _apply_bidirectionality_filter, generate_see_also
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ def test_generate_see_also_end_to_end_mocked(tmp_path):
         ]
     }
 
-    with patch("generate_see_also._call_sonnet_for_see_also",
+    with patch("cli.generate_see_also._call_sonnet_for_see_also",
                return_value=mocked_sonnet_response):
         result = generate_see_also(
             input_path=str(input_path),

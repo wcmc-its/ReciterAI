@@ -94,9 +94,9 @@ def test_assign_subtopics_constants_pick_up_config_values(tmp_path: Path):
 @pytest.mark.parametrize(
     "module_name, attr_name",
     [
-        ("discover_subtopics", "SCORE_FLOOR"),
-        ("backfill_topic", "SCORE_FLOOR"),
-        ("backfill_all", "SCORE_FLOOR"),
+        ("cli.discover_subtopics", "SCORE_FLOOR"),
+        ("cli.backfill_topic", "SCORE_FLOOR"),
+        ("cli.backfill_all", "SCORE_FLOOR"),
         ("score_publications", "SCREENING_THRESHOLD"),
         ("cli.load_dynamodb", "DEFAULT_MIN_SCORE"),
     ],
@@ -114,7 +114,7 @@ def test_pipeline_score_floor_constants_read_from_config(module_name, attr_name)
     "module_name, attr_name, config_key",
     [
         ("pipeline_hot.orchestrator", "_BOOTSTRAP_LOOKBACK_DAYS", "bootstrap_lookback_days"),
-        ("discover_subtopics", "MIN_CLUSTER_SIZE", "discover_min_cluster_size"),
+        ("cli.discover_subtopics", "MIN_CLUSTER_SIZE", "discover_min_cluster_size"),
         ("score_publications", "TARGET_FAILURE_RATE", "target_failure_rate"),
         ("spotlight.pool_ranker", "TOP_PAPERS_PER_SUBTOPIC", "pool_top_papers_per_subtopic"),
     ],

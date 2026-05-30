@@ -101,7 +101,7 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="assign",
-            command=[sys.executable, "backfill_all.py", "--skip-pm-copy", "--skip-all-reviews"],
+            command=[sys.executable, "-m", "cli.backfill_all", "--skip-pm-copy", "--skip-all-reviews"],
             description=(
                 "Per-topic discover + assign + relabel via backfill_all.py "
                 "(iteration owned by the wrapper). --skip-all-reviews because "
@@ -130,7 +130,7 @@ def default_cold_stages() -> list[ColdStage]:
             # publish_hierarchy refuses to ship a hierarchy that has any
             # subtopic missing display_name/short_description, so this stage
             # MUST run after assign discovers new subtopics for a new topic.
-            command=[sys.executable, "relabel_subtopics.py"],
+            command=[sys.executable, "-m", "cli.relabel_subtopics"],
             description="Relabel pass over existing hierarchy drafts",
         ),
         ColdStage(
@@ -148,7 +148,7 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="count",
-            command=[sys.executable, "count_by_cwid.py"],
+            command=[sys.executable, "-m", "cli.count_by_cwid"],
             description=(
                 "Scan TOPIC# activity rows and produce per-CWID breakdown CSVs "
                 "(faculty_subtopic_counts_{exclusive,inclusive}.csv + legacy "
@@ -174,7 +174,7 @@ def default_cold_stages() -> list[ColdStage]:
         ),
         ColdStage(
             name="backfill_spotlight",
-            command=[sys.executable, "backfill_spotlight.py", "--publish"],
+            command=[sys.executable, "-m", "cli.backfill_spotlight", "--publish"],
             description="Generate spotlight ledes for ranked subtopic pool",
         ),
         ColdStage(

@@ -77,7 +77,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.env_check import load_thresholds  # noqa: E402
 
@@ -92,7 +92,7 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 
 
 # --- Constants ---
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 TAXONOMY_FILE = REPO_ROOT / "taxonomy_v2.json"
 PHASE_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
 ARTIFACTS_DIR = PHASE_DIR / "artifacts"
@@ -468,7 +468,7 @@ def run(topic_id: str, skip_review: bool, min_activities: int) -> int:
                 "pass 1: discover",
                 [
                     sys.executable,
-                    str(REPO_ROOT / "discover_subtopics.py"),
+                    str(REPO_ROOT / "cli" / "discover_subtopics.py"),
                     "--topic",
                     topic_id,
                     "--min-activities",
@@ -520,7 +520,7 @@ def run(topic_id: str, skip_review: bool, min_activities: int) -> int:
             "pass 3: aggregate",
             [
                 sys.executable,
-                str(REPO_ROOT / "aggregate_subtopic_scores.py"),
+                str(REPO_ROOT / "cli" / "aggregate_subtopic_scores.py"),
                 "--topic",
                 topic_id,
             ],

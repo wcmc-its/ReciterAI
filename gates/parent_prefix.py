@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from gates.registry import GateResult, SEVERITY_BLOCK, register_gate
-from relabel_subtopics import find_parent_prefix_violation
+from cli.relabel_subtopics import find_parent_prefix_violation
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TAXONOMY_PATH = REPO_ROOT / "taxonomy_v2.json"
