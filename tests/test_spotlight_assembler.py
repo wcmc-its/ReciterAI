@@ -234,7 +234,7 @@ def test_was_selected_reflects_selected_ids():
 
 def test_artifact_validates_against_schema():
     """Test 9: build_artifact output passes Draft 2020-12 schema validation."""
-    schema_path = Path(__file__).parent / "docs" / "spotlight.schema.json"
+    schema_path = Path(__file__).parent.parent / "docs" / "spotlight.schema.json"
     schema = json.loads(schema_path.read_text())
     selected, pool, sm = _build_minimal_inputs()
     art = build_artifact(selected, pool, sm)
@@ -244,7 +244,7 @@ def test_artifact_validates_against_schema():
 
 def test_no_cwid_literal_in_assembler_source():
     """Test 10: ``cwid_`` literal does NOT appear in spotlight/assembler.py source."""
-    src = (Path(__file__).parent / "spotlight" / "assembler.py").read_text()
+    src = (Path(__file__).parent.parent / "spotlight" / "assembler.py").read_text()
     code_lines = [
         line for line in src.splitlines() if not line.lstrip().startswith("#")
     ]
@@ -297,7 +297,7 @@ def test_papers_sourced_from_pool_entry():
 
 def test_schema_accepts_seven_paper_subtopic():
     """Test 14 (#49): schema validation passes with a 7-paper spotlight."""
-    schema_path = Path(__file__).parent / "docs" / "spotlight.schema.json"
+    schema_path = Path(__file__).parent.parent / "docs" / "spotlight.schema.json"
     schema = json.loads(schema_path.read_text())
     pool_papers = tuple(_paper(f"800000{i}", impact=99.0 - i) for i in range(1, 8))
     selected = [_vlede("st_001", "Aging / Geroscience", ("8000001", "8000002"))]
@@ -311,7 +311,7 @@ def test_schema_accepts_seven_paper_subtopic():
 
 def test_schema_accepts_under_supplied_subtopic():
     """Test 15 (#49): schema validation passes with a 2-paper spotlight (floor)."""
-    schema_path = Path(__file__).parent / "docs" / "spotlight.schema.json"
+    schema_path = Path(__file__).parent.parent / "docs" / "spotlight.schema.json"
     schema = json.loads(schema_path.read_text())
     p1, p2 = _paper("9000001"), _paper("9000002")
     selected = [_vlede("st_001", "Aging / Geroscience", ("9000001", "9000002"))]

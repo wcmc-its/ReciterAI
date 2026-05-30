@@ -43,7 +43,7 @@ from spotlight.publish import publish_artifact
 from spotlight.rotation_selector import Selection
 from spotlight.types import Author, Paper, PoolEntry
 
-FIXTURES_DIR = Path(__file__).parent / "tests" / "fixtures"
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 # ---------------------------------------------------------------------------
