@@ -64,9 +64,17 @@ class PoolEntry:
     ``papers`` is a tuple (not a list) so the frozen dataclass remains
     hashable — required so downstream stages can use PoolEntry as a dict
     key or set member.
+
+    ``full_pmids`` is the subtopic's complete author-resolved membership for
+    the window (every PMID, not just the top-K in ``papers``). The spotlight
+    near-clone gate uses it to compute cross-subtopic article overlap (#164),
+    which catches equivalent subtopics whose descriptions are worded too
+    differently to trip the cosine gate. Defaults to empty for callers/tests
+    that don't populate it (the overlap gate then contributes no edges).
     """
 
     subtopic_id: str
     pool_score: float
     parent_topic: str
     papers: tuple[Paper, ...]
+    full_pmids: frozenset[str] = frozenset()

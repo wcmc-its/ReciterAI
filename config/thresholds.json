@@ -33,5 +33,6 @@
   "hierarchy_dedup_article_overlap_min": 0.40,
   "hierarchy_dedup_cosine_min": 0.75,
   "hierarchy_dedup_containment_ratio": 3.0,
-  "hierarchy_dedup_flag_overlap_min": 0.60
+  "hierarchy_dedup_flag_overlap_min": 0.60,
+  "spotlight_clone_overlap_min": 0.40
 }

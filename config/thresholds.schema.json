@@ -219,6 +219,12 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Cross-topic subtopic dedup (#164): an ASYMMETRIC (containment) pair whose article-set overlap is at or above this value is emitted as a parent/child FLAG for review (not merged)."
+    },
+    "spotlight_clone_overlap_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Spotlight near-clone gate (#164): two pooled subtopics whose author-resolved article-set overlap (min-cardinality coefficient, D-23) is at or above this value are treated as near-clones and never co-featured in one spotlight publish. Complements spotlight_theme_similarity_max (description cosine) — the overlap signal catches equivalent subtopics worded too differently to trip the cosine gate (the spaceflight/disparities home-page duplicates). Containment pairs (size ratio >= hierarchy_dedup_containment_ratio) are exempt."
     }
   }
 }

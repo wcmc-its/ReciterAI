@@ -23,6 +23,8 @@ from pipeline_hierarchy.subtopic_dedup import (
     Subtopic,
     decide_dedup,
     load_dedup_thresholds,
+    overlap_adjacency,
+    union_adjacency,
 )
 
 
@@ -219,6 +221,49 @@ def test_load_dedup_thresholds_reads_config_and_falls_back():
     fallback = load_dedup_thresholds({})
     assert fallback["article_overlap_min"] == DEFAULT_ARTICLE_OVERLAP_MIN
     assert fallback["cosine_min"] == DEFAULT_COSINE_MIN
+
+
+def test_overlap_adjacency_symmetric_edge():
+    """Symmetric pair above the overlap floor gets a symmetric edge."""
+    pmid_sets = {
+        "a": {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+        "b": {1, 2, 3, 4, 5, 11, 12, 13, 14, 15},  # overlap 5/10 = 0.5
+        "c": {100, 101, 102},  # disjoint
+    }
+    adj = overlap_adjacency(pmid_sets, article_overlap_min=0.4, containment_ratio=3.0)
+    assert adj["a"] == {"b"}
+    assert adj["b"] == {"a"}
+    assert adj["c"] == set()  # every sid present, isolated nodes empty
+
+
+def test_overlap_adjacency_skips_containment():
+    """A small subtopic inside a large one (ratio >= 3) is NOT an edge."""
+    pmid_sets = {
+        "small": set(range(1, 11)),  # 10
+        "large": set(range(1, 11)) | set(range(101, 141)),  # 50, contains small
+    }
+    # overlap = 10/10 = 1.0 but ratio = 5x -> exempt.
+    adj = overlap_adjacency(pmid_sets, article_overlap_min=0.4, containment_ratio=3.0)
+    assert adj["small"] == set()
+    assert adj["large"] == set()
+
+
+def test_overlap_adjacency_below_floor_no_edge():
+    pmid_sets = {"a": {1, 2, 3, 4, 5}, "b": {5, 6, 7, 8, 9}}  # overlap 1/5 = 0.2
+    adj = overlap_adjacency(pmid_sets, article_overlap_min=0.4, containment_ratio=3.0)
+    assert adj["a"] == set()
+    assert adj["b"] == set()
+
+
+def test_union_adjacency_merges_edge_sets():
+    cosine = {"a": {"b"}, "b": {"a"}, "c": set()}
+    overlap = {"a": {"c"}, "c": {"a"}, "d": {"e"}, "e": {"d"}}
+    out = union_adjacency(cosine, overlap)
+    assert out["a"] == {"b", "c"}
+    assert out["c"] == {"a"}
+    assert out["d"] == {"e"}
+    # inputs untouched
+    assert cosine["a"] == {"b"}
 
 
 def test_probe_loader_reads_augmented_files(tmp_path):

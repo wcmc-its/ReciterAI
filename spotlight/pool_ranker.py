@@ -304,6 +304,7 @@ def rank_pool(
             pool_score=score,
             parent_topic=parent_lookup.get(sid) or _parent_of(sid),
             papers=top,
+            full_pmids=frozenset(by_subtopic_pmid[sid]),
         )
         for sid, score, top in ranked[:pool_size]
     ]

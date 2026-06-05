@@ -205,6 +205,50 @@ def _group_cliques(adj: dict[str, set[str]]) -> list[set[str]]:
     return clusters
 
 
+def overlap_adjacency(
+    pmid_sets: dict[str, set],
+    *,
+    article_overlap_min: float = DEFAULT_ARTICLE_OVERLAP_MIN,
+    containment_ratio: float = DEFAULT_CONTAINMENT_RATIO,
+) -> dict[str, set[str]]:
+    """Symmetric near-clone adjacency from article-set overlap alone (#164).
+
+    Two subtopics are adjacent when their min-cardinality overlap (D-23) is at
+    or above ``article_overlap_min`` AND they are not an asymmetric containment
+    pair (size ratio < ``containment_ratio``) — a small subtopic nested in a
+    large one is kept, not flagged. Pure; no embeddings, no AWS.
+
+    Shape matches ``theme_dedup.NearClones.adjacency`` so it can be unioned
+    straight into the spotlight rotation selector's near-clone gate.
+    """
+    adj: dict[str, set[str]] = {sid: set() for sid in pmid_sets}
+    overlaps = compute_pairwise_overlap(pmid_sets)
+    for (a, b), ov in overlaps.items():
+        if ov < article_overlap_min:
+            continue
+        na, nb = len(pmid_sets[a]), len(pmid_sets[b])
+        lo, hi = min(na, nb), max(na, nb)
+        ratio = (hi / lo) if lo > 0 else float("inf")
+        if ratio >= containment_ratio:
+            continue  # containment — keep both (parent/child), do not gate
+        adj[a].add(b)
+        adj[b].add(a)
+    return adj
+
+
+def union_adjacency(*adjacencies: dict[str, set[str]]) -> dict[str, set[str]]:
+    """Merge symmetric adjacency maps into one (union of edges).
+
+    Every key from every input appears in the result; each maps to the union
+    of its neighbor sets across inputs. Inputs are not mutated.
+    """
+    out: dict[str, set[str]] = {}
+    for adj in adjacencies:
+        for sid, neighbors in adj.items():
+            out.setdefault(sid, set()).update(neighbors)
+    return out
+
+
 def decide_dedup(
     subtopics: Iterable[Subtopic],
     *,
