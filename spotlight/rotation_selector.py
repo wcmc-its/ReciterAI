@@ -42,7 +42,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DECAY_TAU_WEEKS = 12  # CONTEXT decision Q1.3
-SELECTION_SIZE = 10  # CONTEXT decision Q1.1 (FLOOR; not a ceiling)
+SELECTION_SIZE = 10  # CONTEXT decision Q1.1 (function-default FLOOR; not a ceiling)
+# #164: publish up to this many distinct, non-equivalent spotlights (a CEILING).
+# The caller (backfill_spotlight) passes n = min(SELECTION_TARGET, distinct
+# parents available in the pool), so a thin pool publishes fewer rather than
+# floor-failing. SPS samples 8 of the published set per page load, so a larger,
+# deduped pool means more variety and fewer repeats — not 25 cards on screen.
+SELECTION_TARGET = 25
 TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 BATCH_GET_LIMIT = 25  # DynamoDB BatchGetItem safe per-call default

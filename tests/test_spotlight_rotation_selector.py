@@ -149,6 +149,31 @@ class StubUpdateClient:
 # ---------------------------------------------------------------------------
 
 
+def test_select_up_to_target_returns_target_when_pool_is_rich():
+    """#164: with >= SELECTION_TARGET distinct parents, the selector returns 25."""
+    from spotlight.rotation_selector import SELECTION_TARGET, select_with_diversity
+
+    assert SELECTION_TARGET == 25
+    pool = [_make_pool_entry(f"s{i}", f"parent_{i}", float(100 - i)) for i in range(30)]
+    selected = select_with_diversity(pool, history={}, n=SELECTION_TARGET)
+    assert len(selected) == 25
+    assert len({s.entry.parent_topic for s in selected}) == 25
+
+
+def test_select_caps_at_available_distinct_parents_no_floor_failure():
+    """#164: the backfill cap pattern n=min(target, distinct_parents) never floor-fails.
+
+    A thin pool (fewer distinct parents than the target) publishes what's
+    available instead of raising — that's what makes 25 a ceiling, not a floor.
+    """
+    from spotlight.rotation_selector import SELECTION_TARGET, select_with_diversity
+
+    pool = [_make_pool_entry(f"s{i}", f"parent_{i}", float(50 - i)) for i in range(12)]
+    n = min(SELECTION_TARGET, len({e.parent_topic for e in pool}))  # min(25, 12) = 12
+    selected = select_with_diversity(pool, history={}, n=n)
+    assert len(selected) == 12  # no ValueError; publishes the 12 available
+
+
 def test_01_selection_score_cold_start_returns_full_pool_score():
     from spotlight.rotation_selector import selection_score
 

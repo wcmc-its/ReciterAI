@@ -391,7 +391,11 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
       6. Publish (publish.publish_artifact) — only on --publish
     """
     from spotlight.pool_ranker import rank_pool
-    from spotlight.rotation_selector import fetch_history, select_with_diversity
+    from spotlight.rotation_selector import (
+        SELECTION_TARGET,
+        fetch_history,
+        select_with_diversity,
+    )
     from spotlight.author_resolver import resolve_authors
     from spotlight.theme_dedup import NearClones, find_near_clones
     from utils.env_check import load_thresholds
@@ -470,12 +474,28 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         overlap_min,
     )
 
+    # #164: publish up to SELECTION_TARGET (25) distinct, non-equivalent
+    # spotlights. select_with_diversity treats n as a FLOOR (raises if it can't
+    # reach n distinct parents), so cap n at the distinct parents actually in
+    # the pool — a thin pool then publishes fewer rather than crashing the run.
+    distinct_parents = len({e.parent_topic for e in pool})
+    n_target = min(SELECTION_TARGET, distinct_parents)
+    logger.info(
+        "selection target: %d (min of SELECTION_TARGET=%d and %d distinct "
+        "parents in pool)",
+        n_target,
+        SELECTION_TARGET,
+        distinct_parents,
+    )
     selections = select_with_diversity(
-        pool, history, near_clones=combined_adjacency
+        pool, history, n=n_target, near_clones=combined_adjacency
     )
 
     print(f"\nPool ranker: {len(pool)} subtopics ranked.")
-    print(f"Rotation selector: {len(selections)} selections.")
+    print(
+        f"Rotation selector: {len(selections)} selections "
+        f"(target {n_target}, {distinct_parents} distinct parents in pool)."
+    )
     for s in selections:
         print(
             f"  - {s.entry.subtopic_id} (parent={s.entry.parent_topic}, "
