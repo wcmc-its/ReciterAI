@@ -25,7 +25,7 @@ research publications into thematic subtopics.
 You will receive a parent topic (label and description) and a list of research activities
 (publications), each with a PMID, title, synopsis, impact score, and relevance score.
 
-Your goal is to cluster these activities into 8 to 15 coherent thematic subtopics that
+Your goal is to cluster these activities into 8 to 25 coherent thematic subtopics that
 reflect the actual research themes present in the data.
 
 OUTPUT FORMAT — return ONLY a JSON object with NO markdown fences, NO commentary, NO prose:
@@ -46,7 +46,7 @@ OUTPUT FORMAT — return ONLY a JSON object with NO markdown fences, NO commenta
 }
 
 RULES:
-1. Produce between 8 and 15 subtopics. Do not go below 8 or above 15.
+1. Produce between 8 and 25 subtopics. Do not go below 8 or above 25.
 2. Every cluster MUST have at least 3 seed_pmids. If a potential cluster has fewer than 3
    activities, do NOT create it — leave those activities in the "uncovered" list instead.
 3. Each cluster must represent a coherent, distinct theme that is actually present in the
