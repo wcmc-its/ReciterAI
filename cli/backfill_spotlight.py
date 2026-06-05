@@ -451,18 +451,29 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     # same theme regardless of wording, so union an overlap adjacency
     # (min-cardinality D-23, containment-exempt) into the gate. Additive —
     # it only ever adds edges, never removes a cosine one.
-    from pipeline_hierarchy.subtopic_dedup import overlap_adjacency, union_adjacency
+    from pipeline_hierarchy.subtopic_dedup import (
+        overlap_adjacency,
+        theme_cap_adjacency,
+        union_adjacency,
+    )
 
     thresholds = load_thresholds()
     overlap_min = float(thresholds["spotlight_clone_overlap_min"])
     containment_ratio = float(thresholds["hierarchy_dedup_containment_ratio"])
+    theme_cap_patterns = thresholds.get("spotlight_theme_cap_patterns", [])
+    pool_ids = [e.subtopic_id for e in pool]
     pool_pmid_sets = {e.subtopic_id: set(e.full_pmids) for e in pool}
     overlap_adj = overlap_adjacency(
         pool_pmid_sets,
         article_overlap_min=overlap_min,
         containment_ratio=containment_ratio,
     )
-    combined_adjacency = union_adjacency(near_clones.adjacency, overlap_adj)
+    # #164: editorial cross-cutting-theme cap (e.g. cap "disparit"ies at one
+    # featured card) — distinct facets the similarity signals score as distinct.
+    theme_adj = theme_cap_adjacency(pool_ids, theme_cap_patterns)
+    combined_adjacency = union_adjacency(
+        near_clones.adjacency, overlap_adj, theme_adj
+    )
     overlap_only_edges = sum(
         len(overlap_adj.get(sid, set()) - near_clones.adjacency.get(sid, set()))
         for sid in combined_adjacency

@@ -236,6 +236,35 @@ def overlap_adjacency(
     return adj
 
 
+def theme_cap_adjacency(
+    subtopic_ids: list[str], patterns: list[str]
+) -> dict[str, set[str]]:
+    """Cap a cross-cutting theme at one featured subtopic (#164).
+
+    Some themes (health *disparities*) legitimately recur across many parent
+    topics as substantively-distinct facets, so neither the cosine nor the
+    article-overlap signal flags them as equivalent — yet on a home page three
+    "…Disparities…" cards read as redundant. This is an EDITORIAL call, not a
+    model one: the operator lists the broad theme stems to cap.
+
+    For each pattern, every subtopic id containing it (case-insensitive
+    substring) is connected pairwise into a clique. Unioned into the near-clone
+    gate, that makes the selector keep only the highest-scored member of each
+    capped theme. Distinct from the similarity signals — it does not look at
+    descriptions or papers, so keep the pattern list tight (e.g. ``disparit``)
+    to avoid collapsing genuinely-distinct work that merely shares a word.
+    """
+    adj: dict[str, set[str]] = {sid: set() for sid in subtopic_ids}
+    for pat in patterns:
+        needle = pat.lower()
+        members = [sid for sid in subtopic_ids if needle in sid.lower()]
+        for i in range(len(members)):
+            for j in range(i + 1, len(members)):
+                adj[members[i]].add(members[j])
+                adj[members[j]].add(members[i])
+    return adj
+
+
 def union_adjacency(*adjacencies: dict[str, set[str]]) -> dict[str, set[str]]:
     """Merge symmetric adjacency maps into one (union of edges).
 
