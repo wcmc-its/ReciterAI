@@ -103,6 +103,7 @@ class Subtopic:
     pmids: frozenset
     total_weight: float
     activity_count: int
+    label: str = ""  # human-readable; for review output only, not a signal
 
 
 @dataclass

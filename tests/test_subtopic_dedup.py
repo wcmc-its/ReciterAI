@@ -234,6 +234,7 @@ def test_probe_loader_reads_augmented_files(tmp_path):
                 "subtopics": [
                     {
                         "id": "t1_alpha",
+                        "display_name": "Alpha Theme",
                         "short_description": "alpha desc",
                         "seed_pmids": [1, 2, 3],
                         "total_weight": 4.5,
@@ -252,3 +253,4 @@ def test_probe_loader_reads_augmented_files(tmp_path):
     assert s.pmids == frozenset({1, 2, 3})
     assert s.total_weight == 4.5
     assert s.activity_count == 7
+    assert s.label == "Alpha Theme"

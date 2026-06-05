@@ -65,6 +65,7 @@ def build_subtopics_from_augmented(augmented_dir: Path) -> list[Subtopic]:
                     pmids=frozenset(s.get("seed_pmids", [])),
                     total_weight=float(s.get("total_weight", 0.0)),
                     activity_count=int(s.get("activity_count", 0)),
+                    label=(s.get("display_name") or s.get("label") or s["id"]),
                 )
             )
     return subs
@@ -104,6 +105,56 @@ def _format_report(plan, n_subtopics: int) -> str:
     return "\n".join(lines)
 
 
+def _format_markdown(plan, subs) -> str:
+    """Human-readable worklist: merge groups (largest first) with labels + topics."""
+    by_id = {s.id: s for s in subs}
+
+    def show(sid: str) -> str:
+        s = by_id.get(sid)
+        if s is None:
+            return f"`{sid}`"
+        return f"**{s.label}** _({s.topic_id}, {len(s.pmids)} pmids, w={s.total_weight:g})_"
+
+    lines = [
+        "# Cross-topic subtopic dedup — merge worklist (#164)",
+        "",
+        f"- Subtopics scanned: **{len(subs)}**",
+        f"- Cross-topic pairs evaluated: **{plan.pairs_considered}**",
+        f"- Merge groups: **{len(plan.merges)}**  |  Parent/child flags: **{len(plan.flags)}**",
+        f"- Thresholds: `{plan.thresholds}`",
+        "",
+        "Canonical survivor = highest total_weight. Review each group: ✅ keep / "
+        "❌ split / ✂️ drop a member.",
+        "",
+    ]
+
+    ranked = sorted(plan.merges, key=lambda g: (-(1 + len(g.member_ids)), g.canonical_id))
+    for i, g in enumerate(ranked, 1):
+        size = 1 + len(g.member_ids)
+        lines.append(f"## {i}. [{size} members] canonical: {show(g.canonical_id)}")
+        for m in g.member_ids:
+            lines.append(f"   - ⤷ folds in: {show(m)}")
+        for e in g.evidence:
+            cos = "" if e["cosine"] is None else f", cosine={e['cosine']}"
+            lines.append(
+                f"     - _{e['pair'][0]} ~ {e['pair'][1]}: overlap={e['article_overlap']}{cos}_"
+            )
+        lines.append("")
+
+    if plan.flags:
+        lines.append(f"## Parent/child flags ({len(plan.flags)}) — kept, NOT merged")
+        lines.append("")
+        lines.append("First 40 (by parent id):")
+        for f in plan.flags[:40]:
+            lines.append(
+                f"- {show(f.parent_id)} ⊃ {show(f.child_id)} "
+                f"— overlap={f.article_overlap}, ratio={f.size_ratio}x"
+            )
+        if len(plan.flags) > 40:
+            lines.append(f"- … and {len(plan.flags) - 40} more")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -125,6 +176,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--output", type=Path, default=None, help="write the full plan as JSON here"
+    )
+    parser.add_argument(
+        "--markdown",
+        type=Path,
+        default=None,
+        help="write a human-readable worklist (labels + topics) as Markdown here",
     )
     args = parser.parse_args(argv)
 
@@ -148,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         print(f"\nWrote {args.output}")
+
+    if args.markdown is not None:
+        args.markdown.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown.write_text(_format_markdown(plan, subs), encoding="utf-8")
+        print(f"Wrote {args.markdown}")
     return 0
 
 
