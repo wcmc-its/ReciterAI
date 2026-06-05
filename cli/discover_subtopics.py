@@ -2,7 +2,7 @@
 Pass 1 (Discovery): Cluster topic activities into subtopics via Sonnet.
 
 Reads TOPIC# DynamoDB records for a given topic_id, fetches activities
-scoring ≥0.3, and calls Sonnet (temperature=0) to cluster them into 8-15
+scoring ≥0.3, and calls Sonnet (temperature=0) to cluster them into 8-25
 thematic subtopics. If coverage after the first pass is <85%, a second
 extension pass is triggered (up to 2× the initial cluster count cap, D-01).
 

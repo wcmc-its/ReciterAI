@@ -44,7 +44,7 @@ def _iso_z(dt: datetime) -> str:
     )
 
 
-def _make_pool_entry(subtopic_id: str, parent_topic: str, pool_score: float):
+def _make_pool_entry(subtopic_id: str, parent_topic: str, pool_score: float, full_pmids=()):
     from spotlight.types import PoolEntry
 
     return PoolEntry(
@@ -52,7 +52,43 @@ def _make_pool_entry(subtopic_id: str, parent_topic: str, pool_score: float):
         pool_score=pool_score,
         parent_topic=parent_topic,
         papers=(),
+        full_pmids=frozenset(full_pmids),
     )
+
+
+def test_overlap_gate_stops_equivalent_subtopics_co_featuring():
+    """#164: three differently-parented subtopics that share most of their
+    papers (the spaceflight/disparities case) must not all be featured.
+
+    Drives the article-overlap signal through the real
+    rotation_selector.select_with_diversity gate. Without the gate all three
+    rank highest and get picked; with the overlap adjacency only one survives.
+    """
+    from spotlight.rotation_selector import select_with_diversity
+    from pipeline_hierarchy.subtopic_dedup import overlap_adjacency, union_adjacency
+
+    shared = set(range(1, 41))  # the same astronaut/spaceflight corpus
+    pool = [
+        _make_pool_entry("sf1", "genetics", 10.0, shared),
+        _make_pool_entry("sf2", "systems_biology", 9.9, shared),
+        _make_pool_entry("sf3", "single_cell", 9.8, shared),
+        _make_pool_entry("d1", "cardio", 5.0, range(100, 111)),
+        _make_pool_entry("d2", "neuro", 4.9, range(200, 211)),
+        _make_pool_entry("d3", "renal", 4.8, range(300, 311)),
+    ]
+    history = {e.subtopic_id: None for e in pool}  # cold start
+
+    # Without the gate: the three top-scored clones all get featured.
+    no_gate = select_with_diversity(pool, history, n=3, near_clones={})
+    assert {s.entry.subtopic_id for s in no_gate} == {"sf1", "sf2", "sf3"}
+
+    # With the overlap gate: at most one of the clones survives.
+    pmid_sets = {e.subtopic_id: set(e.full_pmids) for e in pool}
+    adj = union_adjacency({}, overlap_adjacency(pmid_sets, article_overlap_min=0.4))
+    gated = select_with_diversity(pool, history, n=3, near_clones=adj)
+    sf_selected = {s.entry.subtopic_id for s in gated} & {"sf1", "sf2", "sf3"}
+    assert len(sf_selected) == 1, f"expected 1 spaceflight clone, got {sf_selected}"
+    assert len(gated) == 3  # backfilled with distinct subtopics
 
 
 # ---------------------------------------------------------------------------

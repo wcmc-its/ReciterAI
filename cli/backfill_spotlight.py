@@ -439,8 +439,39 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             adjacency={}, ranked_pairs=[], threshold=theme_threshold
         )
 
+    # #164: strengthen the near-clone gate with an article-overlap signal.
+    # The cosine gate above misses equivalent subtopics that are worded
+    # differently (the spaceflight / disparities home-page duplicates). Two
+    # pooled subtopics that share most of their author-resolved papers are the
+    # same theme regardless of wording, so union an overlap adjacency
+    # (min-cardinality D-23, containment-exempt) into the gate. Additive —
+    # it only ever adds edges, never removes a cosine one.
+    from pipeline_hierarchy.subtopic_dedup import overlap_adjacency, union_adjacency
+
+    thresholds = load_thresholds()
+    overlap_min = float(thresholds["spotlight_clone_overlap_min"])
+    containment_ratio = float(thresholds["hierarchy_dedup_containment_ratio"])
+    pool_pmid_sets = {e.subtopic_id: set(e.full_pmids) for e in pool}
+    overlap_adj = overlap_adjacency(
+        pool_pmid_sets,
+        article_overlap_min=overlap_min,
+        containment_ratio=containment_ratio,
+    )
+    combined_adjacency = union_adjacency(near_clones.adjacency, overlap_adj)
+    overlap_only_edges = sum(
+        len(overlap_adj.get(sid, set()) - near_clones.adjacency.get(sid, set()))
+        for sid in combined_adjacency
+    ) // 2
+    logger.info(
+        "near-clone gate: %d cosine edge(s) + %d overlap-only edge(s) "
+        "(overlap_min=%.2f)",
+        sum(len(v) for v in near_clones.adjacency.values()) // 2,
+        overlap_only_edges,
+        overlap_min,
+    )
+
     selections = select_with_diversity(
-        pool, history, near_clones=near_clones.adjacency
+        pool, history, near_clones=combined_adjacency
     )
 
     print(f"\nPool ranker: {len(pool)} subtopics ranked.")
@@ -457,6 +488,23 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         # non-generative Titan embedding calls; the report below is the
         # calibration surface for spotlight_theme_similarity_max (#91 §7).
         _print_near_clone_report(near_clones, selections)
+        # #164 calibration surface for spotlight_clone_overlap_min: the pairs
+        # the overlap signal gates that cosine did not.
+        extra = sorted(
+            {
+                tuple(sorted((sid, other)))
+                for sid, nbrs in overlap_adj.items()
+                for other in nbrs - near_clones.adjacency.get(sid, set())
+            }
+        )
+        print(f"\nArticle-overlap near-clone edges (>= {overlap_min}): {len(extra)}")
+        for a, b in extra[:40]:
+            ov = round(
+                len(pool_pmid_sets[a] & pool_pmid_sets[b])
+                / max(1, min(len(pool_pmid_sets[a]), len(pool_pmid_sets[b]))),
+                3,
+            )
+            print(f"  {a} ~ {b}  (overlap={ov})")
         return 0
 
     # Stage 3+4+5+6: --dry-run-full or --publish.
