@@ -80,8 +80,8 @@ def _parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help=(
-            "Print pool ranking + selected 10 + draft ledes. NO Bedrock "
-            "LLM critic, NO publish. Cheapest preview."
+            "Print pool ranking + selected subtopics (up to 25) + near-clone "
+            "report. NO Bedrock LLM critic, NO publish. Cheapest preview."
         ),
     )
     parser.add_argument(
@@ -392,6 +392,7 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """
     from spotlight.pool_ranker import rank_pool
     from spotlight.rotation_selector import (
+        SELECTION_FLOOR,
         SELECTION_TARGET,
         fetch_history,
         select_with_diversity,
@@ -474,27 +475,32 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         overlap_min,
     )
 
-    # #164: publish up to SELECTION_TARGET (25) distinct, non-equivalent
-    # spotlights. select_with_diversity treats n as a FLOOR (raises if it can't
-    # reach n distinct parents), so cap n at the distinct parents actually in
-    # the pool — a thin pool then publishes fewer rather than crashing the run.
+    # #164 "clean over count": publish the clone-free, parent-distinct set up
+    # to SELECTION_TARGET (25). n is the CEILING; SELECTION_FLOOR is the only
+    # point Pass 2 force-admits near-clones — so a thin pool publishes fewer
+    # CLEAN subtopics rather than padding the count with duplicates. SPS samples
+    # 8 of whatever we publish, so 18-22 distinct is still plenty of variety.
     distinct_parents = len({e.parent_topic for e in pool})
-    n_target = min(SELECTION_TARGET, distinct_parents)
-    logger.info(
-        "selection target: %d (min of SELECTION_TARGET=%d and %d distinct "
-        "parents in pool)",
-        n_target,
-        SELECTION_TARGET,
-        distinct_parents,
-    )
     selections = select_with_diversity(
-        pool, history, n=n_target, near_clones=combined_adjacency
+        pool,
+        history,
+        n=SELECTION_TARGET,
+        n_floor=SELECTION_FLOOR,
+        near_clones=combined_adjacency,
+    )
+    logger.info(
+        "selection: %d clean (ceiling=%d, floor=%d, %d distinct parents in pool)",
+        len(selections),
+        SELECTION_TARGET,
+        SELECTION_FLOOR,
+        distinct_parents,
     )
 
     print(f"\nPool ranker: {len(pool)} subtopics ranked.")
     print(
         f"Rotation selector: {len(selections)} selections "
-        f"(target {n_target}, {distinct_parents} distinct parents in pool)."
+        f"(clean up to {SELECTION_TARGET}, floor {SELECTION_FLOOR}, "
+        f"{distinct_parents} distinct parents in pool)."
     )
     for s in selections:
         print(

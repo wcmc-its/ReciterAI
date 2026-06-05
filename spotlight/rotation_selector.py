@@ -44,11 +44,17 @@ logger = logging.getLogger(__name__)
 DECAY_TAU_WEEKS = 12  # CONTEXT decision Q1.3
 SELECTION_SIZE = 10  # CONTEXT decision Q1.1 (function-default FLOOR; not a ceiling)
 # #164: publish up to this many distinct, non-equivalent spotlights (a CEILING).
-# The caller (backfill_spotlight) passes n = min(SELECTION_TARGET, distinct
-# parents available in the pool), so a thin pool publishes fewer rather than
-# floor-failing. SPS samples 8 of the published set per page load, so a larger,
-# deduped pool means more variety and fewer repeats — not 25 cards on screen.
+# The caller passes n=SELECTION_TARGET as the ceiling and n_floor=SELECTION_FLOOR
+# as the minimum. Pass 1 fills the ceiling clone-free; Pass 2 force-admits
+# near-clones ONLY to reach the floor, so a thin pool publishes fewer CLEAN
+# subtopics rather than padding the count with duplicates ("clean over count").
+# SPS samples 8 of the published set per page load, so a larger deduped pool
+# means more variety and fewer repeats — not 25 cards on screen.
 SELECTION_TARGET = 25
+# Minimum publishable spotlight size. Below this many clone-free selections the
+# pool is degenerate enough that admitting a few near-clones (or, failing that,
+# raising) is the lesser evil. Set low so realistic pools never force a clone.
+SELECTION_FLOOR = 8
 TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 BATCH_GET_LIMIT = 25  # DynamoDB BatchGetItem safe per-call default
@@ -245,6 +251,7 @@ def select_with_diversity(
     history: dict[str, Optional[str]],
     n: int = SELECTION_SIZE,
     *,
+    n_floor: int | None = None,
     near_clones: dict[str, set[str]] | None = None,
 ) -> list[Selection]:
     """SPOT-03 greedy parent-diversity selection with a #91 near-clone gate.
@@ -269,17 +276,25 @@ def select_with_diversity(
     best-effort — the near-clone gate can never block a monthly publish — and
     each forced near-clone admission is logged at WARNING.
 
-    Selection size is a FLOOR (RESEARCH §Open Q §8): if even Pass 2 cannot
-    reach ``n`` distinct parent topics, raises ValueError. Because Pass 2 has
-    the clone gate off, a floor failure is always a genuine parent-topic
-    shortage (T-06-03-05 mitigation).
+    ``n`` is a CEILING (Pass 1 stops at it) and ``n_floor`` is the FLOOR that
+    Pass 2 force-fills to. When ``n_floor < n`` (the #164 "clean over count"
+    publish), Pass 1 takes as many clone-free, parent-distinct subtopics as the
+    pool offers up to ``n``, and Pass 2 admits near-clones ONLY if Pass 1 fell
+    below ``n_floor`` — so a thin pool publishes fewer CLEAN subtopics rather
+    than padding the count with duplicates. If even Pass 2 cannot reach
+    ``n_floor``, raises ValueError (genuine parent-topic shortage; T-06-03-05).
+    When ``n_floor is None`` it defaults to ``n`` — the original behavior where
+    ``n`` is a hard floor and Pass 2 pads to it.
 
     Args:
         pool: list of PoolEntry from ``pool_ranker.rank_pool()``. NOT
             mutated by this function.
         history: dict mapping subtopic_id → last_shown_at ISO string (or
             None for cold-start). Use ``fetch_history`` to populate.
-        n: floor on number of selections to return. Default SELECTION_SIZE.
+        n: ceiling — Pass 1 selects up to this many clone-free, parent-distinct
+            subtopics. Default SELECTION_SIZE.
+        n_floor: minimum selections Pass 2 force-fills to (admitting near-clones
+            only if needed). Defaults to ``n`` (hard-floor / original behavior).
         near_clones: optional symmetric adjacency mapping each subtopic_id to
             the set of pool subtopic_ids it is a near-clone of
             (``theme_dedup.NearClones.adjacency``). None (the default)
@@ -290,12 +305,15 @@ def select_with_diversity(
             (graceful degradation, #91 plan §9.6).
 
     Returns:
-        List of ``n`` Selection objects, each with a unique parent_topic.
+        List of between ``n_floor`` and ``n`` Selection objects, each with a
+        unique parent_topic.
 
     Raises:
-        ValueError: if fewer than ``n`` distinct parent topics are
+        ValueError: if fewer than ``n_floor`` distinct parent topics are
             available in the pool ("selection floor failure").
     """
+    if n_floor is None:
+        n_floor = n
     scored = [
         Selection(
             entry=e,
@@ -348,14 +366,14 @@ def select_with_diversity(
     # clone gate skipped valid candidates. Relax the clone gate, keep the
     # parent gate, and fill least-cloned-first so the publish doubles up on
     # the least-repeated theme only as forced — never just by raw sel_score.
-    if len(selected) < n:
+    if len(selected) < n_floor:
         remaining = [
             s
             for s in scored
             if s.entry.subtopic_id not in selected_sids
             and s.entry.parent_topic not in parents
         ]
-        while len(selected) < n and remaining:
+        while len(selected) < n_floor and remaining:
             # ``remaining`` stays in sel_score-DESC order, so min() returns
             # the first candidate achieving the lowest clone-overlap count —
             # i.e. sel_score is the natural tiebreaker.
@@ -387,10 +405,10 @@ def select_with_diversity(
                 s for s in remaining if s.entry.parent_topic not in parents
             ]
 
-    if len(selected) < n:
+    if len(selected) < n_floor:
         raise ValueError(
             f"selection floor failure: pool yields {len(selected)} distinct "
-            f"parent topics; need {n}. Distinct parents: {sorted(parents)}"
+            f"parent topics; need {n_floor}. Distinct parents: {sorted(parents)}"
         )
 
     logger.info(

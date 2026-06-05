@@ -160,18 +160,48 @@ def test_select_up_to_target_returns_target_when_pool_is_rich():
     assert len({s.entry.parent_topic for s in selected}) == 25
 
 
-def test_select_caps_at_available_distinct_parents_no_floor_failure():
-    """#164: the backfill cap pattern n=min(target, distinct_parents) never floor-fails.
+def test_clean_over_count_does_not_pad_with_clones_above_floor():
+    """#164: with n_floor < n, Pass 2 does NOT re-admit near-clones to hit the
+    ceiling — a thin pool publishes the CLEAN set, not a padded count.
 
-    A thin pool (fewer distinct parents than the target) publishes what's
-    available instead of raising — that's what makes 25 a ceiling, not a floor.
+    8 clean subtopics (distinct parents) + 4 clones (each a near-clone of a
+    clean one, on their own parents). Ceiling 25, floor 8: Pass 1 takes the 8
+    clean, the 4 clones gate out, and since 8 >= floor, Pass 2 stays off.
     """
-    from spotlight.rotation_selector import SELECTION_TARGET, select_with_diversity
+    from spotlight.rotation_selector import select_with_diversity
 
-    pool = [_make_pool_entry(f"s{i}", f"parent_{i}", float(50 - i)) for i in range(12)]
-    n = min(SELECTION_TARGET, len({e.parent_topic for e in pool}))  # min(25, 12) = 12
-    selected = select_with_diversity(pool, history={}, n=n)
-    assert len(selected) == 12  # no ValueError; publishes the 12 available
+    clean = [_make_pool_entry(f"c{i}", f"pc{i}", float(100 - i)) for i in range(8)]
+    clones = [_make_pool_entry(f"k{i}", f"pk{i}", float(90 - i)) for i in range(4)]
+    near_clones = {f"c{i}": set() for i in range(8)}
+    for i in range(4):
+        near_clones[f"k{i}"] = {f"c{i}"}
+        near_clones[f"c{i}"] = {f"k{i}"}
+
+    selected = select_with_diversity(
+        clean + clones, history={}, n=25, n_floor=8, near_clones=near_clones
+    )
+    sids = {s.entry.subtopic_id for s in selected}
+    assert len(selected) == 8  # clean set only, NOT padded to 12
+    assert sids == {f"c{i}" for i in range(8)}
+    assert not (sids & {f"k{i}" for i in range(4)})  # no clones admitted
+
+
+def test_safety_floor_still_forces_clones_when_below_it():
+    """#164: below n_floor, Pass 2 still force-admits clones (the safety net)."""
+    from spotlight.rotation_selector import select_with_diversity
+
+    clean = [_make_pool_entry(f"c{i}", f"pc{i}", float(100 - i)) for i in range(5)]
+    clones = [_make_pool_entry(f"k{i}", f"pk{i}", float(90 - i)) for i in range(4)]
+    near_clones = {f"c{i}": set() for i in range(5)}
+    for i in range(4):
+        near_clones[f"k{i}"] = {f"c{i % 5}"}
+        near_clones.setdefault(f"c{i % 5}", set()).add(f"k{i}")
+
+    # Only 5 clean; floor is 8 -> Pass 2 admits 3 clones to reach 8.
+    selected = select_with_diversity(
+        clean + clones, history={}, n=25, n_floor=8, near_clones=near_clones
+    )
+    assert len(selected) == 8
 
 
 def test_01_selection_score_cold_start_returns_full_pool_score():
