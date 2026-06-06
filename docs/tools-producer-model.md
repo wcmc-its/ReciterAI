@@ -61,10 +61,12 @@ The profile renders two complementary lenses as a **compact filter cluster direc
 
 ## #7 — Parent–canonical cardinality: **1:N, parent optional**
 - Canonical entity sits at the **capability** level. `parent_tool_ids[]` is a list — empty/single for most v1 entries, permitting N (e.g. "Cox proportional-hazards regression" parented under SAS *and* R *and* lifelines; a Python lib that also ships with Bioconductor).
-- `functional_category` is the **browse facet** (≈10 buckets), distinct from the parent edge. Full method↔implementation hierarchy is a v2 concern; the field exists in v1 so the schema never has to migrate.
+- `functional_category` is the **browse facet** (≈10 buckets), distinct from the parent edge. Full method↔implementation hierarchy is a v2 concern. *(Update 2026-06-06: `functional_category` is **retired** by `docs/tool-classifier-spec.md` — its content is carried by `kind` + method family. The earlier "schema never has to migrate" assumption proved false; the record shape was refined pre-implementation — see §#8.)*
 
 ## #8 — `TOOL#` record schema
-**Canonical catalog entry** (`tool_taxonomy.json` + `TOOL_INDEX#<functional_category>` META rows):
+> **CANONICAL SHAPE LIVES IN `docs/tool-classifier-spec.md`.** The record shape was refined pre-implementation (2026-06-06) **without reopening the gate** — #5/#6/#7 stand as decided; only #8's fields are sharpened. The spec adds a `disposition` entry-gate (`method_tool`/`infrastructure`/`excluded`), an **8-value `kind`** enum (`model` split from `method`; adds `organism_or_cells`, `assay`; drops `model_system`/`clinical_tool`), **13 curated supercategories** (the browse facet), an `attributes` block (`delivery`/`provenance`/`license`/`consumable`/`rrid_candidate`), persistent **match-or-mint registries** for both canonical tools and method families (durable IDs, D-06), and **retires `functional_category`**. Defer to the spec wherever it differs from the sketch below.
+
+**Canonical catalog entry** — *original gate-time sketch, kept for provenance; superseded in detail by the spec above* (`tool_taxonomy.json` + `TOOL_INDEX#<functional_category>` META rows):
 ```
 canonical_tool_id   RRID:SCR_* | wcm_tool_<slug>     (STABLE — never recomputed)
 display_name        render-only (D-19 LOCKED)
