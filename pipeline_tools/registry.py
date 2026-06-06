@@ -168,6 +168,7 @@ class ToolRegistry:
         raw_name: str | None = None,
         disposition: str = vocab.DEFAULT_DISPOSITION,
         pub_ids: list | None = None,
+        pub_count: int | None = None,
         context: str | None = None,
     ) -> dict:
         """Create a new canonical tool with a durable opaque id (identity only).
@@ -175,9 +176,16 @@ class ToolRegistry:
         Classification fields (kind/supercategory/attributes/salience/family) are
         set later by the classify + salience + family stages via
         ``update_classification`` — match-or-mint resolves *identity* first.
+
+        ``pub_count`` is the SEED path: the seed carries an aggregate count, not
+        a PMID list (real per-pub dedup arrives at A2). When given, it is stored
+        as the record's count and summed on merge; ``pub_ids`` stays the A2 path.
+        ``pub_count`` reported by ``_serialize`` is ``|pub_ids|`` when ids exist,
+        else this stored seed count.
         """
         cid = self._minter.mint()
         aliases = sorted({a for a in {display_name, raw_name} if a and a.strip()})
+        ids = sorted({p for p in (pub_ids or [])})
         rec = {
             "canonical_tool_id": cid,
             "display_name": display_name.strip(),
@@ -189,7 +197,8 @@ class ToolRegistry:
             "salience_tier": None,
             "salience_tier_basis": None,
             "member_of_family": None,
-            "pub_ids": sorted({p for p in (pub_ids or [])}),
+            "pub_ids": ids,
+            "pub_count": int(pub_count) if pub_count is not None else len(ids),
             "context_evidence": [context] if context else [],
         }
         self._records[cid] = rec
@@ -202,13 +211,16 @@ class ToolRegistry:
         *,
         raw_name: str | None = None,
         pub_ids: list | None = None,
+        pub_count: int | None = None,
         context: str | None = None,
     ) -> dict:
         """Accrete a mention onto an existing record: alias + pub_ids + context.
 
         pub_ids accumulate as a set, so ``pub_count = |pub_ids|`` stays correct
         across batches (dedup by (tool, pub)); re-seeing the same pub does not
-        double-count.
+        double-count. The SEED ``pub_count`` (aggregate, no ids) instead SUMS on
+        merge — approximate by design, since two raw seed names lack the PMID
+        overlap needed to dedup (the A2 path with real ids does dedup correctly).
         """
         rec = self._records[canonical_tool_id]
         if raw_name and raw_name.strip():
@@ -216,6 +228,8 @@ class ToolRegistry:
             rec["aliases"] = sorted(merged)
         if pub_ids:
             rec["pub_ids"] = sorted(set(rec["pub_ids"]) | {p for p in pub_ids})
+        if pub_count is not None:
+            rec["pub_count"] = int(rec.get("pub_count", 0)) + int(pub_count)
         if context and context not in rec["context_evidence"]:
             rec["context_evidence"].append(context)
         self._reindex(canonical_tool_id)
@@ -258,6 +272,7 @@ class ToolRegistry:
         display_name: str | None = None,
         disposition: str = vocab.DEFAULT_DISPOSITION,
         pub_ids: list | None = None,
+        pub_count: int | None = None,
         context: str | None = None,
     ) -> tuple[dict | None, str]:
         """Resolve a mention to a record. Returns ``(record, action)``.
@@ -271,13 +286,14 @@ class ToolRegistry:
             return None, "denied"
         hit = self.match(raw_name)
         if hit is not None:
-            rec = self.attach(hit.key, raw_name=raw_name, pub_ids=pub_ids, context=context)
+            rec = self.attach(hit.key, raw_name=raw_name, pub_ids=pub_ids, pub_count=pub_count, context=context)
             return rec, "attached"
         rec = self.mint(
             display_name=display_name or raw_name,
             raw_name=raw_name,
             disposition=disposition,
             pub_ids=pub_ids,
+            pub_count=pub_count,
             context=context,
         )
         return rec, "minted"
@@ -295,7 +311,8 @@ class ToolRegistry:
     def _serialize(rec: dict) -> dict:
         out = dict(rec)
         out["pub_ids"] = sorted(rec.get("pub_ids", []))
-        out["pub_count"] = len(out["pub_ids"])
+        # |pub_ids| when real ids exist (A2 path); else the stored seed count.
+        out["pub_count"] = len(out["pub_ids"]) if out["pub_ids"] else int(rec.get("pub_count", 0))
         return out
 
 
@@ -307,6 +324,7 @@ def _normalize_tool_record(rec: dict) -> dict:
     rec.setdefault("attributes", vocab.default_attributes())
     rec.setdefault("context_evidence", [])
     rec["pub_ids"] = sorted(set(rec.get("pub_ids", [])))
+    rec.setdefault("pub_count", len(rec["pub_ids"]))
     for field in ("kind", "supercategory", "salience_tier", "salience_tier_basis", "member_of_family"):
         rec.setdefault(field, None)
     return rec
