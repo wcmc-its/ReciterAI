@@ -1,0 +1,51 @@
+name: Axis 2 producer-model gate
+
+# SPEC §10 item 3 — "Teeth, not placeholder".
+# PRs that touch the Axis 2 (tools) producer code must reference the four
+# producer-model decision issues (#5, #6, #7, #8) in the PR body AND each of
+# those issues must be CLOSED. Checkboxes get ticked; CI doesn't lie.
+#
+# Decisions are recorded in docs/tools-producer-model.md (APPROVED 2026-06-06).
+# This guard enforces traceability on every producer PR thereafter.
+
+on:
+  pull_request:
+    paths:
+      - 'pipeline_tools/**'
+      # extend with any other TOOL# producer paths as they land
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  axis2-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require #5–#8 referenced in PR body and CLOSED
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          problems=()
+          for n in 5 6 7 8; do
+            if ! grep -qE "(^|[^0-9])#${n}([^0-9]|$)" <<<"${PR_BODY:-}"; then
+              problems+=("#${n} is not referenced in the PR body")
+              continue
+            fi
+            state=$(gh issue view "$n" --repo "$GITHUB_REPOSITORY" --json state -q .state 2>/dev/null || echo UNKNOWN)
+            if [ "$state" != "CLOSED" ]; then
+              problems+=("#${n} is ${state} (must be CLOSED)")
+            fi
+          done
+          if [ ${#problems[@]} -ne 0 ]; then
+            echo "::error::Axis 2 producer-model gate FAILED"
+            printf '  - %s\n' "${problems[@]}"
+            echo
+            echo "PRs touching pipeline_tools/ must reference the four producer-model"
+            echo "decision issues (#5 #6 #7 #8) in the PR body, and all four must be CLOSED."
+            echo "See docs/tools-producer-model.md and RECITERAI-SPEC §10."
+            exit 1
+          fi
+          echo "Axis 2 gate passed: #5 #6 #7 #8 all referenced and CLOSED."
