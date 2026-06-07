@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pipeline_tools import salience as salience_mod
+from pipeline_tools import sanity as sanity_mod
 from pipeline_tools import vocab
 from pipeline_tools.classify import classify_mentions
 from pipeline_tools.embeddings import EmbeddingCache, EmbedFn
@@ -52,6 +53,7 @@ EXC_MINTED_FAMILY = "minted_family"             # provisional family — review 
 EXC_CROSS_SUPERCATEGORY = "cross_supercategory_family_match"
 EXC_MERGE_SUPERCAT_DISAGREE = "merge_supercategory_disagreement"
 EXC_INFRASTRUCTURE = "infrastructure_spot_audit"
+EXC_ROUTING_SANITY = "routing_sanity"          # deterministic likely-misroute flag (pipeline_tools.sanity)
 
 
 @dataclass
@@ -156,6 +158,20 @@ def run_seed(
                 "type": EXC_CROSS_SUPERCATEGORY, "canonical_tool_id": rec["canonical_tool_id"],
                 "tool": rec["display_name"], "tool_supercategory": supercat,
                 "matched_family_id": cross.key, "score": round(cross.score, 4),
+            })
+
+    # 4b. routing-sanity net — deterministic likely-misroute flags (flag-only).
+    for rec in method_tools:
+        sflags = sanity_mod.routing_sanity_flags(rec)
+        if sflags:
+            exceptions.append({
+                "type": EXC_ROUTING_SANITY,
+                "canonical_tool_id": rec["canonical_tool_id"],
+                "tool": rec["display_name"],
+                "supercategory": rec.get("supercategory"),
+                "kind": rec.get("kind"),
+                "checks": [f["check"] for f in sflags],
+                "reasons": [f["reason"] for f in sflags],
             })
 
     # 5. §9 outputs + telemetry --------------------------------------------
