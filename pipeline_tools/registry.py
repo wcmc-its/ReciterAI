@@ -46,6 +46,63 @@ def norm_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
 
 
+# Trailing descriptor words that WRAP an identity without changing it. Stripped as
+# a trailing run to a surface key, so "PubMed bibliographic database" ≡ "PubMed"
+# and "RNA-seq service" ≡ "RNA-seq". Domain-specific instrument nouns
+# (cytometer, spectrometer, microscope, sequencer, cytometer) are deliberately
+# EXCLUDED so genuinely distinct instruments never collapse on a shared head noun.
+_DESCRIPTOR_SUFFIX = frozenset({
+    "scanner", "system", "device", "machine", "platform", "instrument", "apparatus",
+    "unit", "analyzer", "analyser", "reader",
+    "database", "registry", "repository", "dataset", "data",
+    "service", "services", "core", "facility", "laboratory", "lab",
+    "bibliographic", "statistical", "computing", "environment", "software",
+})
+_PAREN_RE = re.compile(r"\(([^)]*)\)")
+
+
+def _strip_suffix_tokens(norm: str) -> str:
+    """Strip a trailing run of generic descriptor words from a normalized name."""
+    toks = norm.split()
+    while len(toks) > 1 and toks[-1] in _DESCRIPTOR_SUFFIX:
+        toks.pop()
+    return " ".join(toks)
+
+
+def surface_keys(name: str) -> set[str]:
+    """Normalized exact-match keys for a tool name (§8 dedup, surface equivalence).
+
+    Returns the name's own normalized form plus deterministic equivalents so
+    surface variants resolve to one canonical WITHOUT an embedding call:
+      - acronym ↔ expansion: ``"Magnetic resonance imaging (MRI) scanner"`` yields
+        both ``magnetic resonance imaging`` and ``mri``;
+      - ``"(X) database"`` / ``"X bibliographic database"`` ≡ ``X`` (suffix strip);
+      - ``"X service"`` ≡ ``X`` (the service wrapper is an attribute, not identity).
+
+    Conservative by construction: only trailing GENERIC wrappers are stripped, and
+    a stripped key must be >= 3 chars, so distinct instruments sharing a head noun
+    (``confocal microscope`` vs ``fluorescence microscope``) keep separate keys.
+    """
+    keys: set[str] = set()
+    raw = name or ""
+    # Parenthetical acronym -> its own key (e.g. "(MRI)" -> "mri").
+    for inner in _PAREN_RE.findall(raw):
+        c = inner.strip()
+        if c and " " not in c and 2 <= len(c) <= 15:
+            k = norm_name(c)
+            if k:
+                keys.add(k)
+    no_paren = _PAREN_RE.sub(" ", raw)
+    for variant in (raw, no_paren):
+        base = norm_name(variant)
+        if base:
+            keys.add(base)
+            stripped = _strip_suffix_tokens(base)
+            if stripped != base and len(stripped) >= 3:
+                keys.add(stripped)
+    return keys
+
+
 # ===========================================================================
 # §8 — Canonical-tool registry
 # ===========================================================================
@@ -144,13 +201,15 @@ class ToolRegistry:
     def match(self, raw_name: str) -> Match | None:
         """Resolve ``raw_name`` to an existing canonical tool, or None to mint.
 
-        Exact normalized name/alias match first (score 1.0); else embedding NN
-        over every record's display_name + aliases at/above ``match_cosine``.
+        Surface-key match first (score 1.0): the mention's own form plus its
+        acronym↔expansion and descriptor-suffix-stripped equivalents (§8 dedup).
+        Else embedding NN over every record's display_name + aliases at/above
+        ``match_cosine``.
         """
-        key = norm_name(raw_name)
-        if key in self._name_index:
-            cid = self._name_index[key]
-            return Match(key=cid, score=1.0, matched_text=raw_name)
+        for key in sorted(surface_keys(raw_name)):
+            cid = self._name_index.get(key)
+            if cid is not None:
+                return Match(key=cid, score=1.0, matched_text=raw_name)
         candidates = {
             cid: [rec["display_name"], *rec.get("aliases", [])]
             for cid, rec in self._records.items()
@@ -302,10 +361,11 @@ class ToolRegistry:
 
     def _reindex(self, canonical_tool_id: str) -> None:
         rec = self._records[canonical_tool_id]
+        # First-wins: the earliest (most prominent — minted first in pub_count
+        # order) record keeps a shared surface key, so variants attach to it.
         for form in [rec["display_name"], *rec.get("aliases", [])]:
-            key = norm_name(form)
-            if key:
-                self._name_index[key] = canonical_tool_id
+            for key in surface_keys(form):
+                self._name_index.setdefault(key, canonical_tool_id)
 
     @staticmethod
     def _serialize(rec: dict) -> dict:

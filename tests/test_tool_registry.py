@@ -4,8 +4,14 @@ Canned ``embed`` only. Exercises identity resolution, accretion, the denylist,
 durable opaque ids across save/load, and the §7 cross-supercategory guard.
 """
 
+import pytest
+
 from pipeline_tools.embeddings import EmbeddingCache
-from pipeline_tools.registry import FamilyRegistry, ToolRegistry
+from pipeline_tools.registry import FamilyRegistry, ToolRegistry, surface_keys
+
+
+def _no_embed(texts):
+    raise AssertionError("embedding must not be called — surface key should match first")
 
 VECTORS = {
     "MRI scanner": [1.0, 0.0, 0.0],
@@ -102,6 +108,66 @@ def test_serialized_record_reports_pub_count():
     reg = ToolRegistry(cache=_cache())
     rec, _ = reg.match_or_mint(raw_name="MRI scanner", pub_ids=["PMID1", "PMID2", "PMID2"])
     assert reg._serialize(rec)["pub_count"] == 2
+
+
+# --- surface_keys / §8 dedup under-merge fix --------------------------------
+
+
+def test_surface_keys_acronym_and_expansion():
+    keys = surface_keys("Magnetic resonance imaging (MRI) scanner")
+    assert "mri" in keys                          # parenthetical acronym
+    assert "magnetic resonance imaging" in keys   # expansion, scanner stripped
+
+
+def test_surface_keys_database_and_service_suffix():
+    assert "pubmed" in surface_keys("PubMed bibliographic database")
+    assert "embase" in surface_keys("Embase bibliographic database")
+    assert "rna seq" in surface_keys("RNA sequencing (RNA-seq) service")  # acronym
+    assert "rna sequencing" in surface_keys("RNA sequencing (RNA-seq) service")
+
+
+def test_surface_keys_do_not_overmerge_distinct_tools():
+    # PET vs PET/CT must NOT share a key.
+    pet = surface_keys("Positron emission tomography (PET) scanner")
+    petct = surface_keys("Positron emission tomography/computed tomography (PET/CT) scanner")
+    assert pet.isdisjoint(petct)
+    # Domain instrument head-nouns are NOT stripped -> distinct microscopes stay distinct.
+    assert surface_keys("Confocal microscope").isdisjoint(surface_keys("Fluorescence microscope"))
+
+
+def test_acronym_expansion_attaches_without_embedding():
+    reg = ToolRegistry(cache=EmbeddingCache(embed=_no_embed))
+    reg.match_or_mint(raw_name="Magnetic resonance imaging (MRI) scanner", pub_count=191)
+    rec, action = reg.match_or_mint(raw_name="MRI", pub_count=5)            # bare acronym
+    assert action == "attached" and len(reg) == 1
+    rec2, action2 = reg.match_or_mint(raw_name="magnetic resonance imaging", pub_count=3)  # expansion
+    assert action2 == "attached" and len(reg) == 1
+
+
+def test_database_and_service_suffix_attach():
+    # Each first mint is into an EMPTY registry (no embedding); the variant then
+    # attaches via surface key (returns before any embedding call).
+    reg = ToolRegistry(cache=EmbeddingCache(embed=_no_embed))
+    reg.match_or_mint(raw_name="PubMed bibliographic database", pub_count=27)
+    _, a = reg.match_or_mint(raw_name="PubMed", pub_count=4)
+    assert a == "attached" and len(reg) == 1
+
+    reg2 = ToolRegistry(cache=EmbeddingCache(embed=_no_embed))
+    reg2.match_or_mint(raw_name="RNA sequencing (RNA-seq) service", pub_count=10)
+    _, a2 = reg2.match_or_mint(raw_name="RNA-seq", pub_count=2)
+    assert a2 == "attached" and len(reg2) == 1
+
+
+def test_distinct_modalities_still_mint_separately():
+    # PET vs PET/CT share NO surface key (asserted above); the mint then correctly
+    # falls through to embedding NN, which (orthogonal here) keeps them separate.
+    vecs = {"Positron emission tomography (PET) scanner": [1.0, 0.0, 0.0],
+            "Positron emission tomography/computed tomography (PET/CT) scanner": [0.0, 1.0, 0.0]}
+    reg = ToolRegistry(cache=EmbeddingCache(embed=lambda ts: [vecs[t] for t in ts]))
+    reg.match_or_mint(raw_name="Positron emission tomography (PET) scanner", pub_count=36)
+    rec, action = reg.match_or_mint(
+        raw_name="Positron emission tomography/computed tomography (PET/CT) scanner", pub_count=11)
+    assert action == "minted" and len(reg) == 2   # PET and PET/CT stay distinct
 
 
 # --- FamilyRegistry (§7) ----------------------------------------------------

@@ -26,7 +26,7 @@ def _supercategory_menu() -> str:
         "microscopy_histology": "cellular/tissue micro-scale imaging & staining (confocal, two-photon, MIBI, Opal IF, FISH, cellular EM). cryo-EM for structure determination -> #12.",
         "genomics_sequencing": "sequencing platforms + delivery services (10x Chromium, Nanopore, scRNA/ATAC/Ribo-seq, CRISPR screen libraries).",
         "mass_spec_proteomics": "LC-MS/MS, ICP-MS, SILAC, proteomic workflows.",
-        "computational_statistical": "GENERAL algorithms/models/stats/study designs (CNN/SVM/boosting, MD simulation, regression, causal inference, named ML models). Modality-specific computation routes to its modality (QSM -> #1).",
+        "computational_statistical": "GENERAL analysis & study methods — computational, statistical, QUALITATIVE, and IMPLEMENTATION (CNN/SVM/boosting, MD simulation, regression, causal inference, named ML models; thematic analysis, grounded theory; CFIR & implementation frameworks; indices COMPUTED on your own data e.g. Reversed Bice-Boxerman care-continuity). Modality-specific computation routes to its modality (QSM -> #1).",
         "clinical_instruments_assays": "bedside/clinical measurement & lab diagnostics (ECG/EEG/EMG, echo, endoscopes, ELISA/PSA/HCV assays, clinical rating scales UPDRS/mRS, stents/sheaths/catheters).",
         "animal_cell_models": "transgenic/KO mice, zebrafish, NHP, iPSC lines, patient-derived cultures, cell lines, commensal strains.",
         "molecular_biochem_reagents": "agents used as research PROBES/substrates (antibodies/stains, cytokines, tracers, recombinant proteins, CRISPR/Cas9 systems, AAV-as-tool).",
@@ -34,7 +34,7 @@ def _supercategory_menu() -> str:
         "datasets_cohorts": "bodies of data — claims/EHR (MarketScan, INSIGHT, Premier, Epic Cosmos), cohorts/registries (TCGA, SRTR, GWAS sumstats), bibliographic DBs (PubMed, EMBASE).",
         "software_informatics": "GENERAL-function software with no modality home (REDCap, R, dashboards, planning/analytics).",
         "structural_biophysical": "macromolecular structure determination & molecular-interaction biophysics — X-ray crystallography, cryo-EM (structure), NMR (structural), SPR, ITC, EPR.",
-        "other": "GATED REMAINDER — only an in-domain method_tool fitting none of the above. Not a catch-all (the gate already removed errors/infrastructure).",
+        "other": "GATED REMAINDER — a genuinely DISTINCTIVE in-domain capability with no home among #1-#12 (e.g. a cellular metabolic-flux analyzer). NOT a catch-all and NOT for commodity bench/office equipment (ultracentrifuge, generic recorder -> give a best-fit category; they are salience-demoted, not parked here).",
     }
     lines = []
     for s in vocab.SUPERCATEGORIES:
@@ -93,7 +93,23 @@ study/consensus designs (Delphi, Simon two-stage, GRADE) -> computational_statis
 for near-atomic structure); conventional cellular/tissue EM stays microscopy_histology.
   - therapy devices (linear accelerator, therapeutic ultrasound, ablation) -> kind=instrument, \
 supercategory therapeutics_interventions (kind/capability are orthogonal).
-  - 'other' is a gated remainder: use ONLY when nothing in #1-#12 fits.
+  - INDICES/scores: a DISTRIBUTED, geography-/ID-indexed lookup product you merge into your data \
+(Social Vulnerability Index, Area/Social Deprivation Index, Charlson/Elixhauser comorbidity) -> \
+kind=dataset, datasets_cohorts. An index you COMPUTE on your own data (care-continuity/fragmentation \
+metrics, Reversed Bice-Boxerman) -> kind=method, computational_statistical. A clinical rating scale \
+ADMINISTERED to patients (UPDRS-III, Modified Rankin) -> kind=method, clinical_instruments_assays. \
+*The line: a distributed index you LOOK UP is a dataset; an index you COMPUTE is a method.*
+  - PATHOGENS (viruses/bacteria): as the STUDIED or CULTURED system -> organism_or_cells, \
+animal_cell_models; as an INFECTION/CHALLENGE agent (the bare pathogen name — 'SARS-CoV-2', 'Zika \
+virus', 'M. tuberculosis') -> reagent, molecular_biochem_reagents; 'mouse model of <pathogen> \
+infection' -> organism_or_cells, animal_cell_models. Be consistent: the bare pathogen name DEFAULTS \
+to reagent/#8.
+  - DUAL-USE agents you cannot settle from the name alone (hCG, insulin, a generic therapy antibody) \
+-> route by use-context if present; if absent or ambiguous, set confidence=low (FLAG it, do not freeze \
+a guess). Predominantly MEASURED as an analyte -> clinical_instruments_assays; ADMINISTERED as an \
+agent -> therapeutics_interventions.
+  - 'other' is a gated remainder for DISTINCTIVE homeless capabilities only: use when nothing in \
+#1-#12 fits AND the tool is not commodity equipment.
 
 STEP 4 — only for method_tool, assign ATTRIBUTES (fields, not buckets):
   - delivery: one of {sorted(vocab.DELIVERY_VALUES)} or null (in_house/shared_core/vendor — the service wrapper).
