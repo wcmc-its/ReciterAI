@@ -12,7 +12,11 @@ salience stages. This is the EXPENSIVE A2 fan-out the seed CLI
 
 Corpus source (exactly one):
   --input PATH   a JSON corpus export (list of pub rows) — offline / probe-safe.
-  --from-db      load live from RDS via pipeline_tools.corpus (VPN-gated).
+  --from-db      load live from RDS via pipeline_tools.corpus (VPN-gated);
+                 --source pubs|grants|both selects publications, NIH RePORTER
+                 grant abstracts (grant_reporter_project), or both. Grant-sourced
+                 mentions feed extraction/salience/families but stay out of the
+                 publication pub-filter (docs/tools-producer-model.md §grants).
 
 Run a --limit probe (e.g. 100 PMIDs) and inspect telemetry (mentions/paper,
 method-hint fraction, measured cost) BEFORE the full ≈8,146-paper fan-out —
@@ -25,7 +29,8 @@ seam imports its model id from utils.bedrock_client).
 
 Usage:
     python -m cli.extract_tool_mentions --input corpus.json --limit 100
-    python -m cli.extract_tool_mentions --from-db --full        # full corpus
+    python -m cli.extract_tool_mentions --from-db --source both --limit 100   # probe
+    python -m cli.extract_tool_mentions --from-db --source both --full         # full
 """
 
 from __future__ import annotations
@@ -68,11 +73,19 @@ def load_corpus(args) -> list[dict]:
             logger.info("Limited to first %d row(s)", args.limit)
         return rows
     # --from-db (lazy: no DB/engine at import).
-    from pipeline_tools.corpus import fetch_extraction_corpus
+    from pipeline_tools.corpus import fetch_extraction_corpus, fetch_grant_corpus
     from utils.db import get_engine
 
-    rows = fetch_extraction_corpus(get_engine(), limit=args.limit)
-    logger.info("Loaded %d corpus row(s) from RDS", len(rows))
+    engine = get_engine()
+    rows: list[dict] = []
+    if args.source in ("pubs", "both"):
+        pubs = fetch_extraction_corpus(engine, limit=args.limit)
+        logger.info("Loaded %d publication row(s) from RDS", len(pubs))
+        rows.extend(pubs)
+    if args.source in ("grants", "both"):
+        grants = fetch_grant_corpus(engine, limit=args.limit)
+        logger.info("Loaded %d grant row(s) from RDS (NIH RePORTER)", len(grants))
+        rows.extend(grants)
     return rows
 
 
@@ -106,6 +119,8 @@ def main(argv: list[str] | None = None, *, call_llm=None) -> int:
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--input", type=Path, help="JSON corpus export (list of pub rows) — offline/probe")
     src.add_argument("--from-db", action="store_true", help="load corpus live from RDS (VPN-gated)")
+    parser.add_argument("--source", choices=("pubs", "grants", "both"), default="pubs",
+                        help="--from-db signal scope: publications, NIH RePORTER grants, or both (default: pubs)")
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT,
                         help="resumable checkpoint JSONL (default: out/tools/a2_extraction_checkpoint.jsonl)")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT,

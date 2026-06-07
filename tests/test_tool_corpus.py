@@ -1,7 +1,7 @@
 """Unit tests for pipeline_tools.corpus (A2 corpus grouping/merge — pure, no DB)."""
 from __future__ import annotations
 
-from pipeline_tools.corpus import group_authorship_rows, merge_corpus
+from pipeline_tools.corpus import group_authorship_rows, group_grant_rows, merge_corpus
 
 
 def test_group_maps_positions_to_roles_and_dedups():
@@ -63,3 +63,34 @@ def test_merge_carries_missing_authorship_as_empty_not_dropped():
     merged = merge_corpus(pub_rows, {})
     assert len(merged) == 1
     assert merged[0]["authors"] == []
+
+
+# ---------------------------------------------------------------------------
+# group_grant_rows — NIH RePORTER grant corpus
+# ---------------------------------------------------------------------------
+
+def test_group_grant_rows_one_row_per_project_with_faculty():
+    rows = [
+        {"appl_id": "10567", "project_title": "Tau PET", "abstract_text": "We use tau PET imaging.", "cwid": "bbb2"},
+        {"appl_id": "10567", "project_title": "Tau PET", "abstract_text": "We use tau PET imaging.", "cwid": "aaa1"},
+        {"appl_id": "9001", "project_title": "scRNA grant", "abstract_text": "single-cell RNA-seq.", "cwid": "ccc3"},
+    ]
+    grants = group_grant_rows(rows)
+    # Newest appl_id first; one row per project; abstract/title in prompt keys.
+    assert [g["appl_id"] for g in grants] == ["10567", "9001"]
+    g0 = grants[0]
+    assert g0["pmid"] == "grant:10567"          # namespaced — never collides with a PMID
+    assert g0["source_kind"] == "grant"
+    assert g0["articleTitle"] == "Tau PET"
+    assert g0["abstractVarchar"] == "We use tau PET imaging."
+    # Both faculty attached, deduped, stable CWID order, investigator role.
+    assert g0["authors"] == [
+        {"cwid": "aaa1", "author_role": "investigator"},
+        {"cwid": "bbb2", "author_role": "investigator"},
+    ]
+    assert "_cwids" not in g0   # helper set stripped
+
+
+def test_group_grant_rows_skips_blank_appl_id():
+    rows = [{"appl_id": "", "project_title": "x", "abstract_text": "y", "cwid": "a"}]
+    assert group_grant_rows(rows) == []

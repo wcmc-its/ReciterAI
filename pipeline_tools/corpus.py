@@ -52,6 +52,33 @@ ORDER BY a.pmid DESC, au.personIdentifier
 # first author = lead; last author = senior (the handoff's lead/senior framing).
 POSITION_TO_ROLE = {"first": "lead", "last": "senior"}
 
+# Grants carry no first/last author position; the faculty linked to a grant via
+# grant_provenance are tagged with this role. Grant-sourced mentions feed
+# extraction/salience/family discovery but NOT the publication pub-filter
+# (docs/tools-producer-model.md §grants); source_kind="grant" keeps them out.
+GRANT_AUTHOR_ROLE = "investigator"
+
+# NIH RePORTER grant corpus (ReciterDB grant_reporter_project + grant_provenance,
+# both in the same reporting DB as analysis_summary_*). One row per (appl_id,
+# faculty CWID) for WCM full-time faculty whose accepted pubs link to the grant;
+# grouped to one extraction per grant project. abstract_text is the RePORTER
+# project abstract retrieveReporter.py populates ("for future reciterdb-side
+# consumers" — exactly this).
+GRANT_CORPUS_SQL = """
+SELECT DISTINCT
+    grp.appl_id AS appl_id,
+    grp.project_title AS project_title,
+    grp.abstract_text AS abstract_text,
+    gp.personIdentifier AS cwid
+FROM grant_reporter_project grp
+JOIN grant_provenance gp ON gp.appl_id = grp.appl_id
+JOIN identity id ON id.cwid = gp.personIdentifier
+WHERE id.fullTimeFaculty = 'yes'
+    AND grp.abstract_text IS NOT NULL
+    AND grp.abstract_text <> ''
+ORDER BY grp.appl_id DESC, gp.personIdentifier
+"""
+
 
 def group_authorship_rows(rows: Iterable[dict]) -> dict[str, list[dict]]:
     """Group (cwid, pmid, author_position) rows into ``{pmid: [{cwid, author_role}]}``.
@@ -131,3 +158,70 @@ def fetch_extraction_corpus(engine, *, limit: int | None = None) -> list[dict]:
     corpus = merge_corpus(pub_rows, authorship)
     logger.info("corpus: resolved %d/%d PMID(s) to title+abstract rows", len(corpus), len(pmids))
     return corpus
+
+
+# ---------------------------------------------------------------------------
+# Grant corpus (NIH RePORTER) — the v1 secondary signal
+# ---------------------------------------------------------------------------
+
+
+def group_grant_rows(rows: Iterable[dict]) -> list[dict]:
+    """Group (appl_id, project_title, abstract_text, cwid) rows into grant pub-rows.
+
+    Pure — no DB. One row per grant project (``appl_id``), carrying the distinct
+    full-time-faculty CWIDs linked to it as ``authors`` (role ``investigator`` —
+    grants have no first/last position). The record id is namespaced
+    ``grant:<appl_id>`` so grant ids never collide with publication PMIDs in the
+    checkpoint or the downstream registry, and ``source_kind="grant"`` keeps the
+    mention out of the publication pub-filter. The title/abstract are emitted in
+    the same keys the extraction prompt reads (``articleTitle``/``abstractVarchar``).
+    """
+    by_appl: dict[str, dict] = {}
+    for r in rows:
+        appl = str(r.get("appl_id", "")).strip()
+        cwid = str(r.get("cwid", "")).strip()
+        if not appl:
+            continue
+        row = by_appl.get(appl)
+        if row is None:
+            row = {
+                "pmid": f"grant:{appl}",
+                "appl_id": appl,
+                "source_kind": "grant",
+                "articleTitle": (r.get("project_title") or "").strip(),
+                "abstractVarchar": (r.get("abstract_text") or "").strip(),
+                "authors": [],
+                "_cwids": set(),
+            }
+            by_appl[appl] = row
+        if cwid and cwid not in row["_cwids"]:
+            row["_cwids"].add(cwid)
+            row["authors"].append({"cwid": cwid, "author_role": GRANT_AUTHOR_ROLE})
+    # Drop the helper set; keep authors in stable CWID order; newest grant first.
+    out: list[dict] = []
+    for appl in sorted(by_appl, key=lambda a: int(a) if a.isdigit() else 0, reverse=True):
+        row = by_appl[appl]
+        row.pop("_cwids", None)
+        row["authors"].sort(key=lambda a: a["cwid"])
+        out.append(row)
+    return out
+
+
+def fetch_grant_corpus(engine, *, limit: int | None = None) -> list[dict]:
+    """Load the A2 grant corpus (VPN-gated RDS). One row per RePORTER grant project.
+
+    Runs ``GRANT_CORPUS_SQL`` (full-time-faculty grants with a non-empty RePORTER
+    abstract) → groups by ``appl_id`` → takes the newest ``limit`` if given.
+    Returns rows in the same shape ``run_extraction`` consumes, tagged
+    ``source_kind="grant"``.
+    """
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        rows = conn.execute(text(GRANT_CORPUS_SQL)).mappings().all()
+    grants = group_grant_rows(dict(r) for r in rows)
+    if limit is not None:
+        grants = grants[:limit]
+    logger.info("grant corpus: %d grant project(s)%s", len(grants),
+                f" (limited to newest {limit})" if limit is not None else "")
+    return grants
