@@ -536,6 +536,32 @@ class FamilyRegistry:
             fam["status"] = status
         return fam
 
+    def merge_into(self, *, keep_id: str, drop_id: str) -> list[str]:
+        """Merge family ``drop_id`` into ``keep_id`` (§7 dedup sweep). Returns moved tool_ids.
+
+        The D-06 orphan rule applies to families exactly as to tools: a merge maps
+        members onto the *existing* (older, lower) ``family_id`` and drops the
+        forked one — never mints a fresh id, which would orphan every faculty
+        ``tool_score`` keyed on the old id. The caller must repoint each moved
+        tool's ``member_of_family`` to ``keep_id``; the returned list is exactly
+        those tool_ids. ``keep_id``'s label/supercategory/status are authoritative
+        and untouched (it is the surviving family); only members accrete.
+        """
+        if keep_id == drop_id or drop_id not in self._records:
+            return []
+        keep = self._records[keep_id]
+        drop = self._records.pop(drop_id)
+        drop_names = dict(zip(drop.get("member_tool_ids", []), drop.get("member_display_names", [])))
+        moved: list[str] = []
+        for tid in drop.get("member_tool_ids", []):
+            if tid not in keep["member_tool_ids"]:
+                keep["member_tool_ids"].append(tid)
+                keep.setdefault("member_display_names", []).append(drop_names.get(tid, tid))
+                moved.append(tid)
+        if not keep.get("exemplar_tool_ids"):
+            keep["exemplar_tool_ids"] = list(drop.get("exemplar_tool_ids", []))
+        return moved
+
 
 def _normalize_family_record(rec: dict) -> dict:
     rec = dict(rec)

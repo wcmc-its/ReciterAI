@@ -1,0 +1,466 @@
+"""Corpus-mode orchestrator — the A2 analog of ``pipeline_tools.seed`` (Steps C-F).
+
+The seed ran the classify -> §8 tool registry -> §5 salience -> §7 family pipeline
+over 230 curated names with aggregate ``pub_count`` and provisional salience. A2
+runs the SAME pipeline over corpus-extracted mentions, but with the four things
+the seed structurally could not do (spec §1 / handoff):
+
+  C. **Real identity with real pub_ids.** Each mention carries its PMID, so
+     ``ToolRegistry.match_or_mint`` accretes ``pub_ids`` and ``pub_count =
+     |pub_ids|`` is correct per-publication. The seed registries are LOADED first
+     so every canonical id carries forward (D-06) — A2 accretes onto the seed,
+     never restarts it.
+  D. **Grounded salience.** Cross-faculty spread now exists (the per-faculty
+     join), so §5 regrounds: ``basis=grounded``, S becomes assignable, thresholds
+     calibrate against the real distribution (``pipeline_tools.salience``).
+  E. **Family relabel + dedup.** Families have real members, so the §7.2 kind-aware
+     relabel and the §7 exact-label dedup sweep run (``pipeline_tools.relabel``).
+  F. **Faculty rollup.** Per-(scholar,tool) and C-reconciled per-(scholar,family)
+     counts (``pipeline_tools.rollup``).
+
+Signal scope (docs/tools-producer-model.md §grants): publication AND grant
+abstracts feed identity / salience / families, but grants are kept OUT of the
+publication pub-filter — grant occurrences contribute NO ``pub_ids`` (so they
+never inflate ``pub_count`` or the faculty rollup) and instead accrue a SEPARATE
+grant signal (distinct ``appl_id``s + investigator CWIDs) per canonical tool,
+surfaced for salience context and review.
+
+The LLM (``call_json``) and embeddings (``embed``) are injected, so the whole
+orchestrator unit-tests with stubs and never touches AWS; ``cli.build_tool_taxonomy_corpus``
+supplies the live Bedrock-backed seams.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from collections import defaultdict
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from pipeline_tools import salience as salience_mod
+from pipeline_tools import sanity as sanity_mod
+from pipeline_tools import vocab
+from pipeline_tools.classify import classify_mentions
+from pipeline_tools.registry import (
+    DEFAULT_FAMILY_MATCH_COSINE,
+    DEFAULT_TOOL_MATCH_COSINE,
+    FamilyRegistry,
+    ToolRegistry,
+    norm_name,
+)
+from pipeline_tools.relabel import dedup_families, relabel_families
+from pipeline_tools.rollup import build_faculty_rollup
+from pipeline_tools.seed import (
+    EXC_CROSS_SUPERCATEGORY,
+    EXC_MERGE_SUPERCAT_DISAGREE,
+    EXC_MINTED_FAMILY,
+    EXC_ROUTING_SANITY,
+    EXC_UNCLASSIFIED,
+    _build_hierarchy,
+    _collect_classification_exceptions,
+    _enriched_records,
+)
+
+logger = logging.getLogger(__name__)
+
+GRANT_PMID_PREFIX = "grant:"
+
+
+@dataclass
+class CorpusResult:
+    tool_registry: ToolRegistry
+    family_registry: FamilyRegistry
+    records: list[dict] = field(default_factory=list)        # §9a enriched canonical-tool records
+    hierarchy: dict = field(default_factory=dict)            # §9c compact 3-level review tree
+    exceptions: list[dict] = field(default_factory=list)     # §9c bounded queue
+    faculty_rollup: dict = field(default_factory=dict)       # Step F: cwid -> {tools, families}
+    grant_signal: dict = field(default_factory=dict)         # cid -> {appl_ids, investigator_cwids}
+    relabel_deltas: list[dict] = field(default_factory=list)
+    merge_deltas: list[dict] = field(default_factory=list)
+    thresholds: object | None = None                         # salience.GroundedThresholds
+    telemetry: dict = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Surface-form grouping — one classification per normalized name, occurrences kept
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _UniqueMention:
+    raw_name: str            # representative display form (longest, preserves acronym+expansion)
+    norm_key: str
+    tool_category: str | None
+    context: str | None
+    pub_count: int           # distinct PUBLICATION pmids (prominence hint for classify + mint order)
+    occurrences: list[dict]  # [{pmid, source_kind, cwid, author_role}] exploded over authors
+
+
+def _explode_occurrences(mention: dict) -> list[dict]:
+    """One occurrence row per (mention, faculty author); no authors -> one anonymous row."""
+    pmid = str(mention.get("pmid") or "")
+    source_kind = mention.get("source_kind") or "publication"
+    authors = mention.get("authors") or []
+    if not authors:
+        return [{"pmid": pmid, "source_kind": source_kind, "cwid": None, "author_role": None}]
+    rows = []
+    for a in authors:
+        rows.append({
+            "pmid": pmid,
+            "source_kind": source_kind,
+            "cwid": a.get("cwid"),
+            "author_role": a.get("author_role"),
+        })
+    return rows
+
+
+def group_mentions(mentions: list[dict]) -> list[_UniqueMention]:
+    """Group raw mentions by normalized surface form; keep every occurrence.
+
+    One classification + one match-or-mint per normalized name (cost + a single
+    canonical disposition per form), with the per-paper / per-faculty occurrences
+    retained so identity accretion, spread, and the rollup can explode back out.
+    The registry still merges *different* surface forms (MRI ↔ magnetic resonance
+    imaging) into one canonical id downstream; this only collapses exact repeats.
+    """
+    groups: dict[str, dict] = {}
+    for m in mentions:
+        raw = (m.get("raw_name") or "").strip()
+        key = norm_name(raw)
+        if not key:
+            continue
+        g = groups.get(key)
+        if g is None:
+            g = {
+                "names": defaultdict(int),
+                "categories": defaultdict(int),
+                "context": None,
+                "occurrences": [],
+                "pub_pmids": set(),
+            }
+            groups[key] = g
+        g["names"][raw] += 1
+        cat = m.get("tool_category")
+        if cat:
+            g["categories"][cat] += 1
+        ctx = (m.get("context") or "").strip()
+        if ctx and (g["context"] is None or len(ctx) > len(g["context"])):
+            g["context"] = ctx
+        occ = _explode_occurrences(m)
+        g["occurrences"].extend(occ)
+        if (m.get("source_kind") or "publication") == "publication":
+            pmid = str(m.get("pmid") or "")
+            if pmid:
+                g["pub_pmids"].add(pmid)
+
+    out: list[_UniqueMention] = []
+    for key, g in groups.items():
+        # Representative display: most frequent raw form, tie -> longest (keeps "X (ABC)").
+        raw_name = max(g["names"].items(), key=lambda kv: (kv[1], len(kv[0])))[0]
+        category = max(g["categories"].items(), key=lambda kv: kv[1])[0] if g["categories"] else None
+        out.append(_UniqueMention(
+            raw_name=raw_name,
+            norm_key=key,
+            tool_category=category,
+            context=g["context"],
+            pub_count=len(g["pub_pmids"]),
+            occurrences=g["occurrences"],
+        ))
+    return out
+
+
+def _pub_ids_of(occurrences: list[dict]) -> list[str]:
+    """Distinct PUBLICATION pmids (grants excluded from the pub-filter)."""
+    return sorted({
+        str(o["pmid"]) for o in occurrences
+        if o.get("source_kind") != "grant" and o.get("pmid")
+    })
+
+
+def _appl_id(pmid: str) -> str:
+    return pmid[len(GRANT_PMID_PREFIX):] if pmid.startswith(GRANT_PMID_PREFIX) else pmid
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator
+# ---------------------------------------------------------------------------
+
+
+def run_corpus(
+    mentions: list[dict],
+    *,
+    call_json,
+    tool_registry: ToolRegistry,
+    family_registry: FamilyRegistry,
+    force_c_terms: list[str] | None = None,
+    batch_size: int = 50,
+    relabel_batch_size: int = 40,
+    relabel: bool = True,
+) -> CorpusResult:
+    """Run the A2 corpus pipeline over ``mentions`` and return registries + outputs.
+
+    ``tool_registry`` / ``family_registry`` are the LOADED seed registries (the
+    caller loads them — each with its embedding cache — so seed canonical ids
+    carry forward, D-06, and registry NN matching is available). ``call_json`` is
+    the shared classify/relabel seam. Set ``relabel=False`` to skip the §7.2 LLM
+    relabel pass (a cheaper structural-only run for development).
+    """
+    force_c_terms = force_c_terms if force_c_terms is not None else salience_mod.load_force_c_terms()
+
+    uniques = group_mentions(mentions)
+    logger.info("corpus run: %d raw mention(s) -> %d unique surface form(s)", len(mentions), len(uniques))
+
+    exceptions: list[dict] = []
+
+    # 1. CLASSIFY each unique surface form (one disposition per form). ----------
+    classify_inputs = [
+        {"raw_name": u.raw_name, "tool_category": u.tool_category, "context": u.context, "pub_count": u.pub_count}
+        for u in uniques
+    ]
+    classified = classify_mentions(classify_inputs, call_json=call_json, batch_size=batch_size)
+    cls_by_name = {norm_name(c.get("raw_name", "")): c for c in classified}
+
+    # 2. IDENTITY (match-or-mint), most prominent first. ------------------------
+    counts = {"minted": 0, "attached": 0, "denied": 0, "unclassified": 0}
+    occ_by_canonical: dict[str, list[dict]] = defaultdict(list)
+    grant_signal: dict[str, dict] = defaultdict(lambda: {"appl_ids": set(), "investigator_cwids": set()})
+
+    for u in sorted(uniques, key=lambda x: -x.pub_count):
+        c = cls_by_name.get(u.norm_key)
+        if c is None or c["disposition"] is None:  # llm error / omitted
+            counts["unclassified"] += 1
+            exceptions.append({"type": EXC_UNCLASSIFIED, "raw_name": u.raw_name,
+                               "flags": (c or {}).get("flags", [])})
+            continue
+        if c["disposition"] == "excluded":
+            tool_registry.deny(u.raw_name)
+            counts["denied"] += 1
+            continue
+
+        pub_ids = _pub_ids_of(u.occurrences)
+        rec, action = tool_registry.match_or_mint(
+            raw_name=u.raw_name, display_name=u.raw_name, disposition=c["disposition"],
+            pub_ids=pub_ids, context=(u.context or None),
+        )
+        cid = rec["canonical_tool_id"]
+        if action == "minted":
+            counts["minted"] += 1
+            tool_registry.update_classification(
+                cid, disposition=c["disposition"], kind=c["kind"],
+                supercategory=c["supercategory"], attributes=c["attributes"],
+            )
+            rec["flags"] = list(c.get("flags", []))
+            _collect_classification_exceptions(exceptions, rec, c)
+        else:  # attached — canonical keeps its minting classification; flag real disagreements
+            counts["attached"] += 1
+            if (c["disposition"] == vocab.CAPABILITY_DISPOSITION
+                    and rec.get("supercategory") and c.get("supercategory")
+                    and rec["supercategory"] != c["supercategory"]):
+                exceptions.append({
+                    "type": EXC_MERGE_SUPERCAT_DISAGREE, "raw_name": u.raw_name,
+                    "canonical_tool_id": cid, "canonical_supercategory": rec["supercategory"],
+                    "mention_supercategory": c["supercategory"],
+                })
+
+        # Occurrence + grant-signal accretion (per canonical, across surface forms).
+        for o in u.occurrences:
+            occ_by_canonical[cid].append({**o, "canonical_tool_id": cid})
+            if o.get("source_kind") == "grant":
+                grant_signal[cid]["appl_ids"].add(_appl_id(str(o.get("pmid") or "")))
+                if o.get("cwid"):
+                    grant_signal[cid]["investigator_cwids"].add(o["cwid"])
+
+    method_tools = [r for r in tool_registry.records() if r["disposition"] == vocab.CAPABILITY_DISPOSITION]
+
+    # 3. GROUNDED salience (§5) — spread from real publication authorship. -------
+    pub_spread: dict[str, set[str]] = defaultdict(set)
+    for cid, occs in occ_by_canonical.items():
+        for o in occs:
+            if o.get("source_kind") != "grant" and o.get("cwid"):
+                pub_spread[cid].add(o["cwid"])
+
+    def _signal_of(rec: dict) -> dict:
+        cid = rec["canonical_tool_id"]
+        pub_count = len(rec.get("pub_ids") or [])
+        spread = len(pub_spread.get(cid, ()))
+        gsig = grant_signal.get(cid)
+        grant_present = bool(gsig and (gsig["appl_ids"] or gsig["investigator_cwids"]))
+        return {
+            "pub_count": pub_count,
+            "spread": spread,
+            "grant_spread": len(gsig["investigator_cwids"]) if gsig else 0,
+            "rrid_candidate": bool((rec.get("attributes") or {}).get("rrid_candidate")),
+            "has_a2_signal": pub_count > 0 or grant_present,
+        }
+
+    _, thresholds = salience_mod.apply_grounded_salience(
+        method_tools, signal_of=_signal_of, force_c_terms=force_c_terms,
+    )
+
+    # 4. FAMILY match-or-mint (§7) — same as seed, accreting onto loaded families.
+    fam_counts = {"minted": 0, "attached": 0, "flagged": 0}
+    for rec in sorted(method_tools, key=lambda r: -len(r.get("pub_ids") or [])):
+        supercat = rec.get("supercategory") or vocab.OTHER_SUPERCATEGORY
+        fam, action, cross = family_registry.match_or_mint(
+            tool_id=rec["canonical_tool_id"], tool_text=rec["display_name"],
+            supercategory=supercat, dominant_kind=rec.get("kind"),
+        )
+        tool_registry.update_classification(rec["canonical_tool_id"], member_of_family=fam["family_id"])
+        rec["member_of_family"] = fam["family_id"]
+        fam_counts[action] += 1
+        if action in ("minted", "flagged"):
+            exceptions.append({"type": EXC_MINTED_FAMILY, "family_id": fam["family_id"],
+                               "label": fam["label"], "supercategory": supercat})
+        if cross is not None:
+            exceptions.append({
+                "type": EXC_CROSS_SUPERCATEGORY, "canonical_tool_id": rec["canonical_tool_id"],
+                "tool": rec["display_name"], "tool_supercategory": supercat,
+                "matched_family_id": cross.key, "score": round(cross.score, 4),
+            })
+
+    # 4b. routing-sanity net — deterministic likely-misroute flags (flag-only).
+    for rec in method_tools:
+        sflags = sanity_mod.routing_sanity_flags(rec)
+        if sflags:
+            exceptions.append({
+                "type": EXC_ROUTING_SANITY, "canonical_tool_id": rec["canonical_tool_id"],
+                "tool": rec["display_name"], "supercategory": rec.get("supercategory"),
+                "kind": rec.get("kind"), "checks": [f["check"] for f in sflags],
+                "reasons": [f["reason"] for f in sflags],
+            })
+
+    # 5. §7.2 RELABEL + §7 dedup sweep. -----------------------------------------
+    relabel_deltas: list[dict] = []
+    if relabel:
+        relabel_deltas = relabel_families(family_registry, call_json=call_json, batch_size=relabel_batch_size)
+    merge_deltas = dedup_families(family_registry)
+    for d in merge_deltas:  # repoint every moved tool onto the surviving family_id (D-06).
+        for tid in d["moved_tool_ids"]:
+            tool_registry.update_classification(tid, member_of_family=d["keep_id"])
+
+    # 6. FACULTY ROLLUP (Step F). -----------------------------------------------
+    tool_index = {
+        r["canonical_tool_id"]: {
+            "display_name": r["display_name"], "disposition": r["disposition"],
+            "salience_tier": r.get("salience_tier"), "member_of_family": r.get("member_of_family"),
+            "supercategory": r.get("supercategory"),
+        }
+        for r in tool_registry.records()
+    }
+    family_index = {f["family_id"]: {"label": f.get("label"), "supercategory": f.get("supercategory")}
+                    for f in family_registry.records()}
+    all_occurrences = [o for occs in occ_by_canonical.values() for o in occs]
+    faculty_rollup = build_faculty_rollup(all_occurrences, tool_index=tool_index, family_index=family_index)
+
+    # 7. §9 outputs + telemetry. ------------------------------------------------
+    result = CorpusResult(tool_registry=tool_registry, family_registry=family_registry)
+    result.records = _enriched_records(tool_registry, family_registry)
+    result.hierarchy = _build_hierarchy(tool_registry, family_registry)
+    result.exceptions = exceptions
+    result.faculty_rollup = faculty_rollup
+    result.grant_signal = {
+        cid: {"appl_ids": sorted(s["appl_ids"]), "investigator_cwids": sorted(s["investigator_cwids"])}
+        for cid, s in grant_signal.items() if s["appl_ids"] or s["investigator_cwids"]
+    }
+    result.relabel_deltas = relabel_deltas
+    result.merge_deltas = merge_deltas
+    result.thresholds = thresholds
+    result.telemetry = _telemetry(
+        tool_registry, family_registry, method_tools, counts, fam_counts,
+        exceptions, faculty_rollup, result.grant_signal, thresholds, _signal_of,
+    )
+    logger.info(
+        "corpus run: %d unique -> %d canonical tools (%d minted, %d attached, %d denied, %d unclassified); "
+        "%d families; %d exceptions; %d faculty",
+        len(uniques), len(tool_registry), counts["minted"], counts["attached"], counts["denied"],
+        counts["unclassified"], len(family_registry), len(exceptions), len(faculty_rollup),
+    )
+    return result
+
+
+def _telemetry(
+    tools, families, method_tools, counts, fam_counts, exceptions,
+    faculty_rollup, grant_signal, thresholds, signal_of,
+) -> dict:
+    minted, attached = counts["minted"], counts["attached"]
+
+    def _dist(field_name: str) -> dict:
+        d: dict[str, int] = {}
+        for r in tools.records():
+            d[r.get(field_name) or "∅"] = d.get(r.get(field_name) or "∅", 0) + 1
+        return dict(sorted(d.items(), key=lambda kv: (-kv[1], kv[0])))
+
+    exc_by_type: dict[str, int] = {}
+    for e in exceptions:
+        exc_by_type[e["type"]] = exc_by_type.get(e["type"], 0) + 1
+
+    grounded = [r for r in method_tools if signal_of(r)["has_a2_signal"]]
+    spreads = sorted((signal_of(r)["spread"] for r in grounded), reverse=True)
+    return {
+        "unique_forms": sum(counts.values()),
+        "canonical_tools": len(tools),
+        "tool_minted": minted,
+        "tool_attached": attached,
+        "tool_denied": counts["denied"],
+        "tool_unclassified": counts["unclassified"],
+        "mint_vs_attach_ratio": round(minted / attached, 3) if attached else None,
+        "families": len(families),
+        "family_minted": fam_counts.get("minted", 0) + fam_counts.get("flagged", 0),
+        "family_attached": fam_counts.get("attached", 0),
+        "family_flagged_cross_supercat": fam_counts.get("flagged", 0),
+        "salience_distribution": _dist("salience_tier"),
+        "salience_basis_distribution": _dist("salience_tier_basis"),
+        "disposition_distribution": _dist("disposition"),
+        "supercategory_distribution": _dist("supercategory"),
+        "method_tools": len(method_tools),
+        "method_tools_grounded": len(grounded),
+        "s_spread_cutoff": getattr(thresholds, "s_spread_min", None),
+        "max_spread": spreads[0] if spreads else 0,
+        "grant_signal_tools": len(grant_signal),
+        "faculty_count": len(faculty_rollup),
+        "exceptions_total": len(exceptions),
+        "exceptions_by_type": exc_by_type,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Persistence — accreted registries + the §9 review artifacts + rollup + payload.
+# ---------------------------------------------------------------------------
+
+
+def write_outputs(result: CorpusResult, out_dir: Path, *, payload: dict | None = None) -> list[Path]:
+    """Write the accreted registries + A2 review artifacts to ``out_dir``.
+
+    Files: the two persistent registries (tool/family) + denylist (the accreted
+    durable state, D-06), the §9a/§9c review artifacts, the faculty rollup, the
+    separate grant signal, telemetry, and — when supplied — the assembled
+    ``tools.json`` publish payload. These are for HUMAN REVIEW before publish
+    (D-07); nothing here uploads to S3/DDB.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    result.tool_registry.save(out_dir / "tool_registry.json", out_dir / "tool_denylist.json")
+    result.family_registry.save(out_dir / "family_registry.json")
+
+    def _dump(name: str, obj) -> Path:
+        path = out_dir / name
+        path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    paths = [
+        out_dir / "tool_registry.json",
+        out_dir / "tool_denylist.json",
+        out_dir / "family_registry.json",
+        _dump("tool_taxonomy_corpus.json", {"tools": result.records}),
+        _dump("tool_hierarchy_corpus.json", result.hierarchy),
+        _dump("tool_exceptions_corpus.json", result.exceptions),
+        _dump("tool_faculty_rollup.json", result.faculty_rollup),
+        _dump("tool_grant_signal.json", result.grant_signal),
+        _dump("tool_relabel_deltas.json", {"relabel": result.relabel_deltas, "merge": result.merge_deltas}),
+        _dump("tool_telemetry_corpus.json", result.telemetry),
+    ]
+    if payload is not None:
+        paths.append(_dump("tools.json", payload))
+    return paths
