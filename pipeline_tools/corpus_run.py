@@ -50,12 +50,9 @@ from pipeline_tools.registry import (
     ToolRegistry,
     norm_name,
 )
-from pipeline_tools.relabel import dedup_families, relabel_families
 from pipeline_tools.rollup import build_faculty_rollup
 from pipeline_tools.seed import (
-    EXC_CROSS_SUPERCATEGORY,
     EXC_MERGE_SUPERCAT_DISAGREE,
-    EXC_MINTED_FAMILY,
     EXC_ROUTING_SANITY,
     EXC_UNCLASSIFIED,
     _build_hierarchy,
@@ -286,6 +283,7 @@ def run_corpus(
     force_c_terms: list[str] | None = None,
     batch_size: int = 50,
     relabel_batch_size: int = 40,
+    family_batch_size: int = 100,
     relabel: bool = True,
     checkpoint_dir=None,
 ) -> CorpusResult:
@@ -410,26 +408,28 @@ def run_corpus(
         method_tools, signal_of=_signal_of, force_c_terms=force_c_terms,
     )
 
-    # 4. FAMILY match-or-mint (§7) — same as seed, accreting onto loaded families.
-    fam_counts = {"minted": 0, "attached": 0, "flagged": 0}
-    for rec in sorted(method_tools, key=lambda r: -len(r.get("pub_ids") or [])):
-        supercat = rec.get("supercategory") or vocab.OTHER_SUPERCATEGORY
-        fam, action, cross = family_registry.match_or_mint(
-            tool_id=rec["canonical_tool_id"], tool_text=rec["display_name"],
-            supercategory=supercat, dominant_kind=rec.get("kind"),
+    # 4. FAMILY formation by capability CLASS (§7/§7.2). The LLM assigns each tool
+    #    its broad class (the semantic knowledge a name embedding lacks), then the
+    #    class strings merge within a supercategory. Replaces the greedy
+    #    name-embedding match + per-singleton relabel, which could not group
+    #    same-class/different-name tools (nivolumab vs pembrolizumab) and produced
+    #    ~89% singleton families at A2 scale.
+    from pipeline_tools.embeddings import EmbeddingCache
+    cache = getattr(tool_registry, "_cache", None) or EmbeddingCache()
+    if relabel:
+        from pipeline_tools.family_rebuild import form_families
+        family_registry, tool_to_family = form_families(
+            method_tools, call_json=call_json, embed_cache=cache, batch_size=family_batch_size,
         )
-        tool_registry.update_classification(rec["canonical_tool_id"], member_of_family=fam["family_id"])
-        rec["member_of_family"] = fam["family_id"]
-        fam_counts[action] += 1
-        if action in ("minted", "flagged"):
-            exceptions.append({"type": EXC_MINTED_FAMILY, "family_id": fam["family_id"],
-                               "label": fam["label"], "supercategory": supercat})
-        if cross is not None:
-            exceptions.append({
-                "type": EXC_CROSS_SUPERCATEGORY, "canonical_tool_id": rec["canonical_tool_id"],
-                "tool": rec["display_name"], "tool_supercategory": supercat,
-                "matched_family_id": cross.key, "score": round(cross.score, 4),
-            })
+        for tid, fid in tool_to_family.items():
+            tool_registry.update_classification(tid, member_of_family=fid)
+        for rec in method_tools:
+            rec["member_of_family"] = tool_to_family.get(rec["canonical_tool_id"])
+    else:
+        family_registry = FamilyRegistry([], cache=cache)  # tools-only dev run (no LLM)
+    fam_counts = {"minted": len(family_registry), "attached": 0, "flagged": 0}
+    relabel_deltas: list[dict] = []
+    merge_deltas: list[dict] = []
 
     # 4b. routing-sanity net — deterministic likely-misroute flags (flag-only).
     for rec in method_tools:
@@ -442,14 +442,8 @@ def run_corpus(
                 "reasons": [f["reason"] for f in sflags],
             })
 
-    # 5. §7.2 RELABEL + §7 dedup sweep. -----------------------------------------
-    relabel_deltas: list[dict] = []
-    if relabel:
-        relabel_deltas = relabel_families(family_registry, call_json=call_json, batch_size=relabel_batch_size)
-    merge_deltas = dedup_families(family_registry)
-    for d in merge_deltas:  # repoint every moved tool onto the surviving family_id (D-06).
-        for tid in d["moved_tool_ids"]:
-            tool_registry.update_classification(tid, member_of_family=d["keep_id"])
+    # 5. (families are formed by capability class in stage 4 — no separate relabel
+    #    or dedup sweep; the broaden+consolidate pass produces the final labels.)
 
     # 6. FACULTY ROLLUP (Step F). -----------------------------------------------
     tool_index = {

@@ -46,10 +46,8 @@ def _stub_classify(dispmap):
 
     def call_json(system, user):
         items = _json.loads(user[user.index("["):])
-        if "method FAMILIES" in system:
-            return {"families": [{"family_id": it["family_id"],
-                                  "label": f"fam-{it['family_id'][-4:]}", "confidence": "high"}
-                                 for it in items]}
+        if "BROAD method-family" in system:  # family broaden pass: items are label strings
+            return {"assignments": [{"label": l, "family_class": l} for l in items]}
         out = []
         for it in items:
             spec = dispmap.get(it["raw_name"], {"disposition": "method_tool", "kind": "method",
