@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pipeline_tools.embeddings import EmbeddingCache
 from pipeline_tools.family_rebuild import (
     broaden_with_cache, consolidate_classes, form_families, reconcile_classes,
+    reconcile_with_cache, sentence_case_label,
 )
 
 
@@ -51,9 +52,41 @@ def test_form_families_groups_same_class_different_name():
     assert len(reg) == 2
     assert mapping["t1"] == mapping["t2"] != mapping["t3"]
     pd1 = reg.get(mapping["t1"])
-    assert pd1["label"] == "anti-PD-1 immunotherapy"
+    assert pd1["label"] == "Anti-PD-1 immunotherapy"  # sentence-cased for display; PD-1 acronym preserved
     assert pd1["exemplar_tool_ids"][0] == "t1"  # ranked by pub_ids (5 > 3)
     assert pd1["dominant_kind"] == "reagent"
+
+
+def test_sentence_case_label():
+    # ordinary labels capitalize the first word; interior acronyms/targets survive
+    assert sentence_case_label("mass spectrometry-based proteomics") == "Mass spectrometry-based proteomics"
+    assert sentence_case_label("anti-PD-1 immunotherapy") == "Anti-PD-1 immunotherapy"
+    assert sentence_case_label("in vitro angiogenesis assays") == "In vitro angiogenesis assays"
+    # already-capitalized / acronym-led labels are left untouched
+    assert sentence_case_label("NMR spectroscopy") == "NMR spectroscopy"
+    assert sentence_case_label("3D tumor culture models") == "3D tumor culture models"
+    # camelCase scientific terms must NOT be flattened to all-caps
+    assert sentence_case_label("iPSC-derived cell models") == "iPSC-derived cell models"
+    assert sentence_case_label("mRNA vaccine platforms") == "mRNA vaccine platforms"
+    assert sentence_case_label("mTOR inhibitor therapeutics") == "mTOR inhibitor therapeutics"
+    assert sentence_case_label("p53-reactivating small-molecule therapeutics") \
+        == "p53-reactivating small-molecule therapeutics"
+
+
+def test_reconcile_with_cache_roundtrip(tmp_path):
+    tools = [_tool("t1", "A", sc="animal_cell_models"), _tool("t2", "B", sc="animal_cell_models")]
+    raw = {"t1": "transgenic mouse models", "t2": "genetically engineered mouse models"}
+    reconcile_map = {"genetically engineered mouse models": "transgenic mouse models"}
+    first = reconcile_with_cache(raw, tools, call_json=_stub(reconcile_map=reconcile_map),
+                                 batch_size=10, checkpoint_dir=tmp_path)
+    assert first["t1"] == first["t2"] == "transgenic mouse models"
+    assert (tmp_path / "reconcile_cache.json").exists()
+
+    def boom(system, user):
+        raise AssertionError("must not re-reconcile when cached")
+
+    second = reconcile_with_cache(raw, tools, call_json=boom, batch_size=10, checkpoint_dir=tmp_path)
+    assert second == first  # exact reviewed set reproduced from cache, $0
 
 
 def test_reconcile_merges_wording_variants_the_cosine_missed():

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -54,6 +55,29 @@ RECONCILE_MAX_WORKERS = 8
 # sequentially WITHIN a supercategory (so cross-batch variants reconcile), and a
 # larger batch means the model sees more of a supercategory's labels at once.
 DEFAULT_RECONCILE_BATCH = 120
+RECONCILE_CACHE_NAME = "reconcile_cache.json"
+
+# A leading camelCase scientific term (iPSC, mRNA, cDNA, mTOR, scRNA-seq, p53):
+# a 1-3 char lowercase prefix immediately followed by an uppercase letter OR a
+# digit. NO ordinary word matches this (mass, anti-PD-1, in vitro do not), so it
+# safely marks the labels whose lower-case opener is meaningful and must be kept.
+_STYLED_LEAD = re.compile(r"^[a-z]{1,3}[A-Z0-9]")
+
+
+def sentence_case_label(label: str) -> str:
+    """Sentence-case a family label for display: capitalize the first letter,
+    leave everything else as authored (so interior acronyms — NMR, FISH, PD-1 —
+    survive), and DON'T touch a label that opens with a camelCase scientific term
+    (``iPSC-derived…`` must not become ``IPSC-derived…``). Deterministic."""
+    s = label.strip()
+    if not s or _STYLED_LEAD.match(s):
+        return s
+    for i, ch in enumerate(s):
+        if ch.isalpha():
+            return s[:i] + ch.upper() + s[i + 1:]
+        if ch.isdigit():  # leading-number style ("3D …", "5-HT …") — first letter already cased
+            return s
+    return s
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +304,37 @@ def reconcile_classes(
             for tid, cls in class_of_tool.items()}
 
 
+def reconcile_with_cache(
+    class_of_tool: dict[str, str], method_tools: list[dict], *,
+    call_json, batch_size: int = DEFAULT_RECONCILE_BATCH, checkpoint_dir=None,
+) -> dict[str, str]:
+    """``reconcile_classes`` keyed by ``canonical_tool_id``, cached to disk (all-or-nothing).
+
+    Reconciliation is an LLM pass, so its output is non-deterministic across runs.
+    Caching the ``{tool_id: canonical_class}`` mapping lets a later run — to re-case
+    or re-publish — reproduce the EXACT reviewed family set for $0 (the accretion is
+    not re-run, so it cannot reshuffle). Cached only when it covers every
+    method_tool; delete the cache file to force a fresh reconcile.
+    """
+    cache_path = Path(checkpoint_dir) / RECONCILE_CACHE_NAME if checkpoint_dir else None
+    ids = {t["canonical_tool_id"] for t in method_tools}
+    if cache_path and cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            if ids <= set(cached):
+                logger.info("reconcile cache: %d tools cached at %s ($0, deterministic)", len(ids), cache_path)
+                return {tid: cached[tid] for tid in ids}
+            logger.info("reconcile cache covers %d/%d tools; re-reconciling", len(ids & set(cached)), len(ids))
+        except (OSError, ValueError) as exc:  # corrupt cache -> re-reconcile, don't crash
+            logger.warning("reconcile cache unreadable (%s); re-reconciling", exc)
+
+    canonical = reconcile_classes(class_of_tool, method_tools, call_json=call_json, batch_size=batch_size)
+    if cache_path:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(canonical, ensure_ascii=False), encoding="utf-8")
+    return canonical
+
+
 # ---------------------------------------------------------------------------
 # 3. Group tools by canonical class into families
 # ---------------------------------------------------------------------------
@@ -294,7 +349,9 @@ def form_families(
 
     Broaden each tool's name to a capability class (cached to ``checkpoint_dir``),
     then reconcile the per-supercategory class vocabulary via the LLM so cross-batch
-    wording variants collapse while distinct capabilities stay separate, then group.
+    wording variants collapse while distinct capabilities stay separate (also cached,
+    so a re-run reproduces the exact set for $0), then group. Family labels are
+    sentence-cased for display (``sentence_case_label``).
 
     The caller repoints each tool's ``member_of_family`` with the returned mapping.
     Family ids are minted fresh (the granular A2 families were never published, so
@@ -303,7 +360,8 @@ def form_families(
     """
     raw = broaden_with_cache(method_tools, call_json=call_json, batch_size=batch_size,
                              checkpoint_dir=checkpoint_dir)
-    canonical = reconcile_classes(raw, method_tools, call_json=call_json, batch_size=reconcile_batch_size)
+    canonical = reconcile_with_cache(raw, method_tools, call_json=call_json,
+                                     batch_size=reconcile_batch_size, checkpoint_dir=checkpoint_dir)
 
     by_class: dict[tuple[str, str], list[dict]] = defaultdict(list)
     tool_by_id = {t["canonical_tool_id"]: t for t in method_tools}
@@ -321,7 +379,7 @@ def form_families(
         ranked = sorted(tools, key=lambda t: -len(t.get("pub_ids") or []))
         fam_records.append({
             "family_id": fid,
-            "label": cls,
+            "label": sentence_case_label(cls),
             "supercategory": sc,
             "dominant_kind": dominant,
             "member_tool_ids": [t["canonical_tool_id"] for t in ranked],
