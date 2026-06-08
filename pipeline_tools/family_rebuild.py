@@ -51,6 +51,10 @@ BROADEN_CACHE_NAME = "broaden_cache.json"
 # therapeutics"), never distinct classes.
 DEFAULT_CONSOLIDATE_COSINE = 0.92
 RECONCILE_MAX_WORKERS = 8
+# A family needs >= this many member tools to be surfaced (§7). Below it, the tools
+# stay on their canonical-tool record, unfamilied, until they accrete more members —
+# a provisional 1-2 member "family" is just a tool with a label, not a community.
+MIN_FAMILY_SIZE = 3
 # Bigger than the broaden batch: reconciliation accretes the canonical vocabulary
 # sequentially WITHIN a supercategory (so cross-batch variants reconcile), and a
 # larger batch means the model sees more of a supercategory's labels at once.
@@ -343,7 +347,7 @@ def reconcile_with_cache(
 def form_families(
     method_tools: list[dict], *, call_json, embed_cache: EmbeddingCache,
     batch_size: int = DEFAULT_BROADEN_BATCH, reconcile_batch_size: int = DEFAULT_RECONCILE_BATCH,
-    checkpoint_dir=None,
+    min_family_size: int = MIN_FAMILY_SIZE, checkpoint_dir=None,
 ) -> tuple[FamilyRegistry, dict[str, str]]:
     """Form capability-class families. Returns ``(FamilyRegistry, {tool_id: family_id})``.
 
@@ -372,7 +376,12 @@ def form_families(
     minter = IdMinter.for_families([])
     fam_records: list[dict] = []
     tool_to_family: dict[str, str] = {}
+    sub_floor_groups = unfamilied = 0
     for (sc, cls), tools in sorted(by_class.items(), key=lambda kv: (kv[0][0], -len(kv[1]), kv[0][1])):
+        if len(tools) < min_family_size:  # §7 floor — leave these tools unfamilied
+            sub_floor_groups += 1
+            unfamilied += len(tools)
+            continue
         fid = minter.mint()
         kinds = [t.get("kind") for t in tools if t.get("kind")]
         dominant = Counter(kinds).most_common(1)[0][0] if kinds else None
@@ -392,7 +401,8 @@ def form_families(
 
     registry = FamilyRegistry(fam_records, cache=embed_cache)
     singletons = sum(1 for f in fam_records if len(f["member_tool_ids"]) == 1)
-    logger.info("form_families: %d method_tools -> %d families (%d singletons, %d%%)",
-                len(method_tools), len(fam_records), singletons,
-                100 * singletons // max(len(fam_records), 1))
+    logger.info("form_families: %d method_tools -> %d families (>= %d members; %d singletons %d%%); "
+                "%d tool(s) left unfamilied below floor across %d sub-floor group(s)",
+                len(method_tools), len(fam_records), min_family_size, singletons,
+                100 * singletons // max(len(fam_records), 1), unfamilied, sub_floor_groups)
     return registry, tool_to_family

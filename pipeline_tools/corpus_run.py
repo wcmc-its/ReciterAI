@@ -52,6 +52,7 @@ from pipeline_tools.registry import (
 )
 from pipeline_tools.rollup import build_faculty_rollup
 from pipeline_tools.seed import (
+    EXC_CROSS_SUPERCATEGORY,
     EXC_MERGE_SUPERCAT_DISAGREE,
     EXC_ROUTING_SANITY,
     EXC_UNCLASSIFIED,
@@ -416,21 +417,33 @@ def run_corpus(
     #    ~89% singleton families at A2 scale.
     from pipeline_tools.embeddings import EmbeddingCache
     cache = getattr(tool_registry, "_cache", None) or EmbeddingCache()
+    relabel_deltas: list[dict] = []
+    merge_deltas: list[dict] = []
     if relabel:
         from pipeline_tools.family_rebuild import form_families
+        from pipeline_tools.relabel import cross_supercategory_label_forks, dedup_families
         family_registry, tool_to_family = form_families(
             method_tools, call_json=call_json, embed_cache=cache, batch_size=family_batch_size,
             checkpoint_dir=checkpoint_dir,
         )
+        # §7 dedup sweep — merge any within-bucket exact-label duplicate (reconcile
+        # should leave none, but this is the durable safety net), then repoint moved tools.
+        merge_deltas = dedup_families(family_registry)
+        for d in merge_deltas:
+            for moved in d["moved_tool_ids"]:
+                tool_to_family[moved] = d["keep_id"]
         for tid, fid in tool_to_family.items():
             tool_registry.update_classification(tid, member_of_family=fid)
         for rec in method_tools:
             rec["member_of_family"] = tool_to_family.get(rec["canonical_tool_id"])
+        # §7 cross-supercategory guard — flag (don't merge) labels forked across buckets.
+        forks = cross_supercategory_label_forks(family_registry)
+        for fk in forks:
+            exceptions.append({"type": EXC_CROSS_SUPERCATEGORY, **fk})
     else:
         family_registry = FamilyRegistry([], cache=cache)  # tools-only dev run (no LLM)
-    fam_counts = {"minted": len(family_registry), "attached": 0, "flagged": 0}
-    relabel_deltas: list[dict] = []
-    merge_deltas: list[dict] = []
+        forks = []
+    fam_counts = {"minted": len(family_registry), "attached": 0, "flagged": len(forks)}
 
     # 4b. routing-sanity net — deterministic likely-misroute flags (flag-only).
     for rec in method_tools:
@@ -516,6 +529,7 @@ def _telemetry(
         "family_minted": fam_counts.get("minted", 0) + fam_counts.get("flagged", 0),
         "family_attached": fam_counts.get("attached", 0),
         "family_flagged_cross_supercat": fam_counts.get("flagged", 0),
+        "method_tools_unfamilied": sum(1 for r in method_tools if not r.get("member_of_family")),
         "salience_distribution": _dist("salience_tier"),
         "salience_basis_distribution": _dist("salience_tier_basis"),
         "disposition_distribution": _dist("disposition"),

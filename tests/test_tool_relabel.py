@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline_tools.registry import FamilyRegistry
-from pipeline_tools.relabel import dedup_families, relabel_families
+from pipeline_tools.relabel import cross_supercategory_label_forks, dedup_families, relabel_families
 
 
 def _fam(fid, label, supercat, members, kind="method"):
@@ -110,3 +110,31 @@ def test_merge_into_inherits_exemplars_only_when_keep_has_none():
     moved = fams.merge_into(keep_id="fam_0001", drop_id="fam_0002")
     assert moved == ["t9"]
     assert fams.get("fam_0001")["exemplar_tool_ids"] == ["t9"]  # inherited (keep had none)
+
+
+# --- §7 cross-supercategory fork guard ------------------------------------
+
+def test_cross_supercategory_label_forks_flags_only_cross_bucket():
+    fams = FamilyRegistry([
+        _fam("fam_0001", "Flow cytometry", "clinical_instruments_assays", ["a", "b", "c"]),
+        _fam("fam_0002", "Flow cytometry", "microscopy_histology", ["d", "e"]),   # same label, other bucket -> fork
+        _fam("fam_0003", "MRI acquisition", "imaging_image_analysis", ["f", "g", "h"]),  # unique -> not flagged
+    ])
+    forks = cross_supercategory_label_forks(fams)
+    assert len(forks) == 1
+    fork = forks[0]
+    assert fork["label"] == "Flow cytometry"
+    # heaviest collision first; no exception "type" (the caller stamps it)
+    assert [c["supercategory"] for c in fork["collisions"]] == \
+        ["clinical_instruments_assays", "microscopy_histology"]
+    assert fork["collisions"][0]["members"] == 3
+    assert "type" not in fork
+
+
+def test_cross_supercategory_label_forks_ignores_same_bucket_duplicate():
+    # an exact within-bucket duplicate is dedup_families' job, NOT a cross-supercat fork
+    fams = FamilyRegistry([
+        _fam("fam_0001", "Flow cytometry", "clinical_instruments_assays", ["a"]),
+        _fam("fam_0002", "Flow cytometry", "clinical_instruments_assays", ["b"]),
+    ])
+    assert cross_supercategory_label_forks(fams) == []

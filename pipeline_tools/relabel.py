@@ -123,3 +123,35 @@ def dedup_families(families: FamilyRegistry) -> list[dict]:
         logger.info("family dedup: merged %d forked family/families onto %d survivor(s)",
                     len(deltas), len({d['keep_id'] for d in deltas}))
     return deltas
+
+
+def cross_supercategory_label_forks(families: FamilyRegistry) -> list[dict]:
+    """§7 cross-supercategory guard — FLAG (never merge) families that carry the same
+    label in different supercategories.
+
+    An identical label in two (frozen) supercategories is the strongest possible
+    signal that a tool was mis-routed, not that two capabilities should merge — so it
+    goes to the bounded reconciliation queue for review, not a silent cross-bucket
+    merge. ``dedup_families`` handles the within-bucket exact duplicates; this is its
+    cross-bucket counterpart. Returns one record per colliding label (without an
+    exception ``type`` — the caller stamps it), heaviest collision first.
+    """
+    groups: dict[str, list[dict]] = {}
+    for fam in families.records():
+        key = norm_name(fam.get("label") or "")
+        if key:
+            groups.setdefault(key, []).append(fam)
+
+    forks: list[dict] = []
+    for fams in groups.values():
+        if len({f.get("supercategory") for f in fams}) < 2:
+            continue
+        collisions = sorted(
+            ({"family_id": f["family_id"], "supercategory": f.get("supercategory"),
+              "members": len(f.get("member_tool_ids", []))} for f in fams),
+            key=lambda c: -c["members"])
+        forks.append({"label": fams[0].get("label"), "collisions": collisions})
+    forks.sort(key=lambda fk: -fk["collisions"][0]["members"])
+    if forks:
+        logger.info("family cross-supercategory guard: flagged %d label fork(s) to the queue", len(forks))
+    return forks

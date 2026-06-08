@@ -48,7 +48,8 @@ def test_form_families_groups_same_class_different_name():
     vecs = {"anti-PD-1 immunotherapy": [1.0, 0.0], "biguanide antidiabetics": [0.0, 1.0]}
     cache = EmbeddingCache(embed=lambda ts: [vecs.get(t, [0.5, 0.5]) for t in ts])
 
-    reg, mapping = form_families(tools, call_json=_stub(broaden_map=broaden), embed_cache=cache)
+    reg, mapping = form_families(tools, call_json=_stub(broaden_map=broaden), embed_cache=cache,
+                                 min_family_size=1)  # tiny fixture — exercise grouping, not the floor
     assert len(reg) == 2
     assert mapping["t1"] == mapping["t2"] != mapping["t3"]
     pd1 = reg.get(mapping["t1"])
@@ -173,5 +174,17 @@ def test_broaden_failure_keeps_specific_name():
         raise RuntimeError("LLM down")
 
     cache = EmbeddingCache(embed=lambda ts: [[1.0, 0.0] for _ in ts])
-    reg, mapping = form_families(tools, call_json=boom, embed_cache=cache)
+    reg, mapping = form_families(tools, call_json=boom, embed_cache=cache, min_family_size=1)
     assert reg.get(mapping["t1"])["label"] == "ExoticTool"  # falls back to the name, not dropped
+
+
+def test_form_families_enforces_min_family_floor():
+    # three tools share a class (-> a real family), one is alone (-> unfamilied at floor 3)
+    broaden = {"A1": "shared class", "A2": "shared class", "A3": "shared class", "Solo": "solo class"}
+    tools = [_tool(c, n) for c, n in [("t1", "A1"), ("t2", "A2"), ("t3", "A3"), ("t4", "Solo")]]
+    cache = EmbeddingCache(embed=lambda ts: [[1.0, 0.0] for _ in ts])
+    reg, mapping = form_families(tools, call_json=_stub(broaden_map=broaden), embed_cache=cache,
+                                 min_family_size=3)
+    assert len(reg) == 1                       # only the 3-member class survives the floor
+    assert mapping["t1"] == mapping["t2"] == mapping["t3"]
+    assert "t4" not in mapping                 # sub-floor tool left unfamilied (member_of_family stays None)
