@@ -178,6 +178,70 @@ def _pub_ids_of(occurrences: list[dict]) -> list[str]:
     })
 
 
+# ---------------------------------------------------------------------------
+# Classify checkpoint — resumable, keyed by normalized name (run-completeness
+# independent, so a partial run's cache is always valid to resume from). Protects
+# the expensive Sonnet classify pass; the cheap downstream stages re-run.
+# ---------------------------------------------------------------------------
+
+CLASSIFY_CHECKPOINT_NAME = "classify_cache.jsonl"
+_CLASSIFY_CHUNK_BATCHES = 10  # persist every ~N classify batches
+
+
+def _load_classify_cache(path: Path) -> dict[str, dict]:
+    cache: dict[str, dict] = {}
+    if not path.exists():
+        return cache
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # tolerate a torn final line (hard kill mid-write)
+        key = norm_name(rec.get("raw_name", ""))
+        if key:
+            cache[key] = rec
+    return cache
+
+
+def _append_classify_cache(path: Path, records: list[dict]) -> None:
+    if not records:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        for rec in records:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        fh.flush()
+
+
+def _classify_resumable(
+    classify_inputs: list[dict], *, call_json, batch_size: int, checkpoint_path: Path | None,
+) -> dict[str, dict]:
+    """Classify each input once, resuming from (and appending to) a JSONL cache.
+
+    Returns ``{norm_name(raw_name): classification}``. With a checkpoint path, a
+    crash loses at most ``_CLASSIFY_CHUNK_BATCHES`` batches; a resume re-classifies
+    only the still-missing forms.
+    """
+    cached = _load_classify_cache(checkpoint_path) if checkpoint_path else {}
+    todo = [m for m in classify_inputs if norm_name(m.get("raw_name", "")) not in cached]
+    if checkpoint_path and cached:
+        logger.info("classify checkpoint: %d cached, %d to classify", len(cached), len(todo))
+
+    by_name = dict(cached)
+    chunk = batch_size * _CLASSIFY_CHUNK_BATCHES
+    for i in range(0, len(todo), chunk):
+        recs = classify_mentions(todo[i:i + chunk], call_json=call_json, batch_size=batch_size)
+        if checkpoint_path:
+            _append_classify_cache(checkpoint_path, recs)
+            logger.info("classify: %d/%d forms done", min(i + chunk, len(todo)), len(todo))
+        for c in recs:
+            by_name[norm_name(c.get("raw_name", ""))] = c
+    return by_name
+
+
 def _appl_id(pmid: str) -> str:
     return pmid[len(GRANT_PMID_PREFIX):] if pmid.startswith(GRANT_PMID_PREFIX) else pmid
 
@@ -197,6 +261,7 @@ def run_corpus(
     batch_size: int = 50,
     relabel_batch_size: int = 40,
     relabel: bool = True,
+    checkpoint_dir=None,
 ) -> CorpusResult:
     """Run the A2 corpus pipeline over ``mentions`` and return registries + outputs.
 
@@ -205,11 +270,28 @@ def run_corpus(
     carry forward, D-06, and registry NN matching is available). ``call_json`` is
     the shared classify/relabel seam. Set ``relabel=False`` to skip the §7.2 LLM
     relabel pass (a cheaper structural-only run for development).
+
+    ``checkpoint_dir`` (a Path) makes the expensive classify pass resumable: a
+    crash re-classifies only the still-missing forms. The cheap downstream stages
+    (match/salience/family/relabel) re-run deterministically from the cache.
     """
     force_c_terms = force_c_terms if force_c_terms is not None else salience_mod.load_force_c_terms()
 
     uniques = group_mentions(mentions)
     logger.info("corpus run: %d raw mention(s) -> %d unique surface form(s)", len(mentions), len(uniques))
+
+    # Pre-warm the embedding cache in ONE batched (parallel) embed of every form
+    # text + the loaded registry's candidate texts. Without this, the match loop
+    # embeds one text at a time (serialising on Titan latency); warmed, every
+    # match call is pure in-memory matrix math.
+    cache = getattr(tool_registry, "_cache", None)
+    if cache is not None:
+        prewarm = [u.raw_name for u in uniques]
+        for r in tool_registry.records():
+            prewarm.append(r["display_name"])
+            prewarm.extend(r.get("aliases", []))
+        cache.prewarm(prewarm)
+        logger.info("pre-warmed embedding cache with %d unique text(s)", len(set(prewarm)))
 
     exceptions: list[dict] = []
 
@@ -218,8 +300,10 @@ def run_corpus(
         {"raw_name": u.raw_name, "tool_category": u.tool_category, "context": u.context, "pub_count": u.pub_count}
         for u in uniques
     ]
-    classified = classify_mentions(classify_inputs, call_json=call_json, batch_size=batch_size)
-    cls_by_name = {norm_name(c.get("raw_name", "")): c for c in classified}
+    ckpt_path = (Path(checkpoint_dir) / CLASSIFY_CHECKPOINT_NAME) if checkpoint_dir else None
+    cls_by_name = _classify_resumable(
+        classify_inputs, call_json=call_json, batch_size=batch_size, checkpoint_path=ckpt_path,
+    )
 
     # 2. IDENTITY (match-or-mint), most prominent first. ------------------------
     counts = {"minted": 0, "attached": 0, "denied": 0, "unclassified": 0}

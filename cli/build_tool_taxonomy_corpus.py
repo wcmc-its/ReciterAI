@@ -97,9 +97,12 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
     parser.add_argument("--batch-size", type=int, default=50, help="classification batch size")
     parser.add_argument("--relabel-batch-size", type=int, default=40, help="family relabel batch size")
     parser.add_argument("--no-relabel", action="store_true", help="skip the §7.2 LLM relabel pass (cheaper dev run)")
+    parser.add_argument("--checkpoint-dir", type=Path, default=None,
+                        help="resumable classify-checkpoint dir (default: <out-dir>/_checkpoint; a crash re-classifies only the missing forms)")
     parser.add_argument("--publish", action="store_true",
                         help="upload tools.json to s3://wcmc-reciterai-artifacts/tools/ (default: dry-run report)")
     args = parser.parse_args(argv)
+    checkpoint_dir = args.checkpoint_dir if args.checkpoint_dir is not None else (args.out_dir / "_checkpoint")
 
     mentions = load_mentions(args.input, args.limit)
     if not mentions:
@@ -130,12 +133,13 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
     logger.info("loaded seed registries: %d tools, %d families from %s",
                 len(tool_registry), len(family_registry), reg)
 
+    logger.info("classify checkpoint dir: %s", checkpoint_dir)
     result = run_corpus(
         mentions, call_json=call_json,
         tool_registry=tool_registry, family_registry=family_registry,
         force_c_terms=load_force_c_terms(),
         batch_size=args.batch_size, relabel_batch_size=args.relabel_batch_size,
-        relabel=not args.no_relabel,
+        relabel=not args.no_relabel, checkpoint_dir=checkpoint_dir,
     )
 
     provenance = {
