@@ -136,30 +136,39 @@ def classify_mentions(
     a failed batch never aborts the others, and the drop is logged, never silent.
     Mentions the LLM omits from an otherwise-good batch are flagged ``missing``.
     """
+    results: list[dict] = []
+    batches = [mentions[i:i + batch_size] for i in range(0, len(mentions), batch_size)]
+    for bi, batch in enumerate(batches, 1):
+        results.extend(classify_batch(batch, call_json=call_json, label=f"{bi}/{len(batches)}"))
+    return results
+
+
+def classify_batch(batch: list[dict], *, call_json: CallJson, label: str = "") -> list[dict]:
+    """Classify ONE batch; return normalized records aligned to ``batch``.
+
+    The unit of work for both the sequential ``classify_mentions`` loop and the
+    parallel corpus-mode classifier. Partial-failure tolerant: an LLM call that
+    raises leaves the whole batch UNCLASSIFIED (flagged), never aborting the run;
+    a mention the LLM omits is flagged ``missing``.
+    """
     # Lazy import keeps the prompt (and its vocab dependency) out of import-time
     # cost for callers that only use normalize_classification.
     from prompts.tool_classify import CLASSIFY_SYSTEM_PROMPT, build_classify_user_message
 
-    results: list[dict] = []
-    batches = [mentions[i:i + batch_size] for i in range(0, len(mentions), batch_size)]
-    for bi, batch in enumerate(batches, 1):
-        try:
-            resp = call_json(CLASSIFY_SYSTEM_PROMPT, build_classify_user_message(batch))
-            entries = resp.get("classifications", []) if isinstance(resp, dict) else []
-        except Exception as exc:  # noqa: BLE001 — partial-failure tolerance by design
-            logger.warning("classify batch %d/%d failed (%s); %d mention(s) left unclassified",
-                           bi, len(batches), exc, len(batch))
-            results.extend(_unclassified(m, FLAG_LLM_ERROR) for m in batch)
-            continue
+    try:
+        resp = call_json(CLASSIFY_SYSTEM_PROMPT, build_classify_user_message(batch))
+        entries = resp.get("classifications", []) if isinstance(resp, dict) else []
+    except Exception as exc:  # noqa: BLE001 — partial-failure tolerance by design
+        logger.warning("classify batch %s failed (%s); %d mention(s) left unclassified",
+                       label or "?", exc, len(batch))
+        return [_unclassified(m, FLAG_LLM_ERROR) for m in batch]
 
-        by_name = {norm_name(e.get("raw_name", "")): e for e in entries if e.get("raw_name")}
-        for m in batch:
-            entry = by_name.get(norm_name(m.get("raw_name", "")))
-            if entry is None:
-                results.append(_unclassified(m, FLAG_MISSING))
-            else:
-                results.append(normalize_classification(entry, m))
-    return results
+    by_name = {norm_name(e.get("raw_name", "")): e for e in entries if e.get("raw_name")}
+    out: list[dict] = []
+    for m in batch:
+        entry = by_name.get(norm_name(m.get("raw_name", "")))
+        out.append(_unclassified(m, FLAG_MISSING) if entry is None else normalize_classification(entry, m))
+    return out
 
 
 def _unclassified(mention: dict, flag: str) -> dict:

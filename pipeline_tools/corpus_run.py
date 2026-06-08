@@ -35,13 +35,14 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from pipeline_tools import salience as salience_mod
 from pipeline_tools import sanity as sanity_mod
 from pipeline_tools import vocab
-from pipeline_tools.classify import classify_mentions
+from pipeline_tools.classify import classify_batch, classify_mentions
 from pipeline_tools.registry import (
     DEFAULT_FAMILY_MATCH_COSINE,
     DEFAULT_TOOL_MATCH_COSINE,
@@ -185,7 +186,12 @@ def _pub_ids_of(occurrences: list[dict]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 CLASSIFY_CHECKPOINT_NAME = "classify_cache.jsonl"
-_CLASSIFY_CHUNK_BATCHES = 10  # persist every ~N classify batches
+_CLASSIFY_FLUSH_EVERY = 10  # persist the checkpoint every N completed batches
+# Classify batches are independent LLM calls; many content-filter on Bedrock and
+# fall back to OpenAI (~20s each), so a sequential loop is the wall-clock floor.
+# Run them concurrently (BedrockClient retries throttles itself; its default pool
+# fits this). Kept modest to stay under Sonnet/OpenAI rate limits.
+CLASSIFY_MAX_WORKERS = 8
 
 
 def _load_classify_cache(path: Path) -> dict[str, dict]:
@@ -218,27 +224,47 @@ def _append_classify_cache(path: Path, records: list[dict]) -> None:
 
 def _classify_resumable(
     classify_inputs: list[dict], *, call_json, batch_size: int, checkpoint_path: Path | None,
+    max_workers: int = CLASSIFY_MAX_WORKERS,
 ) -> dict[str, dict]:
-    """Classify each input once, resuming from (and appending to) a JSONL cache.
+    """Classify each input once, concurrently, resuming from a JSONL cache.
 
-    Returns ``{norm_name(raw_name): classification}``. With a checkpoint path, a
-    crash loses at most ``_CLASSIFY_CHUNK_BATCHES`` batches; a resume re-classifies
-    only the still-missing forms.
+    Batches run over a thread pool (independent LLM calls; the slow content-filter
+    -> OpenAI fallbacks overlap instead of serializing). Returns
+    ``{norm_name(raw_name): classification}``. With a checkpoint path, the cache is
+    flushed every ``_CLASSIFY_FLUSH_EVERY`` completed batches, so a crash
+    re-classifies only the still-missing forms.
     """
     cached = _load_classify_cache(checkpoint_path) if checkpoint_path else {}
     todo = [m for m in classify_inputs if norm_name(m.get("raw_name", "")) not in cached]
     if checkpoint_path and cached:
         logger.info("classify checkpoint: %d cached, %d to classify", len(cached), len(todo))
-
     by_name = dict(cached)
-    chunk = batch_size * _CLASSIFY_CHUNK_BATCHES
-    for i in range(0, len(todo), chunk):
-        recs = classify_mentions(todo[i:i + chunk], call_json=call_json, batch_size=batch_size)
-        if checkpoint_path:
-            _append_classify_cache(checkpoint_path, recs)
-            logger.info("classify: %d/%d forms done", min(i + chunk, len(todo)), len(todo))
-        for c in recs:
-            by_name[norm_name(c.get("raw_name", ""))] = c
+    if not todo:
+        return by_name
+
+    batches = [todo[i:i + batch_size] for i in range(0, len(todo), batch_size)]
+    workers = max(1, min(max_workers, len(batches)))
+    done = completed = 0
+    flush_buffer: list[dict] = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(classify_batch, b, call_json=call_json, label=str(i + 1))
+                   for i, b in enumerate(batches)]
+        for fut in as_completed(futures):
+            recs = fut.result()  # classify_batch never raises (partial-failure tolerant)
+            for c in recs:
+                by_name[norm_name(c.get("raw_name", ""))] = c
+            done += len(recs)
+            completed += 1
+            if checkpoint_path:
+                flush_buffer.extend(recs)
+                if completed % _CLASSIFY_FLUSH_EVERY == 0:
+                    _append_classify_cache(checkpoint_path, flush_buffer)
+                    flush_buffer = []
+                    logger.info("classify: %d/%d forms done (%d/%d batches)",
+                                done, len(todo), completed, len(batches))
+        if checkpoint_path and flush_buffer:
+            _append_classify_cache(checkpoint_path, flush_buffer)
+    logger.info("classify: %d form(s) over %d batch(es), %d workers", done, len(batches), workers)
     return by_name
 
 
