@@ -65,10 +65,13 @@ angioplasty), and fold a near-empty sub-modifier into its parent ("endovascular 
 analysis methods" / "qualitative research methods" / "qualitative thematic analysis" -> one; keep \
 "mixed-methods design" and "implementation science frameworks" separate.
 
-LABELING — stay out of MeSH-subject space: a canonical must name a method/capability, never a bare field or \
-topic that rhymes with a Subject heading. Prefer the task/tooling form: "clinical text NLP" not "natural \
-language processing"; "LLM clinical applications" not "large language models"; "deep learning image \
-analysis" not "deep learning".
+LABELING — stay out of MeSH-subject space, and this OVERRIDES reusing an input label verbatim. A canonical \
+must name a method/capability, never a bare field/topic that rhymes with a Subject heading — and appending \
+"methods"/"tools" to a bare field does NOT fix the rhyme. Rewrite to the task/technique and MERGE the \
+field's variants into it: "natural language processing" / "NLP methods" / "NLP tools" -> ONE "clinical text \
+mining" (lead with the task, not the field); "deep learning" -> "deep learning image analysis"; never lead \
+a label with "natural language processing", "machine learning", "deep learning", or a bare "-omics" field \
+name. ("large language model applications" is acceptable — it names the tooling, not a Subject.)
 
 Canonical-label form: when matching, return the existing canonical EXACTLY. When minting, use the clearest \
 standard name for the class (usually one of the input labels, lightly normalized) — 1-5 words plus an optional \

@@ -27,7 +27,7 @@ def _supercategory_menu() -> str:
         "genomics_sequencing": "sequencing platforms + delivery services (10x Chromium, Nanopore, scRNA/ATAC/Ribo-seq, CRISPR screen libraries).",
         "mass_spec_proteomics": "LC-MS/MS, ICP-MS, SILAC, proteomic workflows.",
         "computational_statistical": "GENERAL analysis & study methods — computational, statistical, QUALITATIVE, and IMPLEMENTATION (CNN/SVM/boosting, MD simulation, regression, causal inference, named ML models; thematic analysis, grounded theory; CFIR & implementation frameworks; indices COMPUTED on your own data e.g. Reversed Bice-Boxerman care-continuity). Modality-specific computation routes to its modality (QSM -> #1).",
-        "clinical_instruments_assays": "bedside/clinical measurement & lab diagnostics (ECG/EEG/EMG, echo, endoscopes, ELISA/PSA/HCV assays, clinical rating scales UPDRS/mRS, stents/sheaths/catheters).",
+        "clinical_instruments_assays": "CLINICAL/DIAGNOSTIC measurement ONLY — physiologic recorders (ECG/EEG/EMG), diagnostic lab tests run on PATIENT samples (ELISA/PSA/HbA1c/HCV viral load), clinical rating/outcome scales (UPDRS/mRS/PROs). NOT bench/mechanistic assays (enzyme-activity, receptor-binding, cell-based functional, protein quantification -> #8); NOT surgical procedures or therapy devices (-> #9); NOT clinical imaging (echo, diagnostic ultrasound -> #1); NOT cytogenetics/karyotyping (-> #3).",
         "animal_cell_models": "transgenic/KO mice, zebrafish, NHP, iPSC lines, patient-derived cultures, cell lines, commensal strains.",
         "molecular_biochem_reagents": "agents used as research PROBES/substrates (antibodies/stains, cytokines, tracers, recombinant proteins, CRISPR/Cas9 systems, AAV-as-tool).",
         "therapeutics_interventions": "role is to TREAT/intervene — drugs, biologics, cell therapies (CAR-T), oncolytic viruses, AND therapy devices/procedures (linac, therapeutic US, ablation). Placebo/comparators land here (forced to C).",
@@ -94,6 +94,14 @@ study/consensus designs (Delphi, Simon two-stage, GRADE) -> computational_statis
 for near-atomic structure); conventional cellular/tissue EM stays microscopy_histology.
   - therapy devices (linear accelerator, therapeutic ultrasound, ablation) -> kind=instrument, \
 supercategory therapeutics_interventions (kind/capability are orthogonal).
+  - #6 BOUNDARY — clinical_instruments_assays is CLINICAL/DIAGNOSTIC only (patient-sample diagnostics, \
+physiologic recorders, administered clinical scales). It must NOT absorb: a bench/mechanistic ASSAY \
+(enzyme-activity, receptor-ligand binding, cell-based functional, protein detection/quantification) -> \
+molecular_biochem_reagents #8; a SURGICAL/interventional PROCEDURE (resection, skull-base/endoscopic/\
+endovascular approaches) -> therapeutics_interventions #9; cardiac/clinical IMAGING (echocardiography, \
+diagnostic ultrasound) -> imaging_image_analysis #1; cytogenetics/karyotyping -> genomics_sequencing #3. \
+When an assay could be read as either clinical or bench, the discriminator is the SAMPLE: run on a \
+patient specimen for diagnosis -> #6; run on cells/proteins to probe a mechanism -> #8.
   - INDICES/scores: a DISTRIBUTED, geography-/ID-indexed lookup product you merge into your data \
 (Social Vulnerability Index, Area/Social Deprivation Index, Charlson/Elixhauser comorbidity) -> \
 kind=dataset, datasets_cohorts. An index you COMPUTE on your own data (care-continuity/fragmentation \
