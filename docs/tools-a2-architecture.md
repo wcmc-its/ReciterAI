@@ -212,9 +212,18 @@ families (1,080→1,697) with 291 spurious forks. It masqueraded as a clustering
 regression; three reasoned diagnoses were wrong before a 30-second fresh-broaden
 probe pinned it. Fix: **key caches by the stable content the value depends on** —
 broaden by `norm(display_name)`, reconcile by `(supercategory, broad_label)` — so
-they survive id drift (tested). Final clean result: **942 families, computational
-163, #14=17, 10 forks.** Lesson: probe a cache/determinism hypothesis on real data;
-don't reason about it.
+they survive id drift (tested). Lesson: probe a cache/determinism hypothesis on real
+data; don't reason about it.
+
+Two further boundary fixes followed: **#6 sharpened to clinical/diagnostic-only**
+(bench assays→#8, surgical→#9, echo→#1, cytogenetics→#3) and **#14 tightened to
+metabolic/bioenergetic-only** with **#8 as the home for bench mechanistic assays**.
+These cascade — sharpening #6 pushed functional assays into #14 (bloating it 17→47)
+until #14 was tightened in turn. **Frozen at v6: 894 families, computational 152,
+#14=8 (tight metabolic), 17 cross-supercategory forks routed to the review queue.**
+The forks are ~irreducible below ~15 because adjacent buckets genuinely blur (a
+biopsy is both diagnostic and procedural; an AAV vector is both reagent and therapy)
+— the queue is the designed handling, not a defect.
 
 ---
 
@@ -229,7 +238,7 @@ don't reason about it.
 | Families (greedy name-match, **rejected**) | 15,752, 89% singletons |
 | Families (capability-class broaden + embedding consolidate, **superseded**) | 6,460, 50% singletons |
 | Families (broaden + **LLM reconcile**) | 1,937 pre-floor, 29% singletons |
-| Families (+ **≥3 floor, #14, review fixes**) | **942 post-floor** (computational 163, #14=17, forks 10); see §3.8 |
+| Families (+ **≥3 floor, #14, crisp #6/#8/#14, review fixes**) | **894 post-floor (FROZEN v6)** (computational 152, #14=8, 17 forks→queue); see §3.8 |
 
 ---
 
