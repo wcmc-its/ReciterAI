@@ -177,10 +177,15 @@ recomputable.
   name) — a crash re-classifies only missing forms, never re-spends the ~$21
   Sonnet pass. (Paid off repeatedly during the build.)
 - **Per-inference model provenance** — extraction records the model per PMID; the
-  classify/relabel seam now stamps which model answered (Sonnet vs gpt-5.x) onto
-  each record (`classified_by`) so the ~1–2% gpt-5.x classifications are
-  auditable. Cannot be backfilled from logs (the fallback line has no form id and
-  parallel workers interleave it).
+  classify/relabel seam stamps which model answered (Sonnet vs gpt-5.x) onto each
+  record (`classified_by`) so the ~1–2% gpt-5.x classifications are auditable. It
+  cannot be reconstructed from logs (the fallback line has no form id and parallel
+  workers interleave it), so classifications whose cache entries predate per-form
+  stamping carry no model. `corpus_run.stamp_assumed_classified_by` (step 2c) handles
+  this honestly: real per-form models are kept (`classified_by_assumed=False`); the
+  rest are stamped the assumed aggregate model (Sonnet) with `classified_by_assumed=True`
+  so an assumption is never mistaken for measured provenance. v7: 3,933 real / 14,477
+  assumed. As the cache accretes real models on future runs, the assumed set shrinks.
 
 ### 3.7 The `context` field is load-bearing and under-surfaced
 

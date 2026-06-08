@@ -7,9 +7,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline_tools import vocab
-from pipeline_tools.corpus_run import group_mentions, run_corpus
+from pipeline_tools.corpus_run import group_mentions, run_corpus, stamp_assumed_classified_by
 from pipeline_tools.embeddings import EmbeddingCache
 from pipeline_tools.registry import FamilyRegistry, ToolRegistry
+
+
+def test_stamp_assumed_classified_by_backfills_empty_and_preserves_real():
+    tools = ToolRegistry([
+        {"canonical_tool_id": "tool_000001", "display_name": "a", "disposition": "method_tool",
+         "classified_by": "gpt-5.1"},                         # real per-form provenance
+        {"canonical_tool_id": "tool_000002", "display_name": "b", "disposition": "method_tool"},  # empty → assume
+        {"canonical_tool_id": "tool_000003", "display_name": "c", "disposition": "method_tool",
+         "classified_by": "us.anthropic.claude-sonnet-4-6"},  # real Sonnet
+    ], cache=EmbeddingCache(embed=_zero_embed))
+    n_assumed, n_real = stamp_assumed_classified_by(tools, assumed_model="us.anthropic.claude-sonnet-4-6")
+    assert (n_assumed, n_real) == (1, 2)
+    by = {r["canonical_tool_id"]: r for r in tools.records()}
+    assert by["tool_000001"]["classified_by"] == "gpt-5.1" and by["tool_000001"]["classified_by_assumed"] is False
+    assert by["tool_000002"]["classified_by"] == "us.anthropic.claude-sonnet-4-6" and by["tool_000002"]["classified_by_assumed"] is True
+    assert by["tool_000003"]["classified_by_assumed"] is False  # real Sonnet, not an assumption
 
 
 def _zero_embed(texts):

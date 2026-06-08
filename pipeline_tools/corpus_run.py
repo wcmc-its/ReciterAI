@@ -60,10 +60,33 @@ from pipeline_tools.seed import (
     _collect_classification_exceptions,
     _enriched_records,
 )
+from utils.bedrock_client import SONNET_MODEL
 
 logger = logging.getLogger(__name__)
 
 GRANT_PMID_PREFIX = "grant:"
+
+
+def stamp_assumed_classified_by(tool_registry: ToolRegistry, *, assumed_model: str) -> tuple[int, int]:
+    """Backfill ``classified_by`` provenance + an ``assumed`` flag (returns (n_assumed, n_real)).
+
+    Fresh classifications carry the real per-form model (stamped by the classify seam,
+    persisted in the classify cache). Records whose classification came from a cache entry
+    written before per-form stamping carry none — stamp the assumed aggregate model and set
+    ``classified_by_assumed=True`` so an assumed value is honestly distinguishable from real
+    provenance. Records with a real model are marked ``assumed=False``. Deterministic +
+    reproducible on every re-run; as the cache accretes real models, the assumed set shrinks.
+    """
+    n_assumed = n_real = 0
+    for rec in tool_registry.records():
+        if rec.get("classified_by"):
+            rec["classified_by_assumed"] = False
+            n_real += 1
+        else:
+            rec["classified_by"] = assumed_model
+            rec["classified_by_assumed"] = True
+            n_assumed += 1
+    return n_assumed, n_real
 
 
 @dataclass
@@ -398,6 +421,12 @@ def run_corpus(
                 "votes": dict(sorted(votes.items(), key=lambda kv: -kv[1])),
             })
 
+    # 2c. classified_by provenance — real per-form model where the classify seam stamped
+    #     it; assumed aggregate model (Sonnet) + flag for cache entries that predate
+    #     per-form stamping. Captures real provenance going forward, assumes it retroactively.
+    n_assumed, n_real = stamp_assumed_classified_by(tool_registry, assumed_model=SONNET_MODEL)
+    logger.info("classified_by: %d real (per-form), %d assumed (%s, flagged)", n_real, n_assumed, SONNET_MODEL)
+
     method_tools = [r for r in tool_registry.records() if r["disposition"] == vocab.CAPABILITY_DISPOSITION]
 
     # 3. GROUNDED salience (§5) — spread from real publication authorship. -------
@@ -561,6 +590,8 @@ def _telemetry(
         "salience_basis_distribution": _dist("salience_tier_basis"),
         "disposition_distribution": _dist("disposition"),
         "supercategory_distribution": _dist("supercategory"),
+        "classified_by_distribution": _dist("classified_by"),
+        "classified_by_assumed_count": sum(1 for r in tools.records() if r.get("classified_by_assumed")),
         "method_tools": len(method_tools),
         "method_tools_grounded": len(grounded),
         "s_spread_cutoff": getattr(thresholds, "s_spread_min", None),
