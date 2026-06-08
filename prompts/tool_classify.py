@@ -29,12 +29,12 @@ def _supercategory_menu() -> str:
         "computational_statistical": "GENERAL analysis & study methods — computational, statistical, QUALITATIVE, and IMPLEMENTATION (CNN/SVM/boosting, MD simulation, regression, causal inference, named ML models; thematic analysis, grounded theory; CFIR & implementation frameworks; indices COMPUTED on your own data e.g. Reversed Bice-Boxerman care-continuity). Modality-specific computation routes to its modality (QSM -> #1).",
         "clinical_instruments_assays": "CLINICAL/DIAGNOSTIC measurement ONLY — physiologic recorders (ECG/EEG/EMG), diagnostic lab tests run on PATIENT samples (ELISA/PSA/HbA1c/HCV viral load), clinical rating/outcome scales (UPDRS/mRS/PROs). NOT bench/mechanistic assays (enzyme-activity, receptor-binding, cell-based functional, protein quantification -> #8); NOT surgical procedures or therapy devices (-> #9); NOT clinical imaging (echo, diagnostic ultrasound -> #1); NOT cytogenetics/karyotyping (-> #3).",
         "animal_cell_models": "transgenic/KO mice, zebrafish, NHP, iPSC lines, patient-derived cultures, cell lines, commensal strains.",
-        "molecular_biochem_reagents": "agents used as research PROBES/substrates (antibodies/stains, cytokines, tracers, recombinant proteins, CRISPR/Cas9 systems, AAV-as-tool).",
+        "molecular_biochem_reagents": "agents used as research PROBES/substrates (antibodies/stains, cytokines, tracers, recombinant proteins, CRISPR/Cas9 systems, AAV-as-tool) AND bench/mechanistic molecular ASSAYS run on cells/proteins to probe a mechanism (enzyme-activity, receptor-ligand binding, intracellular signaling, immunophenotyping, cell-based functional, antimicrobial susceptibility). Bench mechanism -> here; patient-sample diagnosis -> #6; metabolic/bioenergetic readout -> #14.",
         "therapeutics_interventions": "role is to TREAT/intervene — drugs, biologics, cell therapies (CAR-T), oncolytic viruses, AND therapy devices/procedures (linac, therapeutic US, ablation). Placebo/comparators land here (forced to C).",
         "datasets_cohorts": "bodies of data — claims/EHR (MarketScan, INSIGHT, Premier, Epic Cosmos), cohorts/registries (TCGA, SRTR, GWAS sumstats), bibliographic DBs (PubMed, EMBASE).",
         "software_informatics": "GENERAL-function software with no modality home (REDCap, R, dashboards, planning/analytics).",
         "structural_biophysical": "macromolecular structure determination & molecular-interaction biophysics — X-ray crystallography, cryo-EM (structure), NMR (structural), SPR, ITC, EPR.",
-        "functional_metabolic_cellular_assays": "functional/bioenergetic cell-biology readouts — mitochondrial-function & cellular metabolic assays, extracellular-flux/Seahorse analysis, oxygen-consumption/ECAR, cell viability/death/senescence & proliferation functional assays. (A measured analyte via a clinical lab kit -> #6; an administered metabolic drug -> #9.)",
+        "functional_metabolic_cellular_assays": "METABOLIC/BIOENERGETIC cell readouts ONLY — mitochondrial function/respiration, extracellular-flux/Seahorse, oxygen-consumption/OCR/ECAR, glycolysis, metabolic flux/isotope tracing, cellular metabolism; viability/death/senescence ONLY when read as a METABOLIC-STATE assay. The word 'functional' alone does NOT route here. NOT generic bench/mechanistic assays (enzyme-activity, receptor-ligand binding, immunophenotyping, intracellular signaling, antimicrobial susceptibility, cell-based functional) -> #8; NOT electrophysiology -> #6/#1; NOT a clinical-lab analyte -> #6; NOT an administered metabolic drug -> #9.",
         "other": "GATED REMAINDER — a genuinely DISTINCTIVE in-domain capability with no home among #1-#12,#14. NOT a catch-all and NOT for commodity bench/office equipment (ultracentrifuge, generic recorder -> give a best-fit category; they are salience-demoted, not parked here).",
     }
     lines = []
@@ -102,6 +102,14 @@ endovascular approaches) -> therapeutics_interventions #9; cardiac/clinical IMAG
 diagnostic ultrasound) -> imaging_image_analysis #1; cytogenetics/karyotyping -> genomics_sequencing #3. \
 When an assay could be read as either clinical or bench, the discriminator is the SAMPLE: run on a \
 patient specimen for diagnosis -> #6; run on cells/proteins to probe a mechanism -> #8.
+  - #14 BOUNDARY — functional_metabolic_cellular_assays is METABOLIC/BIOENERGETIC ONLY (mitochondrial \
+respiration, Seahorse/extracellular flux, OCR/ECAR, glycolysis, metabolic tracing, metabolic-state \
+viability). A generic bench/mechanistic assay that is NOT metabolic (enzyme-activity, receptor-ligand \
+binding, immunophenotyping, intracellular signaling, antimicrobial susceptibility, cell-based functional, \
+electrophysiology) -> molecular_biochem_reagents #8 (or #6 if a patient-sample diagnostic). "Functional" \
+alone is NOT a #14 signal — only METABOLIC function is. Three-way test for a cell assay: measures \
+metabolism/bioenergetics -> #14; probes a molecular mechanism on cells/proteins -> #8; diagnoses from a \
+patient sample -> #6.
   - INDICES/scores: a DISTRIBUTED, geography-/ID-indexed lookup product you merge into your data \
 (Social Vulnerability Index, Area/Social Deprivation Index, Charlson/Elixhauser comorbidity) -> \
 kind=dataset, datasets_cohorts. An index you COMPUTE on your own data (care-continuity/fragmentation \
