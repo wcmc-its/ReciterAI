@@ -35,9 +35,16 @@ CAPABILITY_DISPOSITION = "method_tool"
 
 
 # ---------------------------------------------------------------------------
-# §1 Supercategories — CLOSED SET OF 13. Assign exactly one to method_tool records.
+# §1 Supercategories — CLOSED SET OF 14. Assign exactly one to method_tool records.
 # Order and ids are stable (browse facet; never on the profile). Route by
 # CAPABILITY from name + context, not by device/service/kit (orthogonal; §2-§3).
+# NOTE: `computational_statistical` is the study-AND-analysis methodology axis — it
+# holds RCT/observational/survey *design* and qualitative/mixed/implementation
+# methods alongside the stats/ML, so its LABEL is "Research & analysis methods"
+# (the id is kept stable to avoid churning classify cache + persisted records). A
+# quant/qual/mixed/implementation split, if ever wanted, is a methodology-tradition
+# *view* over this one bucket — NOT a 15th supercategory (those traditions share
+# study designs; a hard boundary would be brittle).
 # ---------------------------------------------------------------------------
 
 SUPERCATEGORIES: tuple[dict[str, str], ...] = (
@@ -45,7 +52,7 @@ SUPERCATEGORIES: tuple[dict[str, str], ...] = (
     {"id": "microscopy_histology",     "label": "Microscopy & histology"},          # 2
     {"id": "genomics_sequencing",      "label": "Genomics & sequencing"},           # 3
     {"id": "mass_spec_proteomics",     "label": "Mass spec & proteomics"},          # 4
-    {"id": "computational_statistical","label": "Computational & statistical methods"},  # 5
+    {"id": "computational_statistical","label": "Research & analysis methods"},      # 5 (computational, statistical, qualitative, implementation, study design)
     {"id": "clinical_instruments_assays","label": "Clinical instruments & assays"}, # 6
     {"id": "animal_cell_models",       "label": "Animal & cell models"},            # 7
     {"id": "molecular_biochem_reagents","label": "Molecular & biochemical reagents"},   # 8
@@ -53,11 +60,12 @@ SUPERCATEGORIES: tuple[dict[str, str], ...] = (
     {"id": "datasets_cohorts",         "label": "Datasets & cohorts"},              # 10
     {"id": "software_informatics",     "label": "Software & informatics platforms"},# 11
     {"id": "structural_biophysical",   "label": "Structural & biophysical methods"},# 12 (new in v3)
+    {"id": "functional_metabolic_cellular_assays", "label": "Functional & metabolic cellular assays"},  # 14 (spine-rule mint: Seahorse-XF/mito/metabolic community)
     {"id": "other",                    "label": "Other / uncategorized"},           # 13 (gated remainder, NOT a catch-all)
 )
 SUPERCATEGORY_IDS: frozenset[str] = frozenset(s["id"] for s in SUPERCATEGORIES)
 SUPERCATEGORY_LABELS: dict[str, str] = {s["id"]: s["label"] for s in SUPERCATEGORIES}
-OTHER_SUPERCATEGORY = "other"  # §6.4 — receives only method_tool records fitting none of #1-#12
+OTHER_SUPERCATEGORY = "other"  # §6.4 — receives only method_tool records fitting none of #1-#12,#14
 
 
 # ---------------------------------------------------------------------------

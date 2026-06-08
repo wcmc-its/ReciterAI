@@ -20,7 +20,7 @@ from pipeline_tools import vocab
 
 
 def _supercategory_menu() -> str:
-    """The 13 closed supercategory ids + labels + one routing cue each (§1/§6)."""
+    """The 14 closed supercategory ids + labels + one routing cue each (§1/§6)."""
     cues = {
         "imaging_image_analysis": "clinical/macro-scale image as primary output + imaging analysis (MRI/CT/PET/echo/X-ray, OCT, QSM). NOT therapy beams (#9), NOT structural instruments (#12).",
         "microscopy_histology": "cellular/tissue micro-scale imaging & staining (confocal, two-photon, MIBI, Opal IF, FISH, cellular EM). cryo-EM for structure determination -> #12.",
@@ -34,7 +34,8 @@ def _supercategory_menu() -> str:
         "datasets_cohorts": "bodies of data — claims/EHR (MarketScan, INSIGHT, Premier, Epic Cosmos), cohorts/registries (TCGA, SRTR, GWAS sumstats), bibliographic DBs (PubMed, EMBASE).",
         "software_informatics": "GENERAL-function software with no modality home (REDCap, R, dashboards, planning/analytics).",
         "structural_biophysical": "macromolecular structure determination & molecular-interaction biophysics — X-ray crystallography, cryo-EM (structure), NMR (structural), SPR, ITC, EPR.",
-        "other": "GATED REMAINDER — a genuinely DISTINCTIVE in-domain capability with no home among #1-#12 (e.g. a cellular metabolic-flux analyzer). NOT a catch-all and NOT for commodity bench/office equipment (ultracentrifuge, generic recorder -> give a best-fit category; they are salience-demoted, not parked here).",
+        "functional_metabolic_cellular_assays": "functional/bioenergetic cell-biology readouts — mitochondrial-function & cellular metabolic assays, extracellular-flux/Seahorse analysis, oxygen-consumption/ECAR, cell viability/death/senescence & proliferation functional assays. (A measured analyte via a clinical lab kit -> #6; an administered metabolic drug -> #9.)",
+        "other": "GATED REMAINDER — a genuinely DISTINCTIVE in-domain capability with no home among #1-#12,#14. NOT a catch-all and NOT for commodity bench/office equipment (ultracentrifuge, generic recorder -> give a best-fit category; they are salience-demoted, not parked here).",
     }
     lines = []
     for s in vocab.SUPERCATEGORIES:

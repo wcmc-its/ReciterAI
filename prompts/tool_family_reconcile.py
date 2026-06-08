@@ -53,6 +53,23 @@ inhibition" != "IL-17A inhibition");
 When you are UNSURE whether two labels name the same capability, KEEP THEM SEPARATE — a redundant family is \
 cheap, a false merge corrupts the lens.
 
+GRANULARITY — one split axis per domain (do NOT fragment on a secondary axis):
+  - SURGICAL / INTERVENTIONAL PROCEDURES: split by APPROACH only (minimally-invasive, open, endoscopic, \
+endovascular, laparoscopic, robotic, ablative). Anatomy and specialty are member-level, NOT family \
+boundaries: "minimally invasive spine surgery" + "minimally invasive cardiac surgery" -> ONE class \
+"minimally invasive surgery"; "open vascular" + "open abdominal" -> "open surgical procedures". But KEEP \
+mechanistically distinct interventions apart (embolization != stenting != thrombectomy != balloon \
+angioplasty), and fold a near-empty sub-modifier into its parent ("endovascular aortic branching" -> \
+"endovascular interventions").
+  - A single METHODOLOGY's sub-activities collapse unless they name a distinct technique: "qualitative \
+analysis methods" / "qualitative research methods" / "qualitative thematic analysis" -> one; keep \
+"mixed-methods design" and "implementation science frameworks" separate.
+
+LABELING — stay out of MeSH-subject space: a canonical must name a method/capability, never a bare field or \
+topic that rhymes with a Subject heading. Prefer the task/tooling form: "clinical text NLP" not "natural \
+language processing"; "LLM clinical applications" not "large language models"; "deep learning image \
+analysis" not "deep learning".
+
 Canonical-label form: when matching, return the existing canonical EXACTLY. When minting, use the clearest \
 standard name for the class (usually one of the input labels, lightly normalized) — 1-5 words plus an optional \
 parenthetical, lower-case except proper nouns/acronyms, no trailing punctuation, never the word \
