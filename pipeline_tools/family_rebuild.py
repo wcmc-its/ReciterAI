@@ -9,20 +9,29 @@ the specific instance, not the class.
 This forms families the way the spec intends — by shared CAPABILITY CLASS:
   1. **Broaden** each method_tool's name to its §7.2 capability class via the LLM
      (the semantic knowledge a name embedding lacks), batched per supercategory.
-  2. **Consolidate** the class strings within a supercategory by embedding NN —
-     unlike tool names, class DESCRIPTIONS ("anti-PD-1 immunotherapy") embed well,
-     so cross-batch wording variants merge.
+     Cached to disk, so the family stage is cheaply re-runnable.
+  2. **Reconcile** the class strings within a supercategory via the LLM
+     (``reconcile_classes``): the 190 independent broaden batches share no
+     vocabulary, so they mint near-unique labels for the SAME capability
+     ("transgenic mouse models" / "genetically engineered mouse models"). Deciding
+     two labels name the same capability is a semantic judgment — and a fixed
+     embedding cosine cannot make it, because the wording variants that should
+     merge and the sibling classes that must not ("anti-PD-1" vs "anti-PD-L1")
+     differ by the same one-token distance. So the LLM adjudicates, match-or-mint,
+     over an accreted per-supercategory canonical vocabulary.
   3. **Group** tools by (supercategory, canonical class) into one family each.
 
-Cheaper and faster than the path it replaces (no greedy pass, no per-singleton
-relabel), and at the right altitude for a browsable Methods lens.
+``consolidate_classes`` (embedding NN) is the older, cheaper step-2 — kept as a
+no-LLM fallback; the corpus path uses ``reconcile_classes``.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import numpy as np
 
@@ -35,10 +44,16 @@ logger = logging.getLogger(__name__)
 
 BROADEN_MAX_WORKERS = 8
 DEFAULT_BROADEN_BATCH = 100
+BROADEN_CACHE_NAME = "broaden_cache.json"
 # Class DESCRIPTIONS (not tool names) embed well, so a high threshold safely
 # merges only true wording variants ("kinase inhibitors" / "kinase inhibitor
 # therapeutics"), never distinct classes.
 DEFAULT_CONSOLIDATE_COSINE = 0.92
+RECONCILE_MAX_WORKERS = 8
+# Bigger than the broaden batch: reconciliation accretes the canonical vocabulary
+# sequentially WITHIN a supercategory (so cross-batch variants reconcile), and a
+# larger batch means the model sees more of a supercategory's labels at once.
+DEFAULT_RECONCILE_BATCH = 120
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +106,37 @@ def broaden_tool_classes(
                 logger.info("broaden: %d/%d batches", done, len(batches))
     logger.info("broaden: %d tools -> classes over %d batch(es)", len(out), len(batches))
     return out
+
+
+def broaden_with_cache(
+    method_tools: list[dict], *, call_json, batch_size: int = DEFAULT_BROADEN_BATCH,
+    checkpoint_dir=None,
+) -> dict[str, str]:
+    """``broaden_tool_classes`` keyed by ``canonical_tool_id``, cached to disk.
+
+    Broadening is ~190 LLM calls at A2 scale; the tool set is stable across re-runs
+    (tool canonicalization is deterministic), so the cache lets the family stage
+    re-run for $0 while only the cheaper reconcile pass is tuned. Delete the cache
+    file to force a fresh broaden.
+    """
+    cache_path = Path(checkpoint_dir) / BROADEN_CACHE_NAME if checkpoint_dir else None
+    cached: dict[str, str] = {}
+    if cache_path and cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            logger.info("broaden cache: %d/%d tools cached at %s", len(cached), len(method_tools), cache_path)
+        except (OSError, ValueError) as exc:  # corrupt cache -> re-broaden, don't crash
+            logger.warning("broaden cache unreadable (%s); re-broadening", exc)
+            cached = {}
+
+    todo = [t for t in method_tools if t["canonical_tool_id"] not in cached]
+    if todo:
+        fresh = broaden_tool_classes(todo, call_json=call_json, batch_size=batch_size)
+        cached.update(fresh)
+        if cache_path:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(cached, ensure_ascii=False), encoding="utf-8")
+    return {t["canonical_tool_id"]: cached.get(t["canonical_tool_id"], t["display_name"]) for t in method_tools}
 
 
 # ---------------------------------------------------------------------------
@@ -152,22 +198,112 @@ def consolidate_classes(
 
 
 # ---------------------------------------------------------------------------
+# 2'. Reconcile class strings within a supercategory (LLM adjudication)
+# ---------------------------------------------------------------------------
+
+
+def _reconcile_supercategory(
+    labels_by_freq: list[str], supercategory: str, *, call_json, batch_size: int,
+) -> dict[str, str]:
+    """Accretion match-or-mint over ONE supercategory's distinct labels (LLM arbiter).
+
+    ``labels_by_freq`` is the distinct class labels, most-frequent first (so the
+    dominant phrasing seeds the canonical vocabulary). Each batch sees the vocabulary
+    accreted so far, so a variant in batch N reconciles to a canonical minted in
+    batch 1. Returns ``{label: canonical}``; on a batch failure those labels keep
+    themselves (their own canonical) rather than dropping.
+    """
+    from prompts.tool_family_reconcile import RECONCILE_SYSTEM_PROMPT, build_reconcile_user_message
+
+    canonical_vocab: list[str] = []
+    seen: set[str] = set()
+    label_to_canon: dict[str, str] = {}
+
+    def _adopt(canon: str) -> str:
+        if canon not in seen:
+            canonical_vocab.append(canon)
+            seen.add(canon)
+        return canon
+
+    for i in range(0, len(labels_by_freq), batch_size):
+        chunk = labels_by_freq[i:i + batch_size]
+        try:
+            resp = call_json(RECONCILE_SYSTEM_PROMPT,
+                             build_reconcile_user_message(chunk, canonical_vocab, supercategory))
+            items = resp.get("assignments", []) if isinstance(resp, dict) else []
+        except Exception as exc:  # noqa: BLE001 — partial-failure tolerant
+            logger.warning("reconcile (%s, batch %d, %d labels) failed (%s); keeping labels as-is",
+                           supercategory, i // batch_size, len(chunk), exc)
+            for lab in chunk:
+                label_to_canon[lab] = _adopt(lab)
+            continue
+        by_label = {norm_name(a.get("label", "")): (a.get("canonical") or "").strip()
+                    for a in items if a.get("label")}
+        for lab in chunk:
+            label_to_canon[lab] = _adopt(by_label.get(norm_name(lab)) or lab)
+    return label_to_canon
+
+
+def reconcile_classes(
+    class_of_tool: dict[str, str], method_tools: list[dict], *,
+    call_json, batch_size: int = DEFAULT_RECONCILE_BATCH, max_workers: int = RECONCILE_MAX_WORKERS,
+) -> dict[str, str]:
+    """LLM-adjudicated canonicalization of broadened class labels, per supercategory.
+
+    Returns ``{canonical_tool_id: canonical_class}``. The LLM decides same-vs-distinct
+    capability (the judgment a fixed embedding threshold cannot make — wording variants
+    and sibling classes differ by the same one-token distance); an accreted
+    per-supercategory vocabulary keeps cross-batch variants consistent. Supercategories
+    run concurrently; the accretion within each is sequential by design.
+    """
+    sc_of = {t["canonical_tool_id"]: (t.get("supercategory") or vocab.OTHER_SUPERCATEGORY)
+             for t in method_tools}
+    by_sc_freq: dict[str, Counter] = defaultdict(Counter)
+    for tid, cls in class_of_tool.items():
+        by_sc_freq[sc_of.get(tid, vocab.OTHER_SUPERCATEGORY)][cls] += 1
+
+    items = list(by_sc_freq.items())
+    label_maps: dict[str, dict[str, str]] = {}
+    workers = max(1, min(max_workers, len(items)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futs = {pool.submit(_reconcile_supercategory, [c for c, _ in freq.most_common()], sc,
+                            call_json=call_json, batch_size=batch_size): sc
+                for sc, freq in items}
+        for fut in as_completed(futs):
+            label_maps[futs[fut]] = fut.result()
+
+    n_in = sum(len(freq) for _, freq in items)
+    n_out = len({(sc, c) for sc, m in label_maps.items() for c in m.values()})
+    logger.info("reconcile: %d distinct labels -> %d canonical classes across %d supercategor(ies)",
+                n_in, n_out, len(items))
+    return {tid: label_maps.get(sc_of.get(tid, vocab.OTHER_SUPERCATEGORY), {}).get(cls, cls)
+            for tid, cls in class_of_tool.items()}
+
+
+# ---------------------------------------------------------------------------
 # 3. Group tools by canonical class into families
 # ---------------------------------------------------------------------------
 
 
 def form_families(
     method_tools: list[dict], *, call_json, embed_cache: EmbeddingCache,
-    batch_size: int = DEFAULT_BROADEN_BATCH, consolidate_cosine: float = DEFAULT_CONSOLIDATE_COSINE,
+    batch_size: int = DEFAULT_BROADEN_BATCH, reconcile_batch_size: int = DEFAULT_RECONCILE_BATCH,
+    checkpoint_dir=None,
 ) -> tuple[FamilyRegistry, dict[str, str]]:
     """Form capability-class families. Returns ``(FamilyRegistry, {tool_id: family_id})``.
 
+    Broaden each tool's name to a capability class (cached to ``checkpoint_dir``),
+    then reconcile the per-supercategory class vocabulary via the LLM so cross-batch
+    wording variants collapse while distinct capabilities stay separate, then group.
+
     The caller repoints each tool's ``member_of_family`` with the returned mapping.
     Family ids are minted fresh (the granular A2 families were never published, so
-    the D-06 carry-forward does not apply here).
+    the D-06 carry-forward does not apply here). ``embed_cache`` is retained for the
+    minted ``FamilyRegistry`` (downstream NN matching), not for class consolidation.
     """
-    raw = broaden_tool_classes(method_tools, call_json=call_json, batch_size=batch_size)
-    canonical = consolidate_classes(raw, method_tools, embed_cache=embed_cache, cosine=consolidate_cosine)
+    raw = broaden_with_cache(method_tools, call_json=call_json, batch_size=batch_size,
+                             checkpoint_dir=checkpoint_dir)
+    canonical = reconcile_classes(raw, method_tools, call_json=call_json, batch_size=reconcile_batch_size)
 
     by_class: dict[tuple[str, str], list[dict]] = defaultdict(list)
     tool_by_id = {t["canonical_tool_id"]: t for t in method_tools}

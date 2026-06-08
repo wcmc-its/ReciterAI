@@ -420,6 +420,7 @@ def run_corpus(
         from pipeline_tools.family_rebuild import form_families
         family_registry, tool_to_family = form_families(
             method_tools, call_json=call_json, embed_cache=cache, batch_size=family_batch_size,
+            checkpoint_dir=checkpoint_dir,
         )
         for tid, fid in tool_to_family.items():
             tool_registry.update_classification(tid, member_of_family=fid)
