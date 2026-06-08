@@ -89,6 +89,12 @@ def test_reconcile_with_cache_roundtrip(tmp_path):
     second = reconcile_with_cache(raw, tools, call_json=boom, batch_size=10, checkpoint_dir=tmp_path)
     assert second == first  # exact reviewed set reproduced from cache, $0
 
+    # re-run safety: same (supercat, broaden label) under DRIFTED ids -> same canonical, no LLM
+    drifted = [_tool("z1", "A", sc="animal_cell_models"), _tool("z2", "B", sc="animal_cell_models")]
+    raw2 = {"z1": "transgenic mouse models", "z2": "genetically engineered mouse models"}
+    out = reconcile_with_cache(raw2, drifted, call_json=boom, batch_size=10, checkpoint_dir=tmp_path)
+    assert out["z1"] == out["z2"] == "transgenic mouse models"
+
 
 def test_reconcile_merges_wording_variants_the_cosine_missed():
     # the residual A2 problem: broaden minted variant labels for the SAME class across
@@ -147,6 +153,22 @@ def test_broaden_with_cache_roundtrip(tmp_path):
 
     second = broaden_with_cache(tools, call_json=boom, batch_size=10, checkpoint_dir=tmp_path)
     assert second == first  # served entirely from cache, $0
+
+
+def test_broaden_cache_survives_tool_id_drift(tmp_path):
+    # the regression guard: cache keyed by NAME, so a re-run that renumbers ids (same
+    # tools, shifted mint sequence) must still serve the RIGHT label per tool.
+    broaden = {"Nivolumab": "anti-PD-1 immunotherapy", "Ustilago maydis": "fungal pathogen models"}
+    broaden_with_cache([_tool("t1", "Nivolumab"), _tool("t2", "Ustilago maydis")],
+                       call_json=_stub(broaden_map=broaden), batch_size=10, checkpoint_dir=tmp_path)
+
+    def boom(system, user):
+        raise AssertionError("must not re-broaden; ids drifted but names are cached")
+
+    # same tools, DRIFTED ids (t2/t1 instead of t1/t2) — must not scramble labels
+    out = broaden_with_cache([_tool("t9", "Ustilago maydis"), _tool("t8", "Nivolumab")],
+                             call_json=boom, batch_size=10, checkpoint_dir=tmp_path)
+    assert out == {"t9": "fungal pathogen models", "t8": "anti-PD-1 immunotherapy"}
 
 
 def test_consolidate_merges_near_duplicate_class_wording():

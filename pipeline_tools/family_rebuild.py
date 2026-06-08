@@ -140,31 +140,38 @@ def broaden_with_cache(
     method_tools: list[dict], *, call_json, batch_size: int = DEFAULT_BROADEN_BATCH,
     checkpoint_dir=None,
 ) -> dict[str, str]:
-    """``broaden_tool_classes`` keyed by ``canonical_tool_id``, cached to disk.
+    """``broaden_tool_classes`` cached to disk, keyed by NORMALIZED DISPLAY NAME.
 
-    Broadening is ~190 LLM calls at A2 scale; the tool set is stable across re-runs
-    (tool canonicalization is deterministic), so the cache lets the family stage
-    re-run for $0 while only the cheaper reconcile pass is tuned. Delete the cache
-    file to force a fresh broaden.
+    Broadening is ~190 LLM calls at A2 scale, so the cache lets the family stage
+    re-run for $0. The key MUST be stable across re-runs: ``canonical_tool_id`` is a
+    mint-order artifact that shifts when the form set changes (e.g. a reclassify
+    flips dispositions and the match-or-mint sequence renumbers), which silently
+    attaches cached labels to the WRONG tools — a fungal strain inheriting "regression
+    modeling" because it landed on a drifted id. The display name is what broadening
+    actually depends on and is invariant, so it is the correct cache key. Delete the
+    cache file to force a fresh broaden.
     """
     cache_path = Path(checkpoint_dir) / BROADEN_CACHE_NAME if checkpoint_dir else None
-    cached: dict[str, str] = {}
+    cached: dict[str, str] = {}  # norm(display_name) -> broad class
     if cache_path and cache_path.exists():
         try:
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
-            logger.info("broaden cache: %d/%d tools cached at %s", len(cached), len(method_tools), cache_path)
+            logger.info("broaden cache: %d name(s) cached at %s", len(cached), cache_path)
         except (OSError, ValueError) as exc:  # corrupt cache -> re-broaden, don't crash
             logger.warning("broaden cache unreadable (%s); re-broadening", exc)
             cached = {}
 
-    todo = [t for t in method_tools if t["canonical_tool_id"] not in cached]
+    todo = [t for t in method_tools if norm_name(t["display_name"]) not in cached]
     if todo:
-        fresh = broaden_tool_classes(todo, call_json=call_json, batch_size=batch_size)
-        cached.update(fresh)
+        fresh = broaden_tool_classes(todo, call_json=call_json, batch_size=batch_size)  # {tid: class}
+        by_id = {t["canonical_tool_id"]: t for t in todo}
+        for tid, cls in fresh.items():
+            cached[norm_name(by_id[tid]["display_name"])] = cls
         if cache_path:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(json.dumps(cached, ensure_ascii=False), encoding="utf-8")
-    return {t["canonical_tool_id"]: cached.get(t["canonical_tool_id"], t["display_name"]) for t in method_tools}
+    return {t["canonical_tool_id"]: cached.get(norm_name(t["display_name"]), t["display_name"])
+            for t in method_tools}
 
 
 # ---------------------------------------------------------------------------
@@ -308,34 +315,46 @@ def reconcile_classes(
             for tid, cls in class_of_tool.items()}
 
 
+def _reconcile_key(supercategory: str, broad_label: str) -> str:
+    return f"{supercategory}\t{broad_label}"
+
+
 def reconcile_with_cache(
     class_of_tool: dict[str, str], method_tools: list[dict], *,
     call_json, batch_size: int = DEFAULT_RECONCILE_BATCH, checkpoint_dir=None,
 ) -> dict[str, str]:
-    """``reconcile_classes`` keyed by ``canonical_tool_id``, cached to disk (all-or-nothing).
+    """``reconcile_classes`` cached to disk, keyed by ``(supercategory, broadened label)``.
 
-    Reconciliation is an LLM pass, so its output is non-deterministic across runs.
-    Caching the ``{tool_id: canonical_class}`` mapping lets a later run — to re-case
-    or re-publish — reproduce the EXACT reviewed family set for $0 (the accretion is
-    not re-run, so it cannot reshuffle). Cached only when it covers every
-    method_tool; delete the cache file to force a fresh reconcile.
+    Reconciliation is an LLM pass (non-deterministic across runs), so caching lets a
+    later run reproduce the exact reviewed family set for $0. The key is the reconcile
+    INPUT — ``(supercategory, broad_label)`` — NOT ``canonical_tool_id``: the id is a
+    mint-order artifact that drifts when the form set changes, which would attach a
+    cached canonical to the wrong tool. The input pair is stable, so the cache is
+    re-run-safe. Cached only when it covers every tool; delete the file to force a
+    fresh reconcile.
     """
     cache_path = Path(checkpoint_dir) / RECONCILE_CACHE_NAME if checkpoint_dir else None
-    ids = {t["canonical_tool_id"] for t in method_tools}
+    sc_of = {t["canonical_tool_id"]: (t.get("supercategory") or vocab.OTHER_SUPERCATEGORY)
+             for t in method_tools}
+    keys = {tid: _reconcile_key(sc_of.get(tid, vocab.OTHER_SUPERCATEGORY), cls)
+            for tid, cls in class_of_tool.items()}
     if cache_path and cache_path.exists():
         try:
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
-            if ids <= set(cached):
-                logger.info("reconcile cache: %d tools cached at %s ($0, deterministic)", len(ids), cache_path)
-                return {tid: cached[tid] for tid in ids}
-            logger.info("reconcile cache covers %d/%d tools; re-reconciling", len(ids & set(cached)), len(ids))
+            if set(keys.values()) <= set(cached):
+                logger.info("reconcile cache: %d (supercat,label) key(s) cached at %s ($0, re-run-safe)",
+                            len(set(keys.values())), cache_path)
+                return {tid: cached[k] for tid, k in keys.items()}
+            logger.info("reconcile cache covers %d/%d keys; re-reconciling",
+                        len(set(keys.values()) & set(cached)), len(set(keys.values())))
         except (OSError, ValueError) as exc:  # corrupt cache -> re-reconcile, don't crash
             logger.warning("reconcile cache unreadable (%s); re-reconciling", exc)
 
     canonical = reconcile_classes(class_of_tool, method_tools, call_json=call_json, batch_size=batch_size)
     if cache_path:
+        by_key = {keys[tid]: canon for tid, canon in canonical.items()}
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps(canonical, ensure_ascii=False), encoding="utf-8")
+        cache_path.write_text(json.dumps(by_key, ensure_ascii=False), encoding="utf-8")
     return canonical
 
 
