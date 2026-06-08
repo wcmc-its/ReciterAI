@@ -77,6 +77,7 @@ class CorpusResult:
     grant_signal: dict = field(default_factory=dict)         # cid -> {appl_ids, investigator_cwids}
     relabel_deltas: list[dict] = field(default_factory=list)
     merge_deltas: list[dict] = field(default_factory=list)
+    override_deltas: list[dict] = field(default_factory=list)  # D-07 fix batch (v6→v7)
     thresholds: object | None = None                         # salience.GroundedThresholds
     telemetry: dict = field(default_factory=dict)
 
@@ -286,6 +287,7 @@ def run_corpus(
     relabel_batch_size: int = 40,
     family_batch_size: int = 100,
     relabel: bool = True,
+    apply_family_overrides: bool = False,
     checkpoint_dir=None,
 ) -> CorpusResult:
     """Run the A2 corpus pipeline over ``mentions`` and return registries + outputs.
@@ -433,6 +435,7 @@ def run_corpus(
     cache = getattr(tool_registry, "_cache", None) or EmbeddingCache()
     relabel_deltas: list[dict] = []
     merge_deltas: list[dict] = []
+    override_deltas: list[dict] = []
     if relabel:
         from pipeline_tools.family_rebuild import form_families
         from pipeline_tools.relabel import cross_supercategory_label_forks, dedup_families
@@ -450,6 +453,15 @@ def run_corpus(
             tool_registry.update_classification(tid, member_of_family=fid)
         for rec in method_tools:
             rec["member_of_family"] = tool_to_family.get(rec["canonical_tool_id"])
+        # D-07 fix batch (v6→v7) — deterministic post-formation reroute/relabel/merge of
+        # a closed, reviewed family set, BEFORE the guard re-checks (forks 17→~9). It
+        # repoints supercategory/member_of_family in place on the shared records.
+        # A2-corpus-specific (the table names concrete v6 family ids), so it is gated:
+        # other run_corpus callers leave it off and are unaffected. On the A2 re-run it
+        # validates fail-loud against the live ids (drift detection), per §3.8.
+        if apply_family_overrides:
+            from pipeline_tools.family_overrides import apply_overrides
+            override_deltas = apply_overrides(family_registry, tool_registry)
         # §7 cross-supercategory guard — flag (don't merge) labels forked across buckets.
         forks = cross_supercategory_label_forks(family_registry)
         for fk in forks:
@@ -499,6 +511,7 @@ def run_corpus(
     }
     result.relabel_deltas = relabel_deltas
     result.merge_deltas = merge_deltas
+    result.override_deltas = override_deltas
     result.thresholds = thresholds
     result.telemetry = _telemetry(
         tool_registry, family_registry, method_tools, counts, fam_counts,
@@ -593,7 +606,8 @@ def write_outputs(result: CorpusResult, out_dir: Path, *, payload: dict | None =
         _dump("tool_exceptions_corpus.json", result.exceptions),
         _dump("tool_faculty_rollup.json", result.faculty_rollup),
         _dump("tool_grant_signal.json", result.grant_signal),
-        _dump("tool_relabel_deltas.json", {"relabel": result.relabel_deltas, "merge": result.merge_deltas}),
+        _dump("tool_relabel_deltas.json", {"relabel": result.relabel_deltas, "merge": result.merge_deltas,
+                                            "overrides": result.override_deltas}),
         _dump("tool_telemetry_corpus.json", result.telemetry),
     ]
     if payload is not None:

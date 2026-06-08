@@ -223,7 +223,37 @@ until #14 was tightened in turn. **Frozen at v6: 894 families, computational 152
 #14=8 (tight metabolic), 17 cross-supercategory forks routed to the review queue.**
 The forks are ~irreducible below ~15 because adjacent buckets genuinely blur (a
 biopsy is both diagnostic and procedural; an AAV vector is both reagent and therapy)
-— the queue is the designed handling, not a defect.
+— the queue is the designed handling, not a defect. **Superseded by v7 — see §3.9.**
+
+### 3.9 D-07 review + the deterministic fix batch (v6 → v7)
+
+A 48-agent review workflow scanned all 894 families against their real member tools
+and adjudicated each of the 17 forks (adjudicate → adversarial verify; the verifier
+agreed on 16/17). Two findings revised the v6 freeze-time assumptions:
+
+1. **The 17 forks are NOT all irreducible.** Only **9 are genuine distinct-meaning
+   collisions** (clinical EEG vs bench patch-clamp; reagent vs administered AAV) → keep
+   as queue. The other **8 were real mis-routes/mislabels** (3 relabel, 4 consolidate,
+   1 merge). The freeze-time "all genuinely-ambiguous, NOT mis-routes" claim was wrong.
+2. **19 high-severity family findings**, dominated by four systematic causes: (A) `"X"`
+   vs `"X instrumentation"` duplicate pairs in #12 (cryo-EM/X-ray/NMR); (B) the #6/#8/#14
+   boundary still leaked a handful of bench assays (patch-clamp, flow cytometry, viral
+   models); (C) two echo/imaging mis-homes; (D) setting/umbrella junk labels.
+
+These were fixed with a **deterministic post-formation override layer**
+(`pipeline_tools/family_overrides.py`, gated by `run_corpus(apply_family_overrides=…)`,
+on by default in the corpus CLI): a closed, enumerated **14 reroute / 4 relabel / 16
+merge** table applied after `form_families`/`dedup_families`, before the cross-supercat
+guard. No LLM, no reclassify, no reconcile re-run — it mutates the in-memory registries
+and repoints member tools, so a $0 corpus re-run reproduces v6 then applies the diff;
+it fail-loud-validates every id (drift detection). This is a deliberate one-time
+exception to "class-level rules only, never per-tool" — the root-cause classify-prompt
+fixes (the #6/#8/#14 leaks, junk-label dispersal of fam_0221/fam_0745, fam_0026 parasite
+extraction) remain a logged v7+ task. **Frozen at v7: 878 families, computational 151,
+#14=7 (strictly metabolic), 10 forks→queue** (the 9 genuine + one residual `Molecular
+diagnostic assays` clinical#6↔genomic#3 arm the fork adjudication never covered — a
+defensible clinical-vs-genomic-dx blur). Review artifacts: `out/tools/a2/_review/`
+(`D-07-REVIEW.md`, `D-07-FIX-PLAN.md`).
 
 ---
 
@@ -238,7 +268,8 @@ biopsy is both diagnostic and procedural; an AAV vector is both reagent and ther
 | Families (greedy name-match, **rejected**) | 15,752, 89% singletons |
 | Families (capability-class broaden + embedding consolidate, **superseded**) | 6,460, 50% singletons |
 | Families (broaden + **LLM reconcile**) | 1,937 pre-floor, 29% singletons |
-| Families (+ **≥3 floor, #14, crisp #6/#8/#14, review fixes**) | **894 post-floor (FROZEN v6)** (computational 152, #14=8, 17 forks→queue); see §3.8 |
+| Families (+ **≥3 floor, #14, crisp #6/#8/#14, review fixes**) | 894 post-floor (v6) (computational 152, #14=8, 17 forks→queue); see §3.8 |
+| Families (+ **D-07 deterministic fix batch**) | **878 (FROZEN v7)** (computational 151, #14=7, 10 forks→queue; 14 reroute/4 relabel/16 merge, $0 re-run); see §3.9 |
 
 ---
 
