@@ -31,7 +31,8 @@ def test_relabel_sets_controlled_label_and_promotes_confident_to_active():
     assert fam["label"] == "molecular imaging"
     assert fam["status"] == "active"
     assert deltas == [{"family_id": "fam_0001", "old_label": "PET scanner",
-                       "new_label": "molecular imaging", "status": "active", "confidence": "high"}]
+                       "new_label": "molecular imaging", "status": "active",
+                       "confidence": "high", "model": None}]  # stub reports no model
 
 
 def test_relabel_keeps_low_confidence_provisional_for_review():

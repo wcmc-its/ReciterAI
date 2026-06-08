@@ -226,6 +226,7 @@ def _enriched_records(tools: ToolRegistry, families: FamilyRegistry) -> list[dic
             "aliases": ser.get("aliases", []),
             "pub_count": ser["pub_count"],
             "context_evidence": ser.get("context_evidence", []),
+            "classified_by": ser.get("classified_by"),  # per-inference model provenance
         })
     order = {"S": 0, "A": 1, "B": 2, "C": 3, None: 4}
     out.sort(key=lambda r: (order.get(r["salience_tier"], 4), -(r["pub_count"] or 0), r["canonical_tool_id"]))

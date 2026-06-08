@@ -361,6 +361,8 @@ def run_corpus(
                 supercategory=c["supercategory"], attributes=c["attributes"],
             )
             rec["flags"] = list(c.get("flags", []))
+            if c.get("model"):
+                rec["classified_by"] = c["model"]  # per-inference provenance
             _collect_classification_exceptions(exceptions, rec, c)
         else:  # attached — canonical keeps its minting classification; flag real disagreements
             counts["attached"] += 1

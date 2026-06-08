@@ -163,11 +163,17 @@ def classify_batch(batch: list[dict], *, call_json: CallJson, label: str = "") -
                        label or "?", exc, len(batch))
         return [_unclassified(m, FLAG_LLM_ERROR) for m in batch]
 
+    # Which model actually answered (Sonnet, or gpt-5.x on a content-filter/JSON
+    # fallback) — stamped on every record for per-inference provenance.
+    model = resp.get("_model") if isinstance(resp, dict) else None
     by_name = {norm_name(e.get("raw_name", "")): e for e in entries if e.get("raw_name")}
     out: list[dict] = []
     for m in batch:
         entry = by_name.get(norm_name(m.get("raw_name", "")))
-        out.append(_unclassified(m, FLAG_MISSING) if entry is None else normalize_classification(entry, m))
+        rec = _unclassified(m, FLAG_MISSING) if entry is None else normalize_classification(entry, m)
+        if model:
+            rec["model"] = model
+        out.append(rec)
     return out
 
 
@@ -204,12 +210,15 @@ def make_classifier_call_json(*, max_tokens: int = 8192) -> CallJson:
 
     def _call(system: str, user: str) -> dict:
         try:
-            return bedrock.call_json(
+            resp = bedrock.call_json(
                 model=model,
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 max_tokens=max_tokens,
             )
+            if isinstance(resp, dict):
+                resp.setdefault("_model", model)  # provenance: which model answered
+            return resp
         except (BedrockEmptyContentError, json.JSONDecodeError) as exc:
             logger.warning("Bedrock classify failed (%s); falling back to OpenAI gpt-5.x", exc)
             return _openai_fallback(system, user, max_tokens)
@@ -229,4 +238,7 @@ def _openai_fallback(system: str, user: str, max_tokens: int) -> dict:
         max_completion_tokens=max_tokens,
     )
     content = completion.choices[0].message.content
-    return json.loads(content)
+    data = json.loads(content)
+    if isinstance(data, dict):
+        data.setdefault("_model", GPT5_MODEL)  # provenance: gpt-5.x fallback answered
+    return data

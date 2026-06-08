@@ -60,6 +60,7 @@ def relabel_families(
             logger.warning("relabel batch %d/%d failed (%s); %d family label(s) left as placeholder",
                            bi, len(batches), exc, len(batch))
             continue
+        model = resp.get("_model") if isinstance(resp, dict) else None  # provenance
         by_id = {e.get("family_id"): e for e in entries if e.get("family_id")}
         for fam in batch:
             entry = by_id.get(fam["family_id"])
@@ -77,6 +78,7 @@ def relabel_families(
                 "new_label": new_label,
                 "status": status,
                 "confidence": confidence,
+                "model": model,
             })
     logger.info("relabel: %d/%d families relabeled (%d low-confidence)",
                 len(deltas), len(records), sum(1 for d in deltas if d["confidence"] == "low"))
