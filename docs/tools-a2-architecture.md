@@ -190,6 +190,32 @@ routing (§6.1 reagent-as-therapeutic vs probe) and is retained as
 not yet surfaced in the SPS UI** — an opportunity ("how WCM scholars used this"
 on tool/family pages), since the data is already there.
 
+### 3.8 Review-hardening + the cache-keying bug
+
+Family review of the 1,937-family set drove four upstream fixes (never hand-edits
+of the output): a **≥3-member floor** (`form_families`; a 1–2 member "family" is a
+labelled tool, not a community → 1,937→1,080 post-floor), a **cross-supercategory
+fork guard** (`relabel.cross_supercategory_label_forks`: identical label in two
+frozen buckets ⇒ a mis-route → flag to the queue, never a silent cross-bucket
+merge), **supercategory #14** (`functional_metabolic_cellular_assays`, the
+spine-rule Seahorse-XF/metabolic community pulled out of `other`), and resolving a
+tool's supercategory by **deterministic pub-weighted majority vote** across its
+member forms rather than whichever form minted it.
+
+The expensive lesson was a **cache-coherence bug**: the broaden/reconcile caches
+were keyed by `canonical_tool_id`, a mint-order artifact. Re-running after a
+reclassify (which flips some dispositions) renumbers match-or-mint, so cached
+labels silently attached to the wrong tools at scale — a fungal strain inheriting
+"regression modeling" — which spread one label across 13 supercategories, doubled
+the reconcile input (6,460→12,814 distinct (supercat,label) pairs), and fragmented
+families (1,080→1,697) with 291 spurious forks. It masqueraded as a clustering
+regression; three reasoned diagnoses were wrong before a 30-second fresh-broaden
+probe pinned it. Fix: **key caches by the stable content the value depends on** —
+broaden by `norm(display_name)`, reconcile by `(supercategory, broad_label)` — so
+they survive id drift (tested). Final clean result: **942 families, computational
+163, #14=17, 10 forks.** Lesson: probe a cache/determinism hypothesis on real data;
+don't reason about it.
+
 ---
 
 ## 4. Cost & scale (measured)
@@ -202,7 +228,8 @@ on tool/family pages), since the data is already there.
 | Canonical tools | ~18,386 (conservative dedup) |
 | Families (greedy name-match, **rejected**) | 15,752, 89% singletons |
 | Families (capability-class broaden + embedding consolidate, **superseded**) | 6,460, 50% singletons |
-| Families (broaden + **LLM reconcile**) | **1,937, 29% singletons** (mean 9.4 members, max 293); reconcile ~$3, broaden cached ($0) |
+| Families (broaden + **LLM reconcile**) | 1,937 pre-floor, 29% singletons |
+| Families (+ **≥3 floor, #14, review fixes**) | **942 post-floor** (computational 163, #14=17, forks 10); see §3.8 |
 
 ---
 
