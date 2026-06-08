@@ -37,7 +37,7 @@ Published as `tools.json` (+ split `families.json` / `faculty.json`) to
                                                                                    │
    FAMILIES (§7) ◄── SALIENCE (§5) ◄──────────────────────────────────────────────┘
    broaden→class        grounded: spread-driven
-   →consolidate→group        │
+   →reconcile→group          │
         │                    ▼
         └──► FACULTY ROLLUP (§7.1/§8) ──► §9 outputs + tools.json ──► (dry-run) S3 publish
 ```
@@ -54,7 +54,7 @@ Two CLIs:
 | Classify | `classify.py`, `prompts/tool_classify.py` | Sonnet → gpt-5.x | disposition gate + §1–§6 routing; **parallel** (8 workers), **resumable** checkpoint |
 | Tool registry | `registry.py` (`ToolRegistry`) | Titan (NN) | surface-key + conservative 0.86 embedding match-or-mint; real `pub_ids` |
 | Salience | `salience.py` | — | grounded: cross-faculty **spread** drives S; RRID gates A; force-C floor |
-| Families | `family_rebuild.py`, `prompts/tool_family_broaden.py` | Sonnet + Titan | **broaden → consolidate → group** (see §3) |
+| Families | `family_rebuild.py`, `prompts/tool_family_broaden.py`, `prompts/tool_family_reconcile.py` | Sonnet | **broaden → reconcile → group** (see §3.1/§3.1b); broaden cached |
 | Rollup | `rollup.py` | — | per-(scholar,tool) pub_count + §8 C-reconciled per-(scholar,family) count |
 | Publish | `publish.py` | — | builds `tools.json`; S3 upload **dry-run by default** (D-07 review gate) |
 
@@ -82,23 +82,55 @@ class.
 1. **Broaden** each tool's name to its §7.2 capability class via the LLM
    (batched per supercategory, concurrent). *anti-IL-6/13/23 → "anti-interleukin
    biologics"; nivolumab/pembrolizumab → "anti-PD-1 immunotherapy".*
-2. **Consolidate** the class strings within a supercategory by embedding NN —
-   class *descriptions* embed well (they're descriptive phrases), so cross-batch
-   wording variants ("kinase inhibitors" ≈ "kinase inhibitor therapeutics") merge.
+2. **Reconcile** the class strings within a supercategory via the LLM — see §3.1b.
 3. **Group** tools by (supercategory, canonical class) → one family each.
 
-Validation: 120 granular therapeutics labels → **57 broad classes** at the right
-altitude.
+Capability-class broadening fixed the names→89% problem and dropped singletons to
+**50%** (6,460 families).
+
+### 3.1b The embedding wall recurs one level up — reconcile by LLM, not cosine
+
+The broaden pass runs in ~190 independent parallel batches with no shared
+vocabulary, so it mints near-unique labels for the *same* capability across
+batches: *"transgenic mouse models"* / *"genetically engineered mouse models"*,
+*"anti-PD-1 immunotherapy"* / *"anti-PD-1 checkpoint immunotherapy"*. The original
+step 2 tried to close this with embedding NN on the class *descriptions* — and hit
+**the exact same wall as §3.1, one level up**: the wording variants that should
+merge and the sibling classes that must *not* (*"anti-PD-1"* vs *"anti-PD-L1"*,
+*"anti-CD20"* vs *"anti-CD38"*) differ by **the same one-token distance**, so no
+cosine separates them. Proven: 0.92 left 50% singletons; 0.84 reached only 5,633
+families *and* began over-merging siblings. Not a tuning problem.
+
+**Fix — `reconcile_classes` (LLM as arbiter):** per supercategory, walk the
+distinct labels most-frequent-first and **match-or-mint** each against an accreted
+canonical vocabulary — the model reuses an existing canonical for a wording/synonym
+variant or mints a new one for a genuinely distinct capability. Because every batch
+sees the vocabulary accreted so far, cross-batch variants reconcile against a stable
+set (the root cause). The prompt is biased to *keep-separate when unsure* (a
+redundant family is cheap; a false merge corrupts the lens), and crucially strips
+*domain/disease* qualifiers — disease specificity belongs on the MeSH Subjects lens,
+so *"rodent cardiovascular disease models"* and *"rodent kidney disease models"*
+both fold into *"rodent disease models"* (the method), while *behavioral* /
+*surgical* / *infection* models (distinct methods) stay separate.
+
+Result on the full corpus: **6,460 → 1,937 families, singletons 50% → 29%**, and
+the over-merge guard holds (anti-PD-1/PD-L1/CD20/CD38/CTLA-4 each stay a distinct
+family). Altitude is asymmetric *by design*: therapeutics stays granular (target
+precision, 45% singletons), computational/clinical consolidate hard (method-class,
+not domain-variant). Broaden output is cached to `_checkpoint`, so tuning reconcile
+re-runs for $0 — only the cheap LLM pass repeats.
 
 ### 3.2 The durable architecture: conservative substrate + semantic grouping
 
 The lesson generalizes to a division of labor by what each method is *good at*:
 
 - **Text/embedding** does only the jobs it's safe at: deterministic surface-key
-  matching, conservative tool dedup (never a *false* merge → the "truly different,
-  not synonyms" guarantee), and merging near-identical class *descriptions*.
-- **Semantic knowledge (the LLM)** does the part only it can: assigning the
-  capability class.
+  matching and conservative tool dedup (never a *false* merge → the "truly
+  different, not synonyms" guarantee). It is *not* trusted with class grouping at
+  any level — §3.1b showed the wall recurs on class descriptions too.
+- **Semantic knowledge (the LLM)** does every part where the judgment is "same
+  capability or not": assigning the capability class *and* reconciling the class
+  vocabulary (match-or-mint with the LLM as arbiter).
 
 So the **tool layer stays granular-but-safe** (18k tools, conservative 0.86 NN,
 under-merged on purpose) and the **semantic family layer reconciles it**.
@@ -168,8 +200,9 @@ on tool/family pages), since the data is already there.
 | Unique surface forms | 23,397 (from 32,171 raw mentions; ~21% attach as dupes/synonyms) |
 | Classify | ~468 batches Sonnet, ~$15–20, ~40 min parallel |
 | Canonical tools | ~18,386 (conservative dedup) |
-| Families (greedy, **rejected**) | 15,752, 89% singletons |
-| Families (capability class) | *pending the rebuild — target a few thousand real families* |
+| Families (greedy name-match, **rejected**) | 15,752, 89% singletons |
+| Families (capability-class broaden + embedding consolidate, **superseded**) | 6,460, 50% singletons |
+| Families (broaden + **LLM reconcile**) | **1,937, 29% singletons** (mean 9.4 members, max 293); reconcile ~$3, broaden cached ($0) |
 
 ---
 
@@ -185,7 +218,7 @@ on tool/family pages), since the data is already there.
 | `extract.py` / `corpus.py` | per-paper extraction; pub + grant corpus loaders |
 | `classify.py` | disposition gate + §1–§6 routing; `classify_batch` is the parallel unit |
 | `salience.py` | seed + **grounded** §5 tiering |
-| `family_rebuild.py` | **capability-class family formation** (broaden→consolidate→group) |
+| `family_rebuild.py` | **capability-class family formation** (broaden→reconcile→group); `reconcile_classes` = LLM match-or-mint over class vocab; `consolidate_classes` = embedding fallback; broaden cached |
 | `relabel.py` | §7.2 relabel + exact-label dedup (legacy family path; superseded by family_rebuild) |
 | `rollup.py` | per-(scholar,tool) + C-reconciled per-(scholar,family) counts |
 | `publish.py` | `tools.json` assembly + S3 publisher (dry-run default) |
@@ -195,12 +228,18 @@ on tool/family pages), since the data is already there.
 
 ## 6. Open items
 
-- **Family altitude verification** — confirm the rebuilt families land at a usable
-  altitude (broad-but-distinct) and same-class/different-name tools group.
+- **Family altitude — verified.** Broaden + LLM reconcile lands 1,937 broad-but-distinct
+  families (29% singletons); same-class/different-name tools group and sibling
+  targets stay separate (over-merge guard holds). Optional altitude tune: the
+  computational/clinical collapse is aggressive (method-class, not domain-variant) —
+  a one-prompt change + $0-broaden re-run if a finer altitude is wanted there.
+- **`classified_by` provenance backfill** — this run is aggregate-only (~98% Sonnet);
+  stamp `classified_by = us.anthropic.claude-sonnet-4-6` (assumed) on the published
+  tools. Per-form provenance is captured for real on the next run.
 - **Surface `context_evidence`** in SPS (§3.7).
+- **Publish** — `--publish` is gated behind human review of the artifacts (D-07).
 - **Legacy DynamoDB supersede** — retire the stale `TOOL#`/`TOOL_INDEX#` items
   (paused-chatbot extraction); intentionally a separate reviewed step (destructive,
   unpinned schema), not in `publish.py`.
-- **Publish** — `--publish` is gated behind human review of the artifacts (D-07).
-- **Optional, deferred:** cut Titan from the family stage entirely (LLM/controlled
-  vocab consolidation); semantic tool-level canonicalization if granularity hurts.
+- **Optional, deferred:** semantic tool-level canonicalization if tool granularity
+  hurts (18k tools, conservative dedup — under-merged on purpose).
