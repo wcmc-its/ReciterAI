@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -334,6 +334,12 @@ def run_corpus(
     counts = {"minted": 0, "attached": 0, "denied": 0, "unclassified": 0}
     occ_by_canonical: dict[str, list[dict]] = defaultdict(list)
     grant_signal: dict[str, dict] = defaultdict(lambda: {"appl_ids": set(), "investigator_cwids": set()})
+    # Per-canonical supercategory VOTES across member forms (cid -> {supercat: pub-weight}).
+    # The tool's supercategory is a deterministic majority of these (set in step 2b),
+    # NOT whichever form happened to mint it — minter-wins is unstable across re-runs
+    # (a changed form set reshuffles the minter and silently moves the tool's bucket,
+    # which fragments the per-supercategory family layer downstream).
+    sc_votes: dict[str, Counter] = defaultdict(Counter)
 
     for u in sorted(uniques, key=lambda x: -x.pub_count):
         c = cls_by_name.get(u.norm_key)
@@ -363,16 +369,10 @@ def run_corpus(
             if c.get("model"):
                 rec["classified_by"] = c["model"]  # per-inference provenance
             _collect_classification_exceptions(exceptions, rec, c)
-        else:  # attached — canonical keeps its minting classification; flag real disagreements
+        else:
             counts["attached"] += 1
-            if (c["disposition"] == vocab.CAPABILITY_DISPOSITION
-                    and rec.get("supercategory") and c.get("supercategory")
-                    and rec["supercategory"] != c["supercategory"]):
-                exceptions.append({
-                    "type": EXC_MERGE_SUPERCAT_DISAGREE, "raw_name": u.raw_name,
-                    "canonical_tool_id": cid, "canonical_supercategory": rec["supercategory"],
-                    "mention_supercategory": c["supercategory"],
-                })
+        if c["disposition"] == vocab.CAPABILITY_DISPOSITION and c.get("supercategory"):
+            sc_votes[cid][c["supercategory"]] += max(len(pub_ids), 1)
 
         # Occurrence + grant-signal accretion (per canonical, across surface forms).
         for o in u.occurrences:
@@ -381,6 +381,20 @@ def run_corpus(
                 grant_signal[cid]["appl_ids"].add(_appl_id(str(o.get("pmid") or "")))
                 if o.get("cwid"):
                     grant_signal[cid]["investigator_cwids"].add(o["cwid"])
+
+    # 2b. Resolve each tool's supercategory by DETERMINISTIC weighted majority of its
+    #     member forms (tiebreak: heavier pub-weight, then earlier/most-specific bucket
+    #     in the frozen order so a tie never lands in `other`). Stable across re-runs.
+    _sc_order = {s["id"]: i for i, s in enumerate(vocab.SUPERCATEGORIES)}
+    for cid, votes in sc_votes.items():
+        winner = max(votes.items(), key=lambda kv: (kv[1], -_sc_order.get(kv[0], len(_sc_order))))[0]
+        tool_registry.update_classification(cid, supercategory=winner)
+        if len(votes) > 1:  # member forms disagreed on the bucket — surface for review
+            exceptions.append({
+                "type": EXC_MERGE_SUPERCAT_DISAGREE, "canonical_tool_id": cid,
+                "resolved_supercategory": winner,
+                "votes": dict(sorted(votes.items(), key=lambda kv: -kv[1])),
+            })
 
     method_tools = [r for r in tool_registry.records() if r["disposition"] == vocab.CAPABILITY_DISPOSITION]
 

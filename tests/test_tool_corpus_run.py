@@ -108,6 +108,31 @@ def test_run_corpus_preserves_seed_ids_and_grounds_real_pub_signal():
     assert "junk" not in {r["display_name"] for r in res.records}
 
 
+def test_supercategory_is_weighted_majority_of_member_forms_not_minter():
+    # Two surface forms attach to ONE canonical tool but classify into different
+    # supercategories. The tool's bucket must be the pub-weighted MAJORITY (stable
+    # across re-runs), not whichever form minted it.
+    cache = EmbeddingCache(embed=_zero_embed)
+    seed = {"canonical_tool_id": "tool_000001", "display_name": "Polytool", "aliases": ["alpha", "beta"],
+            "disposition": "method_tool", "kind": "method", "supercategory": "imaging_image_analysis",
+            "attributes": vocab.default_attributes(), "salience_tier": "A",
+            "salience_tier_basis": "llm_provisional", "member_of_family": None,
+            "pub_ids": [], "pub_count": 0, "context_evidence": []}
+    tools = ToolRegistry([seed], cache=cache)
+    fams = FamilyRegistry([], cache=cache)
+    dispmap = {
+        "alpha": {"disposition": "method_tool", "kind": "method", "supercategory": "imaging_image_analysis"},
+        "beta": {"disposition": "method_tool", "kind": "method", "supercategory": "computational_statistical"},
+    }
+    ms = [_mention("alpha", "p1", "facA"),                        # imaging, weight 1
+          _mention("beta", "p2", "facB"), _mention("beta", "p3", "facC")]  # computational, weight 2
+    res = run_corpus(ms, call_json=_stub_classify(dispmap), tool_registry=tools, family_registry=fams,
+                     force_c_terms=[], relabel=False)
+    assert tools.get("tool_000001")["supercategory"] == "computational_statistical"  # heavier vote wins
+    disagree = [e for e in res.exceptions if e["type"] == "merge_supercategory_disagreement"]
+    assert any(e["canonical_tool_id"] == "tool_000001" for e in disagree)  # disagreement surfaced
+
+
 def test_grants_stay_out_of_pub_filter_but_feed_grant_signal():
     tools, fams = _seed_registries()
     dispmap = {"GrantOnlyTool": {"disposition": "method_tool", "kind": "method",
