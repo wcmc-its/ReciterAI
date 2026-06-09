@@ -32,9 +32,11 @@ from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
-# v2 (#175): faculty rollup tool/family rows now carry `pmids` (the distinct set
-# `pub_count` counts; len(pmids) == pub_count). Additive over v1 — v1 consumers
-# ignore the new field. Carried on the payload + families/faculty splits + manifest.
+# v2 over v1 (all additive — v1 consumers ignore the new fields / see fewer families):
+#   - faculty rollup tool/family rows carry `pmids` (the distinct set `pub_count`
+#     counts; len(pmids) == pub_count) — #175.
+#   - families carry a `display` tier ∈ {feature, standard, suppressed}.
+#   - the family set is the 820 consolidation (within-supercategory merges + relabels).
 PUBLISH_SCHEMA_VERSION = "tools-a2-v2"
 S3_PREFIX = "tools/"
 # Latest/manifest gets a short cache so SPS picks up a republish quickly; the
@@ -50,6 +52,9 @@ def _family_record(fam: dict) -> dict:
         "supercategory": fam.get("supercategory"),
         "dominant_kind": fam.get("dominant_kind"),
         "status": fam.get("status"),
+        # Consolidation display tier ∈ {feature, standard, suppressed} (null if the
+        # consolidation batch was not applied). Drives the SPS Methods-lens prominence.
+        "display": fam.get("display"),
         "member_tool_ids": list(fam.get("member_tool_ids", [])),
         "exemplar_tool_ids": list(fam.get("exemplar_tool_ids", [])),
     }

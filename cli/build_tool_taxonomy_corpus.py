@@ -99,6 +99,8 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
     parser.add_argument("--no-relabel", action="store_true", help="skip the §7.2 LLM relabel pass (cheaper dev run)")
     parser.add_argument("--no-family-overrides", action="store_true",
                         help="skip the D-07 deterministic family fix batch (reroute/relabel/merge, v6→v7)")
+    parser.add_argument("--no-consolidation", action="store_true",
+                        help="skip the 820 consolidation batch (within-supercat merges + relabels + display tiers, v7'→v8)")
     parser.add_argument("--checkpoint-dir", type=Path, default=None,
                         help="resumable classify-checkpoint dir (default: <out-dir>/_checkpoint; a crash re-classifies only the missing forms)")
     parser.add_argument("--publish", action="store_true",
@@ -142,6 +144,7 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
         force_c_terms=load_force_c_terms(),
         batch_size=args.batch_size, relabel_batch_size=args.relabel_batch_size,
         relabel=not args.no_relabel, apply_family_overrides=not args.no_family_overrides,
+        apply_consolidation=not args.no_consolidation,
         checkpoint_dir=checkpoint_dir,
     )
 
