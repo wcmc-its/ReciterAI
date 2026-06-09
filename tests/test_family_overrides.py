@@ -136,9 +136,34 @@ def test_double_apply_raises_because_drops_are_gone():
 # --- the real frozen tables -------------------------------------------------
 
 def test_real_tables_are_the_documented_size():
-    assert len(REROUTES) == 14
-    assert len(RELABELS) == 4
-    assert len(MERGES) == 16
+    # v6 D-07 batch (14/4/16) + v7 residuals batch (+7 reroute / +1 relabel / +6 merge).
+    assert len(REROUTES) == 21
+    assert len(RELABELS) == 5
+    assert len(MERGES) == 22
+
+
+def test_flow_cytometry_merges_into_flow_family_not_gene_delivery():
+    # v7 keep_id fix: fam_0566 (Flow cytometry) must merge into fam_0608 (Flow
+    # cytometry assays), NOT fam_0586 (Gene delivery and transfer methods).
+    merges = {d: k for d, k, _ in MERGES}
+    assert merges["fam_0566"] == "fam_0608"
+
+
+def test_v7_residual_merges_present():
+    pairs = {(d, k) for d, k, _ in MERGES}
+    assert ("fam_0641", "fam_0387") in pairs          # #8/#14 metabolic near-dup → #14
+    assert ("fam_0408", "fam_0107") in pairs          # 10th fork: molecular-diagnostics #3 → #6
+    for drop in ("fam_0174", "fam_0244", "fam_0697", "fam_0703"):
+        assert (drop, "fam_0138") in pairs            # education scatter → #5 survivor
+
+
+def test_v7_residual_reroutes_present():
+    reroutes = {fid: sc for fid, sc, _ in REROUTES}
+    assert reroutes["fam_0641"] == "functional_metabolic_cellular_assays"
+    assert reroutes["fam_0175"] == "functional_metabolic_cellular_assays"
+    assert reroutes["fam_0408"] == "clinical_instruments_assays"
+    for fid in ("fam_0138", "fam_0174", "fam_0697", "fam_0703"):
+        assert reroutes[fid] == "computational_statistical"
 
 
 def test_real_merge_drops_are_unique_and_not_also_keeps():
