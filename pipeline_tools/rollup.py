@@ -53,10 +53,13 @@ def build_faculty_rollup(
 
     Returns:
         ``{cwid: {"cwid", "tools": [...], "families": [...]}}`` where each tool row
-        is ``{canonical_tool_id, display_name, pub_count}`` (that scholar's
+        is ``{canonical_tool_id, display_name, pub_count, pmids}`` (that scholar's
         distinct pmids on the tool) and each family row is ``{family_id, label,
-        supercategory, pub_count, exemplar_tool_ids}`` with the C-reconciled count
-        and per-profile exemplars ranked by the scholar's own per-tool pub_count.
+        supercategory, pub_count, pmids, exemplar_tool_ids}`` with the C-reconciled
+        count and per-profile exemplars ranked by the scholar's own per-tool
+        pub_count. ``pmids`` is the exact distinct set ``pub_count`` counts, so
+        ``len(pmids) == pub_count`` on every row (#175); consumers map a tool or
+        family back to the scholar's contributing publications without a join.
     """
     # 1. per (cwid, canonical_tool_id) -> distinct pmids (publication, method_tool only).
     tool_pmids: dict[tuple[str, str], set[str]] = defaultdict(set)
@@ -85,6 +88,10 @@ def build_faculty_rollup(
                     "canonical_tool_id": cid,
                     "display_name": (tool_index.get(cid) or {}).get("display_name"),
                     "pub_count": len(pmids),
+                    # The distinct pmid SET pub_count counts — emitted, not just its
+                    # cardinality, so a consumer can map tool → the scholar's pubs.
+                    # Invariant: len(pmids) == pub_count (#175).
+                    "pmids": sorted(pmids),
                 }
                 for cid, pmids in cidmap.items()
             ),
@@ -111,6 +118,10 @@ def build_faculty_rollup(
                 "label": fam.get("label"),
                 "supercategory": fam.get("supercategory"),
                 "pub_count": len(pmids),
+                # The C-reconciled distinct pmid set (union over non-C members) that
+                # pub_count counts — emitted for family → scholar-pubs mapping.
+                # Invariant: len(pmids) == pub_count (#175).
+                "pmids": sorted(pmids),
                 "exemplar_tool_ids": [cid for cid, _ in members_sorted[:exemplars_per_family]],
             })
         fam_rows.sort(key=lambda r: (-r["pub_count"], r["family_id"]))

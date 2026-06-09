@@ -32,7 +32,10 @@ from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
-PUBLISH_SCHEMA_VERSION = "tools-a2-v1"
+# v2 (#175): faculty rollup tool/family rows now carry `pmids` (the distinct set
+# `pub_count` counts; len(pmids) == pub_count). Additive over v1 — v1 consumers
+# ignore the new field. Carried on the payload + families/faculty splits + manifest.
+PUBLISH_SCHEMA_VERSION = "tools-a2-v2"
 S3_PREFIX = "tools/"
 # Latest/manifest gets a short cache so SPS picks up a republish quickly; the
 # immutable versioned copies (if any) can be cached long. Mirrors the hierarchy

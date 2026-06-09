@@ -46,7 +46,7 @@ def _result():
 
 def test_payload_structure_and_thresholds():
     p = build_publish_payload(_result(), provenance={"raw_mentions": 10})
-    assert p["schema_version"] == "tools-a2-v1"
+    assert p["schema_version"] == "tools-a2-v2"
     assert p["provenance"]["raw_mentions"] == 10
     assert p["salience_thresholds"]["s_spread_min"] == 4
     assert p["tools"][0]["canonical_tool_id"] == "tool_000001"
@@ -108,7 +108,7 @@ def test_publish_manifest_integrity_and_latest_mirror():
         assert bodies[f"tools/latest/{name}"] == bodies[f"tools/{name}"], name
 
     manifest = json.loads(bodies["tools/latest/manifest.json"])
-    assert manifest["schema_version"] == "tools-a2-v1"
+    assert manifest["schema_version"] == "tools-a2-v2"
     assert "taxonomy_version" not in manifest  # deliberately omitted
     # objects{} integrity: sha256 + bytes match the exact uploaded latest/ bytes.
     for name in ("tools.json", "families.json", "faculty.json"):
