@@ -7,9 +7,21 @@ reproduces the v6 family set and then applies this fixed diff. Sourced from
 ``out/tools/a2/_review/D-07-REVIEW.md`` (the 19 high-severity findings + the 8 actionable
 cross-supercategory forks); see ``D-07-FIX-PLAN.md`` for the row-by-row provenance.
 
-SCOPE NOTE — these are PER-FAMILY corrections, a deliberate one-time exception to the
-"add only class-level rules, never per-tool ones" principle (the root-cause classify-prompt
-fixes are a separate, logged v7 task). The table is meant to stay frozen, not to grow.
+v7 RESIDUALS BATCH (second pass; see ``Projects/ReciterAI - Planning/A2-v7-residuals-fix-proposal.md``):
+  - **Wrong-target keep_id fix:** the v6 ``fam_0566`` flow-cytometry merge pointed at
+    ``fam_0586`` *"Gene delivery and transfer methods"* instead of ``fam_0608`` *"Flow
+    cytometry assays"* (both #8, so the same-supercategory assert did not catch it). Verified
+    against the registries: live ``fam_0586`` grew 50→54 with the 4 flow tools mis-homed.
+  - **#8/#14 metabolic consolidation:** ``fam_0641`` (near-dup → ``fam_0387``) + ``fam_0175``
+    (in-vivo clamps, standalone) gathered INTO #14.
+  - **Education/competency/simulation scatter** consolidated into one #5 survivor (``fam_0138``).
+  - **10th fork resolved:** the never-adjudicated #3 arm of "Molecular diagnostic assays"
+    (``fam_0408``) folds into the #6 clinical home (``fam_0107``).
+
+SCOPE NOTE — these are PER-FAMILY corrections, a deliberate exception to the "add only
+class-level rules, never per-tool ones" principle (the root-cause classify-prompt fixes are
+a separate, logged v7 task). The table is meant to stay frozen, not to grow without an
+equivalent reviewed batch.
 
 Order is load-bearing: **REROUTE → RELABEL → MERGE**. Merge runs last so every drop/keep
 pair shares a supercategory once the reroutes have landed (asserted, fail-loud). Every
@@ -30,7 +42,7 @@ REROUTES: tuple[tuple[str, str, str], ...] = (
     ("fam_0639", "animal_cell_models",           "viral infection MODELS, not bench reagents (#7 has direct siblings)"),
     ("fam_0152", "molecular_biochem_reagents",   "bench patch-clamp; #6 def excludes it (then merge → fam_0598)"),
     ("fam_0149", "imaging_image_analysis",        "echocardiography-derived cardiac function → #1 (echo rule)"),
-    ("fam_0566", "molecular_biochem_reagents",   "flow/FACS = suspension cytometry, not microscopy (then merge → fam_0586)"),
+    ("fam_0566", "molecular_biochem_reagents",   "flow/FACS = suspension cytometry, not microscopy (then merge → fam_0608)"),
     ("fam_0573", "therapeutics_interventions",   "operating microscope = surgical/procedural device"),
     ("fam_0371", "molecular_biochem_reagents",   "physical screening compound libraries, not a dataset"),
     ("fam_0373", "structural_biophysical",        "crystallography structure resources, not a dataset"),
@@ -41,6 +53,16 @@ REROUTES: tuple[tuple[str, str, str], ...] = (
     ("fam_0705", "molecular_biochem_reagents",   "biospecimen-processing bench arm; fork #12 (then merge → fam_0616)"),
     ("fam_0319", "genomics_sequencing",           "comparative genomics belongs with #3; fork #16 (then merge → fam_0438)"),
     ("fam_0682", "animal_cell_models",            "in-vivo rodent behavior paradigms; fork #4 verifier (then merge → fam_0008)"),
+    # --- v7 residuals: #8/#14 metabolic — gather metabolic families INTO #14 ---
+    ("fam_0641", "functional_metabolic_cellular_assays", "glucose-handling/insulin-secretion/flux readouts are metabolic-state, not 'cell-based functional' #8; near-dup of #14 fam_0387 (then merge → fam_0387)"),
+    ("fam_0175", "functional_metabolic_cellular_assays", "in-vivo metabolic clamp/phenotyping (HIEC, FSIVGTT) is bioenergetic #14, not a clinical diagnostic; kept standalone (no merge)"),
+    # --- v7 residuals: education/competency/simulation scatter consolidated INTO #5 ---
+    ("fam_0138", "computational_statistical",     "surgical/medical-education competency assessment (OSCE/ITE/Zwisch) is training methodology, not a clinical instrument → #5 (survivor: then relabel + merges)"),
+    ("fam_0174", "computational_statistical",     "medical knowledge/competency exams = education methodology, not clinical diagnostics (then merge → fam_0138)"),
+    ("fam_0697", "computational_statistical",     "knowledge/competency assessment instruments mis-parked in #13 other → #5 (then merge → fam_0138)"),
+    ("fam_0703", "computational_statistical",     "simulation-based clinical assessment mis-parked in #13 other → #5 (then merge → fam_0138)"),
+    # --- v7 residuals: 10th fork — never-adjudicated #3 arm of the molecular-diagnostics fork ---
+    ("fam_0408", "clinical_instruments_assays",   "gene-named MOLECULAR DIAGNOSTICS on patient samples (LAMP, mecA PCR, BRCA status), not a genomics method; 3rd arm left unadjudicated by v6 (then merge → fam_0107)"),
 )
 
 # (family_id, new_label, why) — change the display label in place (no move).
@@ -53,6 +75,9 @@ RELABELS: tuple[tuple[str, str, str], ...] = (
      "honest relabel of a setting/umbrella; member dispersal to #8/#7 deferred to v7"),
     ("fam_0745", "Biophysical binding and stability assays",
      "honest relabel of a vague umbrella; member dispersal deferred to v7"),
+    # v7 residuals: broaden the keep-survivor to umbrella the consolidated education scatter (#5).
+    ("fam_0138", "Medical education and competency assessment methods",
+     "broaden the keep-survivor label for the consolidated training/competency/simulation scatter (#5)"),
 )
 
 # (drop_id, keep_id, why) — keep_id is the OLDER survivor (never re-mints, D-06).
@@ -66,7 +91,7 @@ MERGES: tuple[tuple[str, str, str], ...] = (
     ("fam_0846", "fam_0884", "members are electrical STIMULATION, mislabeled 'recording assays' (#9)"),
     ("fam_0026", "fam_0006", "transgenic rodent == transgenic mouse (parasite outliers' move deferred to v7) (#7)"),
     ("fam_0152", "fam_0598", "patch-clamp into bench electrophysiology, reroute-induced (#8)"),
-    ("fam_0566", "fam_0586", "flow cytometry into flow cytometry assays, reroute-induced (#8)"),
+    ("fam_0566", "fam_0608", "flow cytometry/FACS/immunophenotyping into fam_0608 Flow cytometry assays, reroute-induced (#8); fam_0586 is Gene delivery — wrong-target keep_id fix"),
     ("fam_0701", "fam_0650", "EV isolation duplicate the fork-guard missed (suffix differs) (#8)"),
     ("fam_0392", "fam_0604", "viability/apoptosis duplicate in #8; fork #10"),
     ("fam_0114", "fam_0769", "biopsy duplicate, consolidate to #9; fork #8"),
@@ -74,6 +99,13 @@ MERGES: tuple[tuple[str, str, str], ...] = (
     ("fam_0705", "fam_0616", "biospecimen-processing duplicate in #8; fork #12"),
     ("fam_0319", "fam_0438", "comparative-genomics duplicate in #3; fork #16"),
     ("fam_0682", "fam_0008", "into Behavioral animal models; fork #4 verifier correction (#7)"),
+    # --- v7 residuals (all same-supercategory by execution time via the reroutes above) ---
+    ("fam_0641", "fam_0387", "Cellular metabolic activity assays into Cellular metabolic assays — suffix-different near-dup the fork-guard missed; reroute-induced (#14)"),
+    ("fam_0174", "fam_0138", "medical knowledge/competency exams into education-methods survivor (#5; education scatter)"),
+    ("fam_0244", "fam_0138", "simulation-based education methods into education-methods survivor (#5; already #5, no reroute)"),
+    ("fam_0697", "fam_0138", "knowledge/competency assessment instruments into education-methods survivor (#5; education scatter)"),
+    ("fam_0703", "fam_0138", "simulation-based clinical assessment into education-methods survivor (#5; education scatter)"),
+    ("fam_0408", "fam_0107", "molecular-diagnostics duplicate; #3 genomics arm folds into the #6 clinical home; 10th fork (3rd arm)"),
 )
 
 
