@@ -10,7 +10,7 @@ from pipeline_tools import vocab
 
 def test_closed_set_cardinalities_match_spec():
     assert len(vocab.DISPOSITIONS) == 3                 # §0.5
-    assert len(vocab.SUPERCATEGORIES) == 13             # §1 (12 + Other; #12 new in v3)
+    assert len(vocab.SUPERCATEGORIES) == 14             # §1 (12 + functional/metabolic #14 + Other)
     assert len(vocab.KINDS) == 8                        # §2
     assert len(vocab.SALIENCE_TIERS) == 4               # §5  S/A/B/C
 
@@ -18,8 +18,15 @@ def test_closed_set_cardinalities_match_spec():
 def test_v3_supercategory_12_present_and_other_last():
     ids = [s["id"] for s in vocab.SUPERCATEGORIES]
     assert "structural_biophysical" in ids              # the v3 addition (#12)
-    assert ids[-1] == vocab.OTHER_SUPERCATEGORY         # #13 is the gated remainder
+    assert "functional_metabolic_cellular_assays" in ids  # the #14 spine-rule mint
+    assert ids[-1] == vocab.OTHER_SUPERCATEGORY         # gated remainder stays last
     assert "service" not in vocab.KINDS                 # §6.2 — service is a delivery attribute, not a kind
+
+
+def test_computational_axis_relabeled_to_research_and_analysis():
+    # id is kept stable (cache/records), only the display label broadens to the real axis
+    assert vocab.is_valid_supercategory("computational_statistical")
+    assert vocab.SUPERCATEGORY_LABELS["computational_statistical"] == "Research & analysis methods"
 
 
 def test_validators_accept_in_vocab_reject_out():
