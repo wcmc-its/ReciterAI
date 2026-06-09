@@ -8,8 +8,16 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import hashlib
+
 from pipeline_tools import salience as sal
 from pipeline_tools.publish import build_publish_payload, publish_artifacts
+
+# The full published key set: 3 flat (transition) + 3 latest/ + the latest/ manifest.
+_FLAT_KEYS = {"tools/tools.json", "tools/families.json", "tools/faculty.json"}
+_LATEST_KEYS = {"tools/latest/tools.json", "tools/latest/families.json", "tools/latest/faculty.json"}
+_MANIFEST_KEY = {"tools/latest/manifest.json"}
+_ALL_KEYS = _FLAT_KEYS | _LATEST_KEYS | _MANIFEST_KEY
 
 
 class _FakeFamilyRegistry:
@@ -58,7 +66,9 @@ def test_publish_dry_run_uploads_nothing():
 
     report = publish_artifacts(p, s3_client=_BoomS3(), dry_run=True)
     assert all(r["uploaded"] is False for r in report)
-    assert {r["key"] for r in report} == {"tools/tools.json", "tools/families.json", "tools/faculty.json"}
+    # Manifest is reported (keys + bytes) but its sha/bytes are computed from
+    # in-memory bytes, so a dry-run still touches no AWS.
+    assert {r["key"] for r in report} == _ALL_KEYS
 
 
 def test_publish_real_uploads_each_object():
@@ -67,9 +77,48 @@ def test_publish_real_uploads_each_object():
 
     class _RecS3:
         def put_object(self, key, body, content_type="application/json", cache_control=None):
-            calls.append((key, len(body), content_type))
+            calls.append((key, len(body), content_type, cache_control))
 
     report = publish_artifacts(p, s3_client=_RecS3(), dry_run=False)
     assert all(r["uploaded"] for r in report)
-    assert {c[0] for c in calls} == {"tools/tools.json", "tools/families.json", "tools/faculty.json"}
+    assert {c[0] for c in calls} == _ALL_KEYS
     assert all(c[2] == "application/json" for c in calls)
+    # Every latest/* object (incl. manifest) carries the short cache; flat
+    # families/faculty keep their existing no-cache posture.
+    cc = {c[0]: c[3] for c in calls}
+    for k in _LATEST_KEYS | _MANIFEST_KEY | {"tools/tools.json"}:
+        assert cc[k] == "max-age=60, must-revalidate", k
+    assert cc["tools/families.json"] is None
+    assert cc["tools/faculty.json"] is None
+
+
+def test_publish_manifest_integrity_and_latest_mirror():
+    """latest/ bytes mirror flat bytes; manifest sha256/bytes match what was uploaded."""
+    p = build_publish_payload(_result(), provenance={})
+    bodies = {}
+
+    class _CapS3:
+        def put_object(self, key, body, content_type="application/json", cache_control=None):
+            bodies[key] = body
+
+    publish_artifacts(p, s3_client=_CapS3(), dry_run=False)
+
+    # latest/ copies are byte-identical to the flat copies.
+    for name in ("tools.json", "families.json", "faculty.json"):
+        assert bodies[f"tools/latest/{name}"] == bodies[f"tools/{name}"], name
+
+    manifest = json.loads(bodies["tools/latest/manifest.json"])
+    assert manifest["schema_version"] == "tools-a2-v1"
+    assert "taxonomy_version" not in manifest  # deliberately omitted
+    # objects{} integrity: sha256 + bytes match the exact uploaded latest/ bytes.
+    for name in ("tools.json", "families.json", "faculty.json"):
+        body = bodies[f"tools/latest/{name}"]
+        obj = manifest["objects"][name]
+        assert obj["key"] == f"tools/latest/{name}"
+        assert obj["bytes"] == len(body)
+        assert obj["sha256"] == hashlib.sha256(body).hexdigest()
+    # Top-level sha256/artifact_bytes point at latest/tools.json (the bundle).
+    tools_body = bodies["tools/latest/tools.json"]
+    assert manifest["sha256"] == hashlib.sha256(tools_body).hexdigest()
+    assert manifest["artifact_bytes"] == len(tools_body)
+    assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1}

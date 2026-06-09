@@ -23,9 +23,12 @@ Two deliberate safety postures, both per the handoff + repo conventions:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass
+
+from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -96,24 +99,80 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
     SPS reads ``tools.json`` for the global Methods lens; the faculty rollup and
     family registry are also split out so a per-profile or per-family surface can
     fetch just what it needs without the whole artifact.
+
+    Each object is emitted under BOTH a flat key (``tools/<name>`` — the existing
+    contract, kept for transition) and a ``tools/latest/<name>`` key, from the
+    SAME compact bytes. The ``latest/`` prefix + ``latest/manifest.json`` (added
+    in :func:`publish_artifacts`) mirror the spotlight/hierarchy publishers, so a
+    consumer can poll one manifest, short-circuit on its sha256, and verify each
+    fetched object byte-for-byte.
     """
     def _bytes(obj) -> bytes:
         return json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
-    return [
-        PublishItem(f"{prefix}tools.json", _bytes(payload), LATEST_CACHE_CONTROL),
-        PublishItem(f"{prefix}families.json", _bytes({
-            "schema_version": payload["schema_version"],
-            "provenance": payload["provenance"],
-            "families": payload["families"],
-            "hierarchy": payload["hierarchy"],
-        })),
-        PublishItem(f"{prefix}faculty.json", _bytes({
-            "schema_version": payload["schema_version"],
-            "provenance": payload["provenance"],
-            "faculty": payload["faculty"],
-        })),
-    ]
+    tools_body = _bytes(payload)
+    families_body = _bytes({
+        "schema_version": payload["schema_version"],
+        "provenance": payload["provenance"],
+        "families": payload["families"],
+        "hierarchy": payload["hierarchy"],
+    })
+    faculty_body = _bytes({
+        "schema_version": payload["schema_version"],
+        "provenance": payload["provenance"],
+        "faculty": payload["faculty"],
+    })
+
+    items: list[PublishItem] = []
+    for name, body in (("tools.json", tools_body),
+                       ("families.json", families_body),
+                       ("faculty.json", faculty_body)):
+        # Flat keys: preserve the existing posture exactly — tools.json carried
+        # LATEST_CACHE_CONTROL, families/faculty carried none. Do not change the
+        # flat contract while it is still the published surface.
+        flat_cc = LATEST_CACHE_CONTROL if name == "tools.json" else None
+        items.append(PublishItem(f"{prefix}{name}", body, flat_cc))
+        # latest/ copies: identical bytes; all get the short cache so SPS picks up
+        # a republish quickly (parity with spotlight/hierarchy's latest/ posture).
+        items.append(PublishItem(f"{prefix}latest/{name}", body, LATEST_CACHE_CONTROL))
+    return items
+
+
+def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> dict:
+    """The small freshness/integrity anchor a consumer polls before fetching.
+
+    sha256/bytes are computed over the EXACT compact bytes uploaded under
+    ``latest/`` (never a re-serialization), so a consumer's post-fetch integrity
+    check matches byte-for-byte. Top-level ``sha256``/``artifact_bytes`` point at
+    ``tools.json`` (the superset bundle) so a single-artifact manifest reader
+    works unchanged; ``objects`` extends it for the split files. No
+    ``taxonomy_version`` is emitted — the tools payload carries only
+    ``schema_version`` (a fake value would be worse than its absence).
+    """
+    by_name = {
+        it.key.rsplit("/", 1)[-1]: it
+        for it in items
+        if it.key.startswith(f"{prefix}latest/")
+    }
+    tools_it = by_name["tools.json"]
+    objects = {
+        name: {"key": it.key, "bytes": it.size, "sha256": hashlib.sha256(it.body).hexdigest()}
+        for name, it in by_name.items()
+    }
+    generated_at = now_iso()
+    return {
+        "schema_version": PUBLISH_SCHEMA_VERSION,
+        "version": f"v{generated_at[:10]}",  # YYYY-MM-DD, from the single clock read
+        "generated_at": generated_at,
+        "sha256": hashlib.sha256(tools_it.body).hexdigest(),
+        "artifact_bytes": tools_it.size,
+        "objects": objects,
+        "counts": {
+            "tools": len(payload["tools"]),
+            "families": len(payload["families"]),
+            "faculty": len(payload["faculty"]),
+        },
+    }
 
 
 def publish_artifacts(
@@ -132,6 +191,9 @@ def publish_artifacts(
     a dry-run never touches AWS.
     """
     items = _split_artifacts(payload, prefix=prefix)
+    manifest = _build_manifest(items, payload, prefix=prefix)
+    manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
+    items.append(PublishItem(f"{prefix}latest/manifest.json", manifest_bytes, LATEST_CACHE_CONTROL))
     report = [{"key": it.key, "bytes": it.size, "uploaded": False} for it in items]
     if dry_run:
         for r in report:
