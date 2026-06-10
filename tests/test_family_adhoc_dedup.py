@@ -42,9 +42,9 @@ def _fixture(**fam_kwargs):
     return FamilyRegistry(fams, cache=_STUB()), ToolRegistry(tools, cache=_STUB())
 
 
-def _write(tmp_path, *, reroutes=(), relabels=(), merges=()):
+def _write(tmp_path, *, reroutes=(), relabels=(), merges=(), tiers=None):
     cfg = {"_meta": {}, "reroutes": list(reroutes), "relabels": list(relabels),
-           "merges": list(merges)}
+           "merges": list(merges), "tiers": dict(tiers or {})}
     p = tmp_path / "adhoc.json"
     p.write_text(json.dumps(cfg), encoding="utf-8")
     return p
@@ -108,6 +108,33 @@ def test_double_apply_raises(tmp_path):
         apply_adhoc_dedup(fr, tr, data_path=cfg)
 
 
+def test_tier_override_bumps_survivor(tmp_path):
+    """A post-merge tier correction sets display on the surviving family."""
+    cfg = _write(tmp_path, merges=[["fam_b", "fam_c", "high", "same #B"]],
+                 tiers={"fam_c": "feature"})
+    fr, tr = _fixture()
+    deltas = apply_adhoc_dedup(fr, tr, data_path=cfg)
+    assert fr.get("fam_c")["display"] == "feature"          # bumped
+    assert fr.get("fam_a")["display"] == "standard"         # untouched
+    assert any(d["op"] == "tier" and d["family_id"] == "fam_c" for d in deltas)
+
+
+def test_tier_override_on_nonsurvivor_raises(tmp_path):
+    """Tiering a merge drop (gone after the merge) fails loud."""
+    cfg = _write(tmp_path, merges=[["fam_b", "fam_c", "high", "same #B"]],
+                 tiers={"fam_b": "feature"})  # fam_b is absorbed
+    fr, tr = _fixture()
+    with pytest.raises(ValueError, match="non-surviving family"):
+        apply_adhoc_dedup(fr, tr, data_path=cfg)
+
+
+def test_invalid_tier_value_raises(tmp_path):
+    cfg = _write(tmp_path, tiers={"fam_a": "BOGUS"})
+    fr, tr = _fixture()
+    with pytest.raises(ValueError, match="invalid display tier"):
+        apply_adhoc_dedup(fr, tr, data_path=cfg)
+
+
 def test_survivor_without_display_tier_raises(tmp_path):
     """If the set was tiered upstream, a survivor missing a display tier fails loud."""
     cfg = _write(tmp_path, relabels=[["fam_b", "X", "y"]])
@@ -121,11 +148,13 @@ def test_survivor_without_display_tier_raises(tmp_path):
 # --- the bundled batch-1 data --------------------------------------------------
 
 def test_bundled_data_wellformed():
-    reroutes, relabels, merges = _load()
+    reroutes, relabels, merges, tiers = _load()
     meta = json.loads(_DATA_PATH.read_text())["_meta"]["counts"]
     assert len(reroutes) == meta["reroutes"]
     assert len(relabels) == meta["relabels"]
     assert len(merges) == meta["merges"]
+    assert len(tiers) == meta.get("tiers", 0)
+    assert all(t in {"feature", "standard", "suppressed"} for t in tiers.values())
     absorbs = {d for d, _, _ in merges}
     keeps = {k for _, k, _ in merges}
     assert not (absorbs & keeps), "a family is both absorbed and a merge keep (chain)"
@@ -147,10 +176,12 @@ def test_bundled_ids_exist_in_live_registry_if_present():
     if not path.exists():
         pytest.skip("live family_registry.json not present")
     live = {f["family_id"] for f in json.loads(path.read_text())["families"]}
-    reroutes, relabels, merges = _load()
+    reroutes, relabels, merges, tiers = _load()
     drops = {d for d, _, _ in merges}
     referenced = ({fid for fid, _, _ in reroutes} | {fid for fid, _, _ in relabels}
-                  | drops | {k for _, k, _ in merges})
+                  | drops | {k for _, k, _ in merges} | set(tiers))
     missing = referenced - live
     assert not (missing - drops), \
         f"adhoc batch references non-drop ids absent from the live registry: {sorted(missing - drops)[:10]}"
+    # tier targets must be survivors (never a merge drop).
+    assert not (set(tiers) & drops), "a tier override targets a merge drop"

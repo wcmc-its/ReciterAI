@@ -5,7 +5,8 @@
     "applied_after": "family_consolidation_v820",
     "date": "2026-06-10",
     "altitude": "keep PRO (fam_0094) distinct from clinician-rated/psychiatric scales (decision 2026-06-10)",
-    "counts": { "reroutes": 2, "relabels": 5, "merges": 4 }
+    "counts": { "reroutes": 2, "relabels": 5, "merges": 4, "tiers": 1 },
+    "tiers_note": "post-merge display-tier corrections on SURVIVORS only (v820 tiers stay immutable); applied after the merges"
   },
 
   "reroutes": [
@@ -38,6 +39,13 @@
     ["fam_0398", "fam_0583", "medium",
      "method/tool split of CRISPR genome editing across #3/#8; reroute lands fam_0398 in #8 first. conf=medium — the merge is sound but the #8-vs-#3 home is a reviewable judgment"]
   ],
+
+  "tiers": {
+    "fam_0101": "feature"
+  },
+  "_tiers_why": {
+    "fam_0101": "the merged psychiatric/psychological rating-scale survivor is the top chip of its cluster (16 on hgp2001, 97 members) and absorbed the feature-tier fam_0111; restore feature so the merge does not demote it to standard"
+  },
 
   "keep_separate": [
     ["fam_0094", "fam_0101", "PRO instruments kept distinct from clinician-rated/psychiatric rating scales (altitude decision 2026-06-10)"],
