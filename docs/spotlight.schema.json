@@ -150,8 +150,8 @@
     "pool_snapshot": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 50,
-      "description": "Top-50 pool ranking snapshot for transparency.",
+      "maxItems": 150,
+      "description": "Pool ranking snapshot for transparency — up to POOL_SIZE (spotlight/pool_ranker.py) entries; widened 50->150 with #164's pool expansion.",
       "items": {
         "$ref": "#/$defs/PoolSnapshot"
       }
