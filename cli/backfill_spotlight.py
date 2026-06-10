@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import statistics
 import sys
 from collections import Counter
 from datetime import date
@@ -379,20 +380,84 @@ def _print_near_clone_report(near_clones, selections) -> None:
         print(f"    [{tag}] cos={cos:.3f}  {a} ~ {b}")
 
 
-def _top_publishable(publishable: list, target: int) -> list:
-    """Return the best ``target`` (selection, validated_lede) pairs by selection
-    score, descending, tie-broken by subtopic_id for determinism (#167).
+def _top_publishable(
+    publishable: list,
+    target: int,
+    *,
+    scholar_penalty_lambda: float = 0.0,
+    scholar_lead_depth: int = 3,
+) -> list:
+    """Return the best ``target`` (selection, validated_lede) pairs for publish.
 
+    Default (``scholar_penalty_lambda <= 0``, #167): the best ``target`` by
+    selection score, descending, tie-broken by subtopic_id for determinism.
     Ledes are generated and gated over the full candidate pool; this is the
     final step that truncates the cleared set to the published count, so the
     publish reflects selection-score merit rather than whichever ledes happened
-    to clear the critic first. ``target`` is a ceiling — a thin pool publishes
-    however many cleared. Does not mutate ``publishable``.
+    to clear the critic first.
+
+    Scholar-coverage mode (``scholar_penalty_lambda > 0``; see
+    ``docs/spotlight-scholar-coverage-selection.md``): a greedy pick that
+    downweights a candidate by how many of its lead authors are ALREADY on the
+    page, so one prolific lab cannot front several of the published cards. For
+    each pick the effective score is
+
+        sel_score - scholar_penalty_lambda * median_sel * load
+
+    where ``load`` is the summed page-count of the candidate's lead authors
+    (first/last ``person_identifier`` of its top ``scholar_lead_depth``
+    impact-ranked papers) and ``median_sel`` is the median sel_score of the
+    cleared set — so the knob self-normalizes as scores drift. The penalty is
+    marginal + escalating (a person's 2nd card is cheap, their 4th expensive)
+    and SOFT: a genuinely top-tier card can still out-score the penalty and
+    repeat a star; nothing is hard-excluded. The cleared candidates are already
+    parent-distinct and near-clone-free (gated in ``select_with_diversity``), so
+    the publish step inherits both gates.
+
+    ``target`` is a ceiling — a thin pool publishes however many cleared. Does
+    not mutate ``publishable``.
     """
-    return sorted(
+    ranked = sorted(
         publishable,
         key=lambda pv: (-pv[0].sel_score, pv[0].entry.subtopic_id),
-    )[:target]
+    )
+    if scholar_penalty_lambda <= 0.0 or not ranked:
+        return ranked[:target]
+
+    median_sel = statistics.median([pv[0].sel_score for pv in ranked]) or 1.0
+
+    def _lead_authors(sel) -> set[str]:
+        out: set[str] = set()
+        for paper in getattr(sel.entry, "papers", ())[:scholar_lead_depth]:
+            for author in (paper.first_author, paper.last_author):
+                pid = (getattr(author, "person_identifier", "") or "").strip()
+                if pid:
+                    out.add(pid)
+        return out
+
+    # feat keyed by object identity: the (sel, vlede) tuples are stable for the
+    # life of this call and the vlede half is not reliably hashable.
+    feat = {id(pv): _lead_authors(pv[0]) for pv in ranked}
+    board: dict[str, int] = {}
+    chosen: list = []
+    remaining = list(ranked)  # sel_score-DESC, subtopic_id-ASC
+    while len(chosen) < target and remaining:
+        def _effective(pv):
+            load = sum(board.get(a, 0) for a in feat[id(pv)])
+            return (
+                pv[0].sel_score - scholar_penalty_lambda * median_sel * load,
+                pv[0].sel_score,  # tiebreak: raw merit, then encounter order
+            )
+
+        # ``remaining`` stays sel_score-DESC / subtopic_id-ASC, so max() returns
+        # the first candidate at the best effective score — sel_score then
+        # subtopic_id are the deterministic tiebreakers.
+        best = max(remaining, key=_effective)
+        chosen.append(best)
+        for a in feat[id(best)]:
+            board[a] = board.get(a, 0) + 1
+        remaining = [pv for pv in remaining if pv is not best]
+    return chosen
 
 
 def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers):
@@ -716,16 +781,30 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             continue
         publishable.append((sel, vlede))
 
-    # Stage 4.5: publish the best PUBLISH_TARGET by selection score (#167). The
-    # critic ran over the full ≤SELECTION_TARGET candidate pool; this truncates
-    # the cleared set to the published count so the choice reflects selection
-    # merit, not critic-clearance order. A thin pool publishes fewer.
+    # Stage 4.5: publish the best PUBLISH_TARGET of the cleared candidates (#167).
+    # The critic ran over the full ≤SELECTION_TARGET candidate pool; this
+    # truncates the cleared set to the published count so the choice reflects
+    # selection merit, not critic-clearance order. A thin pool publishes fewer.
+    # Scholar-coverage downweight (docs/spotlight-scholar-coverage-selection.md):
+    # when spotlight_scholar_penalty_lambda > 0, the truncation additionally
+    # downweights a card whose lead authors already front the page, so one lab
+    # cannot monopolize the publish. Soft — never a hard exclusion; lambda=0
+    # restores the pure sel_score truncation.
+    scholar_lambda = float(thresholds.get("spotlight_scholar_penalty_lambda", 0.0))
+    scholar_depth = int(thresholds.get("spotlight_scholar_lead_depth", 3))
     if len(publishable) > PUBLISH_TARGET:
         logger.info(
-            "Publishable %d > target %d; keeping the top %d by selection score",
+            "Publishable %d > target %d; keeping the top %d "
+            "(scholar_penalty_lambda=%.3f, lead_depth=%d)",
             len(publishable), PUBLISH_TARGET, PUBLISH_TARGET,
+            scholar_lambda, scholar_depth,
         )
-    publishable = _top_publishable(publishable, PUBLISH_TARGET)
+    publishable = _top_publishable(
+        publishable,
+        PUBLISH_TARGET,
+        scholar_penalty_lambda=scholar_lambda,
+        scholar_lead_depth=scholar_depth,
+    )
 
     # Stage 5: assemble.
     selected_vledes = [vlede for _, vlede in publishable]
