@@ -41,6 +41,7 @@ import argparse
 import json
 import logging
 import sys
+from collections import Counter
 from datetime import date
 from pathlib import Path
 
@@ -378,6 +379,22 @@ def _print_near_clone_report(near_clones, selections) -> None:
         print(f"    [{tag}] cos={cos:.3f}  {a} ~ {b}")
 
 
+def _top_publishable(publishable: list, target: int) -> list:
+    """Return the best ``target`` (selection, validated_lede) pairs by selection
+    score, descending, tie-broken by subtopic_id for determinism (#167).
+
+    Ledes are generated and gated over the full candidate pool; this is the
+    final step that truncates the cleared set to the published count, so the
+    publish reflects selection-score merit rather than whichever ledes happened
+    to clear the critic first. ``target`` is a ceiling — a thin pool publishes
+    however many cleared. Does not mutate ``publishable``.
+    """
+    return sorted(
+        publishable,
+        key=lambda pv: (-pv[0].sel_score, pv[0].entry.subtopic_id),
+    )[:target]
+
+
 def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """Main pipeline orchestrator.
 
@@ -392,6 +409,7 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """
     from spotlight.pool_ranker import rank_pool
     from spotlight.rotation_selector import (
+        PUBLISH_TARGET,
         SELECTION_FLOOR,
         SELECTION_TARGET,
         fetch_history,
@@ -555,13 +573,15 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     publish_id = f"v{date.today().isoformat()}"
 
     # Stage 3: per-selection critic loop. Sequential by design so each
-    # generation can see which institutional-voice openers earlier
-    # spotlights already chose, avoiding within-publish repetition
-    # (wcmc-its/ReciterAI#2 §3).
-    from spotlight.critic import OPENER_RE
+    # generation can see which institutional-voice openers earlier spotlights
+    # already chose, capping reuse within a publish (wcmc-its/ReciterAI#2 §3;
+    # #167 relaxes strict uniqueness to OPENER_REUSE_CAP). Only openers that
+    # have already hit the cap are excluded — the generator may keep reusing an
+    # opener until it reaches OPENER_REUSE_CAP uses.
+    from spotlight.critic import OPENER_RE, OPENER_REUSE_CAP
 
     validated_ledes = []
-    used_openers: list[str] = []
+    opener_counts: Counter[str] = Counter()
     for sel in selections:
         meta = subtopic_metadata.get(sel.entry.subtopic_id)
         if meta is None:
@@ -571,17 +591,20 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             )
             continue
         try:
+            at_cap = tuple(
+                o for o, c in opener_counts.items() if c >= OPENER_REUSE_CAP
+            )
             vlede = run_critic_loop(
                 meta=meta,
                 papers=list(sel.entry.papers),
                 publish_id=publish_id,
                 parent_topic=sel.entry.parent_topic,
-                excluded_openers=tuple(used_openers),
+                excluded_openers=at_cap,
             )
             if vlede.status == "pass":
                 m = OPENER_RE.search(vlede.lede)
-                if m and m.group(0) not in used_openers:
-                    used_openers.append(m.group(0))
+                if m:
+                    opener_counts[m.group(0)] += 1
         except ValueError as e:
             # Lede generator rejects subtopics without ≥2 author-identified
             # papers. Log + skip rather than abort the run; the slot drops
@@ -594,11 +617,11 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             continue
         validated_ledes.append((sel, vlede))
 
-    # Stage 3.5: artifact-level critic — fail-closed on duplicate
-    # institutional-voice openers across the publish. Per
-    # wcmc-its/ReciterAI#2 §3. The first occurrence keeps its slot; later
-    # duplicates are routed to the review queue and dropped from the
-    # publishable set. Operator can `--regen-only` them to re-roll.
+    # Stage 3.5: artifact-level critic — cap institutional-voice opener reuse
+    # across the publish at OPENER_REUSE_CAP (wcmc-its/ReciterAI#2 §3; #167).
+    # The first OPENER_REUSE_CAP uses keep their slots; occurrences beyond the
+    # cap are routed to the review queue and dropped from the publishable set.
+    # Operator can `--regen-only` them to re-roll.
     from spotlight.critic import find_duplicate_openers
 
     pass_ledes = [
@@ -606,7 +629,9 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         if vlede.status == "pass"
     ]
     pass_lede_text = [v.lede for _, _, v in pass_ledes]
-    duplicate_indices = find_duplicate_openers(pass_lede_text)
+    duplicate_indices = find_duplicate_openers(
+        pass_lede_text, max_per_opener=OPENER_REUSE_CAP
+    )
     flagged_global_idx = set()
     for local_i, opener in duplicate_indices.items():
         global_i, sel, vlede = pass_ledes[local_i]
@@ -663,6 +688,17 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             )
             continue
         publishable.append((sel, vlede))
+
+    # Stage 4.5: publish the best PUBLISH_TARGET by selection score (#167). The
+    # critic ran over the full ≤SELECTION_TARGET candidate pool; this truncates
+    # the cleared set to the published count so the choice reflects selection
+    # merit, not critic-clearance order. A thin pool publishes fewer.
+    if len(publishable) > PUBLISH_TARGET:
+        logger.info(
+            "Publishable %d > target %d; keeping the top %d by selection score",
+            len(publishable), PUBLISH_TARGET, PUBLISH_TARGET,
+        )
+    publishable = _top_publishable(publishable, PUBLISH_TARGET)
 
     # Stage 5: assemble.
     selected_vledes = [vlede for _, vlede in publishable]
