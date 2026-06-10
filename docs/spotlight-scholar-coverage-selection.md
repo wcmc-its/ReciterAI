@@ -1,6 +1,6 @@
 # Spotlight scholar-coverage selection
 
-**Status:** Designed · prototype-validated · **not yet implemented** (2026-06-10)
+**Status:** Implemented · merged (PR #185, `5768c02`, 2026-06-10) · **not yet exercised on a live publish** — takes effect on the next operator `python -m cli.backfill_spotlight --publish`.
 **Owner decision:** soft people-coverage downweight at the publish-9 step — `m=3`, `λ=0.08`.
 
 A selection-policy refinement for the weekly spotlight: when choosing which
@@ -146,7 +146,7 @@ signal but can be a *page-composition* signal — the premise of this policy.
 
 ## 7. Implementation plan
 
-Contained: one function plus three config keys. No new author plumbing — the
+**Shipped in PR #185 (`5768c02`).** Contained: one function plus two config keys. No new author plumbing — the
 data is already on `PoolEntry.papers`.
 
 1. **`config/thresholds.json`** — add:
