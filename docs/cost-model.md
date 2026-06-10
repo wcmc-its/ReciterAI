@@ -5,6 +5,7 @@
 > **Revision history.**
 > - 2026-05-13: corrected daily-enrichment synopsis + impact figures (was Sonnet-on-full-text assumption; actually GPT-5.1 on title+abstract via OpenAI Batch).
 > - 2026-05-19: daily-enrichment synopsis + impact rewired to Bedrock Claude Sonnet 4.6 via #37 PRs 1–2; OpenAI gpt-5.1 retained as the content-filter fallback (#37 D3). Per-PMID figures now grounded against the Bedrock spike (`scripts/debug/bedrock_synopsis_impact_spike.py`, n=15) at $0.0141/PMID combined.
+> - 2026-06-10: spotlight publish cost is now **measured**, not estimated — `backfill_spotlight` meters every run via the `STAGE#spotlight_publish#GLOBAL` cost ledger (PR #187). First metered publish was **$3.04** (66 Bedrock calls; Opus $3.02 + Haiku $0.02), ~6× the prior `~$0.50` estimate. Root cause of the miss: the publish over-selects `SELECTION_TARGET=25` candidates and generates a lede for each (plus critic retries), not ~10 (#166/#167). Spotlight rows below revised accordingly.
 >
 > All $ figures assume the current corpus: **~6,200 PMIDs**, **66 topics**, **1,541 subtopics** across **~600 WCM full-time faculty**. PMIDs are filtered to `publicationTypeCanonical = 'Academic Article'`, `articleYear >= 2020`. Author scope today is *all* positions (first / middle / last) of WCM full-time faculty.
 
@@ -29,8 +30,8 @@ The big cost driver in (1) and (2) is **PMID count**. Author-position scope (fir
 | Subtopic relabel | `relabel_subtopics.py` | Sonnet 4.6 | ~3K / ~4K | **~$0.07** | per subtopic | `max_tokens=4096`. Cold-start only. Generates `display_name` + `short_description`. Skips already-populated subtopics. |
 | Taxonomy generation | `generate_taxonomy.py` | Sonnet 4.6 | varies | **~$5–$15** | per full regen | One-shot inductive clustering of synopses. Rare event; only when taxonomy version is bumped. |
 | See-also generation | `generate_see_also.py` | Sonnet 4.6 | ~10K / ~30K | **~$0.50** | per cold run | `max_tokens=32768`. One call per cold run. |
-| Spotlight lede | `spotlight/lede_generator.py` | **Opus 4.7** | ~2K / ~300 | **~$0.05** | per featured subtopic | `max_tokens=300`. ~10 ledes per monthly spotlight publish (`SELECTION_SIZE=10` is a floor). |
-| Spotlight critic | `spotlight/critic.py` | Haiku 4.5 | ~1.5K / ~200 | **~$0.002** | per lede critique | `max_tokens=200`. Runs after each lede. |
+| Spotlight lede | `spotlight/lede_generator.py` | **Opus 4.7** | ~2K / ~300 | **~$0.05** | per candidate lede | `max_tokens=300`. The publish over-selects `SELECTION_TARGET=25` candidates and generates a lede for each (plus critic-driven retries), then publishes the best `PUBLISH_TARGET=9` (#167) — so it's **~19–25 ledes per publish, not 10**, and this Opus row dominates the per-publish cost. **Measured 2026-06-10: $3.04/publish total** (66 Bedrock calls, Opus $3.02 + Haiku $0.02), via the `STAGE#spotlight_publish#GLOBAL` cost ledger (#187). |
+| Spotlight critic | `spotlight/critic.py` | Haiku 4.5 | ~1.5K / ~200 | **~$0.002** | per lede critique | `max_tokens=200`. Runs after each lede; a critic reject triggers a lede regeneration (extra Opus call), so calls/publish exceed the candidate count. |
 | Spotlight sensitive gate | `spotlight/sensitive_gate.py` | Haiku 4.5 | ~1K / ~50 | **~$0.0015** | per spotlight candidate | Runs before publish to catch sensitive topics. |
 
 ### What a full cold-start full-corpus rebuild costs (in-repo Bedrock only)
@@ -56,10 +57,11 @@ Assumes ~20 new PMIDs/day enter the corpus = ~600/month, no taxonomy version bum
 |---|---|---|---|
 | Screening + scoring (new PMIDs) | 600 | $0.013 | ~$8 |
 | Subtopic assignment | ~1,200 | $0.0035 | ~$4 |
-| Spotlight lede | 10 | $0.05 | ~$0.50 |
-| Spotlight critic | 10 | $0.002 | ~$0.02 |
-| Sensitive gate | 10 | $0.0015 | ~$0.02 |
-| **Total in-repo Bedrock per month** | | | **~$13** |
+| Spotlight publish (Opus ledes) | ~19–25 candidates + retries | — | **~$3.02** (measured 2026-06-10) |
+| Spotlight critic + sensitive gate (Haiku) | per candidate | — | ~$0.02 (measured) |
+| **Total in-repo Bedrock per month** | | | **~$15** (assumes 1 publish/mo) |
+
+> **Spotlight cadence caveat:** `docs/spotlight-contract.md` describes the publish as *weekly* (operator-run), while this table assumes one publish/month. At ~$3.04/publish, a weekly cadence adds **~$12/mo** (total ≈ **$24/mo**), not ~$3. Multiply $3.04 by your actual publish frequency — the cost ledger (`STAGE#spotlight_publish#GLOBAL`) is the source of truth for runs actually executed.
 
 Subtopic discovery / relabel / see-also re-run cold; they don't enter steady-state cost unless input_hash changes.
 
