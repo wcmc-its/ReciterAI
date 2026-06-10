@@ -5,8 +5,9 @@ publish-count behavior is tested through the extracted `_top_publishable`
 helper.
 """
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from cli.backfill_spotlight import _top_publishable
+from cli.backfill_spotlight import _top_publishable, _try_generate_lede
 
 
 def _pv(subtopic_id: str, sel_score: float):
@@ -44,3 +45,40 @@ def test_top_publishable_does_not_mutate_input():
     before = list(pubs)
     _top_publishable(pubs, 1)
     assert pubs == before
+
+
+# ---------------------------------------------------------------------------
+# _try_generate_lede — per-subtopic failure tolerance (publish resilience)
+# ---------------------------------------------------------------------------
+
+def _meta(sid="aging.molecular"):
+    return SimpleNamespace(subtopic_id=sid)
+
+
+def test_try_generate_lede_returns_vlede_on_success():
+    sentinel = SimpleNamespace(status="pass", lede="WCM scholars are mapping things.")
+    with patch("spotlight.critic.run_critic_loop", return_value=sentinel) as rc:
+        out = _try_generate_lede(_meta(), [1, 2], "v2026-06-10", "parent_topic", ())
+    assert out is sentinel
+    rc.assert_called_once()
+
+
+def test_try_generate_lede_skips_on_value_error():
+    """A subtopic with <2 author-resolved papers is skipped, not fatal."""
+    with patch("spotlight.critic.run_critic_loop", side_effect=ValueError("needs >=2 papers")):
+        out = _try_generate_lede(_meta(), [], "v2026-06-10", "parent_topic", ())
+    assert out is None
+
+
+def test_try_generate_lede_skips_on_transient_bedrock_error():
+    """A transient Bedrock failure (e.g. ServiceUnavailableException) on one
+    subtopic must skip it, not abort the whole publish."""
+    class ServiceUnavailableException(Exception):
+        pass
+
+    with patch(
+        "spotlight.critic.run_critic_loop",
+        side_effect=ServiceUnavailableException("Bedrock is unable to process your request"),
+    ):
+        out = _try_generate_lede(_meta(), [1, 2], "v2026-06-10", "parent_topic", ())
+    assert out is None

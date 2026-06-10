@@ -395,6 +395,40 @@ def _top_publishable(publishable: list, target: int) -> list:
     )[:target]
 
 
+def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers):
+    """Run the lede critic loop for one subtopic, converting a per-subtopic
+    failure into a skip (return None) rather than aborting the whole publish.
+
+    A full publish makes ~75 Bedrock calls; a single transient failure (e.g.
+    `ServiceUnavailableException` under burst load) that exhausts the client's
+    retries would otherwise kill the entire ~20-minute run. We over-select
+    (SELECTION_TARGET candidates for PUBLISH_TARGET slots), so a skipped
+    subtopic simply doesn't publish; the SELECTION_FLOOR check downstream still
+    guards against mass failure. `ValueError` (subtopic with <2 author-resolved
+    papers) was already a skip; this extends the same tolerance to transient
+    generation errors.
+    """
+    from spotlight.critic import run_critic_loop
+    try:
+        return run_critic_loop(
+            meta=meta,
+            papers=papers,
+            publish_id=publish_id,
+            parent_topic=parent_topic,
+            excluded_openers=excluded_openers,
+        )
+    except ValueError as e:
+        # Lede generator rejects subtopics without >=2 author-identified papers.
+        logger.warning("Skipping subtopic %s: %s", meta.subtopic_id, e)
+        return None
+    except Exception as e:  # noqa: BLE001 — over-selected + floor-guarded: log + skip
+        logger.error(
+            "Lede generation failed for subtopic %s (%s: %s); skipping",
+            meta.subtopic_id, type(e).__name__, e,
+        )
+        return None
+
+
 def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """Main pipeline orchestrator.
 
@@ -564,7 +598,6 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
 
     # Stage 3+4+5+6: --dry-run-full or --publish.
     from spotlight.assembler import build_artifact
-    from spotlight.critic import run_critic_loop
     from spotlight.review_queue import write_review_entry
     from spotlight.sensitive_gate import is_sensitive, load_sensitive_tags
 
@@ -590,31 +623,25 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
                 sel.entry.subtopic_id,
             )
             continue
-        try:
-            at_cap = tuple(
-                o for o, c in opener_counts.items() if c >= OPENER_REUSE_CAP
-            )
-            vlede = run_critic_loop(
-                meta=meta,
-                papers=list(sel.entry.papers),
-                publish_id=publish_id,
-                parent_topic=sel.entry.parent_topic,
-                excluded_openers=at_cap,
-            )
-            if vlede.status == "pass":
-                m = OPENER_RE.search(vlede.lede)
-                if m:
-                    opener_counts[m.group(0)] += 1
-        except ValueError as e:
-            # Lede generator rejects subtopics without ≥2 author-identified
-            # papers. Log + skip rather than abort the run; the slot drops
-            # out of the spotlight set for this publish_id.
-            logger.warning(
-                "Skipping subtopic %s: %s",
-                sel.entry.subtopic_id,
-                e,
-            )
+        at_cap = tuple(
+            o for o, c in opener_counts.items() if c >= OPENER_REUSE_CAP
+        )
+        # Per-subtopic failures (no eligible papers, or a transient Bedrock
+        # error under burst load) skip this subtopic instead of aborting the
+        # whole publish — see _try_generate_lede.
+        vlede = _try_generate_lede(
+            meta,
+            list(sel.entry.papers),
+            publish_id,
+            sel.entry.parent_topic,
+            at_cap,
+        )
+        if vlede is None:
             continue
+        if vlede.status == "pass":
+            m = OPENER_RE.search(vlede.lede)
+            if m:
+                opener_counts[m.group(0)] += 1
         validated_ledes.append((sel, vlede))
 
     # Stage 3.5: artifact-level critic — cap institutional-voice opener reuse
