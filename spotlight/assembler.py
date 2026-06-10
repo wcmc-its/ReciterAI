@@ -109,10 +109,11 @@ def build_artifact(
         non-pass status raises ``ValueError`` (defense-in-depth against a
         publisher that forgets to filter the review queue out).
     pool
-        Top-50 PoolEntry rows from the rotation selector's input pool.
-        Length is preserved in ``pool_snapshot``; the schema bounds it
-        between 1 and 50. Each entry's ``papers`` tuple sources the
-        artifact's ``papers`` array for the matching spotlight (#49).
+        The ranked PoolEntry rows from the rotation selector's input pool
+        (up to ``POOL_SIZE`` = 150 since #164). Length is preserved in
+        ``pool_snapshot``; the schema bounds it between 1 and 150. Each
+        entry's ``papers`` tuple sources the artifact's ``papers`` array
+        for the matching spotlight (#49).
     subtopic_metadata
         Lookup ``subtopic_id`` → SubtopicMeta. Plan 06-04's slim shape
         (label, description, parent_topic_label) is sufficient. Plan

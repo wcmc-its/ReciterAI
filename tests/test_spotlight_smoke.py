@@ -383,3 +383,17 @@ def test_no_aws_calls_at_imports():
         f"spotlight imports failed without AWS creds: {result.stderr}"
     )
     assert "OK" in result.stdout
+
+
+def test_pool_snapshot_schema_bound_covers_pool_size():
+    """The schema's pool_snapshot maxItems must keep up with POOL_SIZE, or every
+    --publish fails validation. Regression guard: #164 raised POOL_SIZE 50->150
+    but the schema cap stayed at 50, silently breaking publish until caught on a
+    live run 2026-06-10."""
+    from spotlight.pool_ranker import POOL_SIZE
+    schema = json.loads(SCHEMA_PATH.read_text())
+    cap = schema["properties"]["pool_snapshot"]["maxItems"]
+    assert cap >= POOL_SIZE, (
+        f"pool_snapshot maxItems={cap} < POOL_SIZE={POOL_SIZE}; "
+        "publish will fail schema validation"
+    )
