@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "source": "family-dupe scan (scholar co-assignment) + review — batch 1",
+    "plan": "Projects/ReciterAI - Planning/family-dedup-coassignment-process-PLAN.md",
+    "applied_after": "family_consolidation_v820",
+    "date": "2026-06-10",
+    "altitude": "keep PRO (fam_0094) distinct from clinician-rated/psychiatric scales (decision 2026-06-10)",
+    "counts": { "reroutes": 2, "relabels": 5, "merges": 4 }
+  },
+
+  "reroutes": [
+    ["fam_0182", "clinical_instruments_assays",
+     "generic survey/questionnaire forms (survey, online survey, telephone survey) split into #5 while the NAMED survey instruments live in #6 (fam_0100); reroute lands fam_0182 in #6 so the dedup merge is same-supercategory and survey instruments group with the PRO/rating-scale instrument families"],
+    ["fam_0398", "molecular_biochem_reagents",
+     "CRISPR genome-editing METHODS (base editing, epigenetic editing) belong with the CRISPR tool system; the plurality of CRISPR (fam_0583, 68 members) is already in #8, so route the #3 method arm there. JUDGMENT: #3-vs-#8 home is a defensible fork — kept #8 per plurality"]
+  ],
+
+  "relabels": [
+    ["fam_0101", "Psychiatric and psychological rating scales",
+     "survivor of the rating-scale merge (absorbs fam_0111); the clearer label over the jargony 'Psychometric rating scales'"],
+    ["fam_0097", "Clinical severity, grading and scoring instruments",
+     "survivor of the clinical-scoring merge (absorbs fam_0098 'Clinical grading and scoring scales'); umbrella both severity and grading scores"],
+    ["fam_0583", "CRISPR genome editing",
+     "survivor of the CRISPR method/tool merge (absorbs fam_0398); drop the redundant '-editing tools' suffix"],
+    ["fam_0118", "Diagnostic endoscopy",
+     "RELABEL-TO-DISAMBIGUATE (no merge): diagnostic/assessment endoscopy (FEES, laryngoscopy, EUS biopsy, EndoFLIP) — a genuine sibling of fam_0763, NOT a duplicate; relabel so the lens stops showing two near-identical 'endoscopic procedures' chips"],
+    ["fam_0763", "Therapeutic and surgical endoscopy",
+     "RELABEL-TO-DISAMBIGUATE (no merge): therapeutic/surgical endoscopy (ESD, ERCP, resection, stenting) — kept SEPARATE from the diagnostic fam_0118; merging would conflate diagnosis with treatment"]
+  ],
+
+  "merges": [
+    ["fam_0182", "fam_0100", "high",
+     "identical-label cross-supercategory duplicate of 'Survey and questionnaire instruments'; collides on the most scholars of any pair (highest-value fix); reroute lands fam_0182 in #6 first"],
+    ["fam_0111", "fam_0101", "high",
+     "'Psychiatric and psychological rating scales' is the same capability as 'Psychometric rating scales' (both #6); reunites PG-13 (fam_0111) with its revision PG-13-R (fam_0101) — the trigger case. Kept distinct from fam_0094 PRO per the altitude decision"],
+    ["fam_0098", "fam_0097", "high",
+     "'Clinical grading and scoring scales' (CTCAE, Clavien-Dindo) is the same family-altitude capability as 'Clinical severity scoring instruments' (SOFA, ISS, ECOG); both #6"],
+    ["fam_0398", "fam_0583", "medium",
+     "method/tool split of CRISPR genome editing across #3/#8; reroute lands fam_0398 in #8 first. conf=medium — the merge is sound but the #8-vs-#3 home is a reviewable judgment"]
+  ],
+
+  "keep_separate": [
+    ["fam_0094", "fam_0101", "PRO instruments kept distinct from clinician-rated/psychiatric rating scales (altitude decision 2026-06-10)"],
+    ["fam_0612", "fam_0777", "'AAV gene-therapy vectors' x-SC pair is the reagent-vs-administered-therapy fork the architecture names as genuinely irreducible (a vector is both a reagent and, when dosed, a therapy) — keep; a relabel-to-disambiguate is the most we'd do"],
+    ["fam_0446", "fam_0447/0464/0482/0455/0456", "MRI modality variants (quantitative/diffusion/contrast/functional/cardiac) are genuine sub-method siblings, not duplicates; merging is an altitude choice deferred, not a dedup"],
+    ["fam_0521", "fam_0522", "MS-based proteomics ≠ MS-based metabolomics — same instrument, different analyte; distinct capabilities"],
+    ["fam_0393", "fam_0399", "Bulk RNA-seq ≠ single-cell RNA-seq — distinct methods"],
+    ["fam_0187", "fam_0273/0250", "ML classification vs graph-ML vs ML-interpretability are distinct computational methods"],
+    ["fam_0332", "fam_0333", "Clinical trial datasets vs clinical registry datasets — distinct dataset provenances; deferred"],
+    ["fam_0451", "fam_0597/0467", "PET imaging vs the PET radiotracer (reagent) vs PET/CT — modality/reagent distinctions; deferred"]
+  ]
+}
