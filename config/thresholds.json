@@ -36,5 +36,7 @@
   "hierarchy_dedup_containment_ratio": 3.0,
   "hierarchy_dedup_flag_overlap_min": 0.60,
   "spotlight_clone_overlap_min": 0.40,
-  "spotlight_theme_cap_patterns": ["disparit"]
+  "spotlight_theme_cap_patterns": ["disparit"],
+  "spotlight_scholar_penalty_lambda": 0.08,
+  "spotlight_scholar_lead_depth": 3
 }

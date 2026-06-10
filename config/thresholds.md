@@ -138,3 +138,19 @@ This is an embedding-cosine threshold — its correct value depends on the embed
 **Calibrated to 0.70 on 2026-05-19** against the live 50-subtopic pool. Every near-clone pair the scan surfaced at or above 0.70 — three spaceflight-omics subtopics, two health-disparities subtopics, one precision-oncology pair — was a genuine duplicate on inspection of the `short_description` text, and no distinct pair scored that high. The prior 0.80 starting value was too loose: it left two of the three spaceflight near-clones (cosine 0.78) both eligible for one publish. The nearest near-miss is a cancer-genomics pair at 0.699 — visible in the dry-run report; nudge the threshold down only if a future pool shows such a pair producing a duplicate-looking publish.
 
 If you raise this: fewer pairs count as near-clones, so more genuine near-clones can co-occur in one publish. If you lower it: more pairs are gated, distinct-but-related subtopics may be suppressed, and the selector falls back to its best-effort second pass more often. The gate is best-effort and never blocks a publish — an embedding failure degrades to parent-only selection (see `spotlight/theme_dedup.py`).
+
+## Spotlight scholar-coverage downweight
+
+Full rationale, analysis, and the λ sweep live in `docs/spotlight-scholar-coverage-selection.md`. These two keys are a *page-composition* layer applied at the publish-N step (`cli/backfill_spotlight.py::_top_publishable`), on top of the #91/#164 *dedup* gates: they prefer a published set that surfaces different individuals, so one prolific lab cannot front several of the cards. Soft, never a hard rule.
+
+### `spotlight_scholar_penalty_lambda` (float, default 0.08)
+
+At the publish-N truncation, a candidate's effective score is `sel_score − λ · median_sel · load`, where `load` is the summed current page-count of the candidate's lead authors and `median_sel` is the median sel_score of the cleared candidate set (so the knob self-normalizes as impact scores drift). The penalty is marginal and escalating — a person's 2nd published card costs `λ·median_sel`, their 3rd costs `2·λ·median_sel`, and so on — so repeats become progressively unlikely without ever being forbidden; a genuinely top-tier card can still out-score the penalty and feature a star twice.
+
+**Calibrated to 0.08 on 2026-06-10** against the live 150-subtopic pool, where one lab was fronting 4 of 9 cards (lead authors repeated ×4). The sweep showed a clean knee: `λ≈0.05–0.10` breaks the ×4 monopoly to ×2 — keeping the lab's two strongest cards, dropping the 3rd/4th — for a ~2% page-quality cost (page mean sel_score 428→421) and ~3 of 9 cards swapped. `λ≥0.20` approaches strict zero-repeat (~4% cost). `0` disables the layer entirely, restoring the pure-`sel_score` truncation (#167).
+
+If you raise this: repeats get rarer, the page broadens to more distinct individuals, and more lower-`sel_score` cards are promoted (quality cost rises). If you lower it: the page tolerates more cards from the same prolific people. Re-confirm the value against the *cleared ≤25* median on a `--dry-run-full` before a publish — the sweep was calibrated on the full 150-pool median, and the cleared-set median can differ slightly.
+
+### `spotlight_scholar_lead_depth` (int, default 3)
+
+How many of a subtopic's top impact-ranked papers define its "featured individuals" — the first/last `person_identifier` of the top-N papers. `1` counts only the headline paper's two authors (narrow — the names the lede actually leads with); `3` counts the few papers the card fronts (recommended — this is where the monopoly actually shows up). Bounded above by `pool_top_papers_per_subtopic` (7). The depth is the bigger lever of the two: at depth 1 the live page already barely repeats, so the policy mostly bites at depth ≥ 3.

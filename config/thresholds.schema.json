@@ -235,6 +235,18 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "Spotlight cross-cutting-theme cap (#164): EDITORIAL list of theme stems (case-insensitive substrings of subtopic ids) to feature at most once per publish. For cross-cutting themes (e.g. health 'disparit'ies) that recur across many parent topics as substantively-distinct facets — so neither the cosine nor the article-overlap signal flags them — but read as redundant cards on the home page. Each pattern's matching subtopics are connected into a near-clone clique so the selector keeps only the highest-scored one. Keep tight (it ignores descriptions/papers); a loose pattern collapses genuinely-distinct work that merely shares a word."
+    },
+    "spotlight_scholar_penalty_lambda": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "description": "Spotlight scholar-coverage downweight (docs/spotlight-scholar-coverage-selection.md): at the publish-N step, a candidate is docked by lambda * median_sel * (sum of its lead authors' current page-count) so one prolific lab cannot front several published cards. Marginal + escalating (a person's 2nd card is cheap, their 4th expensive) and SOFT — a top-tier card can still out-score the penalty and repeat a star. Scaled to the cleared set's median sel_score so the knob self-normalizes as scores drift. 0 disables it (pure sel_score truncation, the pre-policy behavior). Calibrated knee on the live pool: ~0.05-0.10 breaks a 4-card monopoly to 2 for ~2% page-quality cost; >=0.20 approaches zero-repeat."
+    },
+    "spotlight_scholar_lead_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 7,
+      "description": "Spotlight scholar-coverage downweight: how many of a subtopic's top impact-ranked papers define its 'featured individuals' for spotlight_scholar_penalty_lambda — the first/last person_identifier of the top-N papers. 1 = only the headline paper's authors the lede names; 3 = the few papers the card actually fronts (recommended). Bounded by pool_top_papers_per_subtopic (7)."
     }
   }
 }
