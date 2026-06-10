@@ -24,6 +24,7 @@ from pipeline_hierarchy.subtopic_dedup import (
     decide_dedup,
     load_dedup_thresholds,
     overlap_adjacency,
+    theme_cap_adjacency,
     union_adjacency,
 )
 
@@ -253,6 +254,33 @@ def test_overlap_adjacency_below_floor_no_edge():
     adj = overlap_adjacency(pmid_sets, article_overlap_min=0.4, containment_ratio=3.0)
     assert adj["a"] == set()
     assert adj["b"] == set()
+
+
+def test_theme_cap_adjacency_cliques_matching_ids():
+    """All ids matching a pattern become a mutual near-clone clique; others isolated."""
+    ids = [
+        "biostatistics_health_disparities_social_determinants",
+        "epidemiology_racial_ethnic_health_disparities_outcomes",
+        "health_cancer_disparities_screening",
+        "cell_intracellular_signaling_pathways",  # no match
+        "cancer_genomics_molecular_profiling",  # no match
+    ]
+    adj = theme_cap_adjacency(ids, ["disparit"])
+    disp = {
+        "biostatistics_health_disparities_social_determinants",
+        "epidemiology_racial_ethnic_health_disparities_outcomes",
+        "health_cancer_disparities_screening",
+    }
+    for sid in disp:
+        assert adj[sid] == disp - {sid}  # clique among the three
+    assert adj["cell_intracellular_signaling_pathways"] == set()
+    assert adj["cancer_genomics_molecular_profiling"] == set()
+
+
+def test_theme_cap_adjacency_empty_patterns_no_edges():
+    ids = ["a_disparities_x", "b_disparities_y"]
+    adj = theme_cap_adjacency(ids, [])
+    assert adj == {"a_disparities_x": set(), "b_disparities_y": set()}
 
 
 def test_union_adjacency_merges_edge_sets():

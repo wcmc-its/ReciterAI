@@ -194,18 +194,18 @@ def test_deterministic_tiebreaker_on_equal_scores():
 # ---------------------------------------------------------------------------
 
 
-def test_top_50_cap():
-    """60 distinct qualifying subtopics → result length == 50."""
-    from spotlight.pool_ranker import rank_pool
+def test_pool_size_cap():
+    """More qualifying subtopics than POOL_SIZE → result length == POOL_SIZE."""
+    from spotlight.pool_ranker import POOL_SIZE, rank_pool
 
     year = date.today().year
     items = []
-    for i in range(60):
+    for i in range(POOL_SIZE + 10):
         sid = f"topic_{i:03d}"
-        items.append(_topic_item(pmid=f"4{i:03d}", subtopic_id=sid, impact_score=float(i + 1), year=year))
+        items.append(_topic_item(pmid=str(40000 + i), subtopic_id=sid, impact_score=float(i + 1), year=year))
     result = rank_pool(client=StubDynamoClient(items))
 
-    assert len(result) == 50
+    assert len(result) == POOL_SIZE
 
 
 # ---------------------------------------------------------------------------

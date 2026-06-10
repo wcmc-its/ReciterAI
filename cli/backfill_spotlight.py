@@ -80,8 +80,8 @@ def _parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help=(
-            "Print pool ranking + selected 10 + draft ledes. NO Bedrock "
-            "LLM critic, NO publish. Cheapest preview."
+            "Print pool ranking + selected subtopics (up to 25) + near-clone "
+            "report. NO Bedrock LLM critic, NO publish. Cheapest preview."
         ),
     )
     parser.add_argument(
@@ -391,7 +391,12 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
       6. Publish (publish.publish_artifact) — only on --publish
     """
     from spotlight.pool_ranker import rank_pool
-    from spotlight.rotation_selector import fetch_history, select_with_diversity
+    from spotlight.rotation_selector import (
+        SELECTION_FLOOR,
+        SELECTION_TARGET,
+        fetch_history,
+        select_with_diversity,
+    )
     from spotlight.author_resolver import resolve_authors
     from spotlight.theme_dedup import NearClones, find_near_clones
     from utils.env_check import load_thresholds
@@ -446,18 +451,29 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     # same theme regardless of wording, so union an overlap adjacency
     # (min-cardinality D-23, containment-exempt) into the gate. Additive —
     # it only ever adds edges, never removes a cosine one.
-    from pipeline_hierarchy.subtopic_dedup import overlap_adjacency, union_adjacency
+    from pipeline_hierarchy.subtopic_dedup import (
+        overlap_adjacency,
+        theme_cap_adjacency,
+        union_adjacency,
+    )
 
     thresholds = load_thresholds()
     overlap_min = float(thresholds["spotlight_clone_overlap_min"])
     containment_ratio = float(thresholds["hierarchy_dedup_containment_ratio"])
+    theme_cap_patterns = thresholds.get("spotlight_theme_cap_patterns", [])
+    pool_ids = [e.subtopic_id for e in pool]
     pool_pmid_sets = {e.subtopic_id: set(e.full_pmids) for e in pool}
     overlap_adj = overlap_adjacency(
         pool_pmid_sets,
         article_overlap_min=overlap_min,
         containment_ratio=containment_ratio,
     )
-    combined_adjacency = union_adjacency(near_clones.adjacency, overlap_adj)
+    # #164: editorial cross-cutting-theme cap (e.g. cap "disparit"ies at one
+    # featured card) — distinct facets the similarity signals score as distinct.
+    theme_adj = theme_cap_adjacency(pool_ids, theme_cap_patterns)
+    combined_adjacency = union_adjacency(
+        near_clones.adjacency, overlap_adj, theme_adj
+    )
     overlap_only_edges = sum(
         len(overlap_adj.get(sid, set()) - near_clones.adjacency.get(sid, set()))
         for sid in combined_adjacency
@@ -470,12 +486,33 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         overlap_min,
     )
 
+    # #164 "clean over count": publish the clone-free, parent-distinct set up
+    # to SELECTION_TARGET (25). n is the CEILING; SELECTION_FLOOR is the only
+    # point Pass 2 force-admits near-clones — so a thin pool publishes fewer
+    # CLEAN subtopics rather than padding the count with duplicates. SPS samples
+    # 8 of whatever we publish, so 18-22 distinct is still plenty of variety.
+    distinct_parents = len({e.parent_topic for e in pool})
     selections = select_with_diversity(
-        pool, history, near_clones=combined_adjacency
+        pool,
+        history,
+        n=SELECTION_TARGET,
+        n_floor=SELECTION_FLOOR,
+        near_clones=combined_adjacency,
+    )
+    logger.info(
+        "selection: %d clean (ceiling=%d, floor=%d, %d distinct parents in pool)",
+        len(selections),
+        SELECTION_TARGET,
+        SELECTION_FLOOR,
+        distinct_parents,
     )
 
     print(f"\nPool ranker: {len(pool)} subtopics ranked.")
-    print(f"Rotation selector: {len(selections)} selections.")
+    print(
+        f"Rotation selector: {len(selections)} selections "
+        f"(clean up to {SELECTION_TARGET}, floor {SELECTION_FLOOR}, "
+        f"{distinct_parents} distinct parents in pool)."
+    )
     for s in selections:
         print(
             f"  - {s.entry.subtopic_id} (parent={s.entry.parent_topic}, "

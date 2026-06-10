@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Module constants
 TABLE_NAME = "reciterai"
 REGION = "us-east-1"
-POOL_SIZE = 50
+POOL_SIZE = 150  # #164: widened 50->150 so the clone-free set can reach ~25 distinct parents
 WINDOW_MONTHS = 24
 # pool_score = sum of top-N impact_scores per subtopic. Lifted to
 # config/thresholds.json `pool_top_papers_per_subtopic` (#57 Tier B-1).

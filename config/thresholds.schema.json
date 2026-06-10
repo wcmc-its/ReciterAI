@@ -225,6 +225,11 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Spotlight near-clone gate (#164): two pooled subtopics whose author-resolved article-set overlap (min-cardinality coefficient, D-23) is at or above this value are treated as near-clones and never co-featured in one spotlight publish. Complements spotlight_theme_similarity_max (description cosine) — the overlap signal catches equivalent subtopics worded too differently to trip the cosine gate (the spaceflight/disparities home-page duplicates). Containment pairs (size ratio >= hierarchy_dedup_containment_ratio) are exempt."
+    },
+    "spotlight_theme_cap_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Spotlight cross-cutting-theme cap (#164): EDITORIAL list of theme stems (case-insensitive substrings of subtopic ids) to feature at most once per publish. For cross-cutting themes (e.g. health 'disparit'ies) that recur across many parent topics as substantively-distinct facets — so neither the cosine nor the article-overlap signal flags them — but read as redundant cards on the home page. Each pattern's matching subtopics are connected into a near-clone clique so the selector keeps only the highest-scored one. Keep tight (it ignores descriptions/papers); a loose pattern collapses genuinely-distinct work that merely shares a word."
     }
   }
 }
