@@ -1665,3 +1665,82 @@ def test_clear_quarantine_for_pmid_calls_module_clear(fake_quarantine):
     clear_quarantine_for_pmid("99999")
     fake_quarantine["clear"].assert_called_once()
     assert fake_quarantine["clear"].call_args.args[0] == "99999"
+
+
+# ---------------------------------------------------------------------------
+# #37: per-run STAGE# ledger row + cumulative spend tracker
+# ---------------------------------------------------------------------------
+
+def _stage_rows(fake_table):
+    return [
+        c.kwargs["Item"]
+        for c in fake_table.put_item.call_args_list
+        if c.kwargs.get("Item", {}).get("PK") == "STAGE#daily_enrichment#GLOBAL"
+    ]
+
+
+def test_complete_run_writes_stage_ledger_row(
+    fake_engine, fake_watermark, fake_writer, _stub_default_ddb_table
+):
+    fake_table = _stub_default_ddb_table.return_value
+    delta = _delta_rows([2001, 2002])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    rows = _stage_rows(fake_table)
+    assert len(rows) == 1
+    item = rows[0]
+    assert item["status"] == "complete"
+    assert item["records_written"] == 2
+    assert item["SK"].startswith("RUN#")
+    assert "cost_observed_usd" in item
+    assert item["tunable_inputs"]["run_status"] == STATUS_COMPLETE
+    assert item["tunable_inputs"]["watermark_to"] == 2002
+
+
+def test_failed_run_writes_failed_stage_row(
+    fake_engine, fake_watermark, fake_writer, _stub_default_ddb_table
+):
+    fake_table = _stub_default_ddb_table.return_value
+    delta = _delta_rows([30000001])  # ≥1M: real-PMID floor in quarantine guard
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta):
+        run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_failing_synopsis,
+            score_impact=_ok_impact,
+        )
+    rows = _stage_rows(fake_table)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "failed"
+    assert rows[0]["error_code"] == STATUS_FAILED
+
+
+def test_no_op_run_writes_complete_stage_row_with_zero_records(
+    fake_engine, fake_watermark, _stub_default_ddb_table
+):
+    fake_table = _stub_default_ddb_table.return_value
+    with patch.object(daily_job, "fetch_new_publications", return_value=[]):
+        run_daily_enrichment(engine=fake_engine)
+    rows = _stage_rows(fake_table)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "complete"
+    assert rows[0]["records_written"] == 0
+
+
+def test_spend_tracker_invoked_with_cost_and_run_id(
+    fake_engine, fake_watermark, fake_writer
+):
+    delta = _delta_rows([4001])
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job.spend_tracker, "record_spend") as rec:
+        run_daily_enrichment(
+            engine=fake_engine,
+            generate_synopsis=_ok_synopsis,
+            score_impact=_ok_impact,
+        )
+    rec.assert_called_once()
+    assert rec.call_args.kwargs["run_id"] == "run-xyz"
+    assert rec.call_args.args  # cost passed positionally as the first arg
