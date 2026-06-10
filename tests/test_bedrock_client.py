@@ -19,8 +19,11 @@ from utils.bedrock_client import (
     BedrockCallResult,
     BedrockClient,
     BedrockEmptyContentError,
+    HAIKU_MODEL,
     SONNET_MODEL,
+    set_cost_accumulator,
 )
+from utils.llm_cost import CostAccumulator
 
 
 def _content_filtered_response() -> dict:
@@ -121,6 +124,66 @@ def test_empty_content_error_is_runtime_error_subclass():
     err = BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL)
     assert isinstance(err, RuntimeError)
     assert isinstance(err, Exception)
+
+
+# ---------------------------------------------------------------------------
+# Per-run cost capture (set_cost_accumulator hook) — opt-in + best-effort.
+# Used by backfill_spotlight to measure each publish's Bedrock spend.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def cost_capture():
+    """Activate cost capture for one test; always deactivate after."""
+    acc = CostAccumulator()
+    set_cost_accumulator(acc)
+    try:
+        yield acc
+    finally:
+        set_cost_accumulator(None)
+
+
+def test_call_records_cost_when_accumulator_active(cost_capture):
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry", return_value=_happy_response("hi")):
+        client.call(model=HAIKU_MODEL, messages=[{"role": "user", "content": "..."}])
+    assert cost_capture.call_count == 1
+    assert cost_capture.total_usd > 0
+    assert cost_capture.total_input_tokens == 100
+    assert cost_capture.total_output_tokens == 10
+    assert HAIKU_MODEL in cost_capture.by_model
+
+
+def test_call_records_content_filtered_input_cost(cost_capture):
+    """A content-filtered call still billed its input tokens — record them
+    even though call() then raises BedrockEmptyContentError."""
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry", return_value=_content_filtered_response()):
+        with pytest.raises(BedrockEmptyContentError):
+            client.call(model=HAIKU_MODEL, messages=[{"role": "user", "content": "..."}])
+    assert cost_capture.call_count == 1
+    assert cost_capture.total_input_tokens == 1309
+
+
+def test_cost_capture_is_noop_when_not_activated():
+    """With no accumulator set, call() must not error and must not track."""
+    set_cost_accumulator(None)
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry", return_value=_happy_response("hi")):
+        text = client.call(model=HAIKU_MODEL, messages=[{"role": "user", "content": "..."}])
+    assert text == "hi"
+
+
+def test_cost_capture_never_raises_on_unknown_model(cost_capture):
+    """An unpriced model must not abort the Bedrock call — capture is swallowed,
+    nothing recorded, and the call still returns normally."""
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry", return_value=_happy_response("ok")):
+        text = client.call(
+            model="us.anthropic.not-a-real-model",
+            messages=[{"role": "user", "content": "..."}],
+        )
+    assert text == "ok"
+    assert cost_capture.call_count == 0
 
 
 # ---------------------------------------------------------------------------

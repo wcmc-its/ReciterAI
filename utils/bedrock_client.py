@@ -62,6 +62,46 @@ MODEL_IDS_BY_STAGE: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Per-run cost capture (opt-in)
+# ---------------------------------------------------------------------------
+# A stage that wants to measure its Bedrock spend sets a `utils.llm_cost`
+# CostAccumulator here for the duration of its run; every `BedrockClient.call()`
+# then records that call's token usage into it. Default None = no-op, so every
+# other caller is unaffected. Capture is best-effort: a missing price entry (or
+# any other error) is swallowed and never propagates into a Bedrock call — cost
+# accounting must not be able to abort a publish.
+_ACTIVE_COST_ACCUMULATOR = None
+
+
+def set_cost_accumulator(accumulator) -> None:
+    """Activate per-run Bedrock cost capture (pass None to deactivate).
+
+    While set, each ``BedrockClient.call()`` records its Converse token usage
+    into ``accumulator`` (a ``utils.llm_cost.CostAccumulator``). Process-scoped
+    and opt-in: callers that never set it see no behavior change.
+    """
+    global _ACTIVE_COST_ACCUMULATOR
+    _ACTIVE_COST_ACCUMULATOR = accumulator
+
+
+def _record_call_cost(model: str, response: dict) -> None:
+    """Best-effort: record one Converse call's token usage into the active
+    accumulator. Swallows every error — cost capture must never break a call."""
+    acc = _ACTIVE_COST_ACCUMULATOR
+    if acc is None:
+        return
+    try:
+        usage = (response or {}).get("usage") or {}
+        acc.record(
+            model=model,
+            input_tokens=int(usage.get("inputTokens") or 0),
+            output_tokens=int(usage.get("outputTokens") or 0),
+        )
+    except Exception:  # noqa: BLE001 — never let cost capture abort a Bedrock call
+        logger.debug("Bedrock cost capture skipped (model=%s)", model, exc_info=True)
+
+
 class BedrockEmptyContentError(RuntimeError):
     """Raised when Bedrock Converse returns no content blocks.
 
@@ -192,6 +232,7 @@ class BedrockClient:
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        _record_call_cost(model, response)
         content_blocks = response.get('output', {}).get('message', {}).get('content') or []
         if not content_blocks:
             raise BedrockEmptyContentError(

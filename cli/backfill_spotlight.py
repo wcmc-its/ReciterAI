@@ -42,6 +42,7 @@ import json
 import logging
 import statistics
 import sys
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -494,6 +495,63 @@ def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers)
         return None
 
 
+def _report_run_cost(acc) -> None:
+    """Print + log the measured Bedrock spend for this run.
+
+    Covers every ``BedrockClient.call()`` made during the run (spotlight lede =
+    Opus, critic = Haiku). The Titan embedding calls in the #91 near-clone scan
+    use a separate API path and are not captured — they are negligible (<$0.01).
+    """
+    s = acc.summary()
+    by_model = ", ".join(f"{m}=${c}" for m, c in s["by_model"].items()) or "none"
+    msg = (
+        f"Bedrock spend this run: ${s['total_usd']} over {s['call_count']} "
+        f"call(s) ({s['total_input_tokens']:,} in / {s['total_output_tokens']:,} "
+        f"out tok); by model: {by_model}"
+    )
+    logger.info(msg)
+    print(f"\n{msg}")
+
+
+def _write_run_ledger(
+    acc, *, publish_id: str, started_at: str, duration_ms: int, n_published: int
+) -> None:
+    """Best-effort: persist a timestamped ``STAGE#spotlight_publish#GLOBAL`` run
+    record (SK ``RUN#{started_at}``) carrying this run's cost, so every publish
+    leaves a queryable cost + history row. Any failure is logged and swallowed —
+    a ledger write must never undo a completed publish.
+    """
+    try:
+        import boto3
+
+        from spotlight.pool_ranker import TABLE_NAME
+        from utils.stage_records import write_complete
+
+        table = boto3.resource("dynamodb").Table(TABLE_NAME)
+        write_complete(
+            table,
+            stage="spotlight_publish",
+            scope="GLOBAL",
+            input_hash=publish_id,
+            started_at=started_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=acc.total_usd,
+            output_pointer=f"spotlight/{publish_id}/spotlight.json",
+            records_written=n_published,
+            model_ids_snapshot=sorted(acc.by_model.keys()),
+        )
+        logger.info(
+            "Run-ledger row written: STAGE#spotlight_publish#GLOBAL RUN#%s "
+            "(cost=$%s, %d published)",
+            started_at, acc.total_usd, n_published,
+        )
+    except Exception as e:  # noqa: BLE001 — ledger best-effort; publish already done
+        logger.warning(
+            "Run-ledger write skipped (publish succeeded): %s: %s",
+            type(e).__name__, e,
+        )
+
+
 def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """Main pipeline orchestrator.
 
@@ -516,7 +574,20 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     )
     from spotlight.author_resolver import resolve_authors
     from spotlight.theme_dedup import NearClones, find_near_clones
+    from utils.bedrock_client import set_cost_accumulator
     from utils.env_check import load_thresholds
+    from utils.iso_clock import now_iso
+    from utils.llm_cost import CostAccumulator
+
+    # Per-run Bedrock cost capture + run history. Every BedrockClient.call() in
+    # this run (lede=Opus, critic=Haiku) records its token usage into cost_acc;
+    # the total is printed at the end and, on --publish, written to a timestamped
+    # STAGE#spotlight_publish run-ledger row. Best-effort — capture never aborts
+    # a Bedrock call (see utils.bedrock_client.set_cost_accumulator).
+    cost_acc = CostAccumulator()
+    run_started_at = now_iso()
+    run_monotonic_start = time.monotonic()
+    set_cost_accumulator(cost_acc)
 
     # Hierarchy is loaded up-front so the pool ranker can canonicalize
     # parent_topic for the rotation selector's diversity gate (without
@@ -806,6 +877,10 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         scholar_lead_depth=scholar_depth,
     )
 
+    # All Bedrock work (ledes + critic + sensitive gate) is done by here; report
+    # the measured spend on both the --dry-run-full and --publish paths.
+    _report_run_cost(cost_acc)
+
     # Stage 5: assemble.
     selected_vledes = [vlede for _, vlede in publishable]
     artifact = build_artifact(
@@ -831,12 +906,22 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
 
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     publishable_selections = [sel for sel, _ in publishable]
-    return publish_artifact(
+    rc = publish_artifact(
         artifact=artifact,
         schema=schema,
         selections=publishable_selections,
         dry_run=False,
     )
+    # A timestamped run-ledger row with this run's cost — only on a clean publish.
+    if rc == 0:
+        _write_run_ledger(
+            cost_acc,
+            publish_id=publish_id,
+            started_at=run_started_at,
+            duration_ms=int((time.monotonic() - run_monotonic_start) * 1000),
+            n_published=len(publishable_selections),
+        )
+    return rc
 
 
 def _run_review_queue(publish_id: str | None) -> int:
