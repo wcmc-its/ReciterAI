@@ -43,18 +43,26 @@ logger = logging.getLogger(__name__)
 
 DECAY_TAU_WEEKS = 12  # CONTEXT decision Q1.3
 SELECTION_SIZE = 10  # CONTEXT decision Q1.1 (function-default FLOOR; not a ceiling)
-# #164: publish up to this many distinct, non-equivalent spotlights (a CEILING).
-# The caller passes n=SELECTION_TARGET as the ceiling and n_floor=SELECTION_FLOOR
-# as the minimum. Pass 1 fills the ceiling clone-free; Pass 2 force-admits
-# near-clones ONLY to reach the floor, so a thin pool publishes fewer CLEAN
-# subtopics rather than padding the count with duplicates ("clean over count").
-# SPS samples 8 of the published set per page load, so a larger deduped pool
-# means more variety and fewer repeats — not 25 cards on screen.
+# #164: build a CANDIDATE POOL of up to this many distinct, non-equivalent
+# subtopics (a CEILING). The caller passes n=SELECTION_TARGET as the ceiling and
+# n_floor=SELECTION_FLOOR as the minimum. Pass 1 fills the ceiling clone-free;
+# Pass 2 force-admits near-clones ONLY to reach the floor, so a thin pool yields
+# fewer CLEAN candidates rather than padding with duplicates ("clean over
+# count"). This is the candidate pool the lede stage draws from — NOT the
+# published count (see PUBLISH_TARGET).
 SELECTION_TARGET = 25
 # Minimum publishable spotlight size. Below this many clone-free selections the
 # pool is degenerate enough that admitting a few near-clones (or, failing that,
 # raising) is the lesser evil. Set low so realistic pools never force a clone.
 SELECTION_FLOOR = 8
+# #167: of the up-to-SELECTION_TARGET clean candidates, publish only the best
+# this-many by selection score (a CEILING; a thin pool publishes fewer). Ledes
+# are generated over the whole candidate set, then the publishable set is
+# truncated to the top PUBLISH_TARGET — so a richer 25-wide candidate pool feeds
+# a stable ~9-card publish that SPS samples ~8 from. Decoupling the published
+# count from the pool ceiling is what lets #166's wider pool coexist with a
+# small on-page surface.
+PUBLISH_TARGET = 9
 TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 BATCH_GET_LIMIT = 25  # DynamoDB BatchGetItem safe per-call default

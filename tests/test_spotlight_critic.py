@@ -314,6 +314,24 @@ def test_10i_find_duplicate_openers_skips_ledes_without_opener():
     assert dupes == {2: "WCM scholars are"}
 
 
+def test_10j_find_duplicate_openers_respects_max_per_opener_cap():
+    """#167: with a reuse cap of 2, the first TWO uses of an opener are kept and
+    only the third-and-later are flagged — relaxing the strict 'never reuse'
+    rule so the published pool isn't starved by opener exhaustion (the dominant
+    rejection cause). SPS shows ~8 cards per visit, so ≤2 reuse won't read
+    mechanical."""
+    from spotlight.critic import find_duplicate_openers
+    o = "WCM scholars are"
+    ledes = [
+        f"Cells signal in cascades. {o} mapping the misfires for therapy.",  # 1st kept
+        f"Tumors evolve under pressure. {o} tracing the resistance circuits.",  # 2nd kept
+        f"Aging accelerates unevenly. {o} charting the molecular decline.",  # 3rd flagged
+    ]
+    assert find_duplicate_openers(ledes, max_per_opener=2) == {2: o}
+    # Default (cap=1) still flags the 2nd-and-later — unchanged behavior.
+    assert find_duplicate_openers(ledes) == {1: o, 2: o}
+
+
 def test_10e_clean_lede_with_geographic_from_to_does_not_false_positive():
     """The cherry-pick regex must NOT fire on innocent constructions like
     'WCM scholars are working from bench to bedside in oncology'."""

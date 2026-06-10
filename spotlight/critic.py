@@ -73,10 +73,11 @@ DEAD_WORDS_RE = re.compile(
 )
 
 # Allowed institutional-voice openers. The lede must contain exactly one of
-# these followed by an active -ing verb. Per wcmc-its/ReciterAI#2 §3,
-# rotation across openers is enforced at the artifact level (a single
-# publish must not contain duplicates) so the surface doesn't read
-# mechanical when multiple ledes are visible together.
+# these followed by an active -ing verb. Per wcmc-its/ReciterAI#2 §3, opener
+# rotation is enforced at the artifact level so the surface doesn't read
+# mechanical when multiple ledes are visible together. #167 relaxes the
+# original strict "never reuse" rule to a soft cap (OPENER_REUSE_CAP): with
+# only 10 openers, strict uniqueness was the dominant publish-pool bottleneck.
 ALLOWED_OPENERS = (
     "WCM scholars are",
     "Weill Cornell scholars are",
@@ -85,12 +86,18 @@ ALLOWED_OPENERS = (
     "Investigators at Weill Cornell are",
     "WCM researchers are",
     "Weill Cornell Medicine scholars are",
-    # Three more variants so a 10-spotlight publish has headroom to keep
-    # each opener unique. Same pattern, same active-verb-ing continuation.
+    # Same pattern, same active-verb-ing continuation.
     "WCM faculty are",
     "Faculty at Weill Cornell are",
     "Weill Cornell investigators are",
 )
+
+# #167: max times one opener may appear in a single publish. The strict
+# "never reuse" rule (cap=1) made openers the dominant bottleneck — with only
+# 10 openers, ~13 of 25 candidate ledes were rejected on `opener_already_used`.
+# A cap of 2 removes that ceiling; SPS shows ~8 cards per visit, so a twice-used
+# opener rarely co-appears and the surface still doesn't read mechanical.
+OPENER_REUSE_CAP = 2
 
 # OPENER_RE matches any of the allowed openers WITHOUT the verb suffix —
 # used by the artifact-level duplicate check to extract just the opener
@@ -326,34 +333,36 @@ def run_deterministic_checks(lede: str) -> DeterministicVerdict:
     )
 
 
-def find_duplicate_openers(ledes: list[str]) -> dict[int, str]:
+def find_duplicate_openers(
+    ledes: list[str], max_per_opener: int = 1
+) -> dict[int, str]:
     """Return ``{lede_index: opener}`` for every lede whose institutional-voice
-    opener also appears in an EARLIER-indexed lede in the same artifact.
+    opener has already appeared ``max_per_opener`` times in EARLIER-indexed
+    ledes in the same artifact.
 
     Per wcmc-its/ReciterAI#2 §3: when multiple ledes are visible together
     (SPS home page rotation), repeating the same opener reads mechanical.
-    The artifact-level critic enforces uniqueness across a single publish.
-
-    The first occurrence of each opener is NOT returned (it's allowed to
-    stay). Only the second-and-later duplicates are flagged. Caller routes
-    those to the review queue and excludes them from the artifact.
+    #167 relaxes the original strict "never reuse" rule to a soft cap:
+    ``max_per_opener`` uses of an opener are allowed (default 1 = strict
+    uniqueness; the publish path passes ``OPENER_REUSE_CAP``), and only the
+    occurrences BEYOND the cap are flagged. Caller routes those to the review
+    queue and excludes them from the artifact.
 
     Ledes that contain no recognized opener are silently skipped here —
     that's a per-spotlight ``missing_wcm_scholars_tic`` violation that the
     deterministic checks already catch upstream.
     """
-    seen: dict[str, int] = {}
-    duplicates: dict[int, str] = {}
+    counts: dict[str, int] = {}
+    over_cap: dict[int, str] = {}
     for i, lede in enumerate(ledes):
         m = OPENER_RE.search(lede)
         if not m:
             continue
         opener = m.group(0)
-        if opener in seen:
-            duplicates[i] = opener
-        else:
-            seen[opener] = i
-    return duplicates
+        counts[opener] = counts.get(opener, 0) + 1
+        if counts[opener] > max_per_opener:
+            over_cap[i] = opener
+    return over_cap
 
 
 # ---------------------------------------------------------------------------
