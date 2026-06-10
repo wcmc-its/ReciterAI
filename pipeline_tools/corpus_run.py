@@ -102,6 +102,7 @@ class CorpusResult:
     merge_deltas: list[dict] = field(default_factory=list)
     override_deltas: list[dict] = field(default_factory=list)  # D-07 fix batch (v6→v7)
     consolidation_deltas: list[dict] = field(default_factory=list)  # 820 consolidation (v7'→v8)
+    adhoc_deltas: list[dict] = field(default_factory=list)  # accreting co-assignment dupe batch
     thresholds: object | None = None                         # salience.GroundedThresholds
     telemetry: dict = field(default_factory=dict)
 
@@ -313,6 +314,7 @@ def run_corpus(
     relabel: bool = True,
     apply_family_overrides: bool = False,
     apply_consolidation: bool = False,
+    apply_adhoc_dedup: bool = False,
     checkpoint_dir=None,
 ) -> CorpusResult:
     """Run the A2 corpus pipeline over ``mentions`` and return registries + outputs.
@@ -468,6 +470,7 @@ def run_corpus(
     merge_deltas: list[dict] = []
     override_deltas: list[dict] = []
     consolidation_deltas: list[dict] = []
+    adhoc_deltas: list[dict] = []
     if relabel:
         from pipeline_tools.family_rebuild import form_families
         from pipeline_tools.relabel import cross_supercategory_label_forks, dedup_families
@@ -501,6 +504,13 @@ def run_corpus(
         if apply_consolidation:
             from pipeline_tools.family_consolidation import apply_consolidation as _apply_consolidation
             consolidation_deltas = _apply_consolidation(family_registry, tool_registry)
+        # Ad-hoc dedup batch — the accreting, review-driven layer sourced from the scholar
+        # co-assignment dupe scan (cli/find_family_dupes.py). Runs AFTER v820 (its drop_ids
+        # reference post-v820 survivors) and BEFORE the guard, reusing the same fail-loud
+        # apply core; carries reroutes so cross-supercategory near-dupes are expressible.
+        if apply_adhoc_dedup:
+            from pipeline_tools.family_adhoc_dedup import apply_adhoc_dedup as _apply_adhoc
+            adhoc_deltas = _apply_adhoc(family_registry, tool_registry)
         # §7 cross-supercategory guard — flag (don't merge) labels forked across buckets.
         forks = cross_supercategory_label_forks(family_registry)
         for fk in forks:
@@ -552,6 +562,7 @@ def run_corpus(
     result.merge_deltas = merge_deltas
     result.override_deltas = override_deltas
     result.consolidation_deltas = consolidation_deltas
+    result.adhoc_deltas = adhoc_deltas
     result.thresholds = thresholds
     result.telemetry = _telemetry(
         tool_registry, family_registry, method_tools, counts, fam_counts,
