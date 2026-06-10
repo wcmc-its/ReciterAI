@@ -197,6 +197,11 @@
       "minimum": 1,
       "description": "Daily enrichment (#137): per-PMID consecutive-failure count at which the daily job writes the PMID off — the watermark is allowed to advance past it on the threshold-crossing tick, an ERROR Teams card alerts the operator, and the PMID is skipped on subsequent ticks until cleared via `scripts/run_daily_enrichment.py --retry-quarantine` or `--clear-quarantine PMID`. Distinct from `retry_sweep_quarantine_after` (scoring pipeline). State lives in DDB rows at PK `ENRICHMENT_QUARANTINE#pmid_{pmid}`."
     },
+    "spend_alert_increment_usd": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Daily enrichment (#37): the dollar boundary between cumulative-spend alerts. Each time the calendar-year cumulative enrichment spend crosses another multiple of this value, the spend tracker posts one WARN Teams card — incremental budget visibility against the ~$400/yr ceiling instead of a single binary alarm. State lives in a DDB counter at PK `SPEND#daily_enrichment` / SK `YEAR#<yyyy>` (`pipeline_enrichment/spend_tracker.py`)."
+    },
     "hierarchy_dedup_article_overlap_min": {
       "type": "number",
       "minimum": 0,

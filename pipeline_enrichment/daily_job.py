@@ -7,11 +7,16 @@ One cycle:
         advance watermark on full success
 
 Step 2 (already shipped): MariaDB writes for synopsis + impact only.
-Step 3 PR 3.1 (this PR): adds an end-of-run batch dual-write of the same
-synopsis + impact data into DDB IMPACT#pmid_{pmid}/SK SCORE items, per the
-SPS reader contract documented in `pipeline_enrichment/ddb_writer.py`.
-Topic scoring, STAGE# row, cross-check, and backfill land in PRs 3.2–3.4
-and the topic-scoring takeover question is split off to issue #52.
+Step 3 PR 3.1: an end-of-run batch dual-write of the same synopsis + impact
+data into DDB IMPACT#pmid_{pmid}/SK SCORE items, per the SPS reader contract
+documented in `pipeline_enrichment/ddb_writer.py`.
+
+Each run also writes a per-run STAGE#daily_enrichment#GLOBAL ledger row
+(`utils/stage_records`, SK=RUN#<started_at>) carrying the measured
+`cost_observed_usd` + `records_written` so spend / ROI is a single PK query
+(#37), and records cumulative spend via `pipeline_enrichment.spend_tracker`,
+which alerts on each +$increment boundary against the annual ceiling. Topic
+scoring and the topic-scoring takeover question are split off to issue #52.
 
 DDB write timing within the loop is "batch at end-of-run after all MariaDB
 writes succeed" (not per-pmid inline) so the failure model stays
@@ -52,6 +57,7 @@ never reach (#80). It reuses `_process_one_pmid` unchanged.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Callable, Optional
@@ -59,10 +65,11 @@ from typing import Any, Callable, Optional
 from sqlalchemy.engine import Engine
 
 from pipeline_enrichment import alerting, cost_guard, ddb_writer, mariadb_writer
-from pipeline_enrichment import quarantine
+from pipeline_enrichment import quarantine, spend_tracker
 from pipeline_enrichment import watermark as wm
 from pipeline_enrichment.impact import score_impact as _default_score_impact
 from pipeline_enrichment.synopsis import generate_synopsis as _default_generate_synopsis
+from utils import stage_records
 from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import (
     check_enrichment_coverage,
@@ -167,6 +174,80 @@ class RunResult:
         return sum(1 for o in self.outcomes if o.fully_succeeded)
 
 
+def _write_stage_row(
+    table: Any,
+    *,
+    status: str,
+    started_at: str,
+    t0: float,
+    delta_size: int,
+    cost_observed_usd: Decimal = Decimal("0"),
+    records_written: int = 0,
+    watermark_from: Optional[int] = None,
+    watermark_to: Optional[int] = None,
+    run_id: Optional[str] = None,
+    model_breakdown: Optional[dict] = None,
+    error: Optional[str] = None,
+) -> None:
+    """Write the per-run STAGE#daily_enrichment#GLOBAL ledger row (#37).
+
+    One row per run (SK=RUN#<started_at>), so cumulative spend / ROI is a single
+    PK query — `SUM(cost_observed_usd)` over a date range. The measured cost and
+    `records_written` are first-class STAGE# fields; run status, delta size,
+    watermark from→to, and per-model cost ride in the `tunable_inputs` audit
+    block. ``complete``/``no_op`` write a complete row; everything else writes a
+    failed row carrying the error.
+
+    Best-effort: never raises. A STAGE#-write failure must not fail the run or
+    unwind the already-committed watermark.
+    """
+    try:
+        duration_ms = max(0, int((time.monotonic() - t0) * 1000))
+        input_hash = stage_records.compute_input_hash(
+            "daily_enrichment",
+            {"watermark_from": watermark_from, "watermark_to": watermark_to},
+        )
+        tunable: dict[str, Any] = {
+            "run_status": status,
+            "delta_size": delta_size,
+            "watermark_from": watermark_from,
+            "watermark_to": watermark_to,
+        }
+        if model_breakdown:
+            tunable["model_breakdown"] = model_breakdown
+        if status in (STATUS_NO_OP, STATUS_COMPLETE):
+            stage_records.write_complete(
+                table,
+                stage="daily_enrichment",
+                scope="GLOBAL",
+                input_hash=input_hash,
+                started_at=started_at,
+                duration_ms=duration_ms,
+                cost_observed_usd=cost_observed_usd,
+                records_written=records_written,
+                run_id=run_id,
+                tunable_inputs=tunable,
+            )
+        else:
+            stage_records.write_failed(
+                table,
+                stage="daily_enrichment",
+                scope="GLOBAL",
+                input_hash=input_hash,
+                started_at=started_at,
+                duration_ms=duration_ms,
+                cost_observed_usd=cost_observed_usd,
+                error_code=status,
+                error_message=(error or status)[:1000],
+                run_id=run_id,
+                tunable_inputs=tunable,
+            )
+    except Exception as e:  # noqa: BLE001 — best-effort ledger, must not fail run
+        logger.warning(
+            "daily run: STAGE# row write failed (best-effort): %s", e
+        )
+
+
 def run_daily_enrichment(
     *,
     full: bool = False,
@@ -209,6 +290,13 @@ def run_daily_enrichment(
         quarantine_threshold = int(
             load_thresholds()["enrichment_quarantine_threshold"]
         )
+    # Per-run STAGE# ledger timing (#37). Resolve the DDB target once so every
+    # terminal return can write its ledger row; get_table() is a lazy resource
+    # handle (no AWS call until used).
+    started_at = now_iso()
+    t0 = time.monotonic()
+    stage_target = ddb_table if ddb_table is not None else _default_get_table()
+
     # 1. Read watermark.
     current = wm.read_watermark(table=ddb_table)
     last_max_pmid = (
@@ -235,6 +323,11 @@ def run_daily_enrichment(
             watermark_before=last_max_pmid or None,
             watermark_after=last_max_pmid or None,
             content_filter_retries=0,
+        )
+        _write_stage_row(
+            stage_target, status=STATUS_NO_OP, started_at=started_at, t0=t0,
+            delta_size=0, watermark_from=last_max_pmid or None,
+            watermark_to=last_max_pmid or None,
         )
         return RunResult(status=STATUS_NO_OP, delta_size=0)
 
@@ -266,6 +359,11 @@ def run_daily_enrichment(
                     "threshold_usd": str(e.estimate.threshold_usd),
                     "last_max_pmid": last_max_pmid,
                 },
+            )
+            _write_stage_row(
+                stage_target, status=STATUS_COST_GUARD_TRIPPED,
+                started_at=started_at, t0=t0, delta_size=delta_size,
+                watermark_from=last_max_pmid or None, error=str(e),
             )
             return RunResult(
                 status=STATUS_COST_GUARD_TRIPPED,
@@ -345,6 +443,16 @@ def run_daily_enrichment(
         accumulator.total_input_tokens, accumulator.total_output_tokens,
     )
 
+    # Record cumulative spend + alert on each +$increment boundary (#37). Counts
+    # spend on failed runs too — the LLM calls cost money regardless of outcome.
+    spend_tracker.record_spend(
+        accumulator.total_usd,
+        started_at=started_at,
+        run_id=run_id,
+        table=stage_target,
+        alert_fn=alert_fn,
+    )
+
     # 6. Advance watermark on effective pass (success OR quarantined).
     all_succeeded = all(o.effectively_passed for o in outcomes)
     if all_succeeded:
@@ -355,7 +463,9 @@ def run_daily_enrichment(
         #
         # Quarantined outcomes (skipped or threshold-triggered) carry no
         # synopsis/impact payload and must be excluded from the batch (#137).
-        ddb_target = ddb_table if ddb_table is not None else _default_get_table()
+        # Reuse the already-resolved stage_target (same value) so the table is
+        # resolved exactly once per run.
+        ddb_target = stage_target
         impact_items = [
             ddb_writer.build_impact_item(
                 pmid=o.pmid,
@@ -390,6 +500,15 @@ def run_daily_enrichment(
                     "delta_size": delta_size,
                     "error": str(e),
                 },
+            )
+            _write_stage_row(
+                stage_target, status=STATUS_DDB_BATCH_FAILED,
+                started_at=started_at, t0=t0, delta_size=delta_size,
+                cost_observed_usd=accumulator.total_usd,
+                records_written=sum(1 for o in outcomes if o.fully_succeeded),
+                watermark_from=last_max_pmid or None, run_id=run_id,
+                model_breakdown=accumulator.summary().get("by_model"),
+                error=f"DDB IMPACT# batch failed: {e}",
             )
             return RunResult(
                 status=STATUS_DDB_BATCH_FAILED,
@@ -428,6 +547,13 @@ def run_daily_enrichment(
                 threshold=quarantine_threshold,
                 run_id=run_id,
             )
+        _write_stage_row(
+            stage_target, status=STATUS_COMPLETE, started_at=started_at, t0=t0,
+            delta_size=delta_size, cost_observed_usd=accumulator.total_usd,
+            records_written=sum(1 for o in outcomes if o.fully_succeeded),
+            watermark_from=last_max_pmid or None, watermark_to=new_max,
+            run_id=run_id, model_breakdown=accumulator.summary().get("by_model"),
+        )
         return RunResult(
             status=STATUS_COMPLETE,
             delta_size=delta_size,
@@ -463,6 +589,14 @@ def run_daily_enrichment(
             "failures": failures,
             "sample_failures": sample_failures,
         },
+    )
+    _write_stage_row(
+        stage_target, status=STATUS_FAILED, started_at=started_at, t0=t0,
+        delta_size=delta_size, cost_observed_usd=accumulator.total_usd,
+        records_written=sum(1 for o in outcomes if o.fully_succeeded),
+        watermark_from=last_max_pmid or None, run_id=run_id,
+        model_breakdown=accumulator.summary().get("by_model"),
+        error=f"{failures}/{delta_size} pmids failed: {sample_failures}",
     )
     return RunResult(
         status=STATUS_FAILED,

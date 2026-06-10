@@ -30,6 +30,7 @@
   "onboarding_detector_cold_start_threshold": 100,
   "spotlight_theme_similarity_max": 0.7,
   "enrichment_quarantine_threshold": 3,
+  "spend_alert_increment_usd": 100,
   "hierarchy_dedup_article_overlap_min": 0.40,
   "hierarchy_dedup_cosine_min": 0.75,
   "hierarchy_dedup_containment_ratio": 3.0,
