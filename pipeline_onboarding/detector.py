@@ -262,6 +262,7 @@ def evaluate_detector(
     gap_rows: Iterable[dict],
     processing_status: dict[str, str],
     rollup_baselines: dict[str, list[str]],
+    invalid_pmids: Iterable[str] | None = None,
     now: datetime | None = None,
 ) -> DetectorEvaluation:
     """Pure detector evaluation — no I/O.
@@ -274,6 +275,11 @@ def evaluate_detector(
         rollup_baselines: cwid -> the `input_pmid_set` of that CWID's most
             recent complete CWID-scoped rollup. A CWID absent from the map has
             no churn baseline (churn is N/A for it — see the module docstring).
+        invalid_pmids: the INVALID# exclude list (ReciterDB-flagged corrupt
+            PMIDs the scorer permanently culls). Dropped from the gap scan
+            entirely so the detector never flags a CWID for an un-fixable PMID
+            (#106) — otherwise these would re-flag every run forever, the same
+            failure mode the `quarantined` guard prevents downstream.
         now: run timestamp; defaults to wall-clock UTC.
 
     Returns a `DetectorEvaluation` carrying only the flagged CWIDs, ordered by
@@ -281,12 +287,18 @@ def evaluate_detector(
     """
     now = now or datetime.now(timezone.utc)
     ts = _iso(now)
+    invalid = {str(p) for p in (invalid_pmids or ())}
 
-    # Group the SQL gap scan by CWID: cwid -> {pmid: has_synopsis}.
+    # Group the SQL gap scan by CWID: cwid -> {pmid: has_synopsis}. INVALID#
+    # PMIDs are skipped here so they leave the synopsis gap, the score gap, AND
+    # the accepted/churn set in one place (#106).
     by_cwid: dict[str, dict[str, bool]] = {}
     for row in gap_rows:
+        pmid = str(row["pmid"])
+        if pmid in invalid:
+            continue
         cwid = str(row["cwid"])
-        by_cwid.setdefault(cwid, {})[str(row["pmid"])] = bool(row["has_synopsis"])
+        by_cwid.setdefault(cwid, {})[pmid] = bool(row["has_synopsis"])
 
     findings: list[CwidFinding] = []
     # Iterate the union so a CWID that has a rollup baseline but zero current
@@ -834,6 +846,7 @@ def run_detector(
     processing_status: dict[str, str],
     rollup_baselines: dict[str, list[str]],
     run_id: str,
+    invalid_pmids: Iterable[str] | None = None,
     now: datetime | None = None,
     file_issues: bool = True,
 ) -> dict[str, Any]:
@@ -854,6 +867,7 @@ def run_detector(
         gap_rows=gap_rows,
         processing_status=processing_status,
         rollup_baselines=rollup_baselines,
+        invalid_pmids=invalid_pmids,
         now=now,
     )
 
@@ -1051,6 +1065,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
         get_dynamo_client,
         get_processing_status,
         get_table,
+        scan_invalid_pmids,
     )
     from utils.sql_queries import scan_faculty_publication_gaps
 
@@ -1062,15 +1077,21 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
         synopsis_pmids = sorted(
             {r["pmid"] for r in gap_rows if r["has_synopsis"]}
         )
+        client = get_dynamo_client()
         processing_status = get_processing_status(
-            get_dynamo_client(), TABLE_NAME, synopsis_pmids
+            client, TABLE_NAME, synopsis_pmids
         )
+        # Drop ReciterDB-flagged corrupt PMIDs so the detector flags only
+        # genuine, actionable gaps and never nags about un-fixable PMIDs (#106).
+        invalid_pmids = scan_invalid_pmids(client, TABLE_NAME)
         rollup_baselines = scan_rollup_baselines(table)
 
         logger.info(
             "onboarding detector: scanned %d (CWID, PMID) rows, %d with a "
-            "synopsis, %d CWIDs with a rollup baseline",
-            len(gap_rows), len(synopsis_pmids), len(rollup_baselines),
+            "synopsis, %d on the INVALID# exclude list, %d CWIDs with a "
+            "rollup baseline",
+            len(gap_rows), len(synopsis_pmids), len(invalid_pmids),
+            len(rollup_baselines),
         )
         return run_detector(
             table=table,
@@ -1078,6 +1099,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
             processing_status=processing_status,
             rollup_baselines=rollup_baselines,
             run_id=run_id,
+            invalid_pmids=invalid_pmids,
             now=now,
             file_issues=file_issues,
         )

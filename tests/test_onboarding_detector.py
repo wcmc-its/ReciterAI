@@ -229,6 +229,45 @@ def test_failed_pmid_is_a_score_gap():
     assert ev.findings[0].missing_score == ["1"]
 
 
+def test_invalid_pmid_is_not_a_gap():
+    """An INVALID#-listed PMID (ReciterDB-flagged corrupt, never scoreable)
+    must not flag a CWID — neither as a missing synopsis nor a missing score —
+    otherwise the detector nags about un-fixable PMIDs every run forever (#106).
+    Same intent as the quarantined-PMID guard, for the upstream-invalid set.
+    """
+    gap_rows = [_gap("c1", "1", False), _gap("c1", "2", True)]
+    proc: dict[str, str] = {}  # 1 has no synopsis; 2 is synopsis-ready but unscored
+
+    # Baseline: with no exclude list, c1 is flagged on both gaps.
+    flagged = det.evaluate_detector(
+        gap_rows=gap_rows, processing_status=proc, rollup_baselines={}, now=NOW,
+    )
+    assert flagged.flagged_cwid_count == 1
+
+    # With both PMIDs on the INVALID# exclude list, c1 has no actionable gap.
+    ev = det.evaluate_detector(
+        gap_rows=gap_rows,
+        processing_status=proc,
+        rollup_baselines={},
+        invalid_pmids={"1", "2"},
+        now=NOW,
+    )
+    assert ev.flagged_cwid_count == 0
+
+
+def test_invalid_pmid_excluded_from_accepted_and_churn():
+    """An INVALID# PMID is dropped from the accepted set, so it cannot create a
+    phantom churn-added flag against a rollup baseline either."""
+    ev = det.evaluate_detector(
+        gap_rows=[_gap("c1", "1", True), _gap("c1", "2", True)],
+        processing_status={"1": "complete"},  # 2 unscored + not in baseline
+        rollup_baselines={"c1": ["1"]},  # baseline = {1}; 2 would be churn_added
+        invalid_pmids={"2"},
+        now=NOW,
+    )
+    assert ev.flagged_cwid_count == 0
+
+
 # ---------------------------------------------------------------------------
 # evaluate_detector — R9 churn (baseline-gated)
 # ---------------------------------------------------------------------------
@@ -625,6 +664,9 @@ def test_handler_wires_scan_evaluate_and_persist(monkeypatch):
     monkeypatch.setattr(
         "utils.dynamodb_helpers.get_processing_status", lambda *a, **k: {}
     )
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.scan_invalid_pmids", lambda *a, **k: []
+    )
     monkeypatch.setattr(det, "scan_rollup_baselines", lambda table: {})
     monkeypatch.setattr(det.github_issues, "list_open_issues", lambda **k: [])
     monkeypatch.setattr(det.github_issues, "ensure_label", lambda **k: True)
@@ -638,6 +680,33 @@ def test_handler_wires_scan_evaluate_and_persist(monkeypatch):
     assert result["flagged_cwid_count"] == 1
     assert table.put_items[0]["PK"] == "STAGE#onboarding_detector#GLOBAL"
     assert table.put_items[0]["run_id"] == "rx"
+
+
+def test_handler_excludes_invalid_pmids_end_to_end(monkeypatch):
+    """The INVALID# set fetched in the handler must reach evaluate_detector and
+    suppress the flag — the full wiring of the #106 fix, not just the pure fn."""
+    table = _FakeTable()
+    monkeypatch.setattr(
+        "utils.sql_queries.scan_faculty_publication_gaps",
+        lambda: [_gap("c1", "1", False)],  # would be a synopsis gap...
+    )
+    monkeypatch.setattr("utils.dynamodb_helpers.get_table", lambda *a, **k: table)
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_dynamo_client", lambda *a, **k: object()
+    )
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_processing_status", lambda *a, **k: {}
+    )
+    # ...but PMID 1 is on the INVALID# exclude list.
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.scan_invalid_pmids", lambda *a, **k: ["1"]
+    )
+    monkeypatch.setattr(det, "scan_rollup_baselines", lambda table: {})
+    monkeypatch.setattr(det.github_issues, "list_open_issues", lambda **k: [])
+    monkeypatch.setattr(det.alerting, "alert", lambda *a, **k: True)
+
+    result = det.handler({"now": "2026-05-17T06:00:00Z", "run_id": "rx"})
+    assert result["flagged_cwid_count"] == 0
 
 
 def test_handler_writes_failed_row_then_reraises_on_scan_error(monkeypatch):
