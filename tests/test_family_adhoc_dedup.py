@@ -137,12 +137,20 @@ def test_bundled_data_wellformed():
 
 
 def test_bundled_ids_exist_in_live_registry_if_present():
+    """Drift check, robust to whether the registry is pre- or post-adhoc.
+
+    Once the layer has run (e.g. after a corpus re-run with apply_adhoc_dedup),
+    the merge DROP ids are legitimately absent from the saved registry. Any OTHER
+    referenced id missing is real drift (a renamed/removed survivor) — that fails.
+    """
     path = Path("out/tools/a2/family_registry.json")
     if not path.exists():
         pytest.skip("live family_registry.json not present")
     live = {f["family_id"] for f in json.loads(path.read_text())["families"]}
     reroutes, relabels, merges = _load()
+    drops = {d for d, _, _ in merges}
     referenced = ({fid for fid, _, _ in reroutes} | {fid for fid, _, _ in relabels}
-                  | {d for d, _, _ in merges} | {k for _, k, _ in merges})
-    missing = sorted(referenced - live)
-    assert not missing, f"adhoc batch references ids absent from the live registry: {missing[:10]}"
+                  | drops | {k for _, k, _ in merges})
+    missing = referenced - live
+    assert not (missing - drops), \
+        f"adhoc batch references non-drop ids absent from the live registry: {sorted(missing - drops)[:10]}"
