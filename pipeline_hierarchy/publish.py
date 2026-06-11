@@ -55,6 +55,7 @@ from gates.registry import any_blocked, run_gates
 from pipeline_hierarchy.bundler import (
     DEFAULT_EXCLUDED_PATH,
     MissingUIFieldsError,
+    build_membership,
     bundle,
 )
 from pipeline_hierarchy.diff_stats import (
@@ -225,13 +226,21 @@ def compute_diff(
 # ---------- I/O helpers ----------
 
 
-def write_local(out_dir: Path, hierarchy: bytes, schema: bytes, manifest: dict) -> None:
+def write_local(
+    out_dir: Path,
+    hierarchy: bytes,
+    schema: bytes,
+    manifest: dict,
+    membership: bytes | None = None,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "hierarchy.json").write_bytes(hierarchy)
     (out_dir / "hierarchy.schema.json").write_bytes(schema)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
+    if membership is not None:
+        (out_dir / "membership.json").write_bytes(membership)
 
 
 def upload_to_s3(
@@ -241,10 +250,14 @@ def upload_to_s3(
     manifest: dict,
     diff_bytes: bytes,
     s3_client: Optional[object] = None,
+    membership_bytes: Optional[bytes] = None,
 ) -> None:
-    """Phase 11 D-11: 5-step PutObject sequence.
+    """Phase 11 D-11: 5-step PutObject sequence (+ optional membership sidecar).
 
     Order matters for consumer safety:
+    0. {version}/membership.json    — #191 sidecar; consumer-irrelevant, so it is
+                                      uploaded FIRST (present before anything keys
+                                      off the manifest). Omitted when None.
     1. {version}/hierarchy.json     — the artifact itself
     2. {version}/hierarchy.schema.json — validator for the artifact
     3. {version}/diff.json          — BEFORE manifest so consumers polling
@@ -256,6 +269,9 @@ def upload_to_s3(
     s3 = s3_client if s3_client is not None else S3HierarchyClient()
     manifest_bytes = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
 
+    # 0. {version}/membership.json — sidecar, before the consumer-facing artifact.
+    if membership_bytes is not None:
+        s3.put_object(f"{version}/membership.json", membership_bytes)
     # 1. {version}/hierarchy.json
     s3.put_object(f"{version}/hierarchy.json", hierarchy)
     # 2. {version}/hierarchy.schema.json
@@ -436,8 +452,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     version = manifest["version"]
 
+    # 4b. Build the per-subtopic membership sidecar (#191). Deterministic
+    # (sort_keys + sorted seed lists) so it is byte-stable across content-identical
+    # reruns, like hierarchy.json. Consumer-irrelevant; recovers the seed_pmids the
+    # bundler strips so the durable-ID reconcile stage and jitter measurement have
+    # the data they need.
+    membership = build_membership(hierarchy_dict, hierarchy_version=version)
+    membership_bytes = (
+        json.dumps(membership, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+
     out_dir = REPO_ROOT / "out" / "hierarchy" / version
-    write_local(out_dir, hierarchy_bytes, schema_bytes, manifest)
+    write_local(out_dir, hierarchy_bytes, schema_bytes, manifest, membership_bytes)
 
     print(json.dumps(
         {
@@ -447,6 +473,7 @@ def main(argv: list[str] | None = None) -> int:
             "taxonomy_version": manifest["taxonomy_version"],
             "sha256_prefix": manifest["sha256"][:12],
             "artifact_bytes": manifest["artifact_bytes"],
+            "membership_subtopics": membership["subtopic_count"],
             "input_hash_prefix": input_hash[:12],
             "gate_summaries": [
                 {"name": r.name, "passed": r.passed, "severity": r.severity}
@@ -483,14 +510,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
 
-    # 6. S3 upload (5-step D-11 order).
-    upload_to_s3(version, hierarchy_bytes, schema_bytes, manifest, diff_bytes, s3_client=s3)
+    # 6. S3 upload (5-step D-11 order + #191 membership sidecar).
+    upload_to_s3(
+        version,
+        hierarchy_bytes,
+        schema_bytes,
+        manifest,
+        diff_bytes,
+        s3_client=s3,
+        membership_bytes=membership_bytes,
+    )
     print(json.dumps(
         {
             "event": "upload_complete",
             "bucket": "wcmc-reciterai-hierarchy",
             "version": version,
             "keys": [
+                f"{version}/membership.json",
                 f"{version}/hierarchy.json",
                 f"{version}/hierarchy.schema.json",
                 f"{version}/diff.json",
