@@ -272,6 +272,65 @@ def read_subtopic_row(table: Any, *, durable_id: str) -> Optional[dict]:
     return row
 
 
+def load_lineage_overlay(table: Any) -> dict[str, list]:
+    """Resolve durable-id split/merge edges into the slug-space lineage overlay
+    ``compute_structural_diff`` consumes (#191 brick D). One Scan of ``SUBTOPIC_ID#``/META.
+
+    Brick C writes lineage as *durable-id* edges (``split_from`` on a split child,
+    ``merged_into`` on an absorbed prior — both durable ids). The diff overlay is
+    *slug-space*, so each edge endpoint is resolved back to its slug via the same scan:
+        {"split":  [{"id": <child slug>,  "split_from":  <parent slug>}, ...],
+         "merged": [{"id": <prior slug>,  "merged_into": <successor slug>}, ...]}
+    An edge whose endpoint durable has no live slug (dangling) is skipped — a durable id
+    must never leak into a slug-space field. Both lists are id-sorted so the published
+    ``diff.json`` bytes stay stable.
+
+    Reflects lineage SETTLED in the store as of the scan — i.e. PRIOR runs' reconcile.
+    This run's brand-new edges are written post-upload (publish step 10), so they appear
+    in the NEXT publish's diff: the accepted one-run lag that keeps the reconcile
+    best-effort/post-upload (no Bedrock in the publish critical path).
+    """
+    from boto3.dynamodb.conditions import Attr
+
+    rows: list[dict] = []
+    scan_kwargs = {
+        "FilterExpression": Attr("PK").begins_with(SUBTOPIC_ID_PK_PREFIX)
+        & Attr("SK").eq(META_SK)
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        rows.extend(resp.get("Items", []))
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+    # durable -> slug, over the same scan, so both edge endpoints resolve to slug space.
+    durable_to_slug = {
+        r.get("durable_id"): r.get("slug_id")
+        for r in rows
+        if r.get("record_type") == RECORD_TYPE_SUBTOPIC_ID
+        and r.get("durable_id")
+        and r.get("slug_id")
+    }
+    split: list[dict] = []
+    merged: list[dict] = []
+    for r in rows:
+        if r.get("record_type") != RECORD_TYPE_SUBTOPIC_ID:
+            continue
+        slug = r.get("slug_id")
+        if not slug:
+            continue
+        parent = durable_to_slug.get(r.get("split_from")) if r.get("split_from") else None
+        if parent:
+            split.append({"id": slug, "split_from": parent})
+        succ = durable_to_slug.get(r.get("merged_into")) if r.get("merged_into") else None
+        if succ:
+            merged.append({"id": slug, "merged_into": succ})
+    split.sort(key=lambda e: (e["id"], e["split_from"]))
+    merged.sort(key=lambda e: (e["id"], e["merged_into"]))
+    return {"split": split, "merged": merged}
+
+
 # ---------- thin writers (boto3 Table resource: PutItem) ----------
 
 

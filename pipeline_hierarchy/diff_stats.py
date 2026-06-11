@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Optional
 
-DIFF_SCHEMA_VERSION = "1.0.0"
+# 1.1.0 (#191 brick D): additive split_subtopics / merged_subtopics keys. Minor bump —
+# a 1.0.0 consumer ignores the new optional keys; added/removed stay authoritative.
+DIFF_SCHEMA_VERSION = "1.1.0"
 
 
 def compute_structural_diff(
@@ -37,10 +39,10 @@ def compute_structural_diff(
     of the original shape is unaffected — the overlay is pure enrichment.
 
     When ``lineage`` is None the result is byte-identical to the pre-brick-C 4-key
-    shape (no new keys). The published ``diff.json`` calls without ``lineage`` until
-    brick D resolves the store-derived lineage and wires it in (with the
-    ``diff_schema_version`` bump + SPS coordination that consumer change requires) —
-    so this function is *ready* but does not itself change any consumer-facing byte.
+    shape (no new keys) — the path the unit tests exercise directly. Brick D's
+    ``compute_diff`` now always passes a (possibly empty) store-derived overlay, so the
+    published ``diff.json`` carries the split/merged keys at ``diff_schema_version``
+    1.1.0; SPS consumes the additive keys (a 1.0.0 reader ignores them).
     """
     if prev_hierarchy is None:
         base = {
@@ -84,8 +86,9 @@ def compute_structural_diff(
 
 def _overlay_lineage(base: dict, lineage: Optional[dict]) -> dict:
     """Brick C: enrich the structural diff with split/merge events when durable-id
-    lineage is supplied. Omits the new keys entirely when ``lineage`` is None, so the
-    pre-brick-C 4-key shape (and the published ``diff.json``) is byte-unchanged."""
+    lineage is supplied. Omits the new keys entirely when ``lineage`` is None (the
+    pre-brick-C 4-key shape, still used by the unit tests); brick D's ``compute_diff``
+    supplies a non-None overlay so the published ``diff.json`` carries them."""
     if lineage is None:
         return base
     return {

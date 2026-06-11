@@ -20,6 +20,7 @@ from pipeline_hierarchy.bundler import MEMBERSHIP_KIND
 from pipeline_hierarchy.subtopic_id_store import (
     META_SK,
     PTR_SK,
+    RECORD_TYPE_SUBTOPIC_ID,
     STATUS_ACTIVE,
     SUBTOPIC_ID_PK_PREFIX,
     SUBTOPIC_SLUG_PK_PREFIX,
@@ -31,6 +32,7 @@ from pipeline_hierarchy.subtopic_id_store import (
     build_slug_pointer_record,
     build_subtopic_id_record,
     get_subtopic_row,
+    load_lineage_overlay,
     reconcile_durable_ids,
     resolve_durable_id,
     set_lineage,
@@ -410,3 +412,75 @@ def test_reconcile_is_idempotent_on_second_pass():
     durables_pass2 = {r["slug_id"]: r["durable_id"] for r in store._table.metas()}
     assert durables_pass1 == durables_pass2  # ids are durable across runs
     assert len(store._table.metas()) == 2  # no new rows minted
+
+
+# ---------- load_lineage_overlay (brick D: durable edges -> slug-space diff overlay) ----------
+
+
+class _LineageScanTable:
+    """Paginating scan stub (filter-agnostic; load_lineage_overlay self-filters on
+    record_type), matching the suite's other scan fakes."""
+
+    def __init__(self, items, page=100):
+        self._items = items
+        self._page = page
+
+    def scan(self, **kwargs):
+        start = kwargs.get("ExclusiveStartKey", 0)
+        chunk = self._items[start : start + self._page]
+        resp = {"Items": chunk}
+        nxt = start + self._page
+        if nxt < len(self._items):
+            resp["LastEvaluatedKey"] = nxt
+        return resp
+
+
+def _meta(durable, slug, *, split_from=None, merged_into=None):
+    row = {
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}{durable}",
+        "SK": META_SK,
+        "record_type": RECORD_TYPE_SUBTOPIC_ID,
+        "durable_id": durable,
+        "slug_id": slug,
+    }
+    if split_from is not None:
+        row["split_from"] = split_from
+    if merged_into is not None:
+        row["merged_into"] = merged_into
+    return row
+
+
+def test_load_lineage_overlay_resolves_split_and_merge_to_slug_space():
+    items = [
+        _meta("st_parent", "aging_parent"),
+        _meta("st_child", "aging_child", split_from="st_parent"),
+        _meta("st_succ", "aging_succ"),
+        _meta("st_prior", "aging_prior", merged_into="st_succ"),
+    ]
+    out = load_lineage_overlay(_LineageScanTable(items, page=2))  # force pagination
+    # durable endpoints resolved back to slugs
+    assert out["split"] == [{"id": "aging_child", "split_from": "aging_parent"}]
+    assert out["merged"] == [{"id": "aging_prior", "merged_into": "aging_succ"}]
+
+
+def test_load_lineage_overlay_skips_dangling_edge():
+    # split_from points at a durable with no live META row -> skip (never leak a durable id)
+    out = load_lineage_overlay(_LineageScanTable([_meta("st_child", "aging_child", split_from="st_gone")]))
+    assert out == {"split": [], "merged": []}
+
+
+def test_load_lineage_overlay_is_id_sorted_for_byte_stability():
+    items = [
+        _meta("st_p", "p"),
+        _meta("st_b", "slug_b", split_from="st_p"),
+        _meta("st_a", "slug_a", split_from="st_p"),
+    ]
+    out = load_lineage_overlay(_LineageScanTable(items))
+    assert [e["id"] for e in out["split"]] == ["slug_a", "slug_b"]  # sorted by id
+
+
+def test_load_lineage_overlay_skips_non_meta_rows_and_empty():
+    # a SUBTOPIC_SLUG# pointer row (record_type != SUBTOPIC_ID) must be ignored
+    ptr = build_slug_pointer_record(slug_id="aging_one", durable_id="st_one", created_at="t")
+    assert load_lineage_overlay(_LineageScanTable([ptr])) == {"split": [], "merged": []}
+    assert load_lineage_overlay(_LineageScanTable([])) == {"split": [], "merged": []}
