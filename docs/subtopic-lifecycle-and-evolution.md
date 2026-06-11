@@ -9,6 +9,35 @@
 
 ---
 
+## 0. In plain language — how this works over a year
+
+*(Non-technical summary of the target design. The rest of this document is the engineering detail behind it.)*
+
+Think of the taxonomy as the set of **shelf labels** in a library, and papers as the **books**. Two different things happen over a year, and only one is hard:
+
+1. **Filing new books onto existing shelves** — a new paper arrives, gets scored, and lands on the shelf it best fits. This already happens automatically every day and week. It works; nobody has to act.
+2. **Changing the shelves themselves** — creating a brand-new shelf for an area that didn't exist before, renaming one, or retiring one that's gone empty. *This* is the hard part, and today it's broken.
+
+**Today's pain, in one sentence:** the only way to add, rename, or remove a shelf is to **tear down the whole library once a year and rebuild every shelf from scratch** — which gives every shelf a new catalog number, breaks every saved bookmark, wipes the "what did we feature recently" memory, and makes a simple rename look identical to "deleted one shelf and created another." So a genuinely new research area can't get its own shelf until that once-a-year teardown.
+
+**The fix has two parts:**
+
+- **Part 1 — give every shelf a permanent barcode (durable IDs).** The barcode never changes, even when the shelf is relabelled or its books shift. The moment that's true, the teardown stops being destructive: bookmarks keep working, featured-history survives, and "renamed" is clearly different from "new." This is worth doing *even if we still only reorganize once a year* — it just makes the reorganization safe instead of violent.
+- **Part 2 — because it's now safe, reorganize a little every month instead of all at once.** Once nothing breaks when we re-look at the shelves, the "look for new shelves" step can run on a schedule, touching only what actually changed. New shelves appear gradually through the year; quiet ones fade out gradually; everything else sits untouched and cheap.
+
+**A year in the life (target design):**
+
+- *Every day/week:* new papers file onto existing shelves automatically (already true today).
+- *Once a month:* the system re-examines the books and asks "are there clusters that don't belong on any existing shelf?" For each cluster it checks *is this the same as a shelf we already have?* — same → keep that shelf's permanent barcode and refresh it; genuinely new → consider minting a new shelf.
+- *The "wait and see" rule:* it won't mint a shelf the first month a cluster appears (a one-off burst shouldn't spawn a junk shelf). It waits until the cluster shows up **two months running**, so a real new area becomes visible within ~a quarter, not a year.
+- *Quiet shelves fade gracefully:* a shelf with no new papers for ~a year is **demoted** (still exists and still links, just not featured); if it stays quiet it's **archived** (its page redirects to the parent topic). A single new paper pops it back to life automatically — no manual rescue.
+
+**The recognition memory this depends on:** for the monthly check to tell "same shelf, keep the barcode" from "brand new," the system needs a record of **which papers seeded each shelf last time**. That memory was being thrown away after every run; capturing it (the `membership.json` sidecar, [#192](https://github.com/wcmc-its/ReciterAI/pull/192)) is the small foundational first brick the whole scheme rests on.
+
+**The one honest caveat:** new shelves appear only **as often as the monthly check runs** — not continuously. The permanent barcodes (Part 1) don't, by themselves, make new areas appear more often; they make appearing *safe*. The lever that actually surfaces new areas mid-year is **the schedule** (Part 2). So if "new areas visible mid-year" is a firm requirement, scheduling that check isn't optional — it's the requirement-meeting piece, with durable IDs as its prerequisite.
+
+---
+
 ## 1. The problem
 
 The spotlight (and the broader Scholars Profile System) presents WCM research organized into ~67 topics and ~1,500 subtopics. Research at the institution is not static: new areas emerge, existing areas grow or shift, and some go quiet. We want the presented taxonomy to track that reality **throughout the year**, not just at a single annual moment.
