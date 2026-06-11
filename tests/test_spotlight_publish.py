@@ -353,3 +353,73 @@ def test_12_spotlight_version_field_locked(
             break
     assert manifest_payload is not None
     assert manifest_payload["spotlight_version"] == "spotlight_v1"
+
+
+# ---------------------------------------------------------------------------
+# Immutable per-run archive (run_id) — preserves every run's full output even
+# when same-day re-publishes overwrite the date-keyed v{date}/ prefix.
+# ---------------------------------------------------------------------------
+
+def test_run_id_writes_immutable_archive(
+    valid_artifact, schema, selections, mock_s3, mock_dynamo
+):
+    """With run_id set: the 6 version/latest puts PLUS 3 runs/{run_id}/ puts."""
+    rc = publish_artifact(
+        artifact=valid_artifact,
+        schema=schema,
+        selections=selections,
+        dry_run=False,
+        s3_client=mock_s3,
+        dynamo_client=mock_dynamo,
+        run_id="2026-06-11T01-14-30Z",
+    )
+    assert rc == 0
+    keys = [c.args[0] for c in mock_s3.put_object.call_args_list]
+    assert len(keys) == 9
+    assert "spotlight/runs/2026-06-11T01-14-30Z/spotlight.json" in keys
+    assert "spotlight/runs/2026-06-11T01-14-30Z/manifest.json" in keys
+    assert "spotlight/runs/2026-06-11T01-14-30Z/spotlight.schema.json" in keys
+
+
+def test_no_run_id_skips_archive(
+    valid_artifact, schema, selections, mock_s3, mock_dynamo
+):
+    """Default (run_id=None): unchanged — only the 6 version/latest puts."""
+    rc = publish_artifact(
+        artifact=valid_artifact,
+        schema=schema,
+        selections=selections,
+        dry_run=False,
+        s3_client=mock_s3,
+        dynamo_client=mock_dynamo,
+    )
+    assert rc == 0
+    keys = [c.args[0] for c in mock_s3.put_object.call_args_list]
+    assert len(keys) == 6
+    assert not any("runs/" in k for k in keys)
+
+
+def test_run_archive_failure_does_not_fail_publish(
+    valid_artifact, schema, selections, mock_s3, mock_dynamo
+):
+    """A run-archive PutObject failure is best-effort: the publish (already
+    written to version/latest) still returns 0, and history still advances."""
+    def _fail_on_runs(key, body):
+        if "/runs/" in key:
+            raise RuntimeError("simulated archive failure")
+        return None
+
+    mock_s3.put_object.side_effect = _fail_on_runs
+    rc = publish_artifact(
+        artifact=valid_artifact,
+        schema=schema,
+        selections=selections,
+        dry_run=False,
+        s3_client=mock_s3,
+        dynamo_client=mock_dynamo,
+        run_id="2026-06-11T01-14-30Z",
+    )
+    assert rc == 0
+    # the consumer-facing version/latest writes still happened
+    keys = [c.args[0] for c in mock_s3.put_object.call_args_list]
+    assert "spotlight/latest/spotlight.json" in keys

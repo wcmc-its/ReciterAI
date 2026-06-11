@@ -514,11 +514,15 @@ def _report_run_cost(acc) -> None:
 
 
 def _write_run_ledger(
-    acc, *, publish_id: str, started_at: str, duration_ms: int, n_published: int
+    acc, *, publish_id: str, started_at: str, run_id: str, duration_ms: int,
+    n_published: int
 ) -> None:
     """Best-effort: persist a timestamped ``STAGE#spotlight_publish#GLOBAL`` run
     record (SK ``RUN#{started_at}``) carrying this run's cost, so every publish
-    leaves a queryable cost + history row. Any failure is logged and swallowed —
+    leaves a queryable cost + history row. ``output_pointer`` references the
+    immutable per-run archive (``spotlight/runs/{run_id}/spotlight.json``) so the
+    row links to THIS run's exact full output, not the date-keyed prefix that a
+    later same-day publish overwrites. Any failure is logged and swallowed —
     a ledger write must never undo a completed publish.
     """
     try:
@@ -536,7 +540,7 @@ def _write_run_ledger(
             started_at=started_at,
             duration_ms=duration_ms,
             cost_observed_usd=acc.total_usd,
-            output_pointer=f"spotlight/{publish_id}/spotlight.json",
+            output_pointer=f"spotlight/runs/{run_id}/spotlight.json",
             records_written=n_published,
             model_ids_snapshot=sorted(acc.by_model.keys()),
         )
@@ -904,11 +908,15 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
 
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     publishable_selections = [sel for sel, _ in publishable]
+    # S3-safe run id (the ledger SK timestamp with ':' -> '-'); names the
+    # immutable per-run archive prefix and the ledger's output_pointer.
+    run_id = run_started_at.replace(":", "-")
     rc = publish_artifact(
         artifact=artifact,
         schema=schema,
         selections=publishable_selections,
         dry_run=False,
+        run_id=run_id,
     )
     # A timestamped run-ledger row with this run's cost — only on a clean publish.
     if rc == 0:
@@ -916,6 +924,7 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             cost_acc,
             publish_id=publish_id,
             started_at=run_started_at,
+            run_id=run_id,
             duration_ms=int((time.monotonic() - run_monotonic_start) * 1000),
             n_published=len(publishable_selections),
         )

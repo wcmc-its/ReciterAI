@@ -86,6 +86,7 @@ def publish_artifact(
     dry_run: bool = False,
     s3_client=None,
     dynamo_client=None,
+    run_id: str | None = None,
 ) -> int:
     """Validate + upload the spotlight artifact to S3, then write history.
 
@@ -105,6 +106,13 @@ def publish_artifact(
         dynamo_client: optional injected DynamoDB client passed to
             ``update_history`` (test seam). Defaults to lazy-init in
             history_writer when None.
+        run_id: optional S3-safe run identifier (the publish run's timestamp
+            with ``:`` → ``-``). When given, the full artifact is ALSO written to
+            an immutable ``runs/{run_id}/`` prefix that is never overwritten — so
+            every run's full output (ledes, PMIDs, papers) is preserved even when
+            multiple runs share a date-keyed ``v{date}/`` prefix. Best-effort: a
+            failure to write the archive does not fail a publish that already
+            succeeded to ``v{date}/`` + ``latest/``.
 
     Returns:
         0 on successful publish (or successful dry-run); 1 on schema
@@ -168,6 +176,8 @@ def publish_artifact(
         print(f"  Artifact bytes: {len(artifact_bytes):,}")
         print(f"  Would upload to: s3://{ARTIFACTS_BUCKET}/{PREFIX}/{version}/")
         print(f"  Would also publish to: s3://{ARTIFACTS_BUCKET}/{PREFIX}/latest/")
+        if run_id:
+            print(f"  Would archive (immutable) to: s3://{ARTIFACTS_BUCKET}/{PREFIX}/runs/{run_id}/")
         print("\nManifest preview:\n" + json.dumps(manifest, indent=2))
         return 0
 
@@ -191,6 +201,26 @@ def publish_artifact(
         s3.put_object(f"{PREFIX}/latest/spotlight.json",        artifact_bytes)
         s3.put_object(f"{PREFIX}/latest/spotlight.schema.json", schema_bytes)
         s3.put_object(f"{PREFIX}/latest/manifest.json",         manifest_bytes)
+
+        # Immutable per-run archive. The version/latest writes above are
+        # date-keyed and overwritten on same-day re-publish; this preserves the
+        # full output (ledes, PMIDs, papers) of EVERY run under a unique prefix.
+        # Best-effort: the consumer-facing writes have already succeeded, so an
+        # archive failure must warn, not abort the publish.
+        if run_id:
+            try:
+                s3.put_object(f"{PREFIX}/runs/{run_id}/spotlight.json",        artifact_bytes)
+                s3.put_object(f"{PREFIX}/runs/{run_id}/spotlight.schema.json", schema_bytes)
+                s3.put_object(f"{PREFIX}/runs/{run_id}/manifest.json",         manifest_bytes)
+                logger.info(
+                    f"Run archive: s3://{ARTIFACTS_BUCKET}/{PREFIX}/runs/{run_id}/ "
+                    f"({len(artifact.get('spotlights', []))} cards, sha256={sha256[:12]}...)"
+                )
+            except Exception as exc:  # noqa: BLE001 — archive is best-effort
+                logger.warning(
+                    "Run-keyed archive write failed (publish still succeeded to "
+                    "version/latest): %s: %s", type(exc).__name__, exc
+                )
 
     except NoCredentialsError:
         # Operator hint — INSTRUCTIONAL string; never displays values

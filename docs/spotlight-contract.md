@@ -34,10 +34,16 @@
 | `s3://wcmc-reciterai-artifacts/spotlight/latest/spotlight.json` | Most recent publish (PutObject-overwritten on every publish) |
 | `s3://wcmc-reciterai-artifacts/spotlight/latest/spotlight.schema.json` | Schema for the latest publish |
 | `s3://wcmc-reciterai-artifacts/spotlight/latest/manifest.json` | Manifest for the latest publish |
+| `s3://wcmc-reciterai-artifacts/spotlight/runs/{run-ts}/spotlight.json` | **Immutable per-run archive** — full output of every individual run (2026-06-10) |
+| `s3://wcmc-reciterai-artifacts/spotlight/runs/{run-ts}/{manifest,spotlight.schema}.json` | Manifest + schema for that run |
+
+`{run-ts}` is the run's start timestamp with `:` → `-` (e.g. `2026-06-11T01-14-30Z`), matching the `STAGE#spotlight_publish#GLOBAL` ledger row's `RUN#{started_at}` sort key. The run-ledger row's `output_pointer` references this path, so each row links to its run's exact full output.
+
+**Producer-side note (not a consumer concern):** `v{ISO-date}/` is date-keyed, so a **same-day re-publish overwrites it** — only the day's last run survives there. The `runs/{run-ts}/` archive (added 2026-06-10) preserves the full output (ledes, PMIDs, papers) of **every** run under a unique, never-overwritten prefix, for audit and "what shipped on day X, run Y" review. It is best-effort: an archive-write failure warns but never fails a publish that already wrote `v{date}/` + `latest/`. Consumers continue to read only `latest/` (or a pinned `v{date}/`).
 
 **Bucket:** `wcmc-reciterai-artifacts` (us-east-1, IAM-gated, private). Phase 6 migrated off the Phase 5 single-purpose `wcmc-reciterai-hierarchy` bucket onto a shared artifacts bucket; see `docs/bucket-migration-runbook.md` for the migration story. Hierarchy now lives at `hierarchy/`, spotlight at `spotlight/`. Both share the bucket-level resource policy at `docs/aws-bucket-policy-artifacts.json`.
 
-**Retention:** All `spotlight/v{ISO-date}/` prefixes are retained indefinitely (no S3 Lifecycle rules). Full historical rollback is available.
+**Retention:** All `spotlight/v{ISO-date}/` and `spotlight/runs/{run-ts}/` prefixes are retained indefinitely (no S3 Lifecycle rules). Full historical rollback is available.
 
 **Version consistency rule:** Consumers MUST fetch the schema AND the artifact from the SAME prefix. Do NOT mix `latest/spotlight.json` with a cached schema from a prior fetch. Do NOT mix `spotlight/v2026-05-14/spotlight.json` with `spotlight/latest/spotlight.schema.json`. Fetching from a consistent prefix guards against schema drift during a 30-day breaking-change deprecation window (see Breaking-Change Policy).
 
