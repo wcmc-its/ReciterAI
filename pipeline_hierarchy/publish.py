@@ -69,6 +69,7 @@ from pipeline_hierarchy.generator import REPO_ROOT, SCHEMA_PATH, generate
 from pipeline_hierarchy.subtopic_id_store import (
     MintContext,
     SubtopicIdStore,
+    build_alias_map,
     reconcile_durable_ids,
 )
 from utils.bedrock_client import MODEL_IDS_BY_STAGE
@@ -257,13 +258,18 @@ def upload_to_s3(
     diff_bytes: bytes,
     s3_client: Optional[object] = None,
     membership_bytes: Optional[bytes] = None,
+    alias_bytes: Optional[bytes] = None,
 ) -> None:
-    """Phase 11 D-11: 5-step PutObject sequence (+ optional membership sidecar).
+    """Phase 11 D-11: 5-step PutObject sequence (+ optional membership/alias sidecars).
 
     Order matters for consumer safety:
-    0. {version}/membership.json    — #191 sidecar; consumer-irrelevant, so it is
+    0.  {version}/membership.json   — #191 sidecar; consumer-irrelevant, so it is
                                       uploaded FIRST (present before anything keys
                                       off the manifest). Omitted when None.
+    0b. {version}/aliases.json      — #191 brick-D slug->durable alias map; additive
+                                      sidecar, uploaded with membership before the
+                                      manifest so it is present when SPS reads it.
+                                      Omitted when None (e.g. --dry-run / store down).
     1. {version}/hierarchy.json     — the artifact itself
     2. {version}/hierarchy.schema.json — validator for the artifact
     3. {version}/diff.json          — BEFORE manifest so consumers polling
@@ -278,6 +284,9 @@ def upload_to_s3(
     # 0. {version}/membership.json — sidecar, before the consumer-facing artifact.
     if membership_bytes is not None:
         s3.put_object(f"{version}/membership.json", membership_bytes)
+    # 0b. {version}/aliases.json — brick-D alias map sidecar, before the manifest.
+    if alias_bytes is not None:
+        s3.put_object(f"{version}/aliases.json", alias_bytes)
     # 1. {version}/hierarchy.json
     s3.put_object(f"{version}/hierarchy.json", hierarchy)
     # 2. {version}/hierarchy.schema.json
@@ -300,6 +309,44 @@ EXIT_OK = 0
 EXIT_BUNDLER_MISSING_FIELDS = 2
 EXIT_GATE_BLOCKED = 3
 EXIT_FORCE_WITHOUT_REASON = 4
+
+
+# ---------- slug->durable alias map sidecar (brick D, #191) ----------
+
+
+def build_alias_map_bytes(
+    table: object,
+    *,
+    hierarchy_version: Optional[str],
+    taxonomy_version: Optional[str],
+) -> Optional[bytes]:
+    """Best-effort: serialize the slug->durable alias map sidecar (#191 brick D) from
+    the durable-ID store.
+
+    Returns the bytes, or ``None`` when the store is unavailable (``table is None`` —
+    e.g. ``--dry-run``) or the scan fails. Additive sidecar that no current consumer
+    reads, so an absent alias map never fails a publish (same best-effort posture as
+    the durable-id reconcile). Byte-stable serialization, like ``membership.json``.
+    """
+    if table is None or not hierarchy_version:
+        return None
+    try:
+        from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+        snapshot = load_id_store_snapshot(table)
+        alias_map = build_alias_map(
+            snapshot,
+            hierarchy_version=hierarchy_version,
+            taxonomy_version=taxonomy_version,
+        )
+        return (
+            json.dumps(alias_map, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
+    except Exception as exc:  # noqa: BLE001 — additive sidecar; never fail publish here
+        logging.getLogger(__name__).warning(
+            "alias-map build failed (publish unaffected; aliases.json omitted): %s", exc
+        )
+        return None
 
 
 # ---------- durable id<->membership store (brick A + B, #191) ----------
@@ -602,7 +649,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
 
-    # 6. S3 upload (5-step D-11 order + #191 membership sidecar).
+    # 5b. Build the brick-D slug->durable alias map sidecar from the durable-ID store
+    #     (best-effort: None if the store is unavailable; never fails the publish).
+    alias_bytes = build_alias_map_bytes(
+        table,
+        hierarchy_version=version,
+        taxonomy_version=manifest.get("taxonomy_version"),
+    )
+
+    # 6. S3 upload (5-step D-11 order + #191 membership/alias sidecars).
     upload_to_s3(
         version,
         hierarchy_bytes,
@@ -611,6 +666,7 @@ def main(argv: list[str] | None = None) -> int:
         diff_bytes,
         s3_client=s3,
         membership_bytes=membership_bytes,
+        alias_bytes=alias_bytes,
     )
     print(json.dumps(
         {
@@ -619,6 +675,7 @@ def main(argv: list[str] | None = None) -> int:
             "version": version,
             "keys": [
                 f"{version}/membership.json",
+                *([f"{version}/aliases.json"] if alias_bytes is not None else []),
                 f"{version}/hierarchy.json",
                 f"{version}/hierarchy.schema.json",
                 f"{version}/diff.json",

@@ -187,6 +187,50 @@ def build_slug_pointer_record(
     }
 
 
+# Brick D (#191): the published slug->durable alias/redirect map artifact.
+ALIAS_SCHEMA_VERSION = "1.0.0"
+
+
+def build_alias_map(
+    snapshot: dict[str, dict],
+    *,
+    hierarchy_version: Optional[str],
+    taxonomy_version: Optional[str],
+) -> dict[str, Any]:
+    """Build the published slug->durable alias map (#191 brick D). Pure (no I/O).
+
+    Inverts a durable-ID store ``snapshot`` (``{durable_id: {slug_id, topic_id,
+    status, ...}}`` from ``load_id_store_snapshot``) into ``{slug_id: {durable_id,
+    parent_topic_id, status}}`` so SPS can migrate its slug-keyed ``Subtopic`` rows +
+    deep-link join onto durable ids and 301-redirect old slugs (its new
+    ``SubtopicAlias`` table consumes this). Byte-stable under
+    ``json.dumps(..., sort_keys=True, ensure_ascii=False)``; aliases are emitted in
+    slug order. Rows with no ``slug_id`` are skipped.
+
+    Reflects the durable store as of the START of a publish (the reconcile that
+    assigns ids to a run's *new* slugs runs at publish step 10, after upload); a
+    subtopic first minted in this run appears in the next publish's alias map — correct
+    for a redirect map, since a brand-new subtopic has no prior slug to alias.
+    """
+    aliases: dict[str, dict] = {}
+    for durable_id, row in snapshot.items():
+        slug = row.get("slug_id")
+        if not slug:
+            continue
+        aliases[slug] = {
+            "durable_id": durable_id,
+            "parent_topic_id": row.get("topic_id"),
+            "status": row.get("status") or STATUS_ACTIVE,
+        }
+    return {
+        "alias_schema_version": ALIAS_SCHEMA_VERSION,
+        "taxonomy_version": taxonomy_version,
+        "hierarchy_version": hierarchy_version,
+        "subtopic_count": len(aliases),
+        "aliases": {slug: aliases[slug] for slug in sorted(aliases)},
+    }
+
+
 # ---------- read API (boto3 Table resource: GetItem) ----------
 
 

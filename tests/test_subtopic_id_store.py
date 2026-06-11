@@ -23,9 +23,11 @@ from pipeline_hierarchy.subtopic_id_store import (
     STATUS_ACTIVE,
     SUBTOPIC_ID_PK_PREFIX,
     SUBTOPIC_SLUG_PK_PREFIX,
+    ALIAS_SCHEMA_VERSION,
     MintContext,
     SubtopicIdStore,
     SubtopicMatch,
+    build_alias_map,
     build_slug_pointer_record,
     build_subtopic_id_record,
     get_subtopic_row,
@@ -94,6 +96,44 @@ def test_subtopic_id_record_keys_and_fields():
     assert rec["membership_kind"] == MEMBERSHIP_KIND
     assert rec["status"] == STATUS_ACTIVE
     assert rec["label_at_mint"] == "One"
+
+
+def test_build_alias_map_inverts_snapshot_to_slug_keyed_redirect_map():
+    # snapshot shape mirrors load_id_store_snapshot: {durable_id: {slug_id, topic_id,
+    # status, ...}}. build_alias_map inverts to slug -> {durable_id, parent, status}.
+    snapshot = {
+        "st_two": {"slug_id": "aging_two", "topic_id": "aging", "status": "active"},
+        "st_one": {"slug_id": "aging_one", "topic_id": "aging", "status": "active"},
+        "st_nodurable": {"slug_id": None, "topic_id": "aging", "status": "active"},  # skipped
+    }
+    out = build_alias_map(snapshot, hierarchy_version="v2026-06-11", taxonomy_version="taxonomy_v2")
+    assert out["alias_schema_version"] == ALIAS_SCHEMA_VERSION
+    assert out["hierarchy_version"] == "v2026-06-11"
+    assert out["taxonomy_version"] == "taxonomy_v2"
+    assert out["subtopic_count"] == 2  # the slug_id=None row is skipped
+    # slug-keyed, slug-ordered, carrying durable + parent + status
+    assert list(out["aliases"].keys()) == ["aging_one", "aging_two"]
+    assert out["aliases"]["aging_one"] == {
+        "durable_id": "st_one",
+        "parent_topic_id": "aging",
+        "status": "active",
+    }
+
+
+def test_build_alias_map_defaults_missing_status_to_active_and_is_byte_stable():
+    snapshot = {"st_x": {"slug_id": "aging_x", "topic_id": "aging"}}  # no status key
+    out = build_alias_map(snapshot, hierarchy_version="v1", taxonomy_version="t")
+    assert out["aliases"]["aging_x"]["status"] == STATUS_ACTIVE
+    # byte-stable under sort_keys (the publish serialization posture)
+    assert json.dumps(out, sort_keys=True) == json.dumps(
+        build_alias_map(snapshot, hierarchy_version="v1", taxonomy_version="t"),
+        sort_keys=True,
+    )
+
+
+def test_build_alias_map_empty_snapshot():
+    out = build_alias_map({}, hierarchy_version="v1", taxonomy_version="t")
+    assert out["subtopic_count"] == 0 and out["aliases"] == {}
 
 
 def test_slug_pointer_record_shape():
