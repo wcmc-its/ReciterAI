@@ -40,6 +40,11 @@
         "id": {
           "type": "string"
         },
+        "durable_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Durable subtopic id (#191 brick D3), stamped additively alongside the slug `id` when the propagate_durable_ids gate is on. Absent when the gate is off or the slug has no durable id yet (one-run lag). The stable join key SPS migrates to at its own pace."
+        },
         "label": {
           "type": "string"
         },

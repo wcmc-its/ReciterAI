@@ -25,7 +25,7 @@ porting to another institution's identifier scheme (NetID, Access ID), both
 must be updated together along with Phase 1's `load_dynamodb.py`.
 
 Public API (exactly three names):
-- update_activity_subtopics(pk, sk, subtopic_ids, primary_subtopic_id, confidences, *, hierarchy_version)
+- update_activity_subtopics(pk, sk, subtopic_ids, primary_subtopic_id, confidences, *, hierarchy_version, primary_subtopic_durable_id=None)
 - update_faculty_subtopic_scores(person_identifier, topic_id, scores)
 - clear_faculty_subtopic_scores_for_topic(person_identifier, topic_id)
 """
@@ -47,6 +47,7 @@ def update_activity_subtopics(
     confidences: Mapping[str, float],
     *,
     hierarchy_version: str,
+    primary_subtopic_durable_id: str | None = None,
 ) -> dict:
     """Write Pass 2 output to an activity record (D-16 schema).
 
@@ -55,6 +56,13 @@ def update_activity_subtopics(
     dangling references between activity records and recomputed hierarchies.
     hierarchy_version is operator/code-controlled (e.g. "v2026-06-01") and
     flows through ExpressionAttributeValues only — no expression interpolation.
+
+    Brick D3 (#191): durable_id propagation is ADDITIVE. When
+    primary_subtopic_durable_id is None (gate off OR slug unresolved) the SET
+    expression is character-for-character identical to the pre-D3 literal and
+    no companion attribute is written — never a null. When supplied, the
+    durable companion `primary_subtopic_durable_id` is appended as a plain
+    string (no Decimal coercion).
 
     Args:
         pk: DynamoDB partition key, e.g. "TOPIC#aging_geroscience".
@@ -65,25 +73,36 @@ def update_activity_subtopics(
                      accepted; they are internally coerced via to_decimal().
         hierarchy_version: Semver-shaped version string (e.g. "v2026-06-01") for
                            the hierarchy that produced these assignments. Required.
+        primary_subtopic_durable_id: Durable companion to primary_subtopic_id
+                           (e.g. "SUBTOPIC_ID#abc123"). Omitted from the write
+                           entirely when None (#191).
 
     Returns:
         The boto3 update_item response dict.
     """
     table = get_table(TABLE_NAME)
+    set_expr = (
+        "SET subtopic_ids = :sids, "
+        "primary_subtopic_id = :pid, "
+        "subtopic_confidences = :confs, "
+        "hierarchy_version = :hv"
+    )
+    values: dict = {
+        ":sids": list(subtopic_ids),
+        ":pid": primary_subtopic_id,
+        ":confs": {k: to_decimal(v) for k, v in confidences.items()},
+        ":hv": hierarchy_version,
+    }
+    # Brick D3 (#191): append the durable companion only when resolved (truthy)
+    # — keeps the gate-off write byte-identical to today and never writes a
+    # null/empty companion even if a caller passes "".
+    if primary_subtopic_durable_id:
+        set_expr += ", primary_subtopic_durable_id = :pdid"
+        values[":pdid"] = primary_subtopic_durable_id
     return table.update_item(
         Key={"PK": pk, "SK": sk},
-        UpdateExpression=(
-            "SET subtopic_ids = :sids, "
-            "primary_subtopic_id = :pid, "
-            "subtopic_confidences = :confs, "
-            "hierarchy_version = :hv"
-        ),
-        ExpressionAttributeValues={
-            ":sids": list(subtopic_ids),
-            ":pid": primary_subtopic_id,
-            ":confs": {k: to_decimal(v) for k, v in confidences.items()},
-            ":hv": hierarchy_version,
-        },
+        UpdateExpression=set_expr,
+        ExpressionAttributeValues=values,
     )
 
 

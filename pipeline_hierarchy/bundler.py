@@ -127,7 +127,13 @@ def _read_excluded_topics(excluded_path: Path) -> list[dict[str, Any]]:
 
 
 def _build_subtopic(
-    subtopic: dict[str, Any], topic_id: str, strict: bool, missing: list
+    subtopic: dict[str, Any],
+    topic_id: str,
+    strict: bool,
+    missing: list,
+    *,
+    durable_map: dict[str, str] | None = None,
+    gate_on: bool = False,
 ) -> dict[str, Any] | None:
     """
     Build a schema-shaped subtopic dict from an augmented entry.
@@ -135,6 +141,11 @@ def _build_subtopic(
     On missing UI fields: in strict mode append to `missing` and return None;
     in non-strict mode emit the subtopic with empty strings (used by the
     structural-only tests, not by the publisher).
+
+    When `gate_on` and the slug `id` resolves in `durable_map`, an additive
+    `durable_id` companion field is stamped alongside the slug `id` (#191
+    brick D3). Gate off, or an unresolved slug, omits the key entirely —
+    never null — so the output is byte-identical to today.
     """
     out: dict[str, Any] = {}
     missing_here: list[str] = []
@@ -159,6 +170,12 @@ def _build_subtopic(
         )
         if strict:
             return None
+    # Additive durable-id companion (#191). Omit entirely when the gate is off
+    # or the slug has no durable id yet — never write null/empty (guard on the
+    # resolved value's truthiness, so the producer is self-defending).
+    durable = (durable_map or {}).get(subtopic.get("id")) if gate_on else None
+    if durable:
+        out["durable_id"] = durable
     return out
 
 
@@ -168,6 +185,8 @@ def _build_topics(
     *,
     display_thresholds: dict[str, float],
     display_threshold_default: float,
+    durable_map: dict[str, str] | None = None,
+    gate_on: bool = False,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
     topics: dict[str, dict[str, Any]] = {}
     missing: list[dict[str, Any]] = []
@@ -183,7 +202,10 @@ def _build_topics(
             )
         subs: list[dict[str, Any]] = []
         for s in data.get("subtopics", []):
-            built = _build_subtopic(s, topic_id, strict, missing)
+            built = _build_subtopic(
+                s, topic_id, strict, missing,
+                durable_map=durable_map, gate_on=gate_on,
+            )
             if built is not None:
                 subs.append(built)
         topics[topic_id] = {
@@ -202,6 +224,8 @@ def bundle(
     excluded_topics_path: Path = DEFAULT_EXCLUDED_PATH,
     thresholds_path: Path = DEFAULT_THRESHOLDS_PATH,
     strict: bool = True,
+    durable_map: dict[str, str] | None = None,
+    gate_on: bool = False,
 ) -> dict[str, Any]:
     """
     Bundle per-topic augmented files into a hierarchy dict.
@@ -213,6 +237,12 @@ def bundle(
         strict: when True (default), raise `MissingUIFieldsError` if any subtopic
             lacks display_name or short_description. Set False only for
             structural/development checks.
+        durable_map: optional {slug_id: durable_id} map (#191 brick D3). Stays None
+            by default so this module never reads config or DynamoDB — the caller
+            evaluates the gate and loads/inverts the durable-ID store snapshot.
+        gate_on: when True (and `durable_map` resolves a slug), each subtopic gets
+            an additive `durable_id` companion. Default False ⇒ byte-identical to
+            today.
 
     Returns:
         The hierarchy dict, schema-compatible after generator.build_hierarchy()
@@ -233,6 +263,8 @@ def bundle(
         strict=strict,
         display_thresholds=display_thresholds,
         display_threshold_default=display_threshold_default,
+        durable_map=durable_map,
+        gate_on=gate_on,
     )
 
     if strict and missing:
