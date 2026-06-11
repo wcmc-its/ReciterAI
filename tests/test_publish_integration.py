@@ -25,6 +25,21 @@ from pipeline_hierarchy import publish
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _stub_durable_id_reconcile():
+    """Neutralize brick A's step-10 durable-id store write for this module.
+
+    These tests assert the STAGE#/upload contract; the new step 10 (reconcile
+    into the durable id<->membership store) runs after ``write_complete`` on the
+    real path and would otherwise add ``put_item`` calls that perturb the exact
+    put-count assertions here. The store wiring itself — that it runs after
+    upload, is unreachable under --dry-run, and never fails the publish — is
+    covered end-to-end in ``tests/test_publish_durable_ids.py`` (no stub there).
+    """
+    with patch.object(publish, "reconcile_durable_ids", MagicMock()):
+        yield
+
+
 # ---------- compute_publish_input_hash ----------
 
 
