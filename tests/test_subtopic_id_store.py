@@ -31,6 +31,7 @@ from pipeline_hierarchy.subtopic_id_store import (
     build_slug_pointer_record,
     build_subtopic_id_record,
     get_subtopic_row,
+    load_slug_pointer_map,
     reconcile_durable_ids,
     resolve_durable_id,
     set_lineage,
@@ -165,6 +166,44 @@ def test_record_serialization_is_byte_stable_across_reruns():
 
 
 # ---------- read API ----------
+
+
+class _ScanTable:
+    """Paginating scan stub (ignores FilterExpression, like the suite's other scan
+    fakes — the function under test self-filters by record_type)."""
+
+    def __init__(self, items, page=100):
+        self._items = items
+        self._page = page
+
+    def scan(self, **kwargs):
+        start = kwargs.get("ExclusiveStartKey", 0)
+        chunk = self._items[start : start + self._page]
+        resp = {"Items": chunk}
+        nxt = start + self._page
+        if nxt < len(self._items):
+            resp["LastEvaluatedKey"] = nxt
+        return resp
+
+
+def test_load_slug_pointer_map_inverts_pointers_skips_meta_and_paginates():
+    items = [
+        build_slug_pointer_record(slug_id="aging_one", durable_id="st_one", created_at="t"),
+        build_slug_pointer_record(slug_id="aging_two", durable_id="st_two", created_at="t"),
+        # A META row that ALSO carries slug_id + durable_id: must be skipped (the map is
+        # slug-keyed; a META row would invert the wrong direction).
+        build_subtopic_id_record(
+            durable_id="st_one", slug_id="aging_one", topic_id="aging", seed_pmids=[1],
+            label_at_mint="One", taxonomy_version="t", hierarchy_version="v1",
+            created_at="t", first_run_id="r", last_seen_run_id="r",
+        ),
+    ]
+    m = load_slug_pointer_map(_ScanTable(items, page=1))  # page=1 forces pagination
+    assert m == {"aging_one": "st_one", "aging_two": "st_two"}
+
+
+def test_load_slug_pointer_map_empty():
+    assert load_slug_pointer_map(_ScanTable([], page=10)) == {}
 
 
 def test_resolve_and_get_over_fake_table():

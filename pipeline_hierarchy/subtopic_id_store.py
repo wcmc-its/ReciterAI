@@ -243,6 +243,48 @@ def resolve_durable_id(table: Any, *, slug_id: str) -> Optional[str]:
     return item.get("durable_id") if item else None
 
 
+def load_slug_pointer_map(table: Any) -> dict[str, str]:
+    """Scan every ``SUBTOPIC_SLUG#`` pointer row ONCE into a ``{slug_id: durable_id}`` map.
+
+    The bulk companion to ``resolve_durable_id`` (a single-slug GetItem): one
+    paginated Scan yields the whole slug->durable mapping for an O(1)-lookup
+    migration. Keyed by *slug*, so — unlike ``build_alias_map``, which projects the
+    store by each durable's *current* ``slug_id`` — it still resolves a slug a later
+    reconcile relabeled (the original mint always wrote that slug's pointer, and
+    ``_attach`` never rewrites it). That makes it the right source for re-keying
+    historical, slug-keyed rows (#191 brick D,
+    ``scripts/migrate_spotlight_history_pk.py``).
+
+    Mirrors ``load_id_store_snapshot``'s pagination idiom: filter on the
+    ``SUBTOPIC_SLUG#`` PK prefix + ``PTR`` SK, and terminate on an absent
+    ``LastEvaluatedKey`` via a membership test (not truthiness), so a mock table
+    whose ``.get`` returns a truthy sentinel cannot spin the loop forever.
+    """
+    from boto3.dynamodb.conditions import Attr
+
+    pointers: dict[str, str] = {}
+    scan_kwargs = {
+        "FilterExpression": Attr("PK").begins_with(SUBTOPIC_SLUG_PK_PREFIX)
+        & Attr("SK").eq(PTR_SK)
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        for item in resp.get("Items", []):
+            # Guard on record_type, not just the server-side filter: ``SUBTOPIC_ID#``
+            # META rows also carry slug_id + durable_id, so a scan that ever
+            # over-returns must not leak a META row in as a (wrong-direction) pointer.
+            if item.get("record_type") != RECORD_TYPE_SUBTOPIC_SLUG:
+                continue
+            slug = item.get("slug_id")
+            durable = item.get("durable_id")
+            if slug and durable:
+                pointers[slug] = durable
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    return pointers
+
+
 def get_subtopic_row(table: Any, *, durable_id: str) -> Optional[dict]:
     """The durable -> primary-row lookup (collision check + provenance read).
 

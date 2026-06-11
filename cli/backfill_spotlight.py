@@ -23,9 +23,9 @@ Operator workflow flags:
                     pending → approved).
   --reject <sub>    Mark a flagged review entry as rejected (status:
                     pending → rejected).
-  --reset-history   Truncate SPOTLIGHT_HISTORY# (use after annual
-                    hierarchy recompute when subtopic IDs rotate per D-06).
-                    Prompts before deletion.
+  --reset-history   RETIRED (#191). Durable subtopic ids now keep rotation
+                    history across a recompute; refuses and points at
+                    scripts/migrate_spotlight_history_pk.py instead.
 
 Conventions per CLAUDE.md:
   - Lazy boto3 / Bedrock client construction (no AWS calls at import).
@@ -144,9 +144,9 @@ def _parse_args() -> argparse.Namespace:
         "--reset-history",
         action="store_true",
         help=(
-            "Truncate SPOTLIGHT_HISTORY# (use after annual hierarchy "
-            "recompute when subtopic IDs rotate per D-06). Prompts for "
-            "confirmation before any DynamoDB delete."
+            "RETIRED (#191 brick D). Durable subtopic ids keep rotation history "
+            "across an annual recompute, so wholesale truncation is no longer "
+            "needed; refuses and points at scripts/migrate_spotlight_history_pk.py."
         ),
     )
     parser.add_argument(
@@ -1106,62 +1106,25 @@ def _run_regen_only(subtopic_id: str) -> int:
 
 
 def _run_reset_history() -> int:
-    """Truncate SPOTLIGHT_HISTORY# partition. Confirms before deleting.
+    """Tombstoned (#191 brick D). Refuses the truncate and redirects to the re-key.
 
-    Uses the same BatchWriteItem retry pattern as
-    ``utils/dynamodb_helpers.batch_write``. Used only after annual
-    hierarchy recompute when subtopic IDs rotate (D-06).
+    Durable subtopic ids (the ``SUBTOPIC_ID#``/``SUBTOPIC_SLUG#`` store) keep spotlight
+    rotation history stable across an annual recompute, so the old "slugs rotated, so
+    wipe everything" workflow is obsolete. The cutover tool is now
+    ``scripts/migrate_spotlight_history_pk.py``, which re-keys history onto durable ids
+    without deleting any state. This stub deletes nothing — it only points the way, so an
+    operator's muscle memory can't truncate live rotation history.
     """
-    import boto3
-
-    confirm = input(
-        "WARNING: this will delete every SPOTLIGHT_HISTORY# row in the "
-        "reciterai DynamoDB table. Type 'yes' to confirm: "
+    print(
+        "--reset-history is RETIRED (#191). Durable subtopic ids now keep spotlight "
+        "rotation history across an annual recompute, so truncating it is no longer "
+        "necessary or safe.\n"
+        "To migrate existing slug-keyed history onto durable ids (no state is deleted), "
+        "run:\n"
+        "    PYTHONPATH=. python scripts/migrate_spotlight_history_pk.py --dry-run\n"
+        "then re-run without --dry-run."
     )
-    if confirm.strip().lower() != "yes":
-        print("Aborted.")
-        return 1
-
-    client = boto3.client("dynamodb", region_name="us-east-1")
-    table = "reciterai"
-    deleted = 0
-
-    paginator = client.get_paginator("scan")
-    pages = paginator.paginate(
-        TableName=table,
-        FilterExpression="begins_with(PK, :prefix)",
-        ExpressionAttributeValues={":prefix": {"S": "SPOTLIGHT_HISTORY#"}},
-        ProjectionExpression="PK, SK",
-    )
-
-    batch: list = []
-    for page in pages:
-        for item in page.get("Items", []):
-            batch.append(
-                {"DeleteRequest": {"Key": {"PK": item["PK"], "SK": item["SK"]}}}
-            )
-            if len(batch) == 25:
-                _flush_delete_batch(client, table, batch)
-                deleted += len(batch)
-                batch = []
-    if batch:
-        _flush_delete_batch(client, table, batch)
-        deleted += len(batch)
-
-    print(f"Deleted {deleted} SPOTLIGHT_HISTORY# rows.")
-    return 0
-
-
-def _flush_delete_batch(client, table: str, batch: list) -> None:
-    """One-shot retry on UnprocessedItems (same shape as
-    ``utils/dynamodb_helpers.batch_write``)."""
-    import time
-
-    resp = client.batch_write_item(RequestItems={table: batch})
-    unprocessed = resp.get("UnprocessedItems", {}).get(table, [])
-    if unprocessed:
-        time.sleep(0.1)
-        client.batch_write_item(RequestItems={table: unprocessed})
+    return 2
 
 
 # ---------------------------------------------------------------------------
