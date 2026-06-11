@@ -1,6 +1,6 @@
 # Spotlight Artifact — Consumer Contract
 
-`spotlight.json` is a versioned, schema-validated S3 artifact carrying 10 LLM-authored editorial ledes for top-ranked WCM research subtopics, refreshed weekly via operator-run publish. It mirrors `hierarchy.json`'s publishing pattern (see `docs/hierarchy-contract.md`) — a versioned + `latest/` URL pattern, a co-published JSON Schema (`spotlight.schema.json`), and a sha256-bearing `manifest.json`. Any current or future downstream consumer (current: SPS home-page render; deferred: PM editorial dashboard) integrates against the artifact using only this document and `docs/spotlight.schema.json`.
+`spotlight.json` is a versioned, schema-validated S3 artifact carrying up to 25 LLM-authored editorial ledes for top-ranked WCM research subtopics, refreshed weekly via operator-run publish. It mirrors `hierarchy.json`'s publishing pattern (see `docs/hierarchy-contract.md`) — a versioned + `latest/` URL pattern, a co-published JSON Schema (`spotlight.schema.json`), and a sha256-bearing `manifest.json`. Any current or future downstream consumer (current: SPS home-page render; deferred: PM editorial dashboard) integrates against the artifact using only this document and `docs/spotlight.schema.json`. **(2026-06-10 ship-all):** the producer now publishes every cleared candidate (up to 25) rather than a pre-truncated top-9; the consumer makes the final on-page selection — SPS random-samples 8 of however many it receives. See [Spotlight count & on-page selection](#spotlight-count--on-page-selection).
 
 **Authoritative schema source:** `docs/spotlight.schema.json` is the machine-readable contract; it is regenerated from the Phase 6 plan-set (06-CONTEXT.md, 06-RESEARCH.md, 06-06-PLAN.md). The schema's `$defs._meta.schema_version` is the source of truth for `manifest.schema_version`.
 
@@ -10,7 +10,17 @@
 
 ## Overview
 
-`spotlight.json` carries the 10 active spotlights selected by the Phase 6 rotation pipeline plus a 50-row pool snapshot for transparency. Each spotlight pairs a 25-35 word lede (LLM-authored, deterministic + critic-passed, sensitive-tag-clean) with 2-3 representative WCM publications. Per-paper author payloads name the first and last author by `personIdentifier` for SPS-side photo-store resolution; the artifact carries no image URLs of its own. Publishing is operator-run weekly (`python backfill_spotlight.py --publish`); automated cron is deferred to v2.
+`spotlight.json` carries up to 25 active spotlights selected by the Phase 6 rotation pipeline plus a 150-row pool snapshot for transparency. Each spotlight pairs a 25-35 word lede (LLM-authored, deterministic + critic-passed, sensitive-tag-clean) with 2-3 representative WCM publications. Per-paper author payloads name the first and last author by `personIdentifier` for SPS-side photo-store resolution; the artifact carries no image URLs of its own. Publishing is operator-run weekly (`python backfill_spotlight.py --publish`); automated cron is deferred to v2.
+
+---
+
+## Spotlight count & on-page selection
+
+**The producer ships every cleared candidate (up to 25); the consumer makes the final on-page selection.** Operator decision 2026-06-10.
+
+- **Producer (ReciterAI):** the rotation pipeline builds a candidate pool of up to `SELECTION_TARGET` (25) distinct, near-clone-free subtopics and generates a lede for each, then publishes **all** of them (`PUBLISH_TARGET == SELECTION_TARGET`). The earlier behavior truncated to a top-9 by selection score; that only discarded already-generated ledes. A thin pool publishes fewer; `spotlights[]` is between 1 and 25.
+- **Consumer (SPS):** SPS renders **8** of whatever it receives, re-sampled at random on every page load (`components/home/spotlight-section.tsx::randomSample`). No SPS schema or ETL change is required to accept >9 — SPS validates against the **co-published** schema for the same version prefix, so the producer-side `maxItems` bump (10→25) is sufficient.
+- **Residual overlap (consumer's responsibility):** the 25 are one-per-parent-topic and below the near-clone gates (cosine <0.70, article-overlap <0.40), so cross-card overlap is low. Measured 2026-06-10: of 300 candidate pairs, only **2** share ≥40% of papers — both *containment-nested* cancer-genomics cards the #164 gate intentionally exempts (a small subtopic ≥3× contained in a larger one). At a top-9 publish those rarely co-occurred; shipping all 25 means SPS's random-8 can draw both. **De-duplicating such pairs on the page is now the consumer's call** (e.g. a card-level article-overlap re-roll alongside SPS's existing paper-level author-collision re-roll in `lib/spotlight-sampling.ts`).
 
 ---
 
@@ -183,7 +193,7 @@ Entries are in reverse-chronological order (newest first). Each entry documents 
 ## FAQ
 
 **Q: Does the artifact include all 1,300+ subtopics?**
-No. Only the 10 active spotlights selected by the rotation pipeline appear in `spotlights[]`. The 50-row `pool_snapshot[]` carries the top-50 candidates with their pool scores for transparency, but only the 10 selected subtopics receive a lede + paper payload. The remaining ~1,290 subtopics get no lede in v1; they continue to live in `hierarchy.json` and are eligible for selection on future publishes via the rotation selector.
+No. Only the active spotlights selected by the rotation pipeline appear in `spotlights[]` — up to 25 since the 2026-06-10 ship-all decision (was 10). The 150-row `pool_snapshot[]` carries the top-150 candidates with their pool scores for transparency, but only the selected subtopics receive a lede + paper payload. The remaining ~1,500 subtopics get no lede in v1; they continue to live in `hierarchy.json` and are eligible for selection on future publishes via the rotation selector.
 
 **Q: How do I detect changes?**
 Poll `latest/manifest.json` weekly and compare `manifest.sha256` against your last-known value. Both routine weekly publishes and ad-hoc same-day re-publishes update the sha256 if the bytes changed. No Slack webhook or email notification is sent — the manifest sha256 IS the signal.

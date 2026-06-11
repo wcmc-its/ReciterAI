@@ -55,14 +55,17 @@ SELECTION_TARGET = 25
 # pool is degenerate enough that admitting a few near-clones (or, failing that,
 # raising) is the lesser evil. Set low so realistic pools never force a clone.
 SELECTION_FLOOR = 8
-# #167: of the up-to-SELECTION_TARGET clean candidates, publish only the best
-# this-many by selection score (a CEILING; a thin pool publishes fewer). Ledes
-# are generated over the whole candidate set, then the publishable set is
-# truncated to the top PUBLISH_TARGET — so a richer 25-wide candidate pool feeds
-# a stable ~9-card publish that SPS samples ~8 from. Decoupling the published
-# count from the pool ceiling is what lets #166's wider pool coexist with a
-# small on-page surface.
-PUBLISH_TARGET = 9
+# Ship-all (operator decision 2026-06-10): publish EVERY cleared candidate (up to
+# SELECTION_TARGET), not a pre-truncated top-N. Ledes are generated over the whole
+# candidate set anyway (#167), so truncating to 9 only discarded ~16 paid-for
+# ledes. SPS already random-samples 8 of however many cards it receives (its
+# home-page `randomSample`), so the on-page selection moves to SPS. Residual
+# cross-card overlap among the ~25 is low (measured 2026-06-10: only 2 of 300
+# pairs share >=40% of papers, both containment-nested cancer-genomics cards) —
+# SPS owns any further de-dup. Keeping PUBLISH_TARGET as a knob (== SELECTION_TARGET
+# here) means lowering it re-enables the #167 truncation + the scholar-coverage
+# penalty (now inert) in one place.
+PUBLISH_TARGET = SELECTION_TARGET
 TABLE_NAME = "reciterai"
 REGION = "us-east-1"
 BATCH_GET_LIMIT = 25  # DynamoDB BatchGetItem safe per-call default

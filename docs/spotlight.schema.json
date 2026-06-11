@@ -141,8 +141,8 @@
     "spotlights": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 10,
-      "description": "Active spotlights for the publish run. Up to 10 (CONTEXT decision Q1.1).",
+      "maxItems": 25,
+      "description": "Active spotlights for the publish run. Up to SELECTION_TARGET (spotlight/rotation_selector.py); widened 10->25 with the 2026-06-10 ship-all decision (publish every cleared candidate; SPS random-samples 8 on the home page).",
       "items": {
         "$ref": "#/$defs/Spotlight"
       }

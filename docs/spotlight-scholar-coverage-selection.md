@@ -1,6 +1,6 @@
 # Spotlight scholar-coverage selection
 
-**Status:** Implemented · merged (PR #185, `5768c02`, 2026-06-10) · **not yet exercised on a live publish** — takes effect on the next operator `python -m cli.backfill_spotlight --publish`.
+**Status:** Implemented · merged (PR #185, `5768c02`) · published live 2026-06-10 22:34Z (×4→×2 break confirmed) · **now INERT** as of the 2026-06-10 ship-all decision — `PUBLISH_TARGET == SELECTION_TARGET`, so every cleared candidate publishes and there is no top-N truncation for the penalty to act on (SPS makes the on-page selection). The penalty re-activates automatically if `PUBLISH_TARGET` is ever lowered. See `docs/spotlight-contract.md` § "Spotlight count & on-page selection".
 **Owner decision:** soft people-coverage downweight at the publish-9 step — `m=3`, `λ=0.08`.
 
 A selection-policy refinement for the weekly spotlight: when choosing which
