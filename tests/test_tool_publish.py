@@ -13,9 +13,11 @@ import hashlib
 from pipeline_tools import salience as sal
 from pipeline_tools.publish import build_publish_payload, publish_artifacts
 
-# The full published key set: 3 flat (transition) + 3 latest/ + the latest/ manifest.
-_FLAT_KEYS = {"tools/tools.json", "tools/families.json", "tools/faculty.json"}
-_LATEST_KEYS = {"tools/latest/tools.json", "tools/latest/families.json", "tools/latest/faculty.json"}
+# The full published key set: 4 flat (transition) + 4 latest/ + the latest/ manifest.
+_FLAT_KEYS = {"tools/tools.json", "tools/families.json", "tools/faculty.json",
+              "tools/tool_context.json"}
+_LATEST_KEYS = {"tools/latest/tools.json", "tools/latest/families.json",
+                "tools/latest/faculty.json", "tools/latest/tool_context.json"}
 _MANIFEST_KEY = {"tools/latest/manifest.json"}
 _ALL_KEYS = _FLAT_KEYS | _LATEST_KEYS | _MANIFEST_KEY
 
@@ -41,6 +43,7 @@ def _result():
         faculty_rollup={"facA": {"cwid": "facA", "tools": [], "families": []}},
         grant_signal={"tool_000002": {"appl_ids": ["g1"], "investigator_cwids": ["facC"]}},
         telemetry={"canonical_tools": 1, "exceptions_by_type": {"minted_family": 1}},
+        tool_context={"tool_000001": {"39000001": "for stochastic simulation of photon transport"}},
     )
 
 
@@ -53,6 +56,8 @@ def test_payload_structure_and_thresholds():
     assert p["families"][0]["label"] == "molecular imaging"
     assert "facA" in p["faculty"]
     assert "tool_000002" in p["grant_signal"]
+    # #193: per-publication context rides the payload (split into a sidecar at publish).
+    assert p["tool_context"]["tool_000001"]["39000001"].startswith("for stochastic")
     # payload is fully JSON-serializable
     json.loads(json.dumps(p))
 
@@ -90,6 +95,7 @@ def test_publish_real_uploads_each_object():
         assert cc[k] == "max-age=60, must-revalidate", k
     assert cc["tools/families.json"] is None
     assert cc["tools/faculty.json"] is None
+    assert cc["tools/tool_context.json"] is None  # flat sidecar keeps the no-cache posture
 
 
 def test_publish_manifest_integrity_and_latest_mirror():
@@ -104,14 +110,14 @@ def test_publish_manifest_integrity_and_latest_mirror():
     publish_artifacts(p, s3_client=_CapS3(), dry_run=False)
 
     # latest/ copies are byte-identical to the flat copies.
-    for name in ("tools.json", "families.json", "faculty.json"):
+    for name in ("tools.json", "families.json", "faculty.json", "tool_context.json"):
         assert bodies[f"tools/latest/{name}"] == bodies[f"tools/{name}"], name
 
     manifest = json.loads(bodies["tools/latest/manifest.json"])
     assert manifest["schema_version"] == "tools-a2-v2"
     assert "taxonomy_version" not in manifest  # deliberately omitted
     # objects{} integrity: sha256 + bytes match the exact uploaded latest/ bytes.
-    for name in ("tools.json", "families.json", "faculty.json"):
+    for name in ("tools.json", "families.json", "faculty.json", "tool_context.json"):
         body = bodies[f"tools/latest/{name}"]
         obj = manifest["objects"][name]
         assert obj["key"] == f"tools/latest/{name}"
@@ -121,4 +127,11 @@ def test_publish_manifest_integrity_and_latest_mirror():
     tools_body = bodies["tools/latest/tools.json"]
     assert manifest["sha256"] == hashlib.sha256(tools_body).hexdigest()
     assert manifest["artifact_bytes"] == len(tools_body)
-    assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1}
+    assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1, "tool_context": 1}
+
+    # #193 sidecar contract: the bundle stays lean (no context map inlined); the
+    # sidecar carries the cid→{pmid: snippet} join data + its provenance stamp.
+    assert b"tool_context" not in tools_body
+    sidecar = json.loads(bodies["tools/latest/tool_context.json"])
+    assert sidecar["tool_context_kind"] == "tool_usage_snippet"
+    assert sidecar["tool_context"]["tool_000001"]["39000001"].startswith("for stochastic")

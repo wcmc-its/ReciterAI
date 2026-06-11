@@ -98,6 +98,7 @@ class CorpusResult:
     exceptions: list[dict] = field(default_factory=list)     # §9c bounded queue
     faculty_rollup: dict = field(default_factory=dict)       # Step F: cwid -> {tools, families}
     grant_signal: dict = field(default_factory=dict)         # cid -> {appl_ids, investigator_cwids}
+    tool_context: dict = field(default_factory=dict)         # #193 sidecar source: cid -> {pmid: snippet}
     relabel_deltas: list[dict] = field(default_factory=list)
     merge_deltas: list[dict] = field(default_factory=list)
     override_deltas: list[dict] = field(default_factory=list)  # D-07 fix batch (v6→v7)
@@ -120,6 +121,7 @@ class _UniqueMention:
     context: str | None
     pub_count: int           # distinct PUBLICATION pmids (prominence hint for classify + mint order)
     occurrences: list[dict]  # [{pmid, source_kind, cwid, author_role}] exploded over authors
+    context_by_pmid: dict[str, str] = field(default_factory=dict)  # #193 per-pub usage snippet (pmid -> longest)
 
 
 def _explode_occurrences(mention: dict) -> list[dict]:
@@ -163,6 +165,7 @@ def group_mentions(mentions: list[dict]) -> list[_UniqueMention]:
                 "context": None,
                 "occurrences": [],
                 "pub_pmids": set(),
+                "context_by_pmid": {},  # #193 per-publication context (pmid -> longest snippet)
             }
             groups[key] = g
         g["names"][raw] += 1
@@ -178,6 +181,10 @@ def group_mentions(mentions: list[dict]) -> list[_UniqueMention]:
             pmid = str(m.get("pmid") or "")
             if pmid:
                 g["pub_pmids"].add(pmid)
+                # #193: keep the longest snippet per pmid (grants excluded — they
+                # never join the faculty rollup, which is publication-pmid keyed).
+                if ctx and len(ctx) > len(g["context_by_pmid"].get(pmid, "")):
+                    g["context_by_pmid"][pmid] = ctx
 
     out: list[_UniqueMention] = []
     for key, g in groups.items():
@@ -191,6 +198,7 @@ def group_mentions(mentions: list[dict]) -> list[_UniqueMention]:
             context=g["context"],
             pub_count=len(g["pub_pmids"]),
             occurrences=g["occurrences"],
+            context_by_pmid=g["context_by_pmid"],
         ))
     return out
 
@@ -386,6 +394,7 @@ def run_corpus(
         rec, action = tool_registry.match_or_mint(
             raw_name=u.raw_name, display_name=u.raw_name, disposition=c["disposition"],
             pub_ids=pub_ids, context=(u.context or None),
+            context_by_pub=(u.context_by_pmid or None),
         )
         cid = rec["canonical_tool_id"]
         if action == "minted":
@@ -551,6 +560,14 @@ def run_corpus(
     # 7. §9 outputs + telemetry. ------------------------------------------------
     result = CorpusResult(tool_registry=tool_registry, family_registry=family_registry)
     result.records = _enriched_records(tool_registry, family_registry)
+    # #193: per-publication usage context, keyed by canonical_tool_id, accreted on
+    # the registry across surface forms. Kept OUT of the enriched records (so
+    # tools.json stays lean) and published as a separate tool_context.json sidecar.
+    result.tool_context = {
+        r["canonical_tool_id"]: {p: cbp[p] for p in sorted(cbp)}
+        for r in tool_registry.records()
+        if (cbp := r.get("context_by_pub"))
+    }
     result.hierarchy = _build_hierarchy(tool_registry, family_registry)
     result.exceptions = exceptions
     result.faculty_rollup = faculty_rollup
