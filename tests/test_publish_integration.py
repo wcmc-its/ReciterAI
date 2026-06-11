@@ -27,16 +27,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture(autouse=True)
 def _stub_durable_id_reconcile():
-    """Neutralize brick A's step-10 durable-id store write for this module.
+    """Neutralize the step-10 durable-id store reconcile for this module.
 
-    These tests assert the STAGE#/upload contract; the new step 10 (reconcile
+    These tests assert the STAGE#/upload contract; step 10 (the brick A/B reconcile
     into the durable id<->membership store) runs after ``write_complete`` on the
-    real path and would otherwise add ``put_item`` calls that perturb the exact
-    put-count assertions here. The store wiring itself — that it runs after
-    upload, is unreachable under --dry-run, and never fails the publish — is
-    covered end-to-end in ``tests/test_publish_durable_ids.py`` (no stub there).
+    real path (and on the skip path) and would otherwise scan/put store rows that
+    perturb the exact put-count assertions here. Stub the whole helper. The store
+    wiring itself — that it runs after upload, is unreachable under --dry-run, and
+    never fails the publish — is covered in ``tests/test_publish_durable_ids.py``
+    (no stub there).
     """
-    with patch.object(publish, "reconcile_durable_ids", MagicMock()):
+    with patch.object(publish, "reconcile_durable_id_store", MagicMock()):
         yield
 
 

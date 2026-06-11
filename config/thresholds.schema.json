@@ -247,6 +247,28 @@
       "minimum": 1,
       "maximum": 7,
       "description": "Spotlight scholar-coverage downweight: how many of a subtopic's top impact-ranked papers define its 'featured individuals' for spotlight_scholar_penalty_lambda — the first/last person_identifier of the top-N papers. 1 = only the headline paper's authors the lede names; 3 = the few papers the card actually fronts (recommended). Bounded by pool_top_papers_per_subtopic (7)."
+    },
+    "subtopic_reconcile_overlap_auto_match_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Durable-ID reconcile (#191 brick B), Stage 1: min-cardinality (Szymkiewicz–Simpson) seed-PMID overlap between a freshly re-clustered subtopic and a prior published subtopic at or above which the new cluster AUTO-ATTACHES to that prior durable id (no embedding/LLM stage). PROVISIONAL — to be sized by the forward-only Phase-1 jitter measurement; set above hierarchy_dedup_article_overlap_min (0.40) so an auto-attach is strictly stronger than 'distinct enough'."
+    },
+    "subtopic_reconcile_overlap_ambiguous_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Durable-ID reconcile (#191 brick B): floor of the ambiguous overlap band [ambiguous_min, auto_match_min). A new cluster whose best prior overlap lands in this band escalates to Stage 2 (label-embedding cosine) then Stage 3 (LLM arbiter); below it, Stage 1 contributes no candidate (likely genuinely new). Must be <= subtopic_reconcile_overlap_auto_match_min. PROVISIONAL pending the jitter measurement."
+    },
+    "subtopic_reconcile_centroid_cosine_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Durable-ID reconcile (#191 brick B), Stage 2: Titan-v2 label-embedding cosine at or above which an ambiguous-band cluster attaches to a prior subtopic on label similarity (else it escalates to the Stage-3 LLM arbiter). Reuses the proven hierarchy_dedup_cosine_min (0.75) vector space. PROVISIONAL pending the jitter measurement."
+    },
+    "subtopic_reconcile_llm_arbiter_enabled": {
+      "type": "boolean",
+      "description": "Durable-ID reconcile (#191 brick B), Stage 3 master switch. When true, clusters still ambiguous after Stages 1–2 are sent to the LLM arbiter (Bedrock Sonnet → OpenAI fallback); when false, they defer→mint, keeping the reconcile fully deterministic and offline (useful for the migration/shadow run before the LLM budget is sized)."
     }
   }
 }

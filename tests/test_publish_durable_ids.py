@@ -19,6 +19,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+import pipeline_hierarchy.subtopic_reconcile as _reconcile
+import pipeline_tools.embeddings as _embeddings
 from pipeline_hierarchy import publish
 from pipeline_hierarchy.subtopic_id_store import (
     SUBTOPIC_ID_PK_PREFIX,
@@ -27,6 +31,24 @@ from pipeline_hierarchy.subtopic_id_store import (
 from pipeline_hierarchy.subtopic_ids import is_subtopic_id
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _no_live_embed_or_llm():
+    """These tests run the REAL brick-B reconciler (reconcile_durable_id_store builds
+    it with the live Titan embedder + Bedrock arbiter). They stay AWS-free only
+    because every snapshot here is empty -> all clusters mint at Stage 1 and Stages
+    2/3 never fire. This guard makes a live embedding/LLM call RAISE, so if a future
+    fixture ever lands a cluster in the ambiguous band it fails loud here instead of
+    making a real network call / hanging CI."""
+
+    def _boom(*_a, **_k):
+        raise AssertionError("offline test reached a live embedding/LLM call")
+
+    with patch.object(_embeddings, "titan_embed", _boom), patch.object(
+        _reconcile, "_default_arbiter", _boom
+    ):
+        yield
 
 
 def _minimal_bundled_dict() -> dict:
@@ -77,6 +99,15 @@ class FakeTable:
 
     def query(self, **_kwargs):
         return {"Items": []}  # no prior complete row -> no skip
+
+    def scan(self, **_kwargs):
+        # Mirror load_id_store_snapshot's filter (SUBTOPIC_ID#/META rows only).
+        items = [
+            v
+            for (pk, sk), v in self.items.items()
+            if sk == "META" and pk.startswith(SUBTOPIC_ID_PK_PREFIX)
+        ]
+        return {"Items": items}
 
     def get_item(self, Key):
         key = (Key["PK"], Key["SK"])

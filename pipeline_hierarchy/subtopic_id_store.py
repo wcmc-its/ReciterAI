@@ -95,6 +95,19 @@ class SubtopicMatch:
     reason: str
 
 
+@dataclass(frozen=True)
+class SubtopicDefer:
+    """Brick B's third verdict: the reconcile could not confidently match the new
+    cluster to any prior id, so it is held as ambiguous and minted (conservative —
+    over-mint is recoverable, a false attach is not). Deliberately NOT a
+    ``SubtopicMatch``, so it can never satisfy ``match_or_mint``'s
+    ``isinstance(verdict, SubtopicMatch)`` attach branch. ``candidates`` records the
+    prior ids it was torn between, for the brick-C lineage pass / audit."""
+
+    reason: str = "ambiguous"
+    candidates: tuple = ()
+
+
 # ---------- pure record builders (no I/O — byte-stable, unit-testable) ----------
 
 
@@ -228,23 +241,34 @@ def write_slug_pointer(table: Any, record: dict) -> None:
 class SubtopicIdStore:
     """Match-or-mint over the durable id<->membership store.
 
-    ``match_or_mint`` is matcher-agnostic: it branches solely on whether
-    ``match()`` returned a hit. Brick B swaps the body of ``match()`` and nothing
-    else in this class changes.
+    ``match_or_mint`` is matcher-agnostic: it branches on the verdict TYPE
+    (``SubtopicMatch`` -> attach, ``SubtopicDefer`` / ``None`` -> mint). The
+    matching policy lives entirely in ``match()``:
+      - no ``reconciler`` (brick A) -> exact-slug equality;
+      - a ``reconciler`` (brick B) -> the 3-stage deterministic-first reconcile,
+        delegated to ``SubtopicReconciler.match`` (which reads a pre-run snapshot).
     """
 
-    def __init__(self, table: Any, minter: Optional[SubtopicIdMinter] = None):
+    def __init__(
+        self,
+        table: Any,
+        minter: Optional[SubtopicIdMinter] = None,
+        reconciler: Optional[Any] = None,
+    ):
         self._table = table
         self._minter = minter or SubtopicIdMinter()
+        self._reconciler = reconciler
 
-    def match(
-        self, *, slug: str, membership: Iterable, topic_id: Optional[str]
-    ) -> Optional[SubtopicMatch]:
-        """BRICK A: exact-slug equality ONLY — the seam brick B will replace.
+    def match(self, *, slug: str, membership: Iterable, topic_id: Optional[str]):
+        """Resolve a slug to a verdict: ``SubtopicMatch`` (attach), ``SubtopicDefer``
+        (held -> mint), or ``None`` (no candidate -> mint).
 
-        ``membership``/``topic_id`` are accepted now (and ignored here) so brick
-        B's deterministic-first reconcile slots in without a signature change.
+        Brick B injects a ``reconciler`` and ``match()`` delegates to it. Brick A's
+        exact-slug behavior is preserved when no reconciler is present, so brick-A
+        callers/tests are unaffected.
         """
+        if self._reconciler is not None:
+            return self._reconciler.match(slug=slug, membership=membership, topic_id=topic_id)
         durable = resolve_durable_id(self._table, slug_id=slug)
         if durable is None:
             return None
@@ -265,30 +289,32 @@ class SubtopicIdStore:
         refreshed, mint-once provenance preserved) or ``"minted"`` (no match; a
         fresh opaque id created with a slug pointer).
         """
-        hit = self.match(slug=slug, membership=membership, topic_id=topic_id)  # <- the ONLY line brick B changes
-        if hit is not None:
-            existing = get_subtopic_row(self._table, durable_id=hit.durable_id)
+        verdict = self.match(slug=slug, membership=membership, topic_id=topic_id)  # exact-slug (A) or reconcile (B)
+        if isinstance(verdict, SubtopicMatch):
+            existing = get_subtopic_row(self._table, durable_id=verdict.durable_id)
             if existing is not None:
                 self._attach(
-                    hit.durable_id,
+                    verdict.durable_id,
                     existing=existing,
                     slug=slug,
                     membership=membership,
                     topic_id=topic_id,
                     ctx=ctx,
                 )
-                return hit.durable_id, "attached"
-            # Dangling pointer: a slug pointer resolved to a durable id that has
-            # no primary row. Brick A's own writes never produce this (mint writes
-            # the META row BEFORE the pointer), so it implies external corruption
-            # or a future brick's row deletion. Re-mint an honest, fully-
-            # provenanced row instead of fabricating provenance from empty
-            # defaults; the re-mint overwrites the stale pointer, self-healing it.
+                return verdict.durable_id, "attached"
+            # Matched a durable id with no primary row. For brick A this is a
+            # dangling slug pointer; for brick B a snapshot id deleted mid-run.
+            # Brick A's mint writes the META row BEFORE the pointer, so its own
+            # writes never produce this — it implies external corruption or a
+            # future brick's deletion. Re-mint an honest, fully-provenanced row
+            # rather than fabricating provenance from empty defaults.
             _log.warning(
-                "dangling slug pointer %r -> %r (no primary row); re-minting",
+                "matched durable id %r for slug %r has no primary row; re-minting",
+                verdict.durable_id,
                 slug,
-                hit.durable_id,
             )
+        # SubtopicDefer (brick B held-as-ambiguous) or None (no candidate) -> mint.
+        # Conservative substrate: over-mint is recoverable; a false attach is not.
         return self._mint(
             slug=slug, membership=membership, topic_id=topic_id, label=label, ctx=ctx
         )
@@ -375,6 +401,7 @@ def reconcile_durable_ids(
     membership: dict,
     hierarchy: dict,
     ctx: MintContext,
+    reconciler: Optional[Any] = None,
 ) -> dict[str, int]:
     """Promote one run's membership into the durable store. Returns a summary.
 
@@ -389,8 +416,13 @@ def reconcile_durable_ids(
         for t in (hierarchy.get("topics") or {}).values()
         for s in t.get("subtopics", [])
     }
-    minted = attached = 0
     subtopics = membership.get("subtopics") or {}
+    # Brick B: resolve the whole conflict-free assignment ONCE, before the mint
+    # loop, off a pre-run snapshot — so a later sibling can't match an id minted
+    # earlier in the same pass (brick A's documented intra-run self-match guard).
+    if reconciler is not None:
+        reconciler.precompute(membership=membership, labels=labels)
+    minted = attached = 0
     for slug, entry in subtopics.items():
         _durable, action = store.match_or_mint(
             slug=slug,
@@ -403,8 +435,19 @@ def reconcile_durable_ids(
             minted += 1
         elif action == "attached":
             attached += 1
-    return {
+    summary = {
         "subtopic_count": len(subtopics),
         "minted": minted,
         "attached": attached,
     }
+    # Per-decision reason breakdown (overlap/centroid/llm/deferred) for the audit
+    # diff. Authoritative minted/attached come from the actions above; "reasons" is
+    # the reconciler's view of HOW each match was made.
+    if reconciler is not None and getattr(reconciler, "tally", None):
+        summary["reasons"] = dict(reconciler.tally)
+    # Brick-C seam (primitive splits + merge-absorbed priors), surfaced as counts;
+    # the full maps live on the reconciler (split_parents / unclaimed_priors).
+    if reconciler is not None:
+        summary["split_losers"] = len(getattr(reconciler, "split_parents", {}) or {})
+        summary["unclaimed_priors"] = len(getattr(reconciler, "unclaimed_priors", ()) or ())
+    return summary
