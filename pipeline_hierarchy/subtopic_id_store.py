@@ -69,8 +69,9 @@ PTR_SK = "PTR"
 RECORD_TYPE_SUBTOPIC_ID = "SUBTOPIC_ID"
 RECORD_TYPE_SUBTOPIC_SLUG = "SUBTOPIC_SLUG"
 
-# Default lifecycle status. Brick C (split/merge lineage) owns transitions; brick
-# A only ever writes the default.
+# Default lifecycle status. Brick F (retire policy) owns transitions
+# (demote/archive/retire); bricks A–C only ever write/preserve the default. Brick C
+# records split/merge *lineage edges* (split_from/merged_into) but never mutates status.
 STATUS_ACTIVE = "active"
 
 
@@ -160,7 +161,10 @@ def build_subtopic_id_record(
         "taxonomy_version": taxonomy_version,
         "hierarchy_version": hierarchy_version,
         "last_seen_run_id": last_seen_run_id,
-        # --- owned by brick C; brick A leaves the default ---
+        # --- status: brick F owns transitions; A–C leave the default. split_from /
+        #     merged_into (brick C lineage edges) are written post-reconcile by
+        #     set_lineage and survive an attach via the additive {**existing,**refreshed}
+        #     merge — deliberately NOT emitted here, so a refresh can never clobber them. ---
         "status": status,
         # --- mint-once: never rewritten after creation ---
         "label_at_mint": label_at_mint,
@@ -233,6 +237,37 @@ def write_subtopic_id(table: Any, record: dict) -> None:
 
 def write_slug_pointer(table: Any, record: dict) -> None:
     table.put_item(Item=record)
+
+
+def set_lineage(
+    table: Any,
+    *,
+    durable_id: str,
+    split_from: Optional[str] = None,
+    merged_into: Optional[str] = None,
+) -> bool:
+    """Brick C: write a split/merge lineage edge onto an EXISTING primary row.
+
+    Read-modify-PutItem that sets only the provided, *changed* edge(s) and preserves
+    every other field — the additive seam ``_attach`` already relies on (a column not
+    emitted by ``build_subtopic_id_record`` survives an attach). NEVER touches
+    ``status``: lifecycle transitions are brick F. Idempotent — returns ``False`` (no
+    write) when the row is absent or the edge already matches, so a content-identical
+    republish on the skip path re-writes nothing. Edges are ``durable_id`` strings, so
+    the only Decimal concern (``seed_pmids``) is closed by ``read_subtopic_row``.
+    """
+    row = read_subtopic_row(table, durable_id=durable_id)
+    if row is None:
+        return False
+    patch: dict[str, Any] = {}
+    if split_from is not None and row.get("split_from") != split_from:
+        patch["split_from"] = split_from
+    if merged_into is not None and row.get("merged_into") != merged_into:
+        patch["merged_into"] = merged_into
+    if not patch:
+        return False
+    write_subtopic_id(table, {**row, **patch})
+    return True
 
 
 # ---------- the store ----------
@@ -423,14 +458,19 @@ def reconcile_durable_ids(
     if reconciler is not None:
         reconciler.precompute(membership=membership, labels=labels)
     minted = attached = 0
+    # Capture slug -> minted/attached durable id so the brick-C lineage pass can turn
+    # the reconciler's slug-keyed split decisions into durable-id edges (the durable id
+    # for a minted-from-split child only exists after its match_or_mint runs).
+    slug_to_durable: dict[str, str] = {}
     for slug, entry in subtopics.items():
-        _durable, action = store.match_or_mint(
+        durable, action = store.match_or_mint(
             slug=slug,
             membership=entry.get("seed_pmids") or [],
             topic_id=entry.get("topic_id"),
             label=labels.get(slug, ""),
             ctx=ctx,
         )
+        slug_to_durable[slug] = durable
         if action == "minted":
             minted += 1
         elif action == "attached":
@@ -450,4 +490,63 @@ def reconcile_durable_ids(
     if reconciler is not None:
         summary["split_losers"] = len(getattr(reconciler, "split_parents", {}) or {})
         summary["unclaimed_priors"] = len(getattr(reconciler, "unclaimed_priors", ()) or ())
+        # Brick C: persist the split/merge edges B's reconcile already decided.
+        summary.update(_write_lineage(store._table, reconciler, slug_to_durable))
     return summary
+
+
+def _write_lineage(
+    table: Any,
+    reconciler: Any,
+    slug_to_durable: dict[str, str],
+) -> dict[str, int]:
+    """Brick C: persist the split/merge lineage edges brick B already decided.
+
+    Reads B's ACTUAL decisions off the reconciler (never replays the greedy claim
+    order):
+      - ``split_parents`` {minted slug -> contested prior id}: the minting loser
+        inherits ``split_from`` pointing at the prior a stronger sibling claimed.
+      - ``unclaimed_priors`` absorbed into a successor (>= the merge bar) get a
+        ``merged_into`` redirect; the rest are left untouched — brick F owns
+        demote/retire and the ``status`` transition.
+
+    Conservative substrate, two guards:
+      - mutual exclusion: ``split_parents`` values are by construction *claimed*
+        priors (``_note_split_loser`` only records a parent that is already in
+        ``claimed``), and ``unclaimed_priors = snapshot - claimed``, so the two sets
+        are disjoint today. Subtracting the split parents from the merge set is cheap
+        insurance that stays correct if that invariant ever changes;
+      - dangling-parent skip: a ``split_from`` whose parent has no live row (the
+        re-mint path) is skipped rather than written as a broken edge.
+
+    Best-effort by placement: the caller runs after the artifact is live and swallows
+    failures, so a partial lineage write never fails a publish."""
+    split_parents = getattr(reconciler, "split_parents", {}) or {}
+    unclaimed = getattr(reconciler, "unclaimed_priors", set()) or set()
+    split_written = merged_written = 0
+    # Splits: each minting loser -> split_from(the contested prior it lost).
+    for minted_slug, parent_id in sorted(split_parents.items()):
+        child = slug_to_durable.get(minted_slug)
+        if not child:
+            continue
+        if get_subtopic_row(table, durable_id=parent_id) is None:
+            continue  # dangling parent (re-mint path) — skip, don't write a broken edge
+        if set_lineage(table, durable_id=child, split_from=parent_id):
+            split_written += 1
+    # Merges: an unclaimed prior absorbed into a successor -> merged_into(successor).
+    merge_candidates = unclaimed - set(split_parents.values())
+    for prior_id in sorted(merge_candidates):
+        best = (
+            reconciler.best_successor_overlap(prior_id)
+            if hasattr(reconciler, "best_successor_overlap")
+            else None
+        )
+        if not best:
+            continue  # quiet/demote candidate -> brick F (no status mutation here)
+        succ_slug, _frac = best
+        succ_durable = slug_to_durable.get(succ_slug)
+        if not succ_durable:
+            continue
+        if set_lineage(table, durable_id=prior_id, merged_into=succ_durable):
+            merged_written += 1
+    return {"split_from_written": split_written, "merged_into_written": merged_written}

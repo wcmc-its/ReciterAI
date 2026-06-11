@@ -412,3 +412,152 @@ def test_from_config_rejects_non_boolean_arbiter_flag(tmp_path):
     }))
     with pytest.raises(ValueError, match="must be a JSON boolean"):
         ReconcileThresholds.from_config(p)
+
+
+# ---------- brick C: split/merge lineage written end-to-end via reconcile ----------
+
+
+def _seed_prior(table, did, topic, pmids, label="L"):
+    """Put a prior META row on the fake table so an attach has a row to refresh and a
+    split parent / merge target is a live (non-dangling) id."""
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}{did}", "SK": META_SK,
+        "durable_id": did, "slug_id": f"slug_{did}", "topic_id": topic,
+        "label_at_mint": label, "created_at": "2026-01-01T00:00:00Z",
+        "first_run_id": "run-0", "status": "active", "seed_pmids": list(pmids),
+    })
+
+
+def _ctx_c(run_id="run-1"):
+    return MintContext(run_id=run_id, created_at="2026-06-11T00:00:00Z",
+                       taxonomy_version="taxonomy_v2", hierarchy_version="v1")
+
+
+def test_lineage_split_writes_split_from_on_minted_loser():
+    snap = _snap(st_alpha=("aging", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "Senescence"))
+    table = _FakeTable()
+    _seed_prior(table, "st_alpha", "aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "Senescence")
+    # strong claims st_alpha; weak overlaps it 0.6 in-band but loses -> mints.
+    r = SubtopicReconciler(snap, thresholds=T, embed=_zero_embed,
+                           arbiter=lambda **k: {"verdict": "distinct", "durable_id": None})
+    store = SubtopicIdStore(table, SubtopicIdMinter(), reconciler=r)
+    membership = _mem(
+        strong=("aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        weak=("aging", [1, 2, 3, 4, 5, 6, 700, 701, 702, 703]),
+    )
+    hierarchy = {"topics": {"aging": {"subtopics": [
+        {"id": "strong", "label": "s"}, {"id": "weak", "label": "w"}]}}}
+    summary = reconcile_durable_ids(store, membership=membership, hierarchy=hierarchy,
+                                    ctx=_ctx_c(), reconciler=r)
+    assert r.split_parents["weak"] == "st_alpha"
+    assert summary["split_from_written"] == 1
+    weak_row = next(v for (_pk, sk), v in table.items.items()
+                    if sk == META_SK and v["slug_id"] == "weak")
+    assert weak_row["split_from"] == "st_alpha"
+    # the inheritor (strong attached to st_alpha) carries NO split_from
+    assert "split_from" not in table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_alpha", META_SK)]
+
+
+def test_lineage_merge_writes_merged_into_on_absorbed_prior():
+    snap = _snap(
+        st_a=("aging", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "A"),
+        st_b=("aging", {1, 2, 3, 4, 5, 6, 100, 101, 102, 103}, "B"),
+    )
+    table = _FakeTable()
+    _seed_prior(table, "st_a", "aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "A")
+    _seed_prior(table, "st_b", "aging", [1, 2, 3, 4, 5, 6, 100, 101, 102, 103], "B")
+    # 'merger' claims st_a; st_b is unclaimed but 6/10 of it moved into merger (>= 0.5).
+    r = SubtopicReconciler(snap, thresholds=T, embed=_zero_embed, arbiter=_never_arbiter)
+    store = SubtopicIdStore(table, SubtopicIdMinter(), reconciler=r)
+    membership = _mem(merger=("aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+    hierarchy = {"topics": {"aging": {"subtopics": [{"id": "merger", "label": "M"}]}}}
+    summary = reconcile_durable_ids(store, membership=membership, hierarchy=hierarchy,
+                                    ctx=_ctx_c(), reconciler=r)
+    assert "st_b" in r.unclaimed_priors
+    assert summary["merged_into_written"] == 1
+    b_row = table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_b", META_SK)]
+    assert b_row["merged_into"] == "st_a"  # redirect to where the successor lives
+    assert b_row["status"] == "active"  # untouched — demote/retire is brick F
+
+
+def test_lineage_low_overlap_unclaimed_prior_is_left_for_brick_f():
+    snap = _snap(
+        st_a=("aging", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "A"),
+        st_quiet=("aging", {200, 201, 202, 203, 204, 205, 206, 207, 208, 209}, "Quiet"),
+    )
+    table = _FakeTable()
+    _seed_prior(table, "st_a", "aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "A")
+    _seed_prior(table, "st_quiet", "aging", list(range(200, 210)), "Quiet")
+    r = SubtopicReconciler(snap, thresholds=T, embed=_zero_embed, arbiter=_never_arbiter)
+    store = SubtopicIdStore(table, SubtopicIdMinter(), reconciler=r)
+    membership = _mem(merger=("aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+    hierarchy = {"topics": {"aging": {"subtopics": [{"id": "merger", "label": "M"}]}}}
+    summary = reconcile_durable_ids(store, membership=membership, hierarchy=hierarchy,
+                                    ctx=_ctx_c(), reconciler=r)
+    assert "st_quiet" in r.unclaimed_priors  # no successor absorbed it
+    assert summary["merged_into_written"] == 0
+    quiet_row = table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_quiet", META_SK)]
+    assert "merged_into" not in quiet_row
+    assert quiet_row["status"] == "active"
+
+
+def test_lineage_split_skips_dangling_parent():
+    # split_parents points 'weak' at st_alpha, but no st_alpha row was ever written
+    # (re-mint dangling path) -> the edge is skipped, not written broken.
+    snap = _snap(st_alpha=("aging", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "Senescence"))
+    table = _FakeTable()  # deliberately NOT seeding st_alpha's META row
+    r = SubtopicReconciler(snap, thresholds=T, embed=_zero_embed,
+                           arbiter=lambda **k: {"verdict": "distinct", "durable_id": None})
+    store = SubtopicIdStore(table, SubtopicIdMinter(), reconciler=r)
+    membership = _mem(
+        strong=("aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        weak=("aging", [1, 2, 3, 4, 5, 6, 700, 701, 702, 703]),
+    )
+    hierarchy = {"topics": {"aging": {"subtopics": [
+        {"id": "strong", "label": "s"}, {"id": "weak", "label": "w"}]}}}
+    summary = reconcile_durable_ids(store, membership=membership, hierarchy=hierarchy,
+                                    ctx=_ctx_c(), reconciler=r)
+    assert r.split_parents["weak"] == "st_alpha"  # the seam still records the loss
+    assert summary["split_from_written"] == 0  # but no edge written to a missing parent
+    weak_row = next(v for (_pk, sk), v in table.items.items()
+                    if sk == META_SK and v["slug_id"] == "weak")
+    assert "split_from" not in weak_row
+
+
+def test_best_successor_overlap_uses_directional_containment():
+    # A small prior fully inside a large successor: symmetric min-card would read 1.0
+    # either way; directional |prior ∩ succ| / |prior| correctly says the prior was
+    # absorbed (2/2 = 1.0 >= merge bar).
+    snap = _snap(st_small=("aging", {1, 2}, "small"))
+    r = SubtopicReconciler(snap, thresholds=T, embed=_never_embed, arbiter=_never_arbiter)
+    r.precompute(membership=_mem(big=("aging", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])), labels={"big": "B"})
+    assert r.best_successor_overlap("st_small") == ("big", 1.0)
+
+
+def test_best_successor_overlap_below_threshold_returns_none():
+    snap = _snap(st_p=("aging", {1, 2, 3, 4}, "p"))
+    # s overlaps st_p in the ambiguous band (0.25), so it runs Stages 2/3; use the
+    # offline fakes (zero embed -> centroid miss -> distinct arbiter -> mint).
+    r = SubtopicReconciler(snap, thresholds=T, embed=_zero_embed,
+                           arbiter=lambda **k: {"verdict": "distinct", "durable_id": None})
+    # |{1,2,3,4} ∩ {1,...}| / 4 = 1/4 = 0.25 < merge bar (0.50) -> leave for brick F
+    r.precompute(membership=_mem(s=("aging", [1, 900, 901, 902])), labels={"s": "S"})
+    assert r.best_successor_overlap("st_p") is None
+
+
+def test_best_successor_overlap_respects_topic_boundary():
+    # An identical successor in a DIFFERENT topic must not count as an absorber.
+    snap = _snap(st_p=("aging", {1, 2, 3, 4}, "p"))
+    r = SubtopicReconciler(snap, thresholds=T, embed=_never_embed, arbiter=_never_arbiter)
+    r.precompute(membership=_mem(other=("cancer", [1, 2, 3, 4])), labels={"other": "O"})
+    assert r.best_successor_overlap("st_p") is None
+
+
+def test_merge_overlap_min_defaults_to_auto_match_min():
+    t = ReconcileThresholds(auto_match_min=0.5, ambiguous_min=0.2,
+                            centroid_cosine_min=0.75, llm_arbiter_enabled=True)
+    assert t.effective_merge_overlap_min == 0.5
+    t2 = ReconcileThresholds(auto_match_min=0.5, ambiguous_min=0.2,
+                             centroid_cosine_min=0.75, llm_arbiter_enabled=True,
+                             merge_overlap_min=0.7)
+    assert t2.effective_merge_overlap_min == 0.7

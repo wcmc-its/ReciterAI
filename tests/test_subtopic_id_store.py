@@ -31,6 +31,7 @@ from pipeline_hierarchy.subtopic_id_store import (
     get_subtopic_row,
     reconcile_durable_ids,
     resolve_durable_id,
+    set_lineage,
 )
 from pipeline_hierarchy.subtopic_ids import SubtopicIdMinter, is_subtopic_id
 
@@ -261,6 +262,51 @@ def test_attach_is_additive_and_preserves_unknown_future_fields():
     )
     assert t.items[key]["split_from"] == "st_parent"  # survived the attach
     assert t.items[key]["seed_pmids"] == [2]  # mutable still refreshed
+
+
+# ---------- brick C: set_lineage (split_from / merged_into edges) ----------
+
+
+def test_set_lineage_writes_split_from_and_merged_into():
+    store = _store()
+    durable, _ = store.match_or_mint(
+        slug="child", membership=[1], topic_id="aging", label="C", ctx=_ctx()
+    )
+    t = store._table
+    key = (f"{SUBTOPIC_ID_PK_PREFIX}{durable}", META_SK)
+    assert set_lineage(t, durable_id=durable, split_from="st_parent") is True
+    assert t.items[key]["split_from"] == "st_parent"
+    assert "merged_into" not in t.items[key]  # only the provided edge is written
+    # a later merged_into edge is additive and leaves split_from intact
+    assert set_lineage(t, durable_id=durable, merged_into="st_succ") is True
+    assert t.items[key]["merged_into"] == "st_succ"
+    assert t.items[key]["split_from"] == "st_parent"
+
+
+def test_set_lineage_is_idempotent_and_never_touches_status():
+    store = _store()
+    durable, _ = store.match_or_mint(
+        slug="x", membership=[1], topic_id="aging", label="X", ctx=_ctx()
+    )
+    t = store._table
+    key = (f"{SUBTOPIC_ID_PK_PREFIX}{durable}", META_SK)
+    assert set_lineage(t, durable_id=durable, split_from="st_p") is True
+    puts_after_first = t.put_calls
+    # same edge again -> no write
+    assert set_lineage(t, durable_id=durable, split_from="st_p") is False
+    assert t.put_calls == puts_after_first
+    # no edges provided -> no write
+    assert set_lineage(t, durable_id=durable) is False
+    assert t.put_calls == puts_after_first
+    # status is brick F's; brick C never mutates it
+    assert t.items[key]["status"] == STATUS_ACTIVE
+
+
+def test_set_lineage_returns_false_for_missing_row():
+    store = _store()
+    t = store._table
+    assert set_lineage(t, durable_id="st_absent", split_from="st_p") is False
+    assert t.put_calls == 0
 
 
 def test_read_subtopic_row_int_coerces_decimal_seed_pmids():

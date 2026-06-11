@@ -73,6 +73,15 @@ class ReconcileThresholds:
     ambiguous_min: float
     centroid_cosine_min: float
     llm_arbiter_enabled: bool
+    # Brick C: directional-absorb bar for marking an unclaimed prior `merged_into` a
+    # successor. Optional knob (defaults to auto_match_min — a merge is "at least as
+    # confident as an auto-match") so the forward-only jitter measurement can size it
+    # independently. PROVISIONAL like the rest.
+    merge_overlap_min: Optional[float] = None
+
+    @property
+    def effective_merge_overlap_min(self) -> float:
+        return self.merge_overlap_min if self.merge_overlap_min is not None else self.auto_match_min
 
     @classmethod
     def from_config(cls, thresholds_path=DEFAULT_THRESHOLDS_PATH) -> "ReconcileThresholds":
@@ -96,14 +105,27 @@ class ReconcileThresholds:
                 f"boolean (true/false), got {type(llm_raw).__name__} {llm_raw!r}"
             )
         llm = llm_raw
-        for name, v in (("auto_match_min", auto), ("ambiguous_min", amb), ("centroid_cosine_min", cos)):
+        # Brick C: optional — absent means "use auto_match_min" (resolved lazily by
+        # effective_merge_overlap_min), so existing configs need no change.
+        merge_raw = cfg.get("subtopic_reconcile_merge_overlap_min")
+        merge = float(merge_raw) if merge_raw is not None else None
+        checks = [("auto_match_min", auto), ("ambiguous_min", amb), ("centroid_cosine_min", cos)]
+        if merge is not None:
+            checks.append(("merge_overlap_min", merge))
+        for name, v in checks:
             if not 0.0 <= v <= 1.0:
                 raise ValueError(f"{thresholds_path}: {name}={v} outside [0, 1]")
         if amb > auto:
             raise ValueError(
                 f"{thresholds_path}: ambiguous_min ({amb}) must be <= auto_match_min ({auto})"
             )
-        return cls(auto_match_min=auto, ambiguous_min=amb, centroid_cosine_min=cos, llm_arbiter_enabled=llm)
+        return cls(
+            auto_match_min=auto,
+            ambiguous_min=amb,
+            centroid_cosine_min=cos,
+            llm_arbiter_enabled=llm,
+            merge_overlap_min=merge,
+        )
 
 
 def load_id_store_snapshot(table: Any) -> dict[str, dict]:
@@ -199,6 +221,9 @@ class SubtopicReconciler:
         self._prior_by_topic: dict[Any, dict[str, set]] = {}
         for did, row in snapshot.items():
             self._prior_by_topic.setdefault(row.get("topic_id"), {})[did] = row["seed_pmids"]
+        # This run's new-cluster seed sets by topic, retained by precompute() so brick C
+        # can decide whether a successor absorbed an unclaimed prior (best_successor_overlap).
+        self._new_by_topic: dict[Any, dict[str, set]] = {}
 
     # ---- public API ----
 
@@ -219,6 +244,10 @@ class SubtopicReconciler:
             }
             for slug, e in subs.items()
         }
+        # Retain this run's clusters by topic for brick C's merge-absorb decision.
+        self._new_by_topic = {}
+        for s, nc in new.items():
+            self._new_by_topic.setdefault(nc["topic_id"], {})[s] = nc["pmids"]
         # Processing order: strongest best-overlap (claim-agnostic) first, then slug.
         order = sorted(
             new,
@@ -239,6 +268,33 @@ class SubtopicReconciler:
         None). `membership`/`topic_id` are accepted for the store seam but unused —
         the decision was made deterministically in precompute()."""
         return self._assignment.get(slug)
+
+    def best_successor_overlap(self, prior_id: str):
+        """Brick C: the successor (this run's cluster) that best ABSORBED an unclaimed
+        prior, or None.
+
+        Uses directional containment ``|prior ∩ successor| / |prior|`` — how much of
+        the PRIOR moved into one new cluster — NOT the symmetric min-cardinality, so a
+        small new cluster fully inside a large prior does not falsely read as a merge.
+        Restricted to the prior's own topic (an id only continues within its topic).
+        Returns ``(winning slug, fraction)`` when the best successor clears
+        ``effective_merge_overlap_min``, else None — leave it for brick F. Valid only
+        after precompute()."""
+        row = self._snapshot.get(prior_id)
+        if not row:
+            return None
+        prior_pmids = row.get("seed_pmids") or set()
+        if not prior_pmids:
+            return None
+        cands = self._new_by_topic.get(row.get("topic_id"), {})
+        best_slug, best_frac = None, 0.0
+        for slug in sorted(cands):
+            frac = len(prior_pmids & cands[slug]) / len(prior_pmids)
+            if frac > best_frac:
+                best_slug, best_frac = slug, frac
+        if best_slug is not None and best_frac >= self._t.effective_merge_overlap_min:
+            return best_slug, best_frac
+        return None
 
     # ---- stages ----
 

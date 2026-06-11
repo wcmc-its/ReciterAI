@@ -269,6 +269,12 @@
     "subtopic_reconcile_llm_arbiter_enabled": {
       "type": "boolean",
       "description": "Durable-ID reconcile (#191 brick B), Stage 3 master switch. When true, clusters still ambiguous after Stages 1–2 are sent to the LLM arbiter (Bedrock Sonnet → OpenAI fallback); when false, they defer→mint, keeping the reconcile fully deterministic and offline (useful for the migration/shadow run before the LLM budget is sized)."
+    },
+    "subtopic_reconcile_merge_overlap_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Durable-ID reconcile (#191 brick C): directional-containment bar (|prior ∩ successor| / |prior|) at or above which an unclaimed prior subtopic is recorded as merged_into the successor this run absorbed it into (a redirect); below it the prior is left untouched for brick F (demote/retire). Optional — when absent the reconcile uses subtopic_reconcile_overlap_auto_match_min, so a merge is at least as confident as an auto-attach. PROVISIONAL pending the jitter measurement."
     }
   }
 }

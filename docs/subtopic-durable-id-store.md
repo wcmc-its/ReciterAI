@@ -52,12 +52,19 @@ PK: SUBTOPIC_ID#st_8pa67uyd1ib2mwwfgear8ctqvd     SK: META
   "taxonomy_version": "taxonomy_v2",                // mutable
   "hierarchy_version": "v2026-06-11",               // mutable
   "last_seen_run_id": "<uuid>",                     // mutable: refreshed each reconcile
-  "status": "active",                               // brick C owns transitions
+  "status": "active",                               // brick F owns transitions (untouched by C)
+  "split_from": "st_<parent>",                      // brick C: present only on a minted split child
+  "merged_into": "st_<successor>",                  // brick C: present only on a merge-absorbed prior (a redirect)
   "label_at_mint": "Cellular Senescence",           // mint-once: never rewritten
   "created_at": "2026-06-11T12:22:19Z",             // mint-once
   "first_run_id": "<uuid>"                          // mint-once: the run that minted
 }
 ```
+
+`split_from` / `merged_into` are **additive and conditional** — written only on the rows
+a split or merge touched, absent on every other row (consumers `.get()`). They are written
+post-reconcile by `set_lineage` (not by the record builder), so the additive
+`{**existing, **refreshed}` attach merge preserves them across later reconciles.
 
 **Slug pointer row — the slug → durable lookup**
 
@@ -123,20 +130,42 @@ The match stays **strict**: a missed match (over-mint) is recoverable by a later
 brick; a false match silently corrupts identity and is not. Over-minting is the
 designed-safe failure — so the arbiter is biased to keep clusters separate when unsure.
 
-**Seam for brick C (split/merge lineage).** Brick B's conflict resolution already
-computes the split/merge primitives and exposes them on the reconciler so brick C
-*reads* B's actual decisions rather than replaying the greedy order:
-`reconciler.split_parents` (a minted cluster → the prior it overlapped in-band but lost
-to a stronger sibling) and `reconciler.unclaimed_priors` (priors no cluster claimed —
-merge-absorbed / quiet). Brick B writes **no** `split_from`/`merged_into` edge and never
-mutates `status` — those records are brick C.
+**Brick C — split/merge lineage (implemented).** Brick B's conflict resolution computes
+the split/merge primitives and exposes them on the reconciler so brick C *reads* B's
+actual decisions rather than replaying the greedy order: `reconciler.split_parents` (a
+minted cluster → the prior it overlapped in-band but lost to a stronger sibling) and
+`reconciler.unclaimed_priors` (priors no cluster claimed — merge-absorbed / quiet). After
+the mint loop, `reconcile_durable_ids` turns these into additive edges via `set_lineage`:
+
+- **Split** — each minting loser gets `split_from` = the contested prior it lost to. The
+  inheritor (the stronger sibling that *attached* to that prior) keeps the id and history
+  and carries no edge — it *is* the continuation. A `split_from` whose parent has no live
+  row (the re-mint dangling path) is skipped, not written broken.
+- **Merge** — an unclaimed prior that a successor *absorbed* (directional containment
+  `|prior ∩ successor| / |prior|` ≥ `subtopic_reconcile_merge_overlap_min`, default
+  `auto_match_min`) gets `merged_into` = the successor's durable id, doubling as a
+  redirect. Priors below the bar are left untouched for **brick F** (demote/retire owns
+  `status`). Split parents are excluded from the merge set (they have a live split-edge
+  continuation).
+
+The whole pass is best-effort and unreachable under `--dry-run` (it lives inside the
+post-publish step-10 reconcile helper). It changes **no consumer-facing byte**: edges
+live only in the `SUBTOPIC_ID#` store.
+
+`compute_structural_diff` (`pipeline_hierarchy/diff_stats.py`) is extended to *accept*
+this lineage (slug-space `{"split": [...], "merged": [...]}`) and emit additive
+`split_subtopics` / `merged_subtopics` events, so a re-cluster reports splits and merges
+as distinct events instead of add/remove churn. It is **ready but not wired**: the
+published `diff.json` still calls it without lineage (byte-identical 4-key shape, no
+`diff_schema_version` bump). Resolving the store-derived lineage at diff time and
+surfacing the new keys is **brick D** — that schema change is a consumer-coordination
+step (SPS handling + version bump), batched with the brick-D migration below.
 
 ## Not in scope (later bricks)
 
-- **C** — split/merge lineage records (`split_from` / `merged_into`, `status`
-  transitions) layered additively over B's `split_parents` / `unclaimed_priors`.
 - **D** — migration + slug→durable alias map that repoints SPS's hierarchy and
-  spotlight ETLs (the `SUBTOPIC_SLUG#` pointer rows are the seam).
+  spotlight ETLs (the `SUBTOPIC_SLUG#` pointer rows are the seam); also wires the
+  brick-C lineage into the published `diff.json` (with the `diff_schema_version` bump).
 - **E** — skip-logic (matched clusters incur no Bedrock spend).
 - **F** — schedule (EventBridge cron) + mint/retire policy.
 
@@ -146,7 +175,9 @@ Records are byte-stable under `json.dumps(..., sort_keys=True, ensure_ascii=Fals
 for fixed inputs (the membership-sidecar posture); `seed_pmids` are int-coerced,
 de-duped, and sorted. Stage 1 is fully deterministic; Stage 2 is bit-stable once
 embeddings are cached by text; Stage 3 verdicts are cached by content hash so reruns
-reproduce. `pipeline_hierarchy.__version__` is **not** bumped by brick A *or* B —
-neither changes a produced byte, and the version feeds the publish skip-cache key (the
+reproduce. `pipeline_hierarchy.__version__` is **not** bumped by bricks A, B, *or* C —
+none changes a produced byte, and the version feeds the publish skip-cache key (the
 brick-A skip-path reconcile already runs the new matcher on a content-identical
-republish, so a bump would only force a wasteful re-upload).
+republish, so a bump would only force a wasteful re-upload). Brick C's lineage edges are
+internal store rows and its `diff.json` extension stays unwired, so `diff_schema_version`
+is unchanged too — both bumps belong to brick D when the new diff keys actually ship.
