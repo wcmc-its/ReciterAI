@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import sys
 import time
@@ -65,6 +66,11 @@ from pipeline_hierarchy.diff_stats import (
     derive_editorial_only,
 )
 from pipeline_hierarchy.generator import REPO_ROOT, SCHEMA_PATH, generate
+from pipeline_hierarchy.subtopic_id_store import (
+    MintContext,
+    SubtopicIdStore,
+    reconcile_durable_ids,
+)
 from utils.bedrock_client import MODEL_IDS_BY_STAGE
 from utils.dynamodb_helpers import get_table
 from utils.s3_client import S3HierarchyClient
@@ -296,6 +302,61 @@ EXIT_GATE_BLOCKED = 3
 EXIT_FORCE_WITHOUT_REASON = 4
 
 
+# ---------- durable id<->membership store (brick A, #191) ----------
+
+
+def reconcile_durable_id_store(
+    table: object,
+    hierarchy_dict: dict,
+    *,
+    version: Optional[str],
+    run_id: Optional[str],
+    started_at: str,
+    membership: Optional[dict] = None,
+) -> None:
+    """Promote per-subtopic membership into the durable id<->membership store.
+
+    INTERNAL-ONLY: touches only the ``SUBTOPIC_ID#`` / ``SUBTOPIC_SLUG#`` rows,
+    never any consumer-facing byte — it is called *after* hierarchy.json/manifest
+    are already published (or, on the skip path, were published by a prior
+    identical run). Never reached under ``--dry-run`` (``table`` is None there).
+
+    Best-effort: by the time this runs the artifact is already live, so a store
+    failure is logged and never fails the publish (same posture as the post-upload
+    warn gates).
+
+    Runs on BOTH the normal completion and the skip path, so deploying brick A and
+    running ``--publish`` populates the store immediately rather than waiting for
+    the next content-changing cold run. On the skip path it is an idempotent
+    re-pass (all ``attached``) once the store is populated. Inert when ``table``
+    is None or the publish ``version`` cannot be resolved.
+    """
+    if table is None or not version:
+        return
+    try:
+        if membership is None:
+            membership = build_membership(hierarchy_dict, hierarchy_version=version)
+        store = SubtopicIdStore(table)
+        summary = reconcile_durable_ids(
+            store,
+            membership=membership,
+            hierarchy=hierarchy_dict,
+            ctx=MintContext(
+                run_id=run_id,
+                created_at=started_at,
+                taxonomy_version=hierarchy_dict.get("taxonomy_version"),
+                hierarchy_version=version,
+            ),
+        )
+        print(json.dumps({"event": "durable_ids_reconciled", **summary}, indent=2))
+    except Exception as exc:  # noqa: BLE001 — artifact already live; never fail publish here
+        logging.getLogger(__name__).warning(
+            "durable-id store reconcile failed (publish unaffected; store left "
+            "unchanged): %s",
+            exc,
+        )
+
+
 # ---------- main flow ----------
 
 
@@ -405,6 +466,24 @@ def main(argv: list[str] | None = None) -> int:
                 },
                 indent=2,
             ))
+            # Brick A (#191): even on a content-identical republish, promote
+            # membership into the durable id<->membership store. The skip cache is
+            # about not re-uploading identical artifacts; the store is a separate
+            # side-effect, so this is what makes "deploy brick A, run --publish,
+            # store is populated" actually true (otherwise it would wait for the
+            # next content-changing cold run). Version comes from the prior run's
+            # output pointer (s3://.../{version}/). Idempotent + best-effort.
+            prior_version = (
+                (prior.get("output_pointer") or "").rstrip("/").rsplit("/", 1)[-1]
+                or None
+            )
+            reconcile_durable_id_store(
+                table,
+                hierarchy_dict,
+                version=prior_version,
+                run_id=run_id,
+                started_at=started_at,
+            )
             return EXIT_OK
 
     # 3. Run pre-upload gates against the bundled hierarchy.
@@ -596,6 +675,21 @@ def main(argv: list[str] | None = None) -> int:
         model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),
         force_reason=args.force_reason if (blocked and args.force) else None,
         run_id=run_id,
+    )
+
+    # 10. Promote per-subtopic membership into the durable id<->membership store
+    #     (brick A, #191). Unreachable under --dry-run (returns at the early exit
+    #     above) and runs strictly AFTER hierarchy.json/manifest are serialized +
+    #     uploaded and the STAGE# complete row is written, so it cannot alter any
+    #     consumer-facing byte. `membership` was already built at step 4b, so it is
+    #     reused here rather than rebuilt.
+    reconcile_durable_id_store(
+        table,
+        hierarchy_dict,
+        version=version,
+        run_id=run_id,
+        started_at=started_at,
+        membership=membership,
     )
 
     return EXIT_OK
