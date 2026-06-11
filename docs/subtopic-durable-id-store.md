@@ -90,22 +90,51 @@ subtopic (iterating `membership.json`, 1:1 with the published hierarchy):
   `label_at_mint`) is preserved.
 - **unknown slug → `minted`**: a fresh opaque id + slug pointer are written.
 
-`SubtopicIdStore.match(*, slug, membership, topic_id)` is a deliberate placeholder —
-**exact slug equality and nothing else**. Brick B replaces only the *body* of
-`match()` with the deterministic-first reconcile (membership-overlap →
-embedding-centroid → LLM arbiter, verdicts cached by input hash); `membership` and
-`topic_id` are already parameters so no signature change is needed, and a third
-"flagged/defer" return state can be added without touching `mint`/`attach`. This
-mirrors the proven `pipeline_tools.registry.ToolRegistry.match_or_mint` seam.
+## The match — brick B's deterministic-first reconcile
 
-The match is intentionally **strict**: a missed match (over-mint) is recoverable by a
-later brick; a false match silently corrupts membership and is not. Over-minting is
-the designed-safe failure.
+`SubtopicIdStore.match(*, slug, membership, topic_id)` was an exact-slug placeholder
+in brick A; **brick B** (`pipeline_hierarchy/subtopic_reconcile.py`) replaces it with a
+`SubtopicReconciler` that matches each new cluster against the **prior published
+snapshot** (`load_id_store_snapshot`, a one-time scan of the `SUBTOPIC_ID#` rows) in
+three deterministic-first stages, **scoped to the same topic**:
+
+1. **Membership overlap** — min-cardinality (Szymkiewicz–Simpson) seed-PMID overlap
+   (`pipeline_hierarchy/overlap.py`, shared with the D-23 dedup gate). `≥ auto_match_min`
+   auto-attaches (`reason="overlap"`); the `[ambiguous_min, auto_match_min)` band
+   escalates; below `ambiguous_min` mints.
+2. **Embedding centroid** — Titan-v2 label cosine (`pipeline_tools/embeddings`) over the
+   ambiguous band; `≥ centroid_cosine_min` attaches (`reason="centroid"`, recording the
+   realized cosine).
+3. **LLM arbiter** — Bedrock Sonnet → OpenAI fallback (`call_with_fallback`), only the
+   residual tail, with **verdicts cached on a stable content hash** (labels + sorted
+   seed_pmids + topic + prompt/model version — never an id, slug, run_id, or mint order).
+   A `distinct`/unresolved verdict → `SubtopicDefer` → mint.
+
+The whole assignment is resolved in **one deterministic `precompute()` pass** that is
+**conflict-free** (no prior id is attached by two new clusters: the highest-overlap
+claimant wins, the rest re-match against the unclaimed remainder or mint) and free of
+the intra-run self-match hazard (it reads a pre-run snapshot, never same-run mints).
+`match()` is then a pure lookup. Thresholds are config-driven
+(`config/thresholds.json` → `subtopic_reconcile_*`, **provisional pending the
+forward-only jitter measurement**); `subtopic_reconcile_llm_arbiter_enabled=false`
+makes the whole reconcile deterministic + offline (useful for a shadow run).
+
+The match stays **strict**: a missed match (over-mint) is recoverable by a later
+brick; a false match silently corrupts identity and is not. Over-minting is the
+designed-safe failure — so the arbiter is biased to keep clusters separate when unsure.
+
+**Seam for brick C (split/merge lineage).** Brick B's conflict resolution already
+computes the split/merge primitives and exposes them on the reconciler so brick C
+*reads* B's actual decisions rather than replaying the greedy order:
+`reconciler.split_parents` (a minted cluster → the prior it overlapped in-band but lost
+to a stronger sibling) and `reconciler.unclaimed_priors` (priors no cluster claimed —
+merge-absorbed / quiet). Brick B writes **no** `split_from`/`merged_into` edge and never
+mutates `status` — those records are brick C.
 
 ## Not in scope (later bricks)
 
-- **B** — the real reconcile/match key (membership overlap → centroid → LLM tail).
-- **C** — split/merge lineage (`status` transitions, `split_from` / `merged_into`).
+- **C** — split/merge lineage records (`split_from` / `merged_into`, `status`
+  transitions) layered additively over B's `split_parents` / `unclaimed_priors`.
 - **D** — migration + slug→durable alias map that repoints SPS's hierarchy and
   spotlight ETLs (the `SUBTOPIC_SLUG#` pointer rows are the seam).
 - **E** — skip-logic (matched clusters incur no Bedrock spend).
@@ -115,6 +144,9 @@ the designed-safe failure.
 
 Records are byte-stable under `json.dumps(..., sort_keys=True, ensure_ascii=False)`
 for fixed inputs (the membership-sidecar posture); `seed_pmids` are int-coerced,
-de-duped, and sorted. `pipeline_hierarchy.__version__` is **not** bumped — brick A
-changes no produced byte, and the version feeds the publish skip-cache key, so a bump
-would needlessly force a re-publish.
+de-duped, and sorted. Stage 1 is fully deterministic; Stage 2 is bit-stable once
+embeddings are cached by text; Stage 3 verdicts are cached by content hash so reruns
+reproduce. `pipeline_hierarchy.__version__` is **not** bumped by brick A *or* B —
+neither changes a produced byte, and the version feeds the publish skip-cache key (the
+brick-A skip-path reconcile already runs the new matcher on a content-identical
+republish, so a bump would only force a wasteful re-upload).

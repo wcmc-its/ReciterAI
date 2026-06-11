@@ -42,6 +42,8 @@ from itertools import combinations
 from pathlib import Path
 from datetime import datetime, timezone
 
+from pipeline_hierarchy.overlap import min_card_overlap
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -112,14 +114,10 @@ def compute_pairwise_overlap(pmid_sets: dict) -> dict:
     keys = sorted(pmid_sets.keys())
     result = {}
     for a, b in combinations(keys, 2):
-        set_a = pmid_sets[a]
-        set_b = pmid_sets[b]
-        min_card = min(len(set_a), len(set_b))
-        if min_card == 0:
-            result[(a, b)] = 0.0
-            continue
-        intersection = len(set_a & set_b)
-        result[(a, b)] = intersection / min_card
+        # Shared with the durable-ID reconcile (brick B) via pipeline_hierarchy.overlap
+        # so the metric stays one source of truth. min_card_overlap returns 0.0 when
+        # either set is empty, matching the prior inline min_card==0 -> 0.0 behavior.
+        result[(a, b)] = min_card_overlap(pmid_sets[a], pmid_sets[b])
     return result
 
 

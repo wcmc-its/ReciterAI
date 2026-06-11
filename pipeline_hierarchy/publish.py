@@ -302,7 +302,7 @@ EXIT_GATE_BLOCKED = 3
 EXIT_FORCE_WITHOUT_REASON = 4
 
 
-# ---------- durable id<->membership store (brick A, #191) ----------
+# ---------- durable id<->membership store (brick A + B, #191) ----------
 
 
 def reconcile_durable_id_store(
@@ -314,7 +314,9 @@ def reconcile_durable_id_store(
     started_at: str,
     membership: Optional[dict] = None,
 ) -> None:
-    """Promote per-subtopic membership into the durable id<->membership store.
+    """Promote per-subtopic membership into the durable id<->membership store, using
+    the brick-B deterministic-first reconcile (membership overlap -> embedding
+    centroid -> LLM arbiter) to keep stable IDs across a re-cluster.
 
     INTERNAL-ONLY: touches only the ``SUBTOPIC_ID#`` / ``SUBTOPIC_SLUG#`` rows,
     never any consumer-facing byte — it is called *after* hierarchy.json/manifest
@@ -322,21 +324,31 @@ def reconcile_durable_id_store(
     identical run). Never reached under ``--dry-run`` (``table`` is None there).
 
     Best-effort: by the time this runs the artifact is already live, so a store
-    failure is logged and never fails the publish (same posture as the post-upload
-    warn gates).
+    failure (including a thresholds-config or reconcile error) is logged and never
+    fails the publish (same posture as the post-upload warn gates).
 
-    Runs on BOTH the normal completion and the skip path, so deploying brick A and
-    running ``--publish`` populates the store immediately rather than waiting for
-    the next content-changing cold run. On the skip path it is an idempotent
-    re-pass (all ``attached``) once the store is populated. Inert when ``table``
-    is None or the publish ``version`` cannot be resolved.
+    Runs on BOTH the normal completion and the skip path, so deploying the durable-ID
+    bricks and running ``--publish`` populates/refreshes the store immediately rather
+    than waiting for the next content-changing cold run. Inert when ``table`` is None
+    or the publish ``version`` cannot be resolved.
     """
     if table is None or not version:
         return
     try:
+        # Lazy import: keeps publish's top-level imports light and avoids loading
+        # numpy/openai on a --dry-run that never reaches here.
+        from pipeline_hierarchy.subtopic_reconcile import (
+            ReconcileThresholds,
+            SubtopicReconciler,
+            load_id_store_snapshot,
+        )
+
         if membership is None:
             membership = build_membership(hierarchy_dict, hierarchy_version=version)
-        store = SubtopicIdStore(table)
+        thresholds = ReconcileThresholds.from_config()
+        snapshot = load_id_store_snapshot(table)
+        reconciler = SubtopicReconciler(snapshot, thresholds=thresholds)
+        store = SubtopicIdStore(table, reconciler=reconciler)
         summary = reconcile_durable_ids(
             store,
             membership=membership,
@@ -347,8 +359,9 @@ def reconcile_durable_id_store(
                 taxonomy_version=hierarchy_dict.get("taxonomy_version"),
                 hierarchy_version=version,
             ),
+            reconciler=reconciler,
         )
-        print(json.dumps({"event": "durable_ids_reconciled", **summary}, indent=2))
+        print(json.dumps({"event": "durable_ids_reconciled", "prior_subtopics": len(snapshot), **summary}, indent=2))
     except Exception as exc:  # noqa: BLE001 — artifact already live; never fail publish here
         logging.getLogger(__name__).warning(
             "durable-id store reconcile failed (publish unaffected; store left "
