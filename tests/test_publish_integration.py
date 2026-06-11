@@ -512,9 +512,11 @@ def _patch_io_with_s3_stub(
 
 
 def test_s3_write_order_membership_then_5_d11_steps():
-    """#191 + D-11: upload_to_s3 issues the membership sidecar FIRST, then the
-    documented 5-step D-11 sequence. Order:
+    """#191 + D-11: upload_to_s3 issues the membership + alias-map sidecars FIRST,
+    then the documented 5-step D-11 sequence. Order:
         (0) {v}/membership.json     ← #191 sidecar, consumer-irrelevant, first
+        (0b) {v}/aliases.json       ← #191 brick-D slug->durable map (here the
+                                       MagicMock store scans empty -> an empty map)
         (1) {v}/hierarchy.json, (2) {v}/hierarchy.schema.json,
         (3) {v}/diff.json, (4) {v}/manifest.json, (5) latest/manifest.json."""
     (
@@ -531,24 +533,25 @@ def test_s3_write_order_membership_then_5_d11_steps():
         _exit(cms)
 
     assert rc == publish.EXIT_OK
-    assert len(s3_stub.put_calls) == 6, (
-        f"Expected 6 S3 PutObject calls (membership + D-11 5), got {len(s3_stub.put_calls)}: "
-        f"{[c['key'] for c in s3_stub.put_calls]}"
+    assert len(s3_stub.put_calls) == 7, (
+        f"Expected 7 S3 PutObject calls (membership + aliases + D-11 5), got "
+        f"{len(s3_stub.put_calls)}: {[c['key'] for c in s3_stub.put_calls]}"
     )
     keys = [c["key"] for c in s3_stub.put_calls]
     version = fake_manifest["version"]
     assert keys[0] == f"{version}/membership.json", f"Step 0 must be {version}/membership.json (#191)"
-    assert keys[1] == f"{version}/hierarchy.json", f"Step 1 must be {version}/hierarchy.json"
-    assert keys[2] == f"{version}/hierarchy.schema.json", f"Step 2 must be {version}/hierarchy.schema.json"
-    assert keys[3] == f"{version}/diff.json", f"Step 3 must be {version}/diff.json"
-    assert keys[4] == f"{version}/manifest.json", f"Step 4 must be {version}/manifest.json"
-    assert keys[5] == "latest/manifest.json", "Step 5 must be latest/manifest.json"
+    assert keys[1] == f"{version}/aliases.json", f"Step 0b must be {version}/aliases.json (#191 brick D)"
+    assert keys[2] == f"{version}/hierarchy.json", f"Step 1 must be {version}/hierarchy.json"
+    assert keys[3] == f"{version}/hierarchy.schema.json", f"Step 2 must be {version}/hierarchy.schema.json"
+    assert keys[4] == f"{version}/diff.json", f"Step 3 must be {version}/diff.json"
+    assert keys[5] == f"{version}/manifest.json", f"Step 4 must be {version}/manifest.json"
+    assert keys[6] == "latest/manifest.json", "Step 5 must be latest/manifest.json"
 
 
 def test_cache_control_set_only_on_latest_manifest():
     """D-11: Cache-Control: max-age=60, must-revalidate must be on the LAST call
-    (latest/manifest.json) ONLY. Every other call (membership + the 4 version-pinned
-    puts) must NOT carry CacheControl."""
+    (latest/manifest.json) ONLY. Every other call (membership + aliases + the 4
+    version-pinned puts) must NOT carry CacheControl."""
     (
         p_bundle, p_table, p_generate, p_write_local, p_s3,
         table, write_local_mock, s3_stub, fake_manifest,
@@ -563,7 +566,7 @@ def test_cache_control_set_only_on_latest_manifest():
         _exit(cms)
 
     assert rc == publish.EXIT_OK
-    assert len(s3_stub.put_calls) == 6
+    assert len(s3_stub.put_calls) == 7
 
     # Last call (latest/manifest.json) must carry Cache-Control
     latest_call = s3_stub.put_calls[-1]

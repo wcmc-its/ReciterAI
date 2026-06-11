@@ -161,11 +161,42 @@ published `diff.json` still calls it without lineage (byte-identical 4-key shape
 surfacing the new keys is **brick D** — that schema change is a consumer-coordination
 step (SPS handling + version bump), batched with the brick-D migration below.
 
+## Brick D — consumer migration (in progress)
+
+Approach: **additive** — the published artifacts gain a `durable_id` companion; the
+slug `id` stays, and SPS migrates its `Subtopic` PK + deep-link join onto durable ids
+at its own pace behind a new `SubtopicAlias` redirect table. (Full plan:
+`Projects/ReciterAI - Planning/brick-d-migration-plan.md`.)
+
+**Shipped: the `aliases.json` sidecar (D2).** Each real publish co-publishes
+`s3://wcmc-reciterai-hierarchy/{version}/aliases.json` — the slug→durable map SPS's
+`SubtopicAlias` table consumes:
+
+```
+{
+  "alias_schema_version": "1.0.0",
+  "taxonomy_version": "taxonomy_v2",
+  "hierarchy_version": "v2026-06-11",
+  "subtopic_count": 1541,
+  "aliases": { "aging_cellular_senescence": { "durable_id": "st_…",
+               "parent_topic_id": "aging_geroscience", "status": "active" }, … }
+}
+```
+
+Built by `build_alias_map` from the durable-ID store, uploaded as an additive sidecar
+(`upload_to_s3` step 0b, before the manifest) — best-effort, omitted under `--dry-run`
+(no table) or on a store-scan failure. It reflects the store as of the **start** of the
+publish (the reconcile that assigns ids to *new* slugs runs at step 10, after upload),
+so a subtopic first minted in a run appears in the next publish's map — correct for a
+redirect map (a brand-new subtopic has no prior slug to alias).
+
+Still ahead in D: `durable_id` propagation onto the three consumer surfaces
+(`hierarchy.json`, `TOPIC#.primary_subtopic_id`, `spotlight.json`); the brick-C lineage
+wired into `diff.json` (with the `diff_schema_version` bump); the internal
+`SPOTLIGHT_HISTORY` slug→durable re-key; and the coordinated SPS-side repoint.
+
 ## Not in scope (later bricks)
 
-- **D** — migration + slug→durable alias map that repoints SPS's hierarchy and
-  spotlight ETLs (the `SUBTOPIC_SLUG#` pointer rows are the seam); also wires the
-  brick-C lineage into the published `diff.json` (with the `diff_schema_version` bump).
 - **E** — skip-logic (matched clusters incur no Bedrock spend).
 - **F** — schedule (EventBridge cron) + mint/retire policy.
 

@@ -255,3 +255,75 @@ def test_store_failure_does_not_fail_the_publish():
     upload.assert_called_once()
     assert table.keys_with_prefix("STAGE#")  # the complete row was still written
     assert not table.keys_with_prefix(SUBTOPIC_ID_PK_PREFIX)  # nothing minted
+
+
+# ---------- brick D: alias-map sidecar (slug -> durable) ----------
+
+
+def test_build_alias_map_bytes_returns_none_without_a_store():
+    # --dry-run binds no table; no version -> nothing to publish.
+    assert publish.build_alias_map_bytes(None, hierarchy_version="v1", taxonomy_version="t") is None
+    assert publish.build_alias_map_bytes(FakeTable(), hierarchy_version=None, taxonomy_version="t") is None
+
+
+def test_build_alias_map_bytes_serializes_the_store_snapshot():
+    table = FakeTable()
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}st_a", "SK": "META", "durable_id": "st_a",
+        "slug_id": "topic_a_alpha", "topic_id": "topic_a", "status": "active",
+        "seed_pmids": [1],
+    })
+    raw = publish.build_alias_map_bytes(table, hierarchy_version="v1", taxonomy_version="t")
+    assert raw is not None and raw.endswith(b"\n")  # byte-stable, trailing newline
+    m = json.loads(raw)
+    assert m["alias_schema_version"] == "1.0.0"
+    assert m["aliases"]["topic_a_alpha"]["durable_id"] == "st_a"
+
+
+def test_build_alias_map_bytes_is_best_effort_on_scan_failure():
+    class BoomScan(FakeTable):
+        def scan(self, **_kwargs):
+            raise RuntimeError("dynamodb unavailable")
+
+    # a scan failure yields None (sidecar omitted), never raises into the publish.
+    assert publish.build_alias_map_bytes(BoomScan(), hierarchy_version="v1", taxonomy_version="t") is None
+
+
+def test_alias_sidecar_built_from_prior_store_and_passed_to_upload():
+    # A prior publish's durable id is already in the store; this publish's alias map
+    # is built from it at step 5b and threaded into upload_to_s3 (the one-run-lag
+    # behaviour: a subtopic first minted THIS run shows up next publish).
+    table = FakeTable()
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "SK": "META", "durable_id": "st_prior",
+        "slug_id": "microbiome_research_x", "topic_id": "microbiome_research",
+        "status": "active", "seed_pmids": [99999],  # disjoint -> no Stage-2/3 embed call
+    })
+    with _patched_real_path(table) as upload:
+        rc = publish.main([])
+
+    assert rc == publish.EXIT_OK
+    alias_bytes = upload.call_args.kwargs["alias_bytes"]
+    assert alias_bytes is not None
+    m = json.loads(alias_bytes)
+    assert m["aliases"]["microbiome_research_x"]["durable_id"] == "st_prior"
+
+
+def test_upload_to_s3_includes_aliases_sidecar_only_when_provided():
+    puts: list[str] = []
+
+    class _S3:
+        def put_object(self, key, body, content_type="application/json", cache_control=None):
+            puts.append(key)
+
+    publish.upload_to_s3(
+        "v1", b"h", b"s", _fake_manifest(), b"d", s3_client=_S3(),
+        membership_bytes=b"m", alias_bytes=b"a",
+    )
+    assert "v1/aliases.json" in puts
+    puts.clear()
+    publish.upload_to_s3(
+        "v1", b"h", b"s", _fake_manifest(), b"d", s3_client=_S3(),
+        membership_bytes=b"m", alias_bytes=None,
+    )
+    assert "v1/aliases.json" not in puts
