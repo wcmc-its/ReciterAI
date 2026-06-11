@@ -98,6 +98,8 @@ def build_artifact(
     pool: list[PoolEntry],
     subtopic_metadata: dict[str, SubtopicMeta],
     taxonomy_version: str = DEFAULT_TAXONOMY_VERSION,
+    durable_map: dict[str, str] | None = None,
+    propagate_durable_ids: bool = False,
 ) -> dict:
     """Compose the spotlight.json artifact dict.
 
@@ -124,6 +126,16 @@ def build_artifact(
         Stamped into the artifact root so consumers can pin against a
         specific hierarchy snapshot. Defaults to
         ``DEFAULT_TAXONOMY_VERSION``.
+    durable_map
+        Optional ``slug subtopic_id`` → durable subtopic id lookup (#191
+        brick D3). The caller loads the durable-ID store snapshot once and
+        inverts it; this function stays pure (no config, no DynamoDB).
+    propagate_durable_ids
+        Gate for the additive ``durable_id`` companion field (#191). When
+        ``True`` and a spotlight / pool_snapshot ``subtopic_id`` resolves in
+        ``durable_map``, that entry gains a ``durable_id`` key. When the gate
+        is off (default), or the slug has no durable id yet, the key is
+        OMITTED entirely — never null — so gate-off output is byte-identical.
 
     Returns
     -------
@@ -165,29 +177,37 @@ def build_artifact(
         # D-19: display_name / short_description are UI-only. Fall back
         # to the canonical label / empty string if a slim SubtopicMeta
         # is passed (Plan 06-04's NamedTuple has no display_name field).
-        spotlight_entries.append(
-            {
-                "subtopic_id": vlede.subtopic_id,
-                "label": meta.label,
-                "display_name": getattr(meta, "display_name", meta.label),
-                "short_description": getattr(meta, "short_description", ""),
-                "parent_topic": vlede.parent_topic,
-                "lede": vlede.lede,
-                "papers": [_paper_to_json(p) for p in papers],
-                "lede_grounded_pmids": list(vlede.papers_used),
-            }
-        )
+        entry = {
+            "subtopic_id": vlede.subtopic_id,
+            "label": meta.label,
+            "display_name": getattr(meta, "display_name", meta.label),
+            "short_description": getattr(meta, "short_description", ""),
+            "parent_topic": vlede.parent_topic,
+            "lede": vlede.lede,
+            "papers": [_paper_to_json(p) for p in papers],
+            "lede_grounded_pmids": list(vlede.papers_used),
+        }
+        # #191 brick D3: additive durable id, appended last so the gate-on
+        # diff is minimal. Omitted entirely when the gate is off or the slug
+        # has no durable id yet — never null (guard on the resolved value).
+        durable = durable_map.get(vlede.subtopic_id) if (propagate_durable_ids and durable_map) else None
+        if durable:
+            entry["durable_id"] = durable
+        spotlight_entries.append(entry)
 
     pool_snapshot_entries: list[dict] = []
     for entry in pool:
-        pool_snapshot_entries.append(
-            {
-                "subtopic_id": entry.subtopic_id,
-                "pool_score": round(entry.pool_score, 4),
-                "parent_topic": entry.parent_topic,
-                "was_selected": entry.subtopic_id in selected_ids,
-            }
-        )
+        pool_entry = {
+            "subtopic_id": entry.subtopic_id,
+            "pool_score": round(entry.pool_score, 4),
+            "parent_topic": entry.parent_topic,
+            "was_selected": entry.subtopic_id in selected_ids,
+        }
+        # #191 brick D3: same additive durable id on the pool snapshot row.
+        pool_durable = durable_map.get(entry.subtopic_id) if (propagate_durable_ids and durable_map) else None
+        if pool_durable:
+            pool_entry["durable_id"] = pool_durable
+        pool_snapshot_entries.append(pool_entry)
 
     artifact = {
         "version": SPOTLIGHT_VERSION,

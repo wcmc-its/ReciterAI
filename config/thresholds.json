@@ -43,5 +43,6 @@
   "subtopic_reconcile_overlap_ambiguous_min": 0.20,
   "subtopic_reconcile_centroid_cosine_min": 0.75,
   "subtopic_reconcile_llm_arbiter_enabled": true,
-  "subtopic_reconcile_merge_overlap_min": 0.50
+  "subtopic_reconcile_merge_overlap_min": 0.50,
+  "propagate_durable_ids": false
 }
