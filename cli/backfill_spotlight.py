@@ -852,15 +852,13 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             continue
         publishable.append((sel, vlede))
 
-    # Stage 4.5: publish the best PUBLISH_TARGET of the cleared candidates (#167).
-    # The critic ran over the full ≤SELECTION_TARGET candidate pool; this
-    # truncates the cleared set to the published count so the choice reflects
-    # selection merit, not critic-clearance order. A thin pool publishes fewer.
-    # Scholar-coverage downweight (docs/spotlight-scholar-coverage-selection.md):
-    # when spotlight_scholar_penalty_lambda > 0, the truncation additionally
-    # downweights a card whose lead authors already front the page, so one lab
-    # cannot monopolize the publish. Soft — never a hard exclusion; lambda=0
-    # restores the pure sel_score truncation.
+    # Stage 4.5: select the published set from the cleared candidates (#167).
+    # Ship-all (2026-06-10): PUBLISH_TARGET == SELECTION_TARGET, so this ships
+    # EVERY cleared candidate (up to ~25) — SPS random-samples 8 of them on the
+    # home page. The scholar-coverage downweight + #167 sel_score truncation
+    # below are therefore INERT at this setting (nothing to truncate); they
+    # re-activate automatically if PUBLISH_TARGET is ever lowered below the
+    # cleared count. lambda=0 would restore the pure sel_score order.
     scholar_lambda = float(thresholds.get("spotlight_scholar_penalty_lambda", 0.0))
     scholar_depth = int(thresholds.get("spotlight_scholar_lead_depth", 3))
     if len(publishable) > PUBLISH_TARGET:
