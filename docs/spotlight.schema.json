@@ -99,6 +99,11 @@
             "pattern": "^[0-9]+$"
           },
           "description": "PMIDs the lede grounded against (editorial subset of papers). Must be a subset of papers[].pmid."
+        },
+        "durable_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Durable subtopic id (#191 brick D3), stamped additively alongside subtopic_id when the propagate_durable_ids gate is on. Absent when the gate is off or the slug has no durable id yet (one-run lag)."
         }
       }
     },
@@ -118,6 +123,11 @@
         },
         "was_selected": {
           "type": "boolean"
+        },
+        "durable_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Durable subtopic id (#191 brick D3), stamped additively alongside subtopic_id when the propagate_durable_ids gate is on. Absent when the gate is off or the slug has no durable id yet (one-run lag)."
         }
       }
     }

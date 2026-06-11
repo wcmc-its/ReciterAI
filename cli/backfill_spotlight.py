@@ -884,11 +884,29 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     _report_run_cost(cost_acc)
 
     # Stage 5: assemble.
+    # #191 brick D3: evaluate the durable-id gate at process entry and load
+    # the slug -> durable map ONCE before build_artifact (which stays pure).
+    # Gate off -> no snapshot scan -> the artifact is byte-identical to today.
+    # Only --dry-run-full / --publish reach here (plain --dry-run returns
+    # above), so AWS is available on this path.
+    propagate = bool(thresholds.get("propagate_durable_ids", False))
+    durable_map: dict[str, str] = {}
+    if propagate:
+        from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+        from utils.dynamodb_helpers import get_table, TABLE_NAME
+
+        snapshot = load_id_store_snapshot(get_table(TABLE_NAME))
+        durable_map = {
+            row["slug_id"]: d for d, row in snapshot.items() if row.get("slug_id")
+        }
+
     selected_vledes = [vlede for _, vlede in publishable]
     artifact = build_artifact(
         selected=selected_vledes,
         pool=pool,
         subtopic_metadata=subtopic_metadata,
+        durable_map=durable_map,
+        propagate_durable_ids=propagate,
     )
 
     # --dry-run-full: write local artifact, no S3.

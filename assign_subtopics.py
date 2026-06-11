@@ -134,6 +134,19 @@ def _get_threshold(key: str) -> float:
     return val
 
 
+def _get_flag(key: str, default: bool = False) -> bool:
+    """Bool-safe config flag reader (#191 brick D3).
+
+    Distinct from _get_threshold (which float()s the value and KeyErrors on a
+    missing key) so a boolean gate like "propagate_durable_ids" resolves to a
+    plain bool and a missing key falls back to `default` instead of raising.
+    """
+    global _CFG
+    if _CFG is None:
+        _CFG = _load_thresholds_cfg()
+    return bool(_CFG.get(key, default))
+
+
 def __getattr__(name: str):  # PEP 562 — module-level __getattr__
     """Defer threshold lookup until the attribute is actually read (WR-02)."""
     if name in _LAZY_THRESHOLD_ATTRS:
@@ -580,6 +593,8 @@ def _process_pmid(
     stage_table=None,
     thresholds: dict | None = None,
     hierarchy_version: str = "",
+    durable_map: dict[str, str] | None = None,
+    propagate_durable_ids: bool = False,
 ) -> dict:
     """
     Worker: classify one PMID and (unless dry-run) write to every matching row.
@@ -684,6 +699,13 @@ def _process_pmid(
     if dry_run:
         return stats
 
+    # Brick D3 (#191): resolve the durable companion for the primary subtopic.
+    # None when the gate is off or the slug is unresolved -> migration omits
+    # the clause -> byte-identical write.
+    primary_durable = (
+        (durable_map or {}).get(primary) if propagate_durable_ids else None
+    )
+
     # Write to every row sharing this PMID
     for row in group["rows"]:
         try:
@@ -694,6 +716,7 @@ def _process_pmid(
                 primary_subtopic_id=primary,
                 confidences=confidences,
                 hierarchy_version=hierarchy_version,
+                primary_subtopic_durable_id=primary_durable,
             )
             stats["rows_written"] += 1
         except Exception as exc:
@@ -757,6 +780,24 @@ def run(
     t_stage_start = time.monotonic()
     # --dry-run keeps STAGE# writes off too — symmetric with publish.py.
     stage_table = None if dry_run else get_table(TABLE_NAME)
+
+    # Brick D3 (#191): durable-ID propagation gate, evaluated ONCE at process
+    # entry. When on (and not a dry-run), load the durable-ID store snapshot a
+    # single time and invert it to {slug_id -> durable_id}; the per-PMID writer
+    # consults this map, never DynamoDB. Lazy import matches publish.py so a
+    # dry-run never touches the reconcile module. stage_table is already the
+    # reciterai table here, so reuse it instead of a second get_table call.
+    propagate = _get_flag("propagate_durable_ids")
+    durable_map: dict[str, str] = {}
+    if propagate and not dry_run:
+        from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+        snapshot = load_id_store_snapshot(stage_table)
+        durable_map = {
+            row["slug_id"]: d
+            for d, row in snapshot.items()
+            if row.get("slug_id")
+        }
 
     # T6 — Phase 10 thresholds (low_confidence_floor for the
     # LOW_CONFIDENCE_ASSIGNMENT# event). Missing file is non-fatal so
@@ -929,6 +970,8 @@ def run(
             stage_table=stage_table,
             thresholds=thresholds,
             hierarchy_version=hierarchy_version,
+            durable_map=durable_map,
+            propagate_durable_ids=propagate,
         )
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:

@@ -92,6 +92,35 @@ PUBLISH_COST_USD = Decimal("0")  # the publish stage makes no Bedrock calls
 # ---------- pure helpers ----------
 
 
+def _propagate_durable_ids() -> bool:
+    """Read the `propagate_durable_ids` gate (#191 brick D3) at process entry.
+
+    Default False (companion field omitted ⇒ byte-identical to today). A missing
+    thresholds file resolves to False rather than raising, matching the dry-run /
+    bare-import posture of the neighboring best-effort store calls.
+    """
+    from utils.env_check import load_thresholds
+
+    try:
+        return bool(load_thresholds().get("propagate_durable_ids", False))
+    except FileNotFoundError:
+        return False
+
+
+def _invert_snapshot_to_durable_map(snapshot: dict) -> dict[str, str]:
+    """Invert the durable-ID store snapshot to {slug_id: durable_id} (#191 brick D3).
+
+    Pure + AWS-free so it is unit-testable. Rows without a `slug_id` are dropped,
+    so a slug that has no durable id yet simply never appears in the map (and the
+    bundler omits the companion field for it — one-run lag, never null).
+    """
+    return {
+        row["slug_id"]: durable
+        for durable, row in snapshot.items()
+        if row.get("slug_id")
+    }
+
+
 
 
 def _sha256_bytes(b: bytes) -> str:
@@ -481,18 +510,35 @@ def main(argv: list[str] | None = None) -> int:
     started_at = now_iso()
     t_start = time.monotonic()
 
+    # 0. Evaluate the durable-id propagation gate (#191 brick D3) at process entry,
+    #    then acquire the table and load/invert the durable-ID store snapshot BEFORE
+    #    bundle(), so the additive `durable_id` companion can enter hierarchy.json.
+    #    Under --dry-run, table stays None and durable_map stays {} ⇒ bundle emits
+    #    nothing new (dry-run is byte-identical). Gate off ⇒ durable_map stays {} ⇒
+    #    bundle is byte-identical and the input_hash is unchanged, so the skip cache
+    #    behaves exactly as today.
+    gate_on = _propagate_durable_ids()
+    table = None
+    durable_map: dict[str, str] = {}
+    if not args.dry_run:
+        table = get_table()
+        if gate_on:
+            from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+            snapshot = load_id_store_snapshot(table)
+            durable_map = _invert_snapshot_to_durable_map(snapshot)
+
     # 1. Bundle augmented files into the in-memory hierarchy.
     try:
-        hierarchy_dict = bundle()
+        hierarchy_dict = bundle(durable_map=durable_map, gate_on=gate_on)
     except MissingUIFieldsError as exc:
         print(f"[publish] bundler refused to ship stale data: {exc}", file=sys.stderr)
         return EXIT_BUNDLER_MISSING_FIELDS
 
-    # 2. Compute input_hash and (unless --dry-run) check skip cache.
+    # 2. Compute input_hash and (unless --dry-run) check skip cache. `table` was
+    #    already acquired at step 0 above; reuse it (do NOT call get_table() twice).
     input_hash = compute_publish_input_hash(hierarchy_dict)
-    table = None
     if not args.dry_run:
-        table = get_table()
         skip, prior = should_skip(
             table,
             stage=STAGE_NAME,
