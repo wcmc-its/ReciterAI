@@ -4,6 +4,8 @@ Canned ``embed`` only. Exercises identity resolution, accretion, the denylist,
 durable opaque ids across save/load, and the §7 cross-supercategory guard.
 """
 
+import json
+
 import pytest
 
 from pipeline_tools.embeddings import EmbeddingCache
@@ -66,6 +68,60 @@ def test_embedding_near_match_attaches_and_accretes_alias():
     assert len(reg) == 1
     assert "magnetic resonance imaging" in rec["aliases"]
     assert rec["pub_ids"] == ["PMID1", "PMID9"]
+
+
+# --- #193 per-publication context (context_by_pub) -------------------------
+
+
+def test_context_by_pub_minted_then_longer_snippet_wins_on_pmid_collision():
+    reg = ToolRegistry(cache=_cache())
+    reg.match_or_mint(raw_name="MRI scanner", pub_ids=["P1"],
+                      context_by_pub={"P1": "for imaging"})
+    # Same canonical tool, same pmid re-seen with a longer (more specific) snippet,
+    # plus a new pmid. Longer wins on collision; new pmid accretes.
+    rec, action = reg.match_or_mint(
+        raw_name="MRI scanner", pub_ids=["P1", "P2"],
+        context_by_pub={"P1": "for imaging tumor margins intraoperatively", "P2": "for staging"},
+    )
+    assert action == "attached"
+    assert rec["context_by_pub"] == {
+        "P1": "for imaging tumor margins intraoperatively",  # longer snippet retained
+        "P2": "for staging",
+    }
+    # A shorter re-sighting never displaces the longer snippet.
+    rec, _ = reg.match_or_mint(raw_name="MRI scanner", pub_ids=["P1"],
+                               context_by_pub={"P1": "scan"})
+    assert rec["context_by_pub"]["P1"] == "for imaging tumor margins intraoperatively"
+
+
+def test_context_by_pub_unions_across_surface_forms():
+    # MRI scanner and "magnetic resonance imaging" resolve to ONE canonical tool
+    # (embedding NN); their per-pmid context must union onto that record.
+    reg = ToolRegistry(cache=_cache())
+    reg.match_or_mint(raw_name="MRI scanner", pub_ids=["P1"],
+                      context_by_pub={"P1": "for imaging"})
+    rec, action = reg.match_or_mint(
+        raw_name="magnetic resonance imaging", pub_ids=["P1", "P9"],
+        context_by_pub={"P1": "for high-resolution imaging of cortical thickness", "P9": "for angiography"},
+    )
+    assert action == "attached" and len(reg) == 1
+    assert rec["context_by_pub"] == {
+        "P1": "for high-resolution imaging of cortical thickness",  # the longer of the two forms
+        "P9": "for angiography",
+    }
+
+
+def test_context_by_pub_survives_save_load_and_is_key_sorted(tmp_path):
+    reg = ToolRegistry(cache=_cache())
+    reg.match_or_mint(raw_name="MRI scanner", pub_ids=["P2", "P1"],
+                      context_by_pub={"P2": "for staging", "P1": "for imaging"})
+    rpath = tmp_path / "tool_registry.json"
+    reg.save(rpath)
+    # Persisted form is key-sorted (byte-stable across content-identical reruns).
+    saved = json.loads(rpath.read_text())
+    assert list(saved["tools"][0]["context_by_pub"]) == ["P1", "P2"]
+    reloaded = ToolRegistry.load(rpath, cache=_cache())
+    assert reloaded.get("tool_000001")["context_by_pub"] == {"P1": "for imaging", "P2": "for staging"}
 
 
 def test_orthogonal_name_mints_a_distinct_record():

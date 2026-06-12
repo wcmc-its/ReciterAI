@@ -191,9 +191,20 @@ recomputable.
 
 Every mention carries a ≤200-char grounding snippet. It drives use-context
 routing (§6.1 reagent-as-therapeutic vs probe) and is retained as
-`context_evidence` on each canonical tool in `tools.json`. **It is captured but
-not yet surfaced in the SPS UI** — an opportunity ("how WCM scholars used this"
-on tool/family pages), since the data is already there.
+`context_evidence` on each canonical tool in `tools.json`.
+
+The flat `context_evidence` list lost the link from a snippet back to the
+publication (and therefore the scholar) it describes. **#193 restores that link
+on the producer side:** `corpus_run` now keeps the longest snippet *per pmid*
+(`_UniqueMention.context_by_pmid`), the registry unions it across surface forms
+onto `context_by_pub` (the `pub_ids` accretion pattern), and `publish` emits a
+separate **`tool_context.json` sidecar** (`canonical_tool_id → {pmid: snippet}`,
+the `membership.json` sidecar pattern of #192) — kept out of the `tools.json`
+bundle so the SPS Methods lens stays lean. Because `faculty.json` already carries
+each scholar's distinct `pmids` per tool (#175), an AI overview generator joins
+`scholar → tool → pmid → snippet` with no per-scholar duplication. Contract:
+`docs/tool-context-sidecar.md`. **Still downstream / separate:** the SPS AI
+overview-generation feature itself and any UI surfacing.
 
 ### 3.8 Review-hardening + the cache-keying bug
 

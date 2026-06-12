@@ -103,6 +103,24 @@ def surface_keys(name: str) -> set[str]:
     return keys
 
 
+def _merge_context_by_pub(dst: dict, src: dict | None) -> None:
+    """Union per-publication context onto ``dst`` in place (#193).
+
+    ``context_by_pub`` is ``{pmid: usage snippet}``. Surface forms of one tool
+    (MRI ↔ magnetic resonance imaging) accrete onto the same canonical record, so
+    the same pmid can arrive from more than one form; keep the LONGER snippet on
+    collision (the most specific grounding for the overview generator). Empty
+    snippets are dropped; keys are coerced to ``str`` to match ``pub_ids``.
+    """
+    for pmid, snippet in (src or {}).items():
+        if not snippet:
+            continue
+        key = str(pmid)
+        existing = dst.get(key)
+        if existing is None or len(snippet) > len(existing):
+            dst[key] = snippet
+
+
 # ===========================================================================
 # §8 — Canonical-tool registry
 # ===========================================================================
@@ -229,6 +247,7 @@ class ToolRegistry:
         pub_ids: list | None = None,
         pub_count: int | None = None,
         context: str | None = None,
+        context_by_pub: dict | None = None,
     ) -> dict:
         """Create a new canonical tool with a durable opaque id (identity only).
 
@@ -245,6 +264,8 @@ class ToolRegistry:
         cid = self._minter.mint()
         aliases = sorted({a for a in {display_name, raw_name} if a and a.strip()})
         ids = sorted({p for p in (pub_ids or [])})
+        cbp: dict[str, str] = {}
+        _merge_context_by_pub(cbp, context_by_pub)
         rec = {
             "canonical_tool_id": cid,
             "display_name": display_name.strip(),
@@ -259,6 +280,10 @@ class ToolRegistry:
             "pub_ids": ids,
             "pub_count": int(pub_count) if pub_count is not None else len(ids),
             "context_evidence": [context] if context else [],
+            # #193: per-publication usage snippet (pmid -> longest), keyed for the
+            # scholar→tool→pmid join the overview generator runs. Published as a
+            # separate sidecar, never inlined into tools.json.
+            "context_by_pub": cbp,
         }
         self._records[cid] = rec
         self._reindex(cid)
@@ -272,6 +297,7 @@ class ToolRegistry:
         pub_ids: list | None = None,
         pub_count: int | None = None,
         context: str | None = None,
+        context_by_pub: dict | None = None,
     ) -> dict:
         """Accrete a mention onto an existing record: alias + pub_ids + context.
 
@@ -280,6 +306,10 @@ class ToolRegistry:
         double-count. The SEED ``pub_count`` (aggregate, no ids) instead SUMS on
         merge — approximate by design, since two raw seed names lack the PMID
         overlap needed to dedup (the A2 path with real ids does dedup correctly).
+
+        ``context_by_pub`` (#193) unions per-pmid usage snippets the same way
+        pub_ids union — keeping the longer snippet when the same pmid arrives via
+        a second surface form.
         """
         rec = self._records[canonical_tool_id]
         if raw_name and raw_name.strip():
@@ -291,6 +321,8 @@ class ToolRegistry:
             rec["pub_count"] = int(rec.get("pub_count", 0)) + int(pub_count)
         if context and context not in rec["context_evidence"]:
             rec["context_evidence"].append(context)
+        if context_by_pub:
+            _merge_context_by_pub(rec.setdefault("context_by_pub", {}), context_by_pub)
         self._reindex(canonical_tool_id)
         return rec
 
@@ -333,6 +365,7 @@ class ToolRegistry:
         pub_ids: list | None = None,
         pub_count: int | None = None,
         context: str | None = None,
+        context_by_pub: dict | None = None,
     ) -> tuple[dict | None, str]:
         """Resolve a mention to a record. Returns ``(record, action)``.
 
@@ -345,7 +378,10 @@ class ToolRegistry:
             return None, "denied"
         hit = self.match(raw_name)
         if hit is not None:
-            rec = self.attach(hit.key, raw_name=raw_name, pub_ids=pub_ids, pub_count=pub_count, context=context)
+            rec = self.attach(
+                hit.key, raw_name=raw_name, pub_ids=pub_ids, pub_count=pub_count,
+                context=context, context_by_pub=context_by_pub,
+            )
             return rec, "attached"
         rec = self.mint(
             display_name=display_name or raw_name,
@@ -354,6 +390,7 @@ class ToolRegistry:
             pub_ids=pub_ids,
             pub_count=pub_count,
             context=context,
+            context_by_pub=context_by_pub,
         )
         return rec, "minted"
 
@@ -373,6 +410,10 @@ class ToolRegistry:
         out["pub_ids"] = sorted(rec.get("pub_ids", []))
         # |pub_ids| when real ids exist (A2 path); else the stored seed count.
         out["pub_count"] = len(out["pub_ids"]) if out["pub_ids"] else int(rec.get("pub_count", 0))
+        # Key-sorted so the persisted record is byte-stable across content-identical
+        # re-runs (the sidecar that derives from it inherits this discipline).
+        cbp = rec.get("context_by_pub") or {}
+        out["context_by_pub"] = {p: cbp[p] for p in sorted(cbp)}
         return out
 
 
@@ -383,6 +424,9 @@ def _normalize_tool_record(rec: dict) -> dict:
     rec.setdefault("disposition", vocab.DEFAULT_DISPOSITION)
     rec.setdefault("attributes", vocab.default_attributes())
     rec.setdefault("context_evidence", [])
+    # #193 per-publication context: coerce keys to str + drop empty snippets so a
+    # record loaded from an older registry (no field) or a hand-edit normalizes cleanly.
+    rec["context_by_pub"] = {str(p): s for p, s in (rec.get("context_by_pub") or {}).items() if s}
     rec["pub_ids"] = sorted(set(rec.get("pub_ids", [])))
     rec.setdefault("pub_count", len(rec["pub_ids"]))
     for field in ("kind", "supercategory", "salience_tier", "salience_tier_basis", "member_of_family"):

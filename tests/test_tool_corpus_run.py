@@ -54,6 +54,23 @@ def test_group_dedups_by_norm_and_explodes_occurrences():
     assert grant.pub_count == 0  # grant pmid excluded from the pub-filter prominence
 
 
+def test_group_mentions_captures_longest_context_per_pmid():
+    # #193: per-publication context, keyed by pmid, longest snippet per pmid; grant
+    # mentions never contribute (the faculty rollup the sidecar joins is pub-keyed).
+    ms = [
+        _mention("Monte Carlo", "p1", "facA", ctx="for simulation"),
+        _mention("Monte Carlo", "p1", "facB", ctx="for stochastic simulation of photon transport"),
+        _mention("Monte Carlo", "p2", "facC", ctx="for sampling"),
+        _mention("Monte Carlo", "grant:g1", "facD", source="grant", ctx="grant abstract blurb"),
+    ]
+    u = {x.norm_key: x for x in group_mentions(ms)}["monte carlo"]
+    assert u.context_by_pmid == {
+        "p1": "for stochastic simulation of photon transport",  # longest snippet for p1 wins
+        "p2": "for sampling",
+    }
+    assert "grant:g1" not in u.context_by_pmid
+
+
 # --- run_corpus ------------------------------------------------------------
 
 def _stub_classify(dispmap):
@@ -122,6 +139,35 @@ def test_run_corpus_preserves_seed_ids_and_grounds_real_pub_signal():
     # junk excluded — denied, never minted.
     assert tools.is_denied("junk")
     assert "junk" not in {r["display_name"] for r in res.records}
+
+
+def test_run_corpus_emits_per_pmid_tool_context_for_the_sidecar():
+    # #193: run_corpus surfaces cid -> {pmid: snippet} on the result, so publish can
+    # split it into tool_context.json. The key (canonical_tool_id) is exactly what
+    # faculty.json carries, so the overview generator joins scholar→tool→pmid→snippet.
+    tools, fams = _seed_registries()
+    dispmap = {"MRI": {"disposition": "method_tool", "kind": "instrument",
+                       "supercategory": "imaging_image_analysis"},
+               "scRNA-seq": {"disposition": "method_tool", "kind": "method",
+                             "supercategory": "genomics_sequencing"}}
+    ms = [
+        _mention("MRI", "p1", "facA", ctx="for structural brain imaging"),
+        _mention("MRI", "p2", "facB", ctx="for cardiac perfusion mapping"),
+        _mention("scRNA-seq", "p3", "facC", ctx=None),  # a real method tool, but NO usage context
+    ]
+    res = run_corpus(ms, call_json=_stub_classify(dispmap), tool_registry=tools, family_registry=fams,
+                     force_c_terms=[], relabel=False)
+    assert res.tool_context["tool_000001"] == {
+        "p1": "for structural brain imaging",
+        "p2": "for cardiac perfusion mapping",
+    }
+    # A tool with no usage context is excluded from the sidecar entirely (the guard
+    # that keeps tool_context.json carrying only tools that have something to say).
+    scrna = next(r for r in res.records if r["display_name"] == "scRNA-seq")
+    assert scrna["canonical_tool_id"] not in res.tool_context
+    # The join key is shared with the faculty rollup (scholar→tool→pmids).
+    fac_tool_ids = {t["canonical_tool_id"] for v in res.faculty_rollup.values() for t in v["tools"]}
+    assert "tool_000001" in fac_tool_ids
 
 
 def test_supercategory_is_weighted_majority_of_member_forms_not_minter():
