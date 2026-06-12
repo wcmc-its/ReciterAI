@@ -32,6 +32,7 @@ def _result():
     th = sal.GroundedThresholds(s_spread_min=4, a_pub_floor=3, a_spread_floor=2, percentile=0.88)
     fams = [{"family_id": "fam_0001", "label": "molecular imaging", "supercategory": "imaging_image_analysis",
              "dominant_kind": "instrument", "status": "active",
+             "definition": "Imaging methods that visualize molecular and cellular processes in vivo.",
              "member_tool_ids": ["tool_000001"], "exemplar_tool_ids": ["tool_000001"]}]
     return SimpleNamespace(
         thresholds=th,
@@ -46,11 +47,16 @@ def _result():
 
 def test_payload_structure_and_thresholds():
     p = build_publish_payload(_result(), provenance={"raw_mentions": 10})
-    assert p["schema_version"] == "tools-a2-v2"
+    assert p["schema_version"] == "tools-a2-v3"
     assert p["provenance"]["raw_mentions"] == 10
     assert p["salience_thresholds"]["s_spread_min"] == 4
     assert p["tools"][0]["canonical_tool_id"] == "tool_000001"
     assert p["families"][0]["label"] == "molecular imaging"
+    # #879: render-only definition + AI-attribution source flow through to the artifact.
+    assert p["families"][0]["definition"] == (
+        "Imaging methods that visualize molecular and cellular processes in vivo."
+    )
+    assert p["families"][0]["definition_source"] == "generated"
     assert "facA" in p["faculty"]
     assert "tool_000002" in p["grant_signal"]
     # payload is fully JSON-serializable
@@ -108,7 +114,7 @@ def test_publish_manifest_integrity_and_latest_mirror():
         assert bodies[f"tools/latest/{name}"] == bodies[f"tools/{name}"], name
 
     manifest = json.loads(bodies["tools/latest/manifest.json"])
-    assert manifest["schema_version"] == "tools-a2-v2"
+    assert manifest["schema_version"] == "tools-a2-v3"
     assert "taxonomy_version" not in manifest  # deliberately omitted
     # objects{} integrity: sha256 + bytes match the exact uploaded latest/ bytes.
     for name in ("tools.json", "families.json", "faculty.json"):
