@@ -184,10 +184,12 @@ def test_empty_snapshot_returns_empty():
 
 
 def test_skip_verdicts_match_an_independent_reconcile():
-    """Determinism: the slug→durable mapping the skip pre-pass produces (skip_min=0)
-    equals the reason=='overlap' auto-matches an independent reconciler computes on the
-    same snapshot+membership — proving the skip decision is the existing reconcile's
-    Stage-1 verdict, not a divergent one."""
+    """Determinism (UNCONTESTED case): the slug→durable mapping the skip pre-pass
+    produces (skip_min=0) equals the reason=='overlap' auto-matches an independent
+    reconciler computes on the same snapshot+membership. The clusters here each own
+    their prior uncontested, so the order-invariance gate is a no-op — this covers the
+    happy path; test_contested_prior_is_withheld_despite_overlap_match covers the
+    divergence the gate exists to block."""
     snap = _snap(
         st_a=("t", {1, 2, 3, 4}, "A", "slug_a"),
         st_b=("t", {10, 11, 12, 13}, "B", "slug_b"),
@@ -221,6 +223,45 @@ def test_skip_verdicts_match_an_independent_reconcile():
     }
     assert {slug: pr.durable_id for slug, pr in skip.items()} == expected
     assert set(skip) == {"new_a", "new_b"}  # new_z minted → not skipped
+
+
+def test_contested_prior_is_withheld_despite_overlap_match():
+    """Order-invariance gate (#204 review): a cluster whose bare reconcile verdict is
+    reason=='overlap' is NOT skipped when another in-topic cluster could contest the same
+    prior. In the LIVE step-10 reconcile (stages 2/3 on) that contesting cluster can claim
+    the prior first, leaving step 10 to mint a fresh id for our cluster — so reusing the
+    prior's UI text would bind the wrong id's label. This is exactly the divergence the
+    'compare the pre-pass to itself' determinism test cannot see."""
+    snap = _snap(
+        st_p=("t", set(range(21, 41)), "P", "slug_p"),
+        st_q=("t", set(range(1, 21)), "Q", "slug_q"),
+    )
+    mem = _mem(
+        new_q=("t", list(range(1, 21))),                              # auto-match Q (1.0), ordered first
+        new_x=("t", list(range(1, 20)) + [21, 22, 23, 24, 25, 26]),   # best on Q (0.95); ambiguous on P (0.30)
+        new_y=("t", list(range(21, 37)) + [51, 52, 53, 54]),          # auto-match P (0.80)
+    )
+    prior = _prior(slug_p=("P DN", "P SD", "t"), slug_q=("Q DN", "Q SD", "t"))
+    Tt = ReconcileThresholds(0.50, 0.20, 0.75, True)
+
+    # The bare reconcile verdict for new_y IS an overlap auto-match above the skip bar...
+    recon = SubtopicReconciler(
+        snap, thresholds=ReconcileThresholds(0.50, 0.20, 0.75, False),
+        embed=lambda ts: [[0.0, 0.0] for _ in ts],
+        arbiter=lambda **k: {"verdict": "distinct", "durable_id": None}, verdict_cache={},
+    )
+    recon.precompute(membership=mem, labels={k: k for k in mem["subtopics"]})
+    vy = recon.match(slug="new_y")
+    assert isinstance(vy, SubtopicMatch) and vy.reason == "overlap" and vy.score >= 0.70
+
+    # ...but the gate withholds it because new_x contests prior P (ambiguous-band overlap),
+    # and likewise withholds new_q because new_x contests prior Q.
+    skip = compute_relabel_skip_map(
+        membership=mem, labels={k: k for k in mem["subtopics"]}, snapshot=snap,
+        prior_index=prior, reconcile_thresholds=Tt, skip_overlap_min=0.70,
+    )
+    assert "new_y" not in skip
+    assert "new_q" not in skip
 
 
 # ---------- relabel seam: _apply_skip_reuse + relabel_topic ----------
