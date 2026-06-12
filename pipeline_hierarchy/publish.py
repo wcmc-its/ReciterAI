@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import sys
 import time
@@ -55,6 +56,7 @@ from gates.registry import any_blocked, run_gates
 from pipeline_hierarchy.bundler import (
     DEFAULT_EXCLUDED_PATH,
     MissingUIFieldsError,
+    build_membership,
     bundle,
 )
 from pipeline_hierarchy.diff_stats import (
@@ -64,6 +66,12 @@ from pipeline_hierarchy.diff_stats import (
     derive_editorial_only,
 )
 from pipeline_hierarchy.generator import REPO_ROOT, SCHEMA_PATH, generate
+from pipeline_hierarchy.subtopic_id_store import (
+    MintContext,
+    SubtopicIdStore,
+    build_alias_map,
+    reconcile_durable_ids,
+)
 from utils.bedrock_client import MODEL_IDS_BY_STAGE
 from utils.dynamodb_helpers import get_table
 from utils.s3_client import S3HierarchyClient
@@ -82,6 +90,35 @@ PUBLISH_COST_USD = Decimal("0")  # the publish stage makes no Bedrock calls
 
 
 # ---------- pure helpers ----------
+
+
+def _propagate_durable_ids() -> bool:
+    """Read the `propagate_durable_ids` gate (#191 brick D3) at process entry.
+
+    Default False (companion field omitted ⇒ byte-identical to today). A missing
+    thresholds file resolves to False rather than raising, matching the dry-run /
+    bare-import posture of the neighboring best-effort store calls.
+    """
+    from utils.env_check import load_thresholds
+
+    try:
+        return bool(load_thresholds().get("propagate_durable_ids", False))
+    except FileNotFoundError:
+        return False
+
+
+def _invert_snapshot_to_durable_map(snapshot: dict) -> dict[str, str]:
+    """Invert the durable-ID store snapshot to {slug_id: durable_id} (#191 brick D3).
+
+    Pure + AWS-free so it is unit-testable. Rows without a `slug_id` are dropped,
+    so a slug that has no durable id yet simply never appears in the map (and the
+    bundler omits the companion field for it — one-run lag, never null).
+    """
+    return {
+        row["slug_id"]: durable
+        for durable, row in snapshot.items()
+        if row.get("slug_id")
+    }
 
 
 
@@ -162,6 +199,26 @@ def _scan_assign_rows_by_run_id(table: object, run_id: str) -> list[dict]:
     return [row for row in all_rows if row.get("run_id") == run_id]
 
 
+def _build_lineage_overlay(table: object) -> dict:
+    """Best-effort slug-space lineage overlay from the durable-id store for diff.json
+    (#191 brick D). Returns ``{"split": [], "merged": []}`` on any failure so the diff
+    still publishes — mirrors ``build_alias_map_bytes``'s posture (a store hiccup never
+    fails a publish). Always non-None, so diff.json consistently carries the 1.1.0
+    lineage keys (empty when the store has no settled edges yet)."""
+    try:
+        from pipeline_hierarchy.subtopic_id_store import load_lineage_overlay
+
+        return load_lineage_overlay(table)
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "lineage overlay build failed (publish unaffected; empty split/merged): %s",
+            exc,
+        )
+        return {"split": [], "merged": []}
+
+
 def compute_diff(
     *,
     prev_version: Optional[str],
@@ -198,8 +255,13 @@ def compute_diff(
             )
             prev_hierarchy = None
 
-    # 2. Structural diff (taxonomy, added/removed/renamed subtopics)
-    structural = compute_structural_diff(prev_hierarchy, new_hierarchy)
+    # 2. Structural diff + brick-D durable-id lineage overlay (slug-space, store-derived,
+    #    best-effort). Reflects lineage settled in the store (prior runs' reconcile); this
+    #    run's new edges, written post-upload at step 10, land in the next publish's diff —
+    #    the accepted one-run lag. Always non-None, so diff.json carries the 1.1.0
+    #    split/merged keys (empty when there is no lineage yet).
+    lineage = _build_lineage_overlay(table)
+    structural = compute_structural_diff(prev_hierarchy, new_hierarchy, lineage=lineage)
 
     # 3. STAGE# query for reassignment count (D-13: filtered by run_id)
     if run_id is not None:
@@ -217,6 +279,8 @@ def compute_diff(
         "added_subtopics": structural["added_subtopics"],
         "removed_subtopics": structural["removed_subtopics"],
         "renamed_subtopics": structural["renamed_subtopics"],
+        "split_subtopics": structural.get("split_subtopics", []),
+        "merged_subtopics": structural.get("merged_subtopics", []),
         "reassigned_pmid_count": reassigned,
         "editorial_only": derive_editorial_only(structural, reassigned),
     }
@@ -225,13 +289,21 @@ def compute_diff(
 # ---------- I/O helpers ----------
 
 
-def write_local(out_dir: Path, hierarchy: bytes, schema: bytes, manifest: dict) -> None:
+def write_local(
+    out_dir: Path,
+    hierarchy: bytes,
+    schema: bytes,
+    manifest: dict,
+    membership: bytes | None = None,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "hierarchy.json").write_bytes(hierarchy)
     (out_dir / "hierarchy.schema.json").write_bytes(schema)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
+    if membership is not None:
+        (out_dir / "membership.json").write_bytes(membership)
 
 
 def upload_to_s3(
@@ -241,10 +313,19 @@ def upload_to_s3(
     manifest: dict,
     diff_bytes: bytes,
     s3_client: Optional[object] = None,
+    membership_bytes: Optional[bytes] = None,
+    alias_bytes: Optional[bytes] = None,
 ) -> None:
-    """Phase 11 D-11: 5-step PutObject sequence.
+    """Phase 11 D-11: 5-step PutObject sequence (+ optional membership/alias sidecars).
 
     Order matters for consumer safety:
+    0.  {version}/membership.json   — #191 sidecar; consumer-irrelevant, so it is
+                                      uploaded FIRST (present before anything keys
+                                      off the manifest). Omitted when None.
+    0b. {version}/aliases.json      — #191 brick-D slug->durable alias map; additive
+                                      sidecar, uploaded with membership before the
+                                      manifest so it is present when SPS reads it.
+                                      Omitted when None (e.g. --dry-run / store down).
     1. {version}/hierarchy.json     — the artifact itself
     2. {version}/hierarchy.schema.json — validator for the artifact
     3. {version}/diff.json          — BEFORE manifest so consumers polling
@@ -256,6 +337,12 @@ def upload_to_s3(
     s3 = s3_client if s3_client is not None else S3HierarchyClient()
     manifest_bytes = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
 
+    # 0. {version}/membership.json — sidecar, before the consumer-facing artifact.
+    if membership_bytes is not None:
+        s3.put_object(f"{version}/membership.json", membership_bytes)
+    # 0b. {version}/aliases.json — brick-D alias map sidecar, before the manifest.
+    if alias_bytes is not None:
+        s3.put_object(f"{version}/aliases.json", alias_bytes)
     # 1. {version}/hierarchy.json
     s3.put_object(f"{version}/hierarchy.json", hierarchy)
     # 2. {version}/hierarchy.schema.json
@@ -278,6 +365,112 @@ EXIT_OK = 0
 EXIT_BUNDLER_MISSING_FIELDS = 2
 EXIT_GATE_BLOCKED = 3
 EXIT_FORCE_WITHOUT_REASON = 4
+
+
+# ---------- slug->durable alias map sidecar (brick D, #191) ----------
+
+
+def build_alias_map_bytes(
+    table: object,
+    *,
+    hierarchy_version: Optional[str],
+    taxonomy_version: Optional[str],
+) -> Optional[bytes]:
+    """Best-effort: serialize the slug->durable alias map sidecar (#191 brick D) from
+    the durable-ID store.
+
+    Returns the bytes, or ``None`` when the store is unavailable (``table is None`` —
+    e.g. ``--dry-run``) or the scan fails. Additive sidecar that no current consumer
+    reads, so an absent alias map never fails a publish (same best-effort posture as
+    the durable-id reconcile). Byte-stable serialization, like ``membership.json``.
+    """
+    if table is None or not hierarchy_version:
+        return None
+    try:
+        from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+        snapshot = load_id_store_snapshot(table)
+        alias_map = build_alias_map(
+            snapshot,
+            hierarchy_version=hierarchy_version,
+            taxonomy_version=taxonomy_version,
+        )
+        return (
+            json.dumps(alias_map, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
+    except Exception as exc:  # noqa: BLE001 — additive sidecar; never fail publish here
+        logging.getLogger(__name__).warning(
+            "alias-map build failed (publish unaffected; aliases.json omitted): %s", exc
+        )
+        return None
+
+
+# ---------- durable id<->membership store (brick A + B, #191) ----------
+
+
+def reconcile_durable_id_store(
+    table: object,
+    hierarchy_dict: dict,
+    *,
+    version: Optional[str],
+    run_id: Optional[str],
+    started_at: str,
+    membership: Optional[dict] = None,
+) -> None:
+    """Promote per-subtopic membership into the durable id<->membership store, using
+    the brick-B deterministic-first reconcile (membership overlap -> embedding
+    centroid -> LLM arbiter) to keep stable IDs across a re-cluster.
+
+    INTERNAL-ONLY: touches only the ``SUBTOPIC_ID#`` / ``SUBTOPIC_SLUG#`` rows,
+    never any consumer-facing byte — it is called *after* hierarchy.json/manifest
+    are already published (or, on the skip path, were published by a prior
+    identical run). Never reached under ``--dry-run`` (``table`` is None there).
+
+    Best-effort: by the time this runs the artifact is already live, so a store
+    failure (including a thresholds-config or reconcile error) is logged and never
+    fails the publish (same posture as the post-upload warn gates).
+
+    Runs on BOTH the normal completion and the skip path, so deploying the durable-ID
+    bricks and running ``--publish`` populates/refreshes the store immediately rather
+    than waiting for the next content-changing cold run. Inert when ``table`` is None
+    or the publish ``version`` cannot be resolved.
+    """
+    if table is None or not version:
+        return
+    try:
+        # Lazy import: keeps publish's top-level imports light and avoids loading
+        # numpy/openai on a --dry-run that never reaches here.
+        from pipeline_hierarchy.subtopic_reconcile import (
+            ReconcileThresholds,
+            SubtopicReconciler,
+            load_id_store_snapshot,
+        )
+
+        if membership is None:
+            membership = build_membership(hierarchy_dict, hierarchy_version=version)
+        thresholds = ReconcileThresholds.from_config()
+        snapshot = load_id_store_snapshot(table)
+        reconciler = SubtopicReconciler(snapshot, thresholds=thresholds)
+        store = SubtopicIdStore(table, reconciler=reconciler)
+        summary = reconcile_durable_ids(
+            store,
+            membership=membership,
+            hierarchy=hierarchy_dict,
+            ctx=MintContext(
+                run_id=run_id,
+                created_at=started_at,
+                taxonomy_version=hierarchy_dict.get("taxonomy_version"),
+                hierarchy_version=version,
+            ),
+            reconciler=reconciler,
+        )
+        print(json.dumps({"event": "durable_ids_reconciled", "prior_subtopics": len(snapshot), **summary}, indent=2))
+    except Exception as exc:  # noqa: BLE001 — artifact already live; never fail publish here
+        logging.getLogger(__name__).warning(
+            "durable-id store reconcile failed (publish unaffected; store left "
+            "unchanged): %s",
+            exc,
+        )
 
 
 # ---------- main flow ----------
@@ -344,18 +537,35 @@ def main(argv: list[str] | None = None) -> int:
     started_at = now_iso()
     t_start = time.monotonic()
 
+    # 0. Evaluate the durable-id propagation gate (#191 brick D3) at process entry,
+    #    then acquire the table and load/invert the durable-ID store snapshot BEFORE
+    #    bundle(), so the additive `durable_id` companion can enter hierarchy.json.
+    #    Under --dry-run, table stays None and durable_map stays {} ⇒ bundle emits
+    #    nothing new (dry-run is byte-identical). Gate off ⇒ durable_map stays {} ⇒
+    #    bundle is byte-identical and the input_hash is unchanged, so the skip cache
+    #    behaves exactly as today.
+    gate_on = _propagate_durable_ids()
+    table = None
+    durable_map: dict[str, str] = {}
+    if not args.dry_run:
+        table = get_table()
+        if gate_on:
+            from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+            snapshot = load_id_store_snapshot(table)
+            durable_map = _invert_snapshot_to_durable_map(snapshot)
+
     # 1. Bundle augmented files into the in-memory hierarchy.
     try:
-        hierarchy_dict = bundle()
+        hierarchy_dict = bundle(durable_map=durable_map, gate_on=gate_on)
     except MissingUIFieldsError as exc:
         print(f"[publish] bundler refused to ship stale data: {exc}", file=sys.stderr)
         return EXIT_BUNDLER_MISSING_FIELDS
 
-    # 2. Compute input_hash and (unless --dry-run) check skip cache.
+    # 2. Compute input_hash and (unless --dry-run) check skip cache. `table` was
+    #    already acquired at step 0 above; reuse it (do NOT call get_table() twice).
     input_hash = compute_publish_input_hash(hierarchy_dict)
-    table = None
     if not args.dry_run:
-        table = get_table()
         skip, prior = should_skip(
             table,
             stage=STAGE_NAME,
@@ -389,6 +599,24 @@ def main(argv: list[str] | None = None) -> int:
                 },
                 indent=2,
             ))
+            # Brick A (#191): even on a content-identical republish, promote
+            # membership into the durable id<->membership store. The skip cache is
+            # about not re-uploading identical artifacts; the store is a separate
+            # side-effect, so this is what makes "deploy brick A, run --publish,
+            # store is populated" actually true (otherwise it would wait for the
+            # next content-changing cold run). Version comes from the prior run's
+            # output pointer (s3://.../{version}/). Idempotent + best-effort.
+            prior_version = (
+                (prior.get("output_pointer") or "").rstrip("/").rsplit("/", 1)[-1]
+                or None
+            )
+            reconcile_durable_id_store(
+                table,
+                hierarchy_dict,
+                version=prior_version,
+                run_id=run_id,
+                started_at=started_at,
+            )
             return EXIT_OK
 
     # 3. Run pre-upload gates against the bundled hierarchy.
@@ -436,8 +664,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     version = manifest["version"]
 
+    # 4b. Build the per-subtopic membership sidecar (#191). Deterministic
+    # (sort_keys + sorted seed lists) so it is byte-stable across content-identical
+    # reruns, like hierarchy.json. Consumer-irrelevant; recovers the seed_pmids the
+    # bundler strips so the durable-ID reconcile stage and jitter measurement have
+    # the data they need.
+    membership = build_membership(hierarchy_dict, hierarchy_version=version)
+    membership_bytes = (
+        json.dumps(membership, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+
     out_dir = REPO_ROOT / "out" / "hierarchy" / version
-    write_local(out_dir, hierarchy_bytes, schema_bytes, manifest)
+    write_local(out_dir, hierarchy_bytes, schema_bytes, manifest, membership_bytes)
 
     print(json.dumps(
         {
@@ -447,6 +685,7 @@ def main(argv: list[str] | None = None) -> int:
             "taxonomy_version": manifest["taxonomy_version"],
             "sha256_prefix": manifest["sha256"][:12],
             "artifact_bytes": manifest["artifact_bytes"],
+            "membership_subtopics": membership["subtopic_count"],
             "input_hash_prefix": input_hash[:12],
             "gate_summaries": [
                 {"name": r.name, "passed": r.passed, "severity": r.severity}
@@ -483,14 +722,33 @@ def main(argv: list[str] | None = None) -> int:
     )
     diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
 
-    # 6. S3 upload (5-step D-11 order).
-    upload_to_s3(version, hierarchy_bytes, schema_bytes, manifest, diff_bytes, s3_client=s3)
+    # 5b. Build the brick-D slug->durable alias map sidecar from the durable-ID store
+    #     (best-effort: None if the store is unavailable; never fails the publish).
+    alias_bytes = build_alias_map_bytes(
+        table,
+        hierarchy_version=version,
+        taxonomy_version=manifest.get("taxonomy_version"),
+    )
+
+    # 6. S3 upload (5-step D-11 order + #191 membership/alias sidecars).
+    upload_to_s3(
+        version,
+        hierarchy_bytes,
+        schema_bytes,
+        manifest,
+        diff_bytes,
+        s3_client=s3,
+        membership_bytes=membership_bytes,
+        alias_bytes=alias_bytes,
+    )
     print(json.dumps(
         {
             "event": "upload_complete",
             "bucket": "wcmc-reciterai-hierarchy",
             "version": version,
             "keys": [
+                f"{version}/membership.json",
+                *([f"{version}/aliases.json"] if alias_bytes is not None else []),
                 f"{version}/hierarchy.json",
                 f"{version}/hierarchy.schema.json",
                 f"{version}/diff.json",
@@ -560,6 +818,21 @@ def main(argv: list[str] | None = None) -> int:
         model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),
         force_reason=args.force_reason if (blocked and args.force) else None,
         run_id=run_id,
+    )
+
+    # 10. Promote per-subtopic membership into the durable id<->membership store
+    #     (brick A, #191). Unreachable under --dry-run (returns at the early exit
+    #     above) and runs strictly AFTER hierarchy.json/manifest are serialized +
+    #     uploaded and the STAGE# complete row is written, so it cannot alter any
+    #     consumer-facing byte. `membership` was already built at step 4b, so it is
+    #     reused here rather than rebuilt.
+    reconcile_durable_id_store(
+        table,
+        hierarchy_dict,
+        version=version,
+        run_id=run_id,
+        started_at=started_at,
+        membership=membership,
     )
 
     return EXIT_OK

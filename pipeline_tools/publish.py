@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 #     counts; len(pmids) == pub_count) — #175.
 #   - families carry a `display` tier ∈ {feature, standard, suppressed}.
 #   - the family set is the 820 consolidation (within-supercategory merges + relabels).
-PUBLISH_SCHEMA_VERSION = "tools-a2-v2"
+PUBLISH_SCHEMA_VERSION = "tools-a2-v3"
 S3_PREFIX = "tools/"
 # #193 sidecar provenance stamp — names WHAT the snippets are (per-publication
 # tool-usage context), so a consumer never mistakes them for a definitional gloss
@@ -59,6 +59,11 @@ def _family_record(fam: dict) -> dict:
         # Consolidation display tier ∈ {feature, standard, suppressed} (null if the
         # consolidation batch was not applied). Drives the SPS Methods-lens prominence.
         "display": fam.get("display"),
+        # Render-only, capability-framed definition (#879). Null until the define pass
+        # generates it; existing consumers ignore the new field, only an updated SPS
+        # renders it. `definition_source` lets SPS attach an AI-generated disclaimer.
+        "definition": fam.get("definition"),
+        "definition_source": "generated" if fam.get("definition") else None,
         "member_tool_ids": list(fam.get("member_tool_ids", [])),
         "exemplar_tool_ids": list(fam.get("exemplar_tool_ids", [])),
     }

@@ -339,3 +339,100 @@ def test_lede_grounded_pmids_is_subset_of_papers():
     spot = art["spotlights"][0]
     paper_pmids = {p["pmid"] for p in spot["papers"]}
     assert set(spot["lede_grounded_pmids"]).issubset(paper_pmids)
+
+
+# ---------------------------------------------------------------------------
+# #191 brick D3 — additive durable_id propagation (gated by
+# propagate_durable_ids; OMITTED, never null, when the gate is off).
+# ---------------------------------------------------------------------------
+
+
+def test_durable_id_absent_when_gate_off_byte_stable():
+    """Gate off (default args): NO spotlights[] entry and NO pool_snapshot[]
+    entry carries a ``durable_id`` key — byte-identical to today (#191).
+
+    A durable_map is even supplied here to prove the gate, not the map, is
+    what controls emission: with propagate_durable_ids defaulting to False,
+    the map is ignored entirely.
+    """
+    selected, pool, sm = _build_minimal_inputs()
+    durable_map = {"st_001": "dst_0001", "st_002": "dst_0002"}
+    # Default args => gate off. Pass the map positionally-by-keyword to show
+    # it has no effect without the gate.
+    art = build_artifact(selected, pool, sm, durable_map=durable_map)
+    for entry in art["spotlights"]:
+        assert "durable_id" not in entry
+    for entry in art["pool_snapshot"]:
+        assert "durable_id" not in entry
+
+
+def test_durable_id_present_when_gate_on_for_mapped_ids():
+    """Gate on + durable_map covering some subtopic_ids: ``durable_id`` is
+    present on entries whose subtopic_id is in the map (both spotlights[] and
+    pool_snapshot[]) and OMITTED (not null) for those not in the map (#191).
+    """
+    selected, pool, sm = _build_minimal_inputs()
+    # st_001 is selected + in pool; st_002 is pool-only. Map covers only
+    # st_001 so st_002 exercises the omit-when-unmapped branch.
+    durable_map = {"st_001": "dst_0001"}
+    art = build_artifact(
+        selected, pool, sm, durable_map=durable_map, propagate_durable_ids=True
+    )
+
+    spot = art["spotlights"][0]
+    assert spot["subtopic_id"] == "st_001"
+    assert spot["durable_id"] == "dst_0001"
+
+    pool_by_id = {e["subtopic_id"]: e for e in art["pool_snapshot"]}
+    assert pool_by_id["st_001"]["durable_id"] == "dst_0001"
+    # st_002 has no durable id in the map => key OMITTED, never null.
+    assert "durable_id" not in pool_by_id["st_002"]
+
+
+def test_durable_id_omitted_when_gate_on_but_map_empty():
+    """Gate on but an empty/None durable_map resolves nothing: ``durable_id``
+    is omitted everywhere (the one-run-lag case before any slug is minted).
+    """
+    selected, pool, sm = _build_minimal_inputs()
+    art = build_artifact(
+        selected, pool, sm, durable_map={}, propagate_durable_ids=True
+    )
+    for entry in art["spotlights"]:
+        assert "durable_id" not in entry
+    for entry in art["pool_snapshot"]:
+        assert "durable_id" not in entry
+
+
+def test_schema_accepts_durable_id_on_spotlight_and_pool_snapshot():
+    """Schema: a Spotlight object and a PoolSnapshot object each WITH a
+    durable_id validate against docs/spotlight.schema.json (#191). durable_id
+    is additive (not in either ``required``), so the gate-off artifact still
+    validates and the gate-on artifact validates too.
+    """
+    schema_path = Path(__file__).parent.parent / "docs" / "spotlight.schema.json"
+    schema = json.loads(schema_path.read_text())
+    selected, pool, sm = _build_minimal_inputs()
+    durable_map = {"st_001": "dst_0001", "st_002": "dst_0002"}
+    art = build_artifact(
+        selected, pool, sm, durable_map=durable_map, propagate_durable_ids=True
+    )
+    # The selected spotlight and at least one pool row now carry durable_id.
+    assert art["spotlights"][0]["durable_id"] == "dst_0001"
+    assert any("durable_id" in e for e in art["pool_snapshot"])
+
+    errors = list(Draft202012Validator(schema).iter_errors(art))
+    assert errors == [], f"durable_id-stamped artifact must validate; got: {errors}"
+
+    # Validate the individual $defs subschemas directly for a tighter check.
+    spotlight_schema = {**schema["$defs"]["Spotlight"], "$defs": schema["$defs"]}
+    pool_schema = {**schema["$defs"]["PoolSnapshot"], "$defs": schema["$defs"]}
+    assert (
+        list(
+            Draft202012Validator(spotlight_schema).iter_errors(art["spotlights"][0])
+        )
+        == []
+    )
+    pool_with_durable = next(e for e in art["pool_snapshot"] if "durable_id" in e)
+    assert (
+        list(Draft202012Validator(pool_schema).iter_errors(pool_with_durable)) == []
+    )

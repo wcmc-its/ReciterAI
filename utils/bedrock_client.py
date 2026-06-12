@@ -59,6 +59,7 @@ MODEL_IDS_BY_STAGE: dict[str, str] = {
     "see_also_generation":     SONNET_MODEL,  # generate_see_also
     "spotlight_lede":          OPUS_MODEL,    # spotlight.lede_generator
     "spotlight_critic":        HAIKU_MODEL,   # spotlight.critic
+    "subtopic_reconcile_arbiter": SONNET_MODEL,  # durable-ID reconcile Stage-3 arbiter (#191 brick B)
 }
 
 

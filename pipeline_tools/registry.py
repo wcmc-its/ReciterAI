@@ -561,6 +561,9 @@ class FamilyRegistry:
             "exemplar_tool_ids": [tool_id],
             "status": "provisional",
             "member_display_names": [tool_text],
+            # Render-only definition (#879), accreted by the define pass on the durable
+            # id; None until generated so a re-cluster never orphans it.
+            "definition": None,
         }
         self._records[fid] = fam
         return fam
@@ -578,6 +581,21 @@ class FamilyRegistry:
         fam["label"] = label.strip()
         if status is not None:
             fam["status"] = status
+        return fam
+
+    def set_definition(
+        self, family_id: str, definition: str, *, confidence: str | None = None
+    ) -> dict:
+        """Set the render-only family definition (#879). Accretes on the durable id.
+
+        Does NOT touch status (a definition is render-only and never gates the
+        provisional→active promotion, which the relabel pass owns). ``confidence`` is
+        recorded for review triage only.
+        """
+        fam = self._records[family_id]
+        fam["definition"] = definition.strip()
+        if confidence is not None:
+            fam["definition_confidence"] = confidence
         return fam
 
     def merge_into(self, *, keep_id: str, drop_id: str) -> list[str]:
@@ -614,4 +632,5 @@ def _normalize_family_record(rec: dict) -> dict:
     rec.setdefault("status", "provisional")
     rec.setdefault("dominant_kind", None)
     rec.setdefault("member_display_names", [])
+    rec.setdefault("definition", None)  # render-only family definition (#879)
     return rec

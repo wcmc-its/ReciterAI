@@ -344,6 +344,23 @@ def test_backfill_spotlight_help_lists_all_flags():
         assert flag in result.stdout, f"missing CLI flag in --help output: {flag}"
 
 
+def test_reset_history_is_tombstoned_and_deletes_nothing(capsys):
+    """--reset-history is retired (#191 brick D): refuse + redirect, never delete.
+
+    Durable subtopic ids keep rotation history across a recompute, so the old
+    truncate-everything workflow is obsolete. The destructive scan/batch-delete (and
+    its ``input()`` confirm) are gone, so invoking the handler is side-effect-free — it
+    only prints the pointer at scripts/migrate_spotlight_history_pk.py and exits non-zero.
+    """
+    from cli.backfill_spotlight import _run_reset_history
+
+    rc = _run_reset_history()
+    out = capsys.readouterr().out
+    assert rc == 2  # refused, not 0
+    assert "RETIRED" in out
+    assert "migrate_spotlight_history_pk" in out
+
+
 # ---------------------------------------------------------------------------
 # Test 10: every spotlight module imports cleanly without AWS credentials
 # ---------------------------------------------------------------------------

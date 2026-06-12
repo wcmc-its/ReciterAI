@@ -25,6 +25,22 @@ from pipeline_hierarchy import publish
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _stub_durable_id_reconcile():
+    """Neutralize the step-10 durable-id store reconcile for this module.
+
+    These tests assert the STAGE#/upload contract; step 10 (the brick A/B reconcile
+    into the durable id<->membership store) runs after ``write_complete`` on the
+    real path (and on the skip path) and would otherwise scan/put store rows that
+    perturb the exact put-count assertions here. Stub the whole helper. The store
+    wiring itself — that it runs after upload, is unreachable under --dry-run, and
+    never fails the publish — is covered in ``tests/test_publish_durable_ids.py``
+    (no stub there).
+    """
+    with patch.object(publish, "reconcile_durable_id_store", MagicMock()):
+        yield
+
+
 # ---------- compute_publish_input_hash ----------
 
 
@@ -495,10 +511,14 @@ def _patch_io_with_s3_stub(
     )
 
 
-def test_s3_write_order_is_exactly_5_steps():
-    """D-11: upload_to_s3 must issue exactly 5 PutObjects in the documented order.
-    Order: (1) {v}/hierarchy.json, (2) {v}/hierarchy.schema.json,
-           (3) {v}/diff.json, (4) {v}/manifest.json, (5) latest/manifest.json."""
+def test_s3_write_order_membership_then_5_d11_steps():
+    """#191 + D-11: upload_to_s3 issues the membership + alias-map sidecars FIRST,
+    then the documented 5-step D-11 sequence. Order:
+        (0) {v}/membership.json     ← #191 sidecar, consumer-irrelevant, first
+        (0b) {v}/aliases.json       ← #191 brick-D slug->durable map (here the
+                                       MagicMock store scans empty -> an empty map)
+        (1) {v}/hierarchy.json, (2) {v}/hierarchy.schema.json,
+        (3) {v}/diff.json, (4) {v}/manifest.json, (5) latest/manifest.json."""
     (
         p_bundle, p_table, p_generate, p_write_local, p_s3,
         table, write_local_mock, s3_stub, fake_manifest,
@@ -513,22 +533,25 @@ def test_s3_write_order_is_exactly_5_steps():
         _exit(cms)
 
     assert rc == publish.EXIT_OK
-    assert len(s3_stub.put_calls) == 5, (
-        f"Expected 5 S3 PutObject calls (D-11), got {len(s3_stub.put_calls)}: "
-        f"{[c['key'] for c in s3_stub.put_calls]}"
+    assert len(s3_stub.put_calls) == 7, (
+        f"Expected 7 S3 PutObject calls (membership + aliases + D-11 5), got "
+        f"{len(s3_stub.put_calls)}: {[c['key'] for c in s3_stub.put_calls]}"
     )
     keys = [c["key"] for c in s3_stub.put_calls]
     version = fake_manifest["version"]
-    assert keys[0] == f"{version}/hierarchy.json", f"Step 1 must be {version}/hierarchy.json"
-    assert keys[1] == f"{version}/hierarchy.schema.json", f"Step 2 must be {version}/hierarchy.schema.json"
-    assert keys[2] == f"{version}/diff.json", f"Step 3 must be {version}/diff.json"
-    assert keys[3] == f"{version}/manifest.json", f"Step 4 must be {version}/manifest.json"
-    assert keys[4] == "latest/manifest.json", "Step 5 must be latest/manifest.json"
+    assert keys[0] == f"{version}/membership.json", f"Step 0 must be {version}/membership.json (#191)"
+    assert keys[1] == f"{version}/aliases.json", f"Step 0b must be {version}/aliases.json (#191 brick D)"
+    assert keys[2] == f"{version}/hierarchy.json", f"Step 1 must be {version}/hierarchy.json"
+    assert keys[3] == f"{version}/hierarchy.schema.json", f"Step 2 must be {version}/hierarchy.schema.json"
+    assert keys[4] == f"{version}/diff.json", f"Step 3 must be {version}/diff.json"
+    assert keys[5] == f"{version}/manifest.json", f"Step 4 must be {version}/manifest.json"
+    assert keys[6] == "latest/manifest.json", "Step 5 must be latest/manifest.json"
 
 
 def test_cache_control_set_only_on_latest_manifest():
-    """D-11: Cache-Control: max-age=60, must-revalidate must be on the 5th call
-    (latest/manifest.json) ONLY. Other 4 calls must NOT carry CacheControl."""
+    """D-11: Cache-Control: max-age=60, must-revalidate must be on the LAST call
+    (latest/manifest.json) ONLY. Every other call (membership + aliases + the 4
+    version-pinned puts) must NOT carry CacheControl."""
     (
         p_bundle, p_table, p_generate, p_write_local, p_s3,
         table, write_local_mock, s3_stub, fake_manifest,
@@ -543,19 +566,19 @@ def test_cache_control_set_only_on_latest_manifest():
         _exit(cms)
 
     assert rc == publish.EXIT_OK
-    assert len(s3_stub.put_calls) == 5
+    assert len(s3_stub.put_calls) == 7
 
-    # 5th call (latest/manifest.json) must carry Cache-Control
-    latest_call = s3_stub.put_calls[4]
+    # Last call (latest/manifest.json) must carry Cache-Control
+    latest_call = s3_stub.put_calls[-1]
     assert latest_call["key"] == "latest/manifest.json"
     assert latest_call["cache_control"] == "max-age=60, must-revalidate", (
         "latest/manifest.json must carry Cache-Control: max-age=60, must-revalidate"
     )
 
-    # Other 4 calls must NOT carry Cache-Control
-    for i, call in enumerate(s3_stub.put_calls[:4]):
+    # Every other call (membership + 4 version-pinned) must NOT carry Cache-Control
+    for call in s3_stub.put_calls[:-1]:
         assert call["cache_control"] is None, (
-            f"Call {i+1} ({call['key']}) must NOT carry cache_control, got {call['cache_control']!r}"
+            f"{call['key']} must NOT carry cache_control, got {call['cache_control']!r}"
         )
 
 
