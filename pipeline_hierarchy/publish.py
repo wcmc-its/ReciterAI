@@ -199,6 +199,26 @@ def _scan_assign_rows_by_run_id(table: object, run_id: str) -> list[dict]:
     return [row for row in all_rows if row.get("run_id") == run_id]
 
 
+def _build_lineage_overlay(table: object) -> dict:
+    """Best-effort slug-space lineage overlay from the durable-id store for diff.json
+    (#191 brick D). Returns ``{"split": [], "merged": []}`` on any failure so the diff
+    still publishes — mirrors ``build_alias_map_bytes``'s posture (a store hiccup never
+    fails a publish). Always non-None, so diff.json consistently carries the 1.1.0
+    lineage keys (empty when the store has no settled edges yet)."""
+    try:
+        from pipeline_hierarchy.subtopic_id_store import load_lineage_overlay
+
+        return load_lineage_overlay(table)
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "lineage overlay build failed (publish unaffected; empty split/merged): %s",
+            exc,
+        )
+        return {"split": [], "merged": []}
+
+
 def compute_diff(
     *,
     prev_version: Optional[str],
@@ -235,8 +255,13 @@ def compute_diff(
             )
             prev_hierarchy = None
 
-    # 2. Structural diff (taxonomy, added/removed/renamed subtopics)
-    structural = compute_structural_diff(prev_hierarchy, new_hierarchy)
+    # 2. Structural diff + brick-D durable-id lineage overlay (slug-space, store-derived,
+    #    best-effort). Reflects lineage settled in the store (prior runs' reconcile); this
+    #    run's new edges, written post-upload at step 10, land in the next publish's diff —
+    #    the accepted one-run lag. Always non-None, so diff.json carries the 1.1.0
+    #    split/merged keys (empty when there is no lineage yet).
+    lineage = _build_lineage_overlay(table)
+    structural = compute_structural_diff(prev_hierarchy, new_hierarchy, lineage=lineage)
 
     # 3. STAGE# query for reassignment count (D-13: filtered by run_id)
     if run_id is not None:
@@ -254,6 +279,8 @@ def compute_diff(
         "added_subtopics": structural["added_subtopics"],
         "removed_subtopics": structural["removed_subtopics"],
         "renamed_subtopics": structural["renamed_subtopics"],
+        "split_subtopics": structural.get("split_subtopics", []),
+        "merged_subtopics": structural.get("merged_subtopics", []),
         "reassigned_pmid_count": reassigned,
         "editorial_only": derive_editorial_only(structural, reassigned),
     }

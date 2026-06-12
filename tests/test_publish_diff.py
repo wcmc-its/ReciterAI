@@ -93,7 +93,9 @@ def test_compute_diff_happy_path_with_prev_version():
         s3_client=mock_s3,
     )
 
-    assert diff["diff_schema_version"] == "1.0.0", "D-12: must carry diff_schema_version"
+    assert diff["diff_schema_version"] == "1.1.0", "D-12: schema version (1.1.0 since brick D)"
+    assert diff["split_subtopics"] == [], "MagicMock table -> empty store -> empty lineage"
+    assert diff["merged_subtopics"] == []
     assert diff["from_version"] == "v2026-05-06"
     assert diff["to_version"] == "v2026-06-01"
     assert diff["taxonomy_version_changed"] is True
@@ -224,3 +226,70 @@ def test_compute_diff_run_id_filter():
     )
 
     assert diff["reassigned_pmid_count"] == 42, "Only run_id=abc row should be counted"
+
+
+# ---------- brick D: store-derived lineage overlay flows into diff.json ----------
+
+
+class _DiffTable:
+    """Fake DDB table for compute_diff: query() yields assign STAGE# rows;
+    scan() yields SUBTOPIC_ID#/META rows for the lineage overlay (single page)."""
+
+    def __init__(self, stage_rows, lineage_rows):
+        self._stage_rows = stage_rows
+        self._lineage_rows = lineage_rows
+
+    def query(self, **kwargs):
+        return {"Items": self._stage_rows}
+
+    def scan(self, **kwargs):
+        return {"Items": self._lineage_rows}
+
+
+def _meta_row(durable, slug, *, split_from=None, merged_into=None):
+    row = {
+        "PK": f"SUBTOPIC_ID#{durable}", "SK": "META", "record_type": "SUBTOPIC_ID",
+        "durable_id": durable, "slug_id": slug,
+    }
+    if split_from:
+        row["split_from"] = split_from
+    if merged_into:
+        row["merged_into"] = merged_into
+    return row
+
+
+def test_compute_diff_wires_store_lineage_and_bumps_schema():
+    """Brick D: durable split/merge edges in the store surface as slug-space
+    split_subtopics / merged_subtopics in diff.json, at schema 1.1.0. added/removed
+    stay authoritative, so a split/merge is never editorial_only."""
+    from pipeline_hierarchy.publish import compute_diff
+
+    prev_h = _make_hierarchy("taxonomy_v2", [_make_subtopic("aging_parent"), _make_subtopic("aging_prior")])
+    new_h = _make_hierarchy("taxonomy_v2", [
+        _make_subtopic("aging_parent"), _make_subtopic("aging_child"), _make_subtopic("aging_succ"),
+    ])
+    mock_s3 = MagicMock()
+    mock_s3.get_object_bytes.return_value = json.dumps(prev_h).encode("utf-8")
+
+    table = _DiffTable(
+        stage_rows=[],
+        lineage_rows=[
+            _meta_row("st_parent", "aging_parent"),
+            _meta_row("st_child", "aging_child", split_from="st_parent"),
+            _meta_row("st_succ", "aging_succ"),
+            _meta_row("st_prior", "aging_prior", merged_into="st_succ"),
+        ],
+    )
+
+    diff = compute_diff(
+        prev_version="v2026-05-06", new_hierarchy=new_h, to_version="v2026-06-01",
+        run_id="abc", table=table, s3_client=mock_s3,
+    )
+
+    assert diff["diff_schema_version"] == "1.1.0"
+    assert diff["split_subtopics"] == [{"id": "aging_child", "split_from": "aging_parent"}]
+    assert diff["merged_subtopics"] == [{"id": "aging_prior", "merged_into": "aging_succ"}]
+    # added/removed remain authoritative — a 1.0.0 reader is unaffected
+    assert set(diff["added_subtopics"]) == {"aging_child", "aging_succ"}
+    assert diff["removed_subtopics"] == ["aging_prior"]
+    assert diff["editorial_only"] is False  # a split/merge is never editorial-only
