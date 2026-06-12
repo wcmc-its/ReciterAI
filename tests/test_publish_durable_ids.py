@@ -309,6 +309,48 @@ def test_alias_sidecar_built_from_prior_store_and_passed_to_upload():
     assert m["aliases"]["microbiome_research_x"]["durable_id"] == "st_prior"
 
 
+# ---------- brick F PR-1: lifecycle substrate wiring (flag-on) ----------
+
+
+def test_substrate_flag_on_captures_quiet_and_candidate_without_status_change():
+    # With the substrate enabled, step 10 ALSO stamps the quiet counter on the prior
+    # row and stages the freshly-minted cluster as a SUBTOPIC_CANDIDATE# row — but
+    # writes NO status transition and gates NO mint (the mint still happens). The
+    # publish still succeeds and the event JSON is serializable.
+    import pipeline_hierarchy.subtopic_lifecycle as _lifecycle
+    from pipeline_hierarchy.subtopic_id_store import SUBTOPIC_CANDIDATE_PK_PREFIX
+
+    # floor=0 so the fixture's seedless subtopic (the bundled dict carries no PMIDs)
+    # still clears it and gets staged — exercising the create path end-to-end.
+    on = _lifecycle.LifecyclePolicy(substrate_enabled=True, mint_floor_papers=0)
+
+    table = FakeTable()
+    # seed a prior durable row that NO cluster in this run will claim (disjoint pmids)
+    # -> it should accrue consecutive_quiet_runs=1, status untouched.
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "SK": "META", "durable_id": "st_prior",
+        "slug_id": "some_other_topic_x", "topic_id": "some_other_topic",
+        "status": "active", "seed_pmids": [424242], "label_at_mint": "Prior",
+        "created_at": "2026-01-01T00:00:00Z", "first_run_id": "run-0",
+    })
+
+    with patch.object(_lifecycle.LifecyclePolicy, "from_config", classmethod(lambda cls, *a, **k: on)):
+        with _patched_real_path(table) as upload:
+            rc = publish.main([])
+
+    assert rc == publish.EXIT_OK
+    upload.assert_called_once()
+    # the new subtopic minted AND was staged as a candidate (floor=1)
+    cand_rows = table.keys_with_prefix(SUBTOPIC_CANDIDATE_PK_PREFIX)
+    assert len(cand_rows) == 1
+    cand = table.items[cand_rows[0]]
+    assert cand["seen_runs"] == 1 and cand["slug"] == "microbiome_research_x"
+    # the unclaimed prior accrued the quiet counter, status untouched (PR-1 boundary)
+    prior = table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "META")]
+    assert prior["consecutive_quiet_runs"] == 1
+    assert prior["status"] == "active"  # NO status transition in PR-1
+
+
 def test_upload_to_s3_includes_aliases_sidecar_only_when_provided():
     puts: list[str] = []
 

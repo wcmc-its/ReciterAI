@@ -20,8 +20,10 @@ from pipeline_hierarchy.bundler import MEMBERSHIP_KIND
 from pipeline_hierarchy.subtopic_id_store import (
     META_SK,
     PTR_SK,
+    RECORD_TYPE_SUBTOPIC_CANDIDATE,
     RECORD_TYPE_SUBTOPIC_ID,
     STATUS_ACTIVE,
+    SUBTOPIC_CANDIDATE_PK_PREFIX,
     SUBTOPIC_ID_PK_PREFIX,
     SUBTOPIC_SLUG_PK_PREFIX,
     ALIAS_SCHEMA_VERSION,
@@ -29,6 +31,7 @@ from pipeline_hierarchy.subtopic_id_store import (
     SubtopicIdStore,
     SubtopicMatch,
     build_alias_map,
+    build_candidate_record,
     build_slug_pointer_record,
     build_subtopic_id_record,
     get_subtopic_row,
@@ -37,16 +40,23 @@ from pipeline_hierarchy.subtopic_id_store import (
     reconcile_durable_ids,
     resolve_durable_id,
     set_lineage,
+    set_quiet_substrate,
 )
 from pipeline_hierarchy.subtopic_ids import SubtopicIdMinter, is_subtopic_id
 
 
 class FakeTable:
-    """Minimal dict-backed stand-in for a boto3 Table resource (get/put only)."""
+    """Minimal dict-backed stand-in for a boto3 Table resource.
 
-    def __init__(self):
+    get/put/delete + a filter-agnostic paginating scan, so the brick-F lifecycle
+    substrate (SUBTOPIC_CANDIDATE# Scan + delete) can be exercised offline alongside
+    the brick-A store API."""
+
+    def __init__(self, page=100):
         self.items: dict[tuple[str, str], dict] = {}
         self.put_calls = 0
+        self.delete_calls = 0
+        self._page = page
 
     def get_item(self, Key):
         key = (Key["PK"], Key["SK"])
@@ -55,6 +65,20 @@ class FakeTable:
     def put_item(self, Item):
         self.put_calls += 1
         self.items[(Item["PK"], Item["SK"])] = dict(Item)
+
+    def delete_item(self, Key):
+        self.delete_calls += 1
+        self.items.pop((Key["PK"], Key["SK"]), None)
+
+    def scan(self, **kwargs):
+        rows = list(self.items.values())
+        start = kwargs.get("ExclusiveStartKey", 0)
+        chunk = rows[start : start + self._page]
+        resp = {"Items": chunk}
+        nxt = start + self._page
+        if nxt < len(rows):
+            resp["LastEvaluatedKey"] = nxt
+        return resp
 
     def metas(self):
         return [v for (_pk, sk), v in self.items.items() if sk == META_SK]
@@ -303,7 +327,13 @@ def test_reconcile_mints_each_subtopic_including_seedless():
     m = _membership({"aging_one": [1, 2], "aging_two": []})
     h = _hierarchy(["aging_one", "aging_two"])
     summary = reconcile_durable_ids(store, membership=m, hierarchy=h, ctx=_ctx())
-    assert summary == {"subtopic_count": 2, "minted": 2, "attached": 0}
+    assert {k: summary[k] for k in ("subtopic_count", "minted", "attached")} == {
+        "subtopic_count": 2, "minted": 2, "attached": 0,
+    }
+    # brick F PR-1: mint_bound surfaces both minted clusters with their seed counts
+    assert {d["slug"]: d["n_papers"] for d in summary["mint_bound"]} == {
+        "aging_one": 2, "aging_two": 0,
+    }
     assert len(store._table.metas()) == 2  # seedless subtopic still got a durable id
 
 
@@ -417,11 +447,13 @@ def test_reconcile_empty_or_absent_membership_is_a_noop():
         "subtopic_count": 0,
         "minted": 0,
         "attached": 0,
+        "mint_bound": [],
     }
     assert reconcile_durable_ids(store, membership={}, hierarchy=h, ctx=_ctx()) == {
         "subtopic_count": 0,
         "minted": 0,
         "attached": 0,
+        "mint_bound": [],
     }
     assert store._table.metas() == []
 
@@ -447,7 +479,10 @@ def test_reconcile_is_idempotent_on_second_pass():
     summary2 = reconcile_durable_ids(
         store, membership=m, hierarchy=h, ctx=_ctx(run_id="run-2")
     )
-    assert summary2 == {"subtopic_count": 2, "minted": 0, "attached": 2}
+    assert {k: summary2[k] for k in ("subtopic_count", "minted", "attached")} == {
+        "subtopic_count": 2, "minted": 0, "attached": 2,
+    }
+    assert summary2["mint_bound"] == []  # all attached on the second pass
     durables_pass2 = {r["slug_id"]: r["durable_id"] for r in store._table.metas()}
     assert durables_pass1 == durables_pass2  # ids are durable across runs
     assert len(store._table.metas()) == 2  # no new rows minted
@@ -523,3 +558,121 @@ def test_load_lineage_overlay_skips_non_meta_rows_and_empty():
     ptr = build_slug_pointer_record(slug_id="aging_one", durable_id="st_one", created_at="t")
     assert load_lineage_overlay(_LineageScanTable([ptr])) == {"split": [], "merged": []}
     assert load_lineage_overlay(_LineageScanTable([])) == {"split": [], "merged": []}
+
+
+# ---------- brick F PR-1 substrate: candidate record + quiet mutator ----------
+
+
+def test_build_candidate_record_shape_is_byte_stable():
+    rec = build_candidate_record(
+        slug="new_area",
+        seen_runs=2,
+        first_seen_hierarchy_version="v1",
+        last_seen_hierarchy_version="v2",
+        n_papers_last=9,
+    )
+    assert rec["PK"] == f"{SUBTOPIC_CANDIDATE_PK_PREFIX}new_area"
+    assert rec["SK"] == META_SK
+    assert rec["record_type"] == RECORD_TYPE_SUBTOPIC_CANDIDATE
+    assert rec["slug"] == "new_area"
+    assert rec["seen_runs"] == 2 and isinstance(rec["seen_runs"], int)
+    assert rec["n_papers_last"] == 9 and isinstance(rec["n_papers_last"], int)
+    assert rec["first_seen_hierarchy_version"] == "v1"
+    assert rec["last_seen_hierarchy_version"] == "v2"
+    # disjoint namespace from the durable/slug rows
+    assert not rec["PK"].startswith(SUBTOPIC_ID_PK_PREFIX)
+    assert not rec["PK"].startswith(SUBTOPIC_SLUG_PK_PREFIX)
+
+    def serialize():
+        return json.dumps(
+            build_candidate_record(
+                slug="new_area", seen_runs=2,
+                first_seen_hierarchy_version="v1", last_seen_hierarchy_version="v2",
+                n_papers_last=9,
+            ),
+            sort_keys=True,
+        )
+
+    assert serialize() == serialize()
+
+
+def test_build_subtopic_id_record_still_omits_substrate_fields():
+    # FLAG-OFF byte-identity guard: the substrate fields must NOT be emitted by the
+    # row builder, so a flag-off mint/attach writes the IDENTICAL schema as today.
+    rec = build_subtopic_id_record(
+        durable_id="st_abc",
+        slug_id="aging_one",
+        topic_id="aging",
+        seed_pmids=[1, 2],
+        label_at_mint="One",
+        taxonomy_version="t",
+        hierarchy_version="v1",
+        created_at="2026-06-11T00:00:00Z",
+        first_run_id="run-1",
+        last_seen_run_id="run-1",
+    )
+    assert "consecutive_quiet_runs" not in rec
+    assert "last_active_hierarchy_version" not in rec
+
+
+def test_set_quiet_substrate_increments_and_resets():
+    store = _store()
+    durable, _ = store.match_or_mint(
+        slug="aging_one", membership=[1], topic_id="aging", label="One", ctx=_ctx()
+    )
+    t = store._table
+    key = (f"{SUBTOPIC_ID_PK_PREFIX}{durable}", META_SK)
+    # quiet -> 1 -> 2
+    assert set_quiet_substrate(t, durable_id=durable, reset=False) is True
+    assert t.items[key]["consecutive_quiet_runs"] == 1
+    assert set_quiet_substrate(t, durable_id=durable, reset=False) is True
+    assert t.items[key]["consecutive_quiet_runs"] == 2
+    # reset + stamp last-active
+    assert set_quiet_substrate(
+        t, durable_id=durable, reset=True, last_active_hierarchy_version="v2026-06-12"
+    ) is True
+    assert t.items[key]["consecutive_quiet_runs"] == 0
+    assert t.items[key]["last_active_hierarchy_version"] == "v2026-06-12"
+
+
+def test_set_quiet_substrate_is_additive_and_preserves_lineage_and_status():
+    # extends test_attach_is_additive_and_preserves_unknown_future_fields to the
+    # quiet mutator: ++counter must not erase split_from/merged_into/status/mint-once.
+    store = _store()
+    durable, _ = store.match_or_mint(
+        slug="aging_one", membership=[1], topic_id="aging", label="One", ctx=_ctx()
+    )
+    t = store._table
+    key = (f"{SUBTOPIC_ID_PK_PREFIX}{durable}", META_SK)
+    t.items[key]["split_from"] = "st_parent"
+    t.items[key]["merged_into"] = "st_succ"
+    set_quiet_substrate(t, durable_id=durable, reset=False)
+    assert t.items[key]["split_from"] == "st_parent"
+    assert t.items[key]["merged_into"] == "st_succ"
+    assert t.items[key]["status"] == STATUS_ACTIVE
+    assert t.items[key]["label_at_mint"] == "One"  # mint-once untouched
+    assert t.items[key]["consecutive_quiet_runs"] == 1
+
+
+def test_set_quiet_substrate_idempotent_noop():
+    store = _store()
+    durable, _ = store.match_or_mint(
+        slug="aging_one", membership=[1], topic_id="aging", label="One", ctx=_ctx()
+    )
+    t = store._table
+    # reset on a fresh row: writes 0 + last-active once.
+    assert set_quiet_substrate(
+        t, durable_id=durable, reset=True, last_active_hierarchy_version="v1"
+    ) is True
+    puts_after = t.put_calls
+    # identical reset again: counter already 0 AND last-active already v1 -> no write.
+    assert set_quiet_substrate(
+        t, durable_id=durable, reset=True, last_active_hierarchy_version="v1"
+    ) is False
+    assert t.put_calls == puts_after
+
+
+def test_set_quiet_substrate_returns_false_for_missing_row():
+    t = FakeTable()
+    assert set_quiet_substrate(t, durable_id="st_absent", reset=False) is False
+    assert t.put_calls == 0

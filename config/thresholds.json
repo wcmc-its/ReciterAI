@@ -47,5 +47,7 @@
   "subtopic_reconcile_skip_relabel_enabled": false,
   "subtopic_reconcile_skip_relabel_overlap_min": 0.70,
   "subtopic_reconcile_skip_lede_enabled": false,
-  "propagate_durable_ids": false
+  "propagate_durable_ids": false,
+  "subtopic_lifecycle_substrate_enabled": false,
+  "subtopic_lifecycle_mint_floor_papers": 5
 }

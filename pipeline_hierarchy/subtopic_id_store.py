@@ -64,10 +64,17 @@ _log = logging.getLogger(__name__)
 # ---- key conventions (mirror the repo's {ENTITY}#{key} + SK-discriminator) ----
 SUBTOPIC_ID_PK_PREFIX = "SUBTOPIC_ID#"
 SUBTOPIC_SLUG_PK_PREFIX = "SUBTOPIC_SLUG#"
+# Brick F PR-1 (#191): a FRESH PK namespace for the candidate-staging rows that
+# accrue ``seen_runs`` for freshly-discovered, mint-bound clusters. Disjoint from
+# SUBTOPIC_ID#/SUBTOPIC_SLUG# (zero collision on the shared ``reciterai`` table) and
+# invisible to ``load_id_store_snapshot`` / ``build_alias_map`` (both filter on
+# SUBTOPIC_ID#), so candidate rows never reach SPS.
+SUBTOPIC_CANDIDATE_PK_PREFIX = "SUBTOPIC_CANDIDATE#"
 META_SK = "META"
 PTR_SK = "PTR"
 RECORD_TYPE_SUBTOPIC_ID = "SUBTOPIC_ID"
 RECORD_TYPE_SUBTOPIC_SLUG = "SUBTOPIC_SLUG"
+RECORD_TYPE_SUBTOPIC_CANDIDATE = "SUBTOPIC_CANDIDATE"
 
 # Default lifecycle status. Brick F (retire policy) owns transitions
 # (demote/archive/retire); bricks A–C only ever write/preserve the default. Brick C
@@ -184,6 +191,35 @@ def build_slug_pointer_record(
         "slug_id": slug_id,
         "durable_id": durable_id,
         "created_at": created_at,
+    }
+
+
+def build_candidate_record(
+    *,
+    slug: str,
+    seen_runs: int,
+    first_seen_hierarchy_version: str,
+    last_seen_hierarchy_version: str,
+    n_papers_last: int,
+) -> dict[str, Any]:
+    """Build a brick-F PR-1 ``SUBTOPIC_CANDIDATE#{slug}`` / META staging row. No I/O.
+
+    Records that a freshly-discovered, mint-bound cluster (slug) reappeared
+    ``seen_runs`` consecutive runs above the paper floor — the substrate PR-2's
+    two-run-persistence gate will read. Forward-only: ``seen_runs`` starts at 1 on
+    create and accrues; there is no retroactive backfill. ``first_seen_hierarchy_version``
+    is mint-once (never rewritten); ``last_seen``/``n_papers_last`` refresh. Fresh PK
+    namespace — never collides with SUBTOPIC_ID#/SUBTOPIC_SLUG#. Byte-stable under
+    ``json.dumps(..., sort_keys=True)``."""
+    return {
+        "PK": f"{SUBTOPIC_CANDIDATE_PK_PREFIX}{slug}",
+        "SK": META_SK,
+        "record_type": RECORD_TYPE_SUBTOPIC_CANDIDATE,
+        "slug": slug,
+        "seen_runs": int(seen_runs),
+        "first_seen_hierarchy_version": first_seen_hierarchy_version,
+        "last_seen_hierarchy_version": last_seen_hierarchy_version,
+        "n_papers_last": int(n_papers_last),
     }
 
 
@@ -415,6 +451,54 @@ def set_lineage(
     return True
 
 
+def set_quiet_substrate(
+    table: Any,
+    *,
+    durable_id: str,
+    reset: bool,
+    last_active_hierarchy_version: Optional[str] = None,
+) -> bool:
+    """Brick F PR-1 (#191): write the forward-only quiet substrate onto an EXISTING
+    primary row. CAPTURE ONLY — it writes a COUNTER, never acts on it.
+
+    Mirrors ``set_lineage``'s read-modify-PutItem additive seam:
+      - ``reset=True``  (the id was CLAIMED this run): set
+        ``consecutive_quiet_runs`` to 0 and, when ``last_active_hierarchy_version`` is
+        given, stamp it (the orderable last-claimed version, for audit / a future
+        wall-clock reinterpretation — never used for arithmetic);
+      - ``reset=False`` (the id was UNCLAIMED this run): ``++consecutive_quiet_runs``
+        (read with ``or 0`` so a Decimal/None both coerce).
+
+    NEVER touches ``status`` (transitions are PR-2), ``slug_id``, ``split_from``,
+    ``merged_into``, ``seed_pmids``, or any mint-once field — the ``{**row, **patch}``
+    write inherits the same survival seam ``set_lineage`` relies on, so lineage +
+    mint-once provenance pass through untouched. Idempotent: returns ``False`` (no
+    write) when the row is absent OR the computed patch already matches the row (e.g.
+    a reset when the counter is already 0 and last-active already matches), so a
+    content-identical republish re-writes nothing."""
+    row = read_subtopic_row(table, durable_id=durable_id)
+    if row is None:
+        return False
+    patch: dict[str, Any] = {}
+    if reset:
+        # Establish an explicit 0 the first time we stamp this row (absent != "already
+        # 0"); thereafter only re-write when it is non-zero, so a content-identical
+        # republish on an already-0 row writes nothing.
+        if "consecutive_quiet_runs" not in row or int(row.get("consecutive_quiet_runs") or 0) != 0:
+            patch["consecutive_quiet_runs"] = 0
+        if (
+            last_active_hierarchy_version is not None
+            and row.get("last_active_hierarchy_version") != last_active_hierarchy_version
+        ):
+            patch["last_active_hierarchy_version"] = last_active_hierarchy_version
+    else:
+        patch["consecutive_quiet_runs"] = int(row.get("consecutive_quiet_runs") or 0) + 1
+    if not patch:
+        return False
+    write_subtopic_id(table, {**row, **patch})
+    return True
+
+
 # ---------- the store ----------
 
 
@@ -607,10 +691,17 @@ def reconcile_durable_ids(
     # the reconciler's slug-keyed split decisions into durable-id edges (the durable id
     # for a minted-from-split child only exists after its match_or_mint runs).
     slug_to_durable: dict[str, str] = {}
+    # Brick F PR-1 (#191): the MINT-BOUND clusters (no prior match) with their
+    # discovery-seed paper count, surfaced so the lifecycle substrate can stage them
+    # as SUBTOPIC_CANDIDATE# rows WITHOUT this module knowing reconciler internals.
+    # Additive (a list of {slug, n_papers}); ``n_papers`` is len(seed_pmids), the only
+    # count in the step-10 membership artifact. Capture-only — minting already happened.
+    mint_bound: list[dict] = []
     for slug, entry in subtopics.items():
+        seeds = entry.get("seed_pmids") or []
         durable, action = store.match_or_mint(
             slug=slug,
-            membership=entry.get("seed_pmids") or [],
+            membership=seeds,
             topic_id=entry.get("topic_id"),
             label=labels.get(slug, ""),
             ctx=ctx,
@@ -618,12 +709,14 @@ def reconcile_durable_ids(
         slug_to_durable[slug] = durable
         if action == "minted":
             minted += 1
+            mint_bound.append({"slug": slug, "n_papers": len(seeds)})
         elif action == "attached":
             attached += 1
     summary = {
         "subtopic_count": len(subtopics),
         "minted": minted,
         "attached": attached,
+        "mint_bound": mint_bound,
     }
     # Per-decision reason breakdown (overlap/centroid/llm/deferred) for the audit
     # diff. Authoritative minted/attached come from the actions above; "reasons" is
