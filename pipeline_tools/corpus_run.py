@@ -103,6 +103,7 @@ class CorpusResult:
     override_deltas: list[dict] = field(default_factory=list)  # D-07 fix batch (v6→v7)
     consolidation_deltas: list[dict] = field(default_factory=list)  # 820 consolidation (v7'→v8)
     adhoc_deltas: list[dict] = field(default_factory=list)  # accreting co-assignment dupe batch
+    define_deltas: list[dict] = field(default_factory=list)  # #879 render-only family definitions
     thresholds: object | None = None                         # salience.GroundedThresholds
     telemetry: dict = field(default_factory=dict)
 
@@ -311,7 +312,9 @@ def run_corpus(
     batch_size: int = 50,
     relabel_batch_size: int = 40,
     family_batch_size: int = 100,
+    define_batch_size: int = 40,
     relabel: bool = True,
+    define: bool = True,
     apply_family_overrides: bool = False,
     apply_consolidation: bool = False,
     apply_adhoc_dedup: bool = False,
@@ -471,6 +474,7 @@ def run_corpus(
     override_deltas: list[dict] = []
     consolidation_deltas: list[dict] = []
     adhoc_deltas: list[dict] = []
+    define_deltas: list[dict] = []
     if relabel:
         from pipeline_tools.family_rebuild import form_families
         from pipeline_tools.relabel import cross_supercategory_label_forks, dedup_families
@@ -520,6 +524,16 @@ def run_corpus(
         forks = []
     fam_counts = {"minted": len(family_registry), "attached": 0, "flagged": len(forks)}
 
+    # #879 — generate the render-only family DEFINITION after labels are stable (the
+    # define prompt grounds on the final label + members). Gated on `relabel` (the else
+    # branch forms no labels) and the `define` toggle. Partial-failure tolerant, so a
+    # define hiccup leaves definition=null and never aborts the corpus run.
+    if relabel and define:
+        from pipeline_tools.define_families import define_families
+        define_deltas = define_families(
+            family_registry, call_json=call_json, batch_size=define_batch_size,
+        )
+
     # 4b. routing-sanity net — deterministic likely-misroute flags (flag-only).
     for rec in method_tools:
         sflags = sanity_mod.routing_sanity_flags(rec)
@@ -563,6 +577,7 @@ def run_corpus(
     result.override_deltas = override_deltas
     result.consolidation_deltas = consolidation_deltas
     result.adhoc_deltas = adhoc_deltas
+    result.define_deltas = define_deltas
     result.thresholds = thresholds
     result.telemetry = _telemetry(
         tool_registry, family_registry, method_tools, counts, fam_counts,
