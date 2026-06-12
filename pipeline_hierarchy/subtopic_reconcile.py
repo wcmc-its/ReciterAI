@@ -132,7 +132,7 @@ def load_id_store_snapshot(table: Any) -> dict[str, dict]:
     """Scan the durable-ID store ONCE into a pre-run snapshot.
 
     Returns {durable_id: {slug_id, topic_id, seed_pmids(set[int]), label_at_mint,
-    status}}. Filters SUBTOPIC_ID#/META rows (scoped to META — forward-safe vs the
+    status, consecutive_quiet_runs(int)}}. Filters SUBTOPIC_ID#/META rows (scoped to META — forward-safe vs the
     foreshadowed MEMBER#{chunk} overflow SKs). The repo defers GSIs at this scale;
     a paginated Scan over ~1,500 rows is the documented idiom. seed_pmids are
     int-coerced (DDB returns Decimal) into a set for the overlap math.
@@ -155,6 +155,11 @@ def load_id_store_snapshot(table: Any) -> dict[str, dict]:
                 "seed_pmids": set(_sorted_pmids(item.get("seed_pmids"))),
                 "label_at_mint": item.get("label_at_mint", ""),
                 "status": item.get("status"),
+                # Brick F PR-2 (#191): the forward-only quiet counter PR-1 stamps. Projected
+                # so sweep_retire computes post-sweep quiet (claimed?0:this+1) without a
+                # ~1,500-row re-read. Additive; the reconciler (overlap/centroid/LLM) ignores
+                # it (a DDB Number reads back as Decimal -> int-coerce, absent -> 0).
+                "consecutive_quiet_runs": int(item.get("consecutive_quiet_runs") or 0),
             }
         # Canonical boto3 pagination: terminate when no continuation key is present.
         # Use membership (`not in`) rather than truthiness so a mock table whose

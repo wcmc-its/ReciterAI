@@ -351,6 +351,87 @@ def test_substrate_flag_on_captures_quiet_and_candidate_without_status_change():
     assert prior["status"] == "active"  # NO status transition in PR-1
 
 
+# ---------- brick F PR-2: lifecycle policy wiring (flag-on) ----------
+
+
+def _policy(**kw):
+    import pipeline_hierarchy.subtopic_lifecycle as _lifecycle
+
+    base = dict(
+        substrate_enabled=True, mint_floor_papers=0, policy_enabled=True,
+        mint_persistence_runs=2, demote_quiet_runs=12, archive_quiet_runs=12,
+    )
+    base.update(kw)
+    return _lifecycle.LifecyclePolicy(**base)
+
+
+def test_policy_flag_on_holds_new_cluster_mint_leaving_no_halfstate():
+    # persistence=2: the run's freshly-discovered cluster is HELD on first sighting — NO
+    # SUBTOPIC_ID#/SUBTOPIC_SLUG# row this run (the gate suppresses durable-id minting,
+    # not the already-uploaded artifact), only an accruing candidate. Publish succeeds.
+    import pipeline_hierarchy.subtopic_lifecycle as _lifecycle
+    from pipeline_hierarchy.subtopic_id_store import SUBTOPIC_CANDIDATE_PK_PREFIX
+
+    pol = _policy(mint_persistence_runs=2)
+    table = FakeTable()
+    with patch.object(_lifecycle.LifecyclePolicy, "from_config", classmethod(lambda cls, *a, **k: pol)):
+        with _patched_real_path(table) as upload:
+            rc = publish.main([])
+    assert rc == publish.EXIT_OK
+    upload.assert_called_once()  # artifact live; the hold is durable-id-only
+    assert table.keys_with_prefix(SUBTOPIC_ID_PK_PREFIX) == []   # no id minted
+    assert table.keys_with_prefix(SUBTOPIC_SLUG_PK_PREFIX) == []  # no dangling pointer
+    cand = table.keys_with_prefix(SUBTOPIC_CANDIDATE_PK_PREFIX)
+    assert len(cand) == 1 and table.items[cand[0]]["seen_runs"] == 1
+
+
+def test_policy_flag_on_demotes_a_quiet_prior():
+    # A prior unclaimed this run, quiet just under the demote threshold, crosses it
+    # (quiet+1 == demote_quiet_runs) and the retire sweep writes status='demoted'.
+    import pipeline_hierarchy.subtopic_lifecycle as _lifecycle
+
+    pol = _policy(demote_quiet_runs=12, mint_persistence_runs=1)  # persistence 1 -> new cluster mints
+    table = FakeTable()
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "SK": "META", "durable_id": "st_prior",
+        "slug_id": "some_other_topic_x", "topic_id": "some_other_topic", "status": "active",
+        "seed_pmids": [424242], "label_at_mint": "Prior", "created_at": "2026-01-01T00:00:00Z",
+        "first_run_id": "run-0", "consecutive_quiet_runs": 11,
+    })
+    with patch.object(_lifecycle.LifecyclePolicy, "from_config", classmethod(lambda cls, *a, **k: pol)):
+        with _patched_real_path(table) as upload:
+            rc = publish.main([])
+    assert rc == publish.EXIT_OK
+    prior = table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "META")]
+    assert prior["consecutive_quiet_runs"] == 12  # ++ by sweep_quiet_substrate
+    assert prior["status"] == "demoted"           # transitioned by sweep_retire
+
+
+def test_policy_flag_off_writes_no_status_so_aliases_are_byte_identical():
+    # The load-bearing Gotcha-A guard: policy OFF (substrate ON) ⇒ a prior that WOULD
+    # demote under policy (quiet far past the threshold) keeps status='active', so the
+    # status SPS reads via aliases.json is byte-identical to today.
+    import pipeline_hierarchy.subtopic_lifecycle as _lifecycle
+
+    pol = _lifecycle.LifecyclePolicy(substrate_enabled=True, mint_floor_papers=0, policy_enabled=False)
+    table = FakeTable()
+    table.put_item(Item={
+        "PK": f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "SK": "META", "durable_id": "st_prior",
+        "slug_id": "some_other_topic_x", "topic_id": "some_other_topic", "status": "active",
+        "seed_pmids": [424242], "label_at_mint": "Prior", "created_at": "2026-01-01T00:00:00Z",
+        "first_run_id": "run-0", "consecutive_quiet_runs": 99,
+    })
+    with patch.object(_lifecycle.LifecyclePolicy, "from_config", classmethod(lambda cls, *a, **k: pol)):
+        with _patched_real_path(table) as upload:
+            rc = publish.main([])
+    assert rc == publish.EXIT_OK
+    prior = table.items[(f"{SUBTOPIC_ID_PK_PREFIX}st_prior", "META")]
+    assert prior["consecutive_quiet_runs"] == 100  # substrate still counts...
+    assert prior["status"] == "active"             # ...but policy-off writes NO status
+    raw = publish.build_alias_map_bytes(table, hierarchy_version="v1", taxonomy_version="t")
+    assert json.loads(raw)["aliases"]["some_other_topic_x"]["status"] == "active"
+
+
 def test_upload_to_s3_includes_aliases_sidecar_only_when_provided():
     puts: list[str] = []
 

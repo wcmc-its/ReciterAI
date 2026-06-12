@@ -76,10 +76,19 @@ RECORD_TYPE_SUBTOPIC_ID = "SUBTOPIC_ID"
 RECORD_TYPE_SUBTOPIC_SLUG = "SUBTOPIC_SLUG"
 RECORD_TYPE_SUBTOPIC_CANDIDATE = "SUBTOPIC_CANDIDATE"
 
-# Default lifecycle status. Brick F (retire policy) owns transitions
-# (demote/archive/retire); bricks A–C only ever write/preserve the default. Brick C
-# records split/merge *lineage edges* (split_from/merged_into) but never mutates status.
+# Lifecycle status values. Brick F owns transitions (demote/archive, reversible);
+# bricks A–C only ever write/preserve the ACTIVE default. Brick C records split/merge
+# *lineage edges* (split_from/merged_into) but never mutates status.
+#   active   -> a live subtopic (the only status any pre-PR-2 path writes).
+#   demoted  -> quiet >= demote_quiet_runs consecutive runs (PR-2 retire); reversible.
+#   archived -> quiet >= demote+archive runs (PR-2 retire); reversible (a re-claim un-demotes).
+# Forward-only: the quiet counter starts at 0 (PR-1) and accrues, so the first demote is
+# demote_quiet_runs runs AFTER the substrate flag is flipped on a real cold-run — there is
+# no retroactive retirement. SPS acting on a non-active status (de-spotlight / 301) is an
+# SPS-coordinated step; PR-2 writes the internal status only.
 STATUS_ACTIVE = "active"
+STATUS_DEMOTED = "demoted"
+STATUS_ARCHIVED = "archived"
 
 
 @dataclass(frozen=True)
@@ -499,6 +508,28 @@ def set_quiet_substrate(
     return True
 
 
+def set_status(table: Any, *, durable_id: str, status: str) -> bool:
+    """Brick F PR-2 (#191): write a lifecycle ``status`` transition onto an EXISTING
+    primary row. The status-WRITE companion to ``set_quiet_substrate`` (which writes the
+    COUNTER PR-1 captured); PR-1 deliberately left the status alone.
+
+    Mirrors ``set_lineage``'s read-modify-PutItem additive seam: writes ONLY ``status``
+    and preserves every other field via ``{**row, **patch}`` — so the quiet counter,
+    lineage edges (split_from/merged_into), and mint-once provenance all pass through
+    untouched. Idempotent: returns ``False`` (no write) when the row is absent OR
+    ``status`` already matches, so a content-identical republish re-writes nothing
+    (the flag-off / no-transition byte-identity guard relies on this). NEVER touches
+    ``consecutive_quiet_runs`` — the retire sweep's un-demote resets the counter via
+    ``set_quiet_substrate``'s claimed path, not here."""
+    row = read_subtopic_row(table, durable_id=durable_id)
+    if row is None:
+        return False
+    if row.get("status") == status:
+        return False
+    write_subtopic_id(table, {**row, "status": status})
+    return True
+
+
 # ---------- the store ----------
 
 
@@ -666,6 +697,7 @@ def reconcile_durable_ids(
     hierarchy: dict,
     ctx: MintContext,
     reconciler: Optional[Any] = None,
+    mint_gate: Optional[Any] = None,
 ) -> dict[str, int]:
     """Promote one run's membership into the durable store. Returns a summary.
 
@@ -674,6 +706,16 @@ def reconcile_durable_ids(
     subtopic. ``hierarchy`` supplies ``label`` for the mint-time provenance
     snapshot (``label`` is in ``bundler._SUBTOPIC_REQUIRED``). A subtopic with no
     seeds still gets a durable id (membership ``[]``).
+
+    ``mint_gate`` (brick F PR-2, #191) is the injected mint-persistence collaborator,
+    duck-typed exactly like ``reconciler``. ``None`` (the default, and whenever the
+    policy flag is off) ⇒ byte-identical to PR-1: every cluster mints exactly as today.
+    When present, a *mint-bound* cluster (no prior match) is admitted only if it clears
+    ``mint_gate.admit(slug, n_papers)`` (≥ floor for ≥ persistence runs); a HELD cluster
+    gets NO durable id and NO slug pointer this run (it is simply not minted — the
+    already-uploaded slug-keyed hierarchy.json is untouched; this suppresses durable-id
+    MINTING only). ``minted`` then counts gate-cleared mints; ``minted_held`` (read off
+    the gate) counts holds. A re-claimed prior (``SubtopicMatch``) is never gated.
     """
     labels = {
         s.get("id"): s.get("label", "")
@@ -699,11 +741,25 @@ def reconcile_durable_ids(
     mint_bound: list[dict] = []
     for slug, entry in subtopics.items():
         seeds = entry.get("seed_pmids") or []
+        topic_id = entry.get("topic_id")
+        label = labels.get(slug, "")
+        if mint_gate is not None:
+            # Peek the precomputed verdict (reconciler path = pure dict lookup, no
+            # side-effect, idempotent) so the gate only ever sees *mint-bound* clusters
+            # (no prior match). A SubtopicMatch falls through to attach, ungated.
+            verdict = store.match(slug=slug, membership=seeds, topic_id=topic_id)
+            if not isinstance(verdict, SubtopicMatch) and not mint_gate.admit(
+                slug=slug, n_papers=len(seeds)
+            ):
+                # HELD: not minted this run. No durable id, no slug pointer, not in
+                # slug_to_durable (so the brick-C lineage pass skips it). The candidate
+                # row keeps accruing (or was reset below floor); GC handles it.
+                continue
         durable, action = store.match_or_mint(
             slug=slug,
             membership=seeds,
-            topic_id=entry.get("topic_id"),
-            label=labels.get(slug, ""),
+            topic_id=topic_id,
+            label=label,
             ctx=ctx,
         )
         slug_to_durable[slug] = durable
@@ -718,6 +774,11 @@ def reconcile_durable_ids(
         "attached": attached,
         "mint_bound": mint_bound,
     }
+    # Brick F PR-2 (#191): the count of mint-bound clusters HELD this run (below floor
+    # or below two-run persistence). Sourced from the gate so it is the single held
+    # truth. Absent (no key) when no gate ⇒ PR-1 event shape is byte-identical.
+    if mint_gate is not None:
+        summary["minted_held"] = mint_gate.held
     # Per-decision reason breakdown (overlap/centroid/llm/deferred) for the audit
     # diff. Authoritative minted/attached come from the actions above; "reasons" is
     # the reconciler's view of HOW each match was made.

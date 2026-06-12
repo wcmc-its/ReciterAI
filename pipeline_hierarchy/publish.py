@@ -442,9 +442,11 @@ def reconcile_durable_id_store(
         # numpy/openai on a --dry-run that never reaches here.
         from pipeline_hierarchy.subtopic_lifecycle import (
             LifecyclePolicy,
+            MintPersistenceGate,
             gc_candidates,
             stage_candidates,
             sweep_quiet_substrate,
+            sweep_retire,
         )
         from pipeline_hierarchy.subtopic_reconcile import (
             ReconcileThresholds,
@@ -459,6 +461,15 @@ def reconcile_durable_id_store(
         snapshot = load_id_store_snapshot(table)
         reconciler = SubtopicReconciler(snapshot, thresholds=thresholds)
         store = SubtopicIdStore(table, reconciler=reconciler)
+        # Brick F PR-2 (#191): the mint-persistence gate is built ONLY when the policy
+        # flag is on, so a policy-off run passes mint_gate=None and reconcile is
+        # byte-identical to PR-1 (no holds, no candidate-consume). policy_enabled
+        # requires substrate_enabled (enforced in from_config).
+        mint_gate = (
+            MintPersistenceGate(table, policy, hierarchy_version=version)
+            if policy.policy_enabled
+            else None
+        )
         summary = reconcile_durable_ids(
             store,
             membership=membership,
@@ -470,19 +481,21 @@ def reconcile_durable_id_store(
                 hierarchy_version=version,
             ),
             reconciler=reconciler,
+            mint_gate=mint_gate,
         )
-        # Brick F PR-1 (#191): forward-only lifecycle substrate. CAPTURE ONLY — no
-        # status transitions, no mint-gating. Runs POST-mint/POST-upload, so it cannot
-        # affect the published artifact or the skip-cache input hash; flag-off (default)
-        # it is a full no-op (store rows + aliases.json stay byte-identical). Inside the
-        # same broad except that swallows reconcile failures (best-effort, never fails
-        # the already-live publish).
+        # Brick F lifecycle (#191). Runs POST-mint/POST-upload, so it cannot affect the
+        # published artifact or the skip-cache input hash; both flags off (default) it is
+        # a full no-op (store rows + aliases.json byte-identical). Inside the same broad
+        # except that swallows reconcile failures (best-effort, never fails the already-
+        # live publish).
         if policy.substrate_enabled:
             all_prior_ids = set(snapshot)
             # CLAIMED = priors a successor matched this run = all priors minus the
             # reconciler's unclaimed set (populated by precompute, which reconcile ran).
             unclaimed = set(getattr(reconciler, "unclaimed_priors", set()) or set())
             claimed = all_prior_ids - unclaimed
+            # PR-1 capture: stamp the forward-only quiet counter (++unclaimed / reset
+            # claimed). Always runs under the substrate flag (the retire sweep reads it).
             sweep_audit = sweep_quiet_substrate(
                 table,
                 claimed_ids=claimed,
@@ -490,21 +503,43 @@ def reconcile_durable_id_store(
                 hierarchy_version=version,
                 policy=policy,
             )
-            stage_audit = stage_candidates(
-                table,
-                mint_bound=summary.get("mint_bound") or [],
-                hierarchy_version=version,
-                policy=policy,
-            )
-            gc_deleted = gc_candidates(
-                table, seen_slugs=stage_audit.get("seen_slugs", set()), policy=policy
-            )
-            summary = {
-                **summary,
-                "lifecycle_quiet": sweep_audit,
-                "lifecycle_staged": stage_audit.get("staged", 0),
-                "lifecycle_candidates_gc": gc_deleted,
-            }
+            summary = {**summary, "lifecycle_quiet": sweep_audit}
+            if policy.policy_enabled:
+                # PR-2 ACT: the in-loop gate already upserted the still-accruing held
+                # candidates and consumed the minted ones, so do NOT re-stage. GC the
+                # rest (held-but-vanished / below-floor-reset / abandoned), protecting
+                # the gate's still-accruing seen_slugs. Then transition retire status.
+                gc_deleted = gc_candidates(
+                    table, seen_slugs=mint_gate.seen_slugs, policy=policy
+                )
+                retire_audit = sweep_retire(
+                    table, snapshot=snapshot, claimed_ids=claimed, policy=policy
+                )
+                # minted_held is already in `summary` (set by reconcile_durable_ids off
+                # the same gate) — the single source; just add the retire counts here.
+                summary = {
+                    **summary,
+                    "lifecycle_candidates_gc": gc_deleted,
+                    "demoted": retire_audit.get("demoted", 0),
+                    "archived": retire_audit.get("archived", 0),
+                    "undemoted": retire_audit.get("undemoted", 0),
+                }
+            else:
+                # PR-1 capture-only path (policy off): stage + GC, no status transitions.
+                stage_audit = stage_candidates(
+                    table,
+                    mint_bound=summary.get("mint_bound") or [],
+                    hierarchy_version=version,
+                    policy=policy,
+                )
+                gc_deleted = gc_candidates(
+                    table, seen_slugs=stage_audit.get("seen_slugs", set()), policy=policy
+                )
+                summary = {
+                    **summary,
+                    "lifecycle_staged": stage_audit.get("staged", 0),
+                    "lifecycle_candidates_gc": gc_deleted,
+                }
         # mint_bound is an internal staging seam; drop it from the published event.
         summary.pop("mint_bound", None)
         print(json.dumps({"event": "durable_ids_reconciled", "prior_subtopics": len(snapshot), **summary}, indent=2))
