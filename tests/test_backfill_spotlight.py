@@ -157,3 +157,112 @@ def test_try_generate_lede_skips_on_transient_bedrock_error():
     ):
         out = _try_generate_lede(_meta(), [1, 2], "v2026-06-10", "parent_topic", ())
     assert out is None
+
+
+# ---------------------------------------------------------------------------
+# #191 brick E lede-skip: _reused_validated_lede wraps a prior lede as a PASS
+# ValidatedLede whose papers_used == the CURRENT run's grounding PMIDs, so the
+# assembler contract holds and lede_grounded_pmids is correct.
+# ---------------------------------------------------------------------------
+
+from cli.backfill_spotlight import _reused_validated_lede
+from spotlight.lede_skip import PriorLede
+
+
+def _prior_lede(lede="WCM scholars are mapping reused things across two papers.",
+                grounded=("1", "2", "3")):
+    return PriorLede(
+        durable_id="dur_1",
+        prior_slug="slug_1",
+        lede=lede,
+        grounded_pmids=frozenset(grounded),
+        overlap_score=1.0,
+    )
+
+
+def test_reused_validated_lede_is_pass_with_current_pmids():
+    meta = _meta("st_1")
+    pr = _prior_lede()
+    vlede = _reused_validated_lede(meta, "Parent Topic", pr, frozenset({"3", "1", "2"}))
+    assert vlede.status == "pass"
+    assert vlede.subtopic_id == "st_1"
+    assert vlede.parent_topic == "Parent Topic"
+    assert vlede.lede == pr.lede
+    assert vlede.attempts == ()
+    # papers_used MUST be the current run's grounding PMIDs (sorted), not the
+    # prior's stored set object — so the assembler writes the right grounded pmids.
+    assert vlede.papers_used == ("1", "2", "3")
+
+
+def test_reused_lede_satisfies_assembler_build_artifact():
+    """A reused PASS vlede flows through build_artifact: spotlights[0].lede == the
+    prior lede and lede_grounded_pmids == the current PMIDs (assembler status!='pass'
+    guard passes; subset-of-papers invariant holds)."""
+    from spotlight.assembler import build_artifact
+    from spotlight.sensitive_gate import SubtopicMeta
+    from spotlight.types import Author, Paper, PoolEntry
+
+    def _auth(pid, pos):
+        return Author(person_identifier=pid, display_name="N", position=pos)
+
+    def _pap(pmid):
+        return Paper(
+            pmid=pmid, title="t", journal="j", year=2025, impact_score=90.0,
+            impact_justification="ij", synopsis="syn",
+            first_author=_auth(f"fa_{pmid}", "first"),
+            last_author=_auth(f"la_{pmid}", "last"),
+        )
+
+    meta = SubtopicMeta(
+        subtopic_id="st_1", label="Lbl", description="d", parent_topic_label="Parent",
+    )
+    pr = _prior_lede(grounded=("1", "2"))
+    vlede = _reused_validated_lede(meta, "Parent", pr, frozenset({"1", "2"}))
+    pool = [PoolEntry(
+        subtopic_id="st_1", pool_score=10.0, parent_topic="Parent",
+        papers=(_pap("1"), _pap("2")),
+    )]
+    art = build_artifact([vlede], pool, {"st_1": meta})
+    spot = art["spotlights"][0]
+    assert spot["lede"] == pr.lede
+    assert spot["lede_grounded_pmids"] == ["1", "2"]
+    # lede_grounded_pmids must be a subset of papers[].pmid (schema invariant).
+    assert set(spot["lede_grounded_pmids"]) <= {p["pmid"] for p in spot["papers"]}
+
+
+def test_lede_reuse_short_circuits_generation():
+    """Seam: lede_reuse_for + _reused_validated_lede produce a PASS vlede WITHOUT
+    calling run_critic_loop. A subtopic with no map entry falls through to the
+    generator. Tests the in-loop predicate directly (the full _run_pipeline is
+    integration-only, per this file's header note)."""
+    from spotlight.lede_skip import current_grounding_pmids, lede_reuse_for
+    from spotlight.types import Author, Paper
+
+    def _auth(pid, pos):
+        return Author(person_identifier=pid, display_name="N", position=pos)
+
+    def _pap(pmid, impact):
+        return Paper(
+            pmid=pmid, title="t", journal="j", year=2025, impact_score=impact,
+            impact_justification="ij", synopsis="syn",
+            first_author=_auth(f"fa_{pmid}", "first"),
+            last_author=_auth(f"la_{pmid}", "last"),
+        )
+
+    papers = [_pap("1", 90.0), _pap("2", 80.0), _pap("3", 70.0)]
+    skip_map = {"st_reuse": _prior_lede(grounded=("1", "2", "3"))}
+
+    # The reuse subtopic: gate 2 matches -> a PriorLede comes back, and the wrapped
+    # vlede is a PASS with the prior lede. run_critic_loop is asserted NOT called by
+    # virtue of not being invoked on this branch.
+    pr = lede_reuse_for(skip_map, "st_reuse", papers)
+    assert pr is not None
+    meta = _meta("st_reuse")
+    vlede = _reused_validated_lede(
+        meta, "Parent", pr, current_grounding_pmids(papers)
+    )
+    assert vlede.status == "pass"
+    assert vlede.lede == pr.lede
+
+    # A subtopic with no map entry -> None -> the loop would call the generator.
+    assert lede_reuse_for(skip_map, "st_other", papers) is None

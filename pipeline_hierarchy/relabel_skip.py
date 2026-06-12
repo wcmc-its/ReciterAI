@@ -137,30 +137,32 @@ def build_prior_hierarchy_index(prior_hierarchy: dict) -> dict[str, dict]:
     return index
 
 
-def compute_relabel_skip_map(
+def compute_overlap_reuse_map(
     *,
     membership: dict,
     labels: dict,
     snapshot: dict,
-    prior_index: dict,
     reconcile_thresholds: ReconcileThresholds,
     skip_overlap_min: float,
     embed: Optional[Callable] = None,
     arbiter: Optional[Callable] = None,
-) -> dict[str, "PriorReuse"]:
-    """Pure decision: ``{slug -> PriorReuse}`` for subtopics safe to skip relabel.
+) -> dict[str, tuple[str, str, float]]:
+    """Shared gate-1 core: ``{slug -> (durable_id, prior_slug, overlap_score)}``.
+
+    The order-invariant overlap-verdict decision that BOTH the relabel-skip
+    (``compute_relabel_skip_map``) and the lede-skip (``spotlight.lede_skip``)
+    layers reuse — the single source of truth for the #204-review-hardened gate.
 
     Runs the brick-B reconciler against ``snapshot`` (LLM forced off, stub embedder)
     and keeps a ``reason == "overlap"`` auto-match (``score >= skip_overlap_min``) ONLY
     when it is provably ORDER-INVARIANT vs the live publish-step-10 reconcile (see the
     module docstring): the matched prior is the cluster's claim-agnostic best overlap,
     AND no other in-topic cluster's overlap with that prior reaches ``ambiguous_min``.
-    The reuse value is joined from the prior published UI text via the matched durable
-    id's PRIOR slug (``snapshot[durable_id]["slug_id"]`` — the slug as published last
-    run, even if this run's discovered slug drifted). Fail-soft everywhere: a cluster
-    that is contested, diverted, or has no resolvable non-empty prior value is omitted
-    (it relabels). Parent-prefix re-validation is the CALLER's job — ``relabel_topic``
-    holds the parent label and drops a reuse that would trip the rule under a new parent."""
+    ``prior_slug`` is the matched durable id's PRIOR slug (``snapshot[durable_id]
+    ["slug_id"]`` — the slug as published last run, even if this run's discovered slug
+    drifted); a row whose ``slug_id`` is absent/blank is OMITTED. No prior artifact is
+    touched here — this is pure store + membership set math. The two callers each do
+    their own artifact join (hierarchy.json UI text / spotlight.json lede) on top."""
     subs = membership.get("subtopics") or {}
     if not snapshot or not subs:
         return {}
@@ -188,7 +190,7 @@ def compute_relabel_skip_map(
         new_by_topic.setdefault(entry.get("topic_id"), {})[slug] = pmids
     ambiguous_min = thresholds.ambiguous_min
 
-    skip_map: dict[str, PriorReuse] = {}
+    reuse_map: dict[str, tuple[str, str, float]] = {}
     for slug in subs:
         verdict = reconciler.match(slug=slug)
         # Reuse ONLY a deterministic Stage-1 overlap auto-match at/above the bar.
@@ -220,7 +222,43 @@ def compute_relabel_skip_map(
 
         prior_slug = prior_row.get("slug_id")
         if not prior_slug:
-            continue
+            continue  # no resolvable prior slug → caller relabels/regenerates (fail-soft)
+        reuse_map[slug] = (matched_id, prior_slug, verdict.score)
+    return reuse_map
+
+
+def compute_relabel_skip_map(
+    *,
+    membership: dict,
+    labels: dict,
+    snapshot: dict,
+    prior_index: dict,
+    reconcile_thresholds: ReconcileThresholds,
+    skip_overlap_min: float,
+    embed: Optional[Callable] = None,
+    arbiter: Optional[Callable] = None,
+) -> dict[str, "PriorReuse"]:
+    """Pure decision: ``{slug -> PriorReuse}`` for subtopics safe to skip relabel.
+
+    Thin wrapper over the shared order-invariant ``compute_overlap_reuse_map`` core:
+    for every slug it accepts (a ``reason == "overlap"`` auto-match at/above the bar
+    that passes the order-invariance gate — see that function's docstring), join the
+    prior published UI text from ``prior_index`` via the matched durable id's PRIOR
+    slug. Fail-soft everywhere: a cluster that is contested, diverted, or has no
+    resolvable non-empty prior value is omitted (it relabels). Parent-prefix
+    re-validation is the CALLER's job — ``relabel_topic`` holds the parent label and
+    drops a reuse that would trip the rule under a new parent."""
+    reuse_map = compute_overlap_reuse_map(
+        membership=membership,
+        labels=labels,
+        snapshot=snapshot,
+        reconcile_thresholds=reconcile_thresholds,
+        skip_overlap_min=skip_overlap_min,
+        embed=embed,
+        arbiter=arbiter,
+    )
+    skip_map: dict[str, PriorReuse] = {}
+    for slug, (matched_id, prior_slug, score) in reuse_map.items():
         prior = prior_index.get(prior_slug)
         if not prior:
             continue  # matched id absent from the prior artifact → relabel (fail-soft)
@@ -232,7 +270,7 @@ def compute_relabel_skip_map(
             durable_id=matched_id,
             display_name=display_name,
             short_description=short_description,
-            overlap_score=verdict.score,
+            overlap_score=score,
         )
     return skip_map
 

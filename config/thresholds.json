@@ -46,5 +46,6 @@
   "subtopic_reconcile_merge_overlap_min": 0.50,
   "subtopic_reconcile_skip_relabel_enabled": false,
   "subtopic_reconcile_skip_relabel_overlap_min": 0.70,
+  "subtopic_reconcile_skip_lede_enabled": false,
   "propagate_durable_ids": false
 }

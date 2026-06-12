@@ -289,6 +289,10 @@
       "minimum": 0,
       "maximum": 1,
       "description": "Reconcile skip-logic threshold (#191 brick E): min-cardinality seed-PMID overlap at or above which a reconcile 'overlap' auto-match is treated as low-drift enough to SKIP relabel and reuse the prior published UI text. Deliberately set ABOVE subtopic_reconcile_overlap_auto_match_min (0.50) — 'nothing meaningful changed' is a stronger claim than 'same identity'. Only consulted when subtopic_reconcile_skip_relabel_enabled is true. PROVISIONAL pending the forward-only Phase-1 jitter measurement."
+    },
+    "subtopic_reconcile_skip_lede_enabled": {
+      "type": "boolean",
+      "description": "Lede skip-logic gate (#191 brick E lede analog). When true, the cold STEP-9 editorial-lede stage reuses a subtopic's prior published lede instead of regenerating it via OPUS+critic, but ONLY when a DUAL gate holds: (1) the SAME order-invariant brick-B overlap verdict the relabel-skip uses (reason='overlap' AND score >= subtopic_reconcile_skip_relabel_overlap_min — the REUSED threshold; no separate lede overlap key — plus the #204-review claim-agnostic-best + no-other-cluster-ambiguous safety gate), proving the durable subtopic identity/scope is stable, AND (2) the current run's top-3 grounding PMIDs EXACTLY equal the prior lede's lede_grounded_pmids, proving the grounding inputs are unchanged. If EITHER gate fails the lede regenerates. OFF by default: a gate-off run computes no skip-map and generates byte-identically to today. The skip pre-pass is read-only (a store Scan + one S3 GET of the latest spotlight.json); any missing prior value / empty grounded set / version mismatch / error falls back to full generation. Membership-equality, not content-equality, by design (a synopsis reword on an unchanged top-3 set is editorially immaterial for a 22-38-word lede)."
     }
   }
 }
