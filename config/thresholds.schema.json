@@ -279,6 +279,16 @@
     "propagate_durable_ids": {
       "type": "boolean",
       "description": "Durable-ID propagation gate (#191 brick D3). When true, the three SPS-consumer surfaces additively stamp the durable subtopic id alongside the slug id: hierarchy.json SubtopicDef.durable_id, TOPIC# activity rows' primary_subtopic_durable_id, and spotlight.json spotlights[]/pool_snapshot[] durable_id. OFF by default — a gate-off run is byte-identical to today (the companion field is omitted entirely, never written as null). The durable id is resolved per surface by inverting the durable-ID store snapshot ({slug: durable_id}); unresolved slugs (a subtopic minted this run, one-run lag) omit the companion. Producers read this flag at process entry and pass it into the pure bundler/assembler. Flip to true only after SPS confirms it consumes the companion (see brick-d3 rollout)."
+    },
+    "subtopic_reconcile_skip_relabel_enabled": {
+      "type": "boolean",
+      "description": "Reconcile skip-logic gate (#191 brick E). When true, the cold-path relabel stage skips the per-cluster Bedrock relabel for subtopics the brick-B reconcile auto-matches to a prior durable id with HIGH membership overlap (reason='overlap' AND score >= subtopic_reconcile_skip_relabel_overlap_min), reusing the prior published display_name/short_description instead — so a cold run costs proportional to drift, not the flat ~$108 relabel line. OFF by default: a gate-off run computes no skip-map and relabels byte-identically to today. The skip pre-pass is read-only (a store Scan + two S3 GETs); any missing prior value / version mismatch / error falls back to a full relabel. Turn on only after the jitter measurement sizes the overlap bar and (ideally) durable-id propagation is live."
+    },
+    "subtopic_reconcile_skip_relabel_overlap_min": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Reconcile skip-logic threshold (#191 brick E): min-cardinality seed-PMID overlap at or above which a reconcile 'overlap' auto-match is treated as low-drift enough to SKIP relabel and reuse the prior published UI text. Deliberately set ABOVE subtopic_reconcile_overlap_auto_match_min (0.50) — 'nothing meaningful changed' is a stronger claim than 'same identity'. Only consulted when subtopic_reconcile_skip_relabel_enabled is true. PROVISIONAL pending the forward-only Phase-1 jitter measurement."
     }
   }
 }
