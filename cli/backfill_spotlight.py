@@ -495,6 +495,27 @@ def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers)
         return None
 
 
+def _reused_validated_lede(meta, parent_topic: str, pr, current_pmids) -> "object":
+    """#191 brick E lede-skip: wrap a reused prior lede as a PASS-status
+    ValidatedLede so the assembler contract holds (every selected subtopic_id must
+    be a status=='pass' entry; assembler.build_artifact raises otherwise).
+
+    ``papers_used`` MUST be the CURRENT run's grounding PMIDs (== ``pr.grounded_pmids``
+    by gate 2) so the assembler writes the correct ``lede_grounded_pmids`` and the
+    schema's subset-of-papers invariant holds. ``attempts`` is empty (no OPUS/critic
+    call was made). ``parent_topic`` is threaded from the loop's ``sel.entry``."""
+    from spotlight.critic import ValidatedLede
+
+    return ValidatedLede(
+        subtopic_id=meta.subtopic_id,
+        parent_topic=parent_topic,
+        lede=pr.lede,
+        status="pass",
+        attempts=(),
+        papers_used=tuple(sorted(current_pmids)),
+    )
+
+
 def _report_run_cost(acc) -> None:
     """Print + log the measured Bedrock spend for this run.
 
@@ -753,8 +774,28 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     # opener until it reaches OPENER_REUSE_CAP uses.
     from spotlight.critic import OPENER_RE, OPENER_REUSE_CAP
 
+    # #191 brick E lede-skip: build the reuse map ONCE (gated OFF by default inside
+    # load_lede_skip_map; read-only — one store Scan + one S3 GET; returns {} on any
+    # error → full generation). Gate-2 (grounding-PMID set equality) is applied
+    # per-selection inside the loop via lede_reuse_for. Flag off ⇒ {} ⇒ this path is
+    # byte-identical to today.
+    from spotlight.lede_skip import (
+        current_grounding_pmids,
+        lede_reuse_for,
+        load_lede_skip_map,
+    )
+
+    lede_skip_map = load_lede_skip_map()
+    if lede_skip_map:
+        logger.info(
+            "#191 brick E lede-skip: %d subtopic(s) eligible to reuse a prior lede "
+            "(pending the in-loop grounding-PMID check)",
+            len(lede_skip_map),
+        )
+
     validated_ledes = []
     opener_counts: Counter[str] = Counter()
+    ledes_reused = 0
     for sel in selections:
         meta = subtopic_metadata.get(sel.entry.subtopic_id)
         if meta is None:
@@ -766,6 +807,30 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
         at_cap = tuple(
             o for o, c in opener_counts.items() if c >= OPENER_REUSE_CAP
         )
+        # #191 brick E lede-skip (dual gate): when this subtopic's prior lede is
+        # eligible (gate 1, in the map) AND the current run's top-3 grounding PMIDs
+        # match the prior lede's (gate 2), carry the prior lede forward — no OPUS, no
+        # critic ($0). A reused lede is a real PASS, so it flows through Stage-3.5
+        # duplicate-opener / Stage-4 sensitive / Stage-4.5 publish-select unchanged.
+        pr = lede_reuse_for(lede_skip_map, sel.entry.subtopic_id, list(sel.entry.papers))
+        if pr is not None:
+            cur = current_grounding_pmids(list(sel.entry.papers))
+            vlede = _reused_validated_lede(meta, sel.entry.parent_topic, pr, cur)
+            ledes_reused += 1
+            # A reused lede still counts toward OPENER_REUSE_CAP so the page can't
+            # exceed the cap via reuse.
+            m = OPENER_RE.search(vlede.lede)
+            if m:
+                opener_counts[m.group(0)] += 1
+            validated_ledes.append((sel, vlede))
+            logger.info(
+                "Lede reused (skip): subtopic_id=%s durable_id=%s overlap=%.2f "
+                "(#191 brick E — prior lede carried forward, no OPUS call)",
+                sel.entry.subtopic_id,
+                pr.durable_id,
+                pr.overlap_score,
+            )
+            continue
         # Per-subtopic failures (no eligible papers, or a transient Bedrock
         # error under burst load) skip this subtopic instead of aborting the
         # whole publish — see _try_generate_lede.
@@ -882,6 +947,16 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     # All Bedrock work (ledes + critic + sensitive gate) is done by here; report
     # the measured spend on both the --dry-run-full and --publish paths.
     _report_run_cost(cost_acc)
+
+    # #191 brick E lede-skip: surface the $0 reuse count alongside the spend, on
+    # both the --dry-run-full and --publish paths (mirrors the relabel summary).
+    if ledes_reused:
+        msg = (
+            f"Ledes reused (skip): {ledes_reused} "
+            f"(#191 brick E — prior lede carried forward, no OPUS call)"
+        )
+        logger.info(msg)
+        print(msg)
 
     # Stage 5: assemble.
     # #191 brick D3: evaluate the durable-id gate at process entry and load
