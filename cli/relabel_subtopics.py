@@ -240,12 +240,62 @@ def _retry_parent_prefix_violations(
     return _collect_parent_prefix_violations(bad_subs, topic_id, topic_label)
 
 
+def _resolve_topic_meta(draft: dict, taxonomy: dict, topic_id: str) -> tuple:
+    """Resolve (topic_label, topic_description), falling back to the draft's
+    topic_label when the topic is absent from taxonomy_v2.json."""
+    if topic_id not in taxonomy:
+        logger.warning(
+            f"[{topic_id}] not in taxonomy_v2.json; using draft topic_label as fallback"
+        )
+        return draft.get("topic_label", topic_id), ""
+    topic_entry = taxonomy[topic_id]
+    return topic_entry.get("label", topic_id), topic_entry.get("description", "")
+
+
+def _apply_skip_reuse(
+    subtopics: list, skip_map: dict, topic_id: str, topic_label: str
+) -> tuple:
+    """#191 brick E: pre-fill display_name/short_description from prior published
+    values for subtopics the reconcile skip pre-pass marked reusable (high-overlap
+    durable-id auto-matches), instead of regenerating them via Sonnet.
+
+    A reused display_name that would now trip the parent-prefix rule (e.g. the
+    cluster drifted into a new parent topic) is NOT reused — it falls through to a
+    normal relabel. Returns (reused, to_relabel): `reused` is a list of audit dicts
+    for subtopics whose UI text was carried forward; `to_relabel` is the subtopics
+    that still need a Sonnet call. An empty skip_map ⇒ reused=[], to_relabel=all
+    (byte-identical to the pre-brick-E behavior)."""
+    reused: list = []
+    to_relabel: list = []
+    for s in subtopics:
+        sid = s.get("id")
+        pr = skip_map.get(sid) if sid else None
+        if pr is None:
+            to_relabel.append(s)
+            continue
+        if find_parent_prefix_violation(topic_id, topic_label, pr.display_name):
+            logger.info(
+                f"[{topic_id}] subtopic {sid}: reused display_name {pr.display_name!r} "
+                f"trips parent-prefix rule under parent {topic_label!r}; relabeling "
+                f"instead of reusing"
+            )
+            to_relabel.append(s)
+            continue
+        s["display_name"] = pr.display_name
+        s["short_description"] = pr.short_description
+        reused.append(
+            {"id": sid, "durable_id": pr.durable_id, "overlap_score": pr.overlap_score}
+        )
+    return reused, to_relabel
+
+
 def relabel_topic(
     client: BedrockClient,
     topic_id: str,
     taxonomy: dict,
     force: bool = False,
     dry_run: bool = False,
+    skip_map: Optional[dict] = None,
 ) -> dict:
     """
     Relabel one topic's subtopics. Patches both draft and augmented files.
@@ -272,60 +322,71 @@ def relabel_topic(
         )
         return {"topic_id": topic_id, "skipped": "already_populated", "patched": 0}
 
-    if topic_id not in taxonomy:
-        logger.warning(
-            f"[{topic_id}] not in taxonomy_v2.json; using draft topic_label as fallback"
+    topic_label, topic_description = _resolve_topic_meta(draft, taxonomy, topic_id)
+
+    # #191 brick E: carry forward prior UI text for high-overlap matches; only the
+    # remaining (drifted/new) subtopics need a Sonnet relabel call.
+    reused, to_relabel = _apply_skip_reuse(subtopics, skip_map or {}, topic_id, topic_label)
+    if reused:
+        logger.info(
+            f"[{topic_id}] reused prior UI text for {len(reused)}/{len(subtopics)} "
+            f"subtopics (#191 brick E skip-logic)"
         )
-        topic_label = draft.get("topic_label", topic_id)
-        topic_description = ""
-    else:
-        topic_entry = taxonomy[topic_id]
-        topic_label = topic_entry.get("label", topic_id)
-        topic_description = topic_entry.get("description", "")
 
-    logger.info(
-        f"[{topic_id}] relabeling {len(subtopics)} subtopics "
-        f"(parent: {topic_label})"
-    )
-
-    parsed = _call_relabel(
-        client=client,
-        topic_id=topic_id,
-        topic_label=topic_label,
-        topic_description=topic_description,
-        subtopics=subtopics,
-    )
-    relabels = parsed.get("relabels", [])
-    if not relabels:
-        logger.error(f"[{topic_id}] empty 'relabels' in response; skipping")
-        return {"topic_id": topic_id, "skipped": "empty_response", "patched": 0}
-
-    patched, missing = _apply_relabels(subtopics, relabels, topic_id)
-    logger.info(
-        f"[{topic_id}] patched {patched}/{len(subtopics)} subtopics "
-        f"(missing={len(missing)})"
-    )
-
-    violations = _collect_parent_prefix_violations(subtopics, topic_id, topic_label)
-    if violations:
-        logger.warning(
-            f"[{topic_id}] {len(violations)} parent-prefix violation(s) after first pass; "
-            f"retrying those subtopics with violation context"
+    patched = 0
+    missing: list = []
+    violations: list = []
+    if to_relabel:
+        logger.info(
+            f"[{topic_id}] relabeling {len(to_relabel)} subtopics (parent: {topic_label})"
         )
-        violations = _retry_parent_prefix_violations(
+        parsed = _call_relabel(
             client=client,
             topic_id=topic_id,
             topic_label=topic_label,
             topic_description=topic_description,
-            subtopics=subtopics,
-            violations=violations,
+            subtopics=to_relabel,
         )
-        if violations:
-            logger.error(
-                f"[{topic_id}] {len(violations)} parent-prefix violation(s) STILL present "
-                f"after retry; writing file but run will exit non-zero. Offenders: "
-                + ", ".join(f"{v['id']}={v['display_name']!r}" for v in violations)
+        relabels = parsed.get("relabels", [])
+        if not relabels:
+            logger.error(f"[{topic_id}] empty 'relabels' in response; skipping")
+            if not reused:
+                return {"topic_id": topic_id, "skipped": "empty_response", "patched": 0}
+            # else: the reused subtopics still need writing — fall through.
+        else:
+            patched, missing = _apply_relabels(to_relabel, relabels, topic_id)
+            logger.info(
+                f"[{topic_id}] patched {patched}/{len(to_relabel)} subtopics "
+                f"(missing={len(missing)})"
             )
+            violations = _collect_parent_prefix_violations(
+                to_relabel, topic_id, topic_label
+            )
+            if violations:
+                logger.warning(
+                    f"[{topic_id}] {len(violations)} parent-prefix violation(s) after "
+                    f"first pass; retrying those subtopics with violation context"
+                )
+                violations = _retry_parent_prefix_violations(
+                    client=client,
+                    topic_id=topic_id,
+                    topic_label=topic_label,
+                    topic_description=topic_description,
+                    subtopics=to_relabel,
+                    violations=violations,
+                )
+                if violations:
+                    logger.error(
+                        f"[{topic_id}] {len(violations)} parent-prefix violation(s) STILL "
+                        f"present after retry; writing file but run will exit non-zero. "
+                        f"Offenders: "
+                        + ", ".join(f"{v['id']}={v['display_name']!r}" for v in violations)
+                    )
+    else:
+        logger.info(
+            f"[{topic_id}] all {len(subtopics)} subtopics reused from prior "
+            f"(#191 brick E skip-logic); no Sonnet relabel call"
+        )
 
     if dry_run:
         sample = subtopics[0]
@@ -338,6 +399,7 @@ def relabel_topic(
             "topic_id": topic_id,
             "patched": patched,
             "missing": len(missing),
+            "reused": len(reused),
             "dry_run": True,
         }
 
@@ -379,6 +441,8 @@ def relabel_topic(
         "topic_id": topic_id,
         "patched": patched,
         "missing": len(missing),
+        "reused": len(reused),
+        "reused_durable_ids": [r["durable_id"] for r in reused],
         "parent_prefix_violations": [v["id"] for v in violations],
         "subtopic_count": len(subtopics),
     }
@@ -427,6 +491,17 @@ def main() -> int:
 
     logger.info(f"Relabeling {len(topic_ids)} topic(s); dry_run={args.dry_run}")
 
+    # #191 brick E: build the reconcile skip-map once (gated OFF by default inside
+    # load_relabel_skip_map; read-only; returns {} on any error → full relabel).
+    from pipeline_hierarchy.relabel_skip import load_relabel_skip_map
+
+    skip_map = load_relabel_skip_map()
+    if skip_map:
+        logger.info(
+            f"#191 brick E skip-logic: {len(skip_map)} subtopic(s) eligible to reuse "
+            f"prior UI text (skipping their Sonnet relabel)"
+        )
+
     client = BedrockClient()
     results = []
     failures = []
@@ -439,6 +514,7 @@ def main() -> int:
                     taxonomy=taxonomy,
                     force=args.force,
                     dry_run=args.dry_run,
+                    skip_map=skip_map,
                 )
             )
         except Exception as exc:
@@ -446,6 +522,7 @@ def main() -> int:
             failures.append({"topic_id": tid, "error": str(exc)})
 
     total_patched = sum(r.get("patched", 0) for r in results)
+    total_reused = sum(r.get("reused", 0) for r in results)
     skipped = [r for r in results if r.get("skipped")]
     violators = [r for r in results if r.get("parent_prefix_violations")]
     total_violations = sum(len(r.get("parent_prefix_violations", [])) for r in results)
@@ -456,6 +533,8 @@ def main() -> int:
         f"  topics skipped:          {len(skipped)}\n"
         f"  topics failed:           {len(failures)}\n"
         f"  subtopics patched:       {total_patched}\n"
+        f"  subtopics reused (skip): {total_reused} "
+        f"(#191 brick E — prior UI text carried forward, no Sonnet call)\n"
         f"  parent-prefix violations: {total_violations} "
         f"(across {len(violators)} topic(s), after retry)\n"
         f"  dry_run:                 {args.dry_run}\n"
