@@ -49,5 +49,9 @@
   "subtopic_reconcile_skip_lede_enabled": false,
   "propagate_durable_ids": false,
   "subtopic_lifecycle_substrate_enabled": false,
-  "subtopic_lifecycle_mint_floor_papers": 5
+  "subtopic_lifecycle_mint_floor_papers": 5,
+  "subtopic_lifecycle_policy_enabled": false,
+  "subtopic_lifecycle_mint_persistence_runs": 2,
+  "subtopic_lifecycle_demote_quiet_runs": 12,
+  "subtopic_lifecycle_archive_quiet_runs": 12
 }

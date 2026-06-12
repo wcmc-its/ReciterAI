@@ -302,6 +302,25 @@
       "type": "integer",
       "minimum": 1,
       "description": "Brick F PR-1 paper-count floor (#191), PROVISIONAL. A freshly-discovered, mint-bound cluster (no prior match) must have n_papers = len(seed_pmids) >= this value to be STAGED as a SUBTOPIC_CANDIDATE# row (the volume floor PR-2's two-run-persistence mint gate will read). PR-1 only STAGES against it — minting itself is NOT gated, so a flag-on run still mints exactly as today. n_papers uses the DISCOVERY-SEED membership count (the only count in the step-10 artifact), NOT full-assignment paper counts, so size this against seed counts. The M-distinct-CWIDs floor is DEFERRED (CWIDs are absent from the membership artifact). The value is co-decided with the schedule/cadence in #37."
+    },
+    "subtopic_lifecycle_policy_enabled": {
+      "type": "boolean",
+      "description": "Brick F PR-2 policy gate (#191), SEPARATE from the PR-1 substrate flag. When true, the post-upload step-10 reconcile ACTS on the substrate PR-1 captures: (1) a MINT-PERSISTENCE gate holds a freshly-discovered (mint-bound) cluster until it clears subtopic_lifecycle_mint_floor_papers for subtopic_lifecycle_mint_persistence_runs consecutive runs — a held cluster gets NO durable id / slug pointer this run (its SUBTOPIC_CANDIDATE# row keeps accruing; the already-uploaded slug-keyed hierarchy.json is untouched, so this suppresses durable-id MINTING only); and (2) a RETIRE sweep transitions a durable id active->demoted (>= subtopic_lifecycle_demote_quiet_runs quiet runs) ->archived (>= demote+archive runs), reversibly un-demoting any prior re-claimed this run (including archived). REQUIRES subtopic_lifecycle_substrate_enabled=true (the retire sweep reads the quiet counter the substrate stamps) — from_config raises otherwise. OFF by default: a policy-off run holds nothing (mints exactly as PR-1) and writes ZERO status fields, so every SUBTOPIC_ID# row stays active and aliases.json is byte-identical. Forward-only: the quiet counter starts at 0, so the first demote is demote_quiet_runs runs after the SUBSTRATE flag flips on a real cold-run — no retroactive retirement. SPS acting on status (de-spotlight demoted, 301 archived->parent) is a further SPS-coordinated step; PR-2 writes the internal status only. Cadence/thresholds co-decided with #37."
+    },
+    "subtopic_lifecycle_mint_persistence_runs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Brick F PR-2 mint-persistence threshold (#191), PROVISIONAL. A mint-bound cluster that clears the paper floor must do so on this many CONSECUTIVE runs before it MINTS a durable id (its SUBTOPIC_CANDIDATE# seen_runs must reach this value). 1 = admit on first sighting (annual cadence / single-run floor; no candidate churn). 2 = two-run persistence (frequent cadence) — the burst filter (gc_candidates) resets a one-run blip so it can never reach 2. Quiet/persistence are counted in RUNS, cadence-agnostic. Only consulted when subtopic_lifecycle_policy_enabled=true. Co-decided with the cadence in #37 (1=annual, 2=frequent)."
+    },
+    "subtopic_lifecycle_demote_quiet_runs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Brick F PR-2 demote threshold (#191), PROVISIONAL. A durable id UNCLAIMED for this many consecutive runs (consecutive_quiet_runs >= this) transitions active->demoted in the retire sweep. Counted in RUNS (cadence-agnostic); forward-only from 0, so the first demote is this many runs after the substrate flag flips on. A re-claim un-demotes back to active and resets the counter. Only consulted when subtopic_lifecycle_policy_enabled=true. Co-decided with the cadence in #37."
+    },
+    "subtopic_lifecycle_archive_quiet_runs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Brick F PR-2 archive threshold (#191), PROVISIONAL. A demoted durable id still UNCLAIMED for a FURTHER this-many runs (consecutive_quiet_runs >= subtopic_lifecycle_demote_quiet_runs + this) transitions demoted->archived in the retire sweep. Counted in RUNS (cadence-agnostic). A re-claim un-demotes an archived id straight back to active (§8 reversibility). Only consulted when subtopic_lifecycle_policy_enabled=true. Co-decided with the cadence in #37."
     }
   }
 }
