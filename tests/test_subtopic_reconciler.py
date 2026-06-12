@@ -561,3 +561,139 @@ def test_merge_overlap_min_defaults_to_auto_match_min():
                              centroid_cosine_min=0.75, llm_arbiter_enabled=True,
                              merge_overlap_min=0.7)
     assert t2.effective_merge_overlap_min == 0.7
+
+
+# ---------- brick F PR-1: mint_bound surfaced from reconcile_durable_ids ----------
+
+
+def test_reconcile_durable_ids_returns_mint_bound_for_minted_clusters():
+    # The brick-F substrate needs the per-slug (slug, n_papers) of the clusters this
+    # run MINTED (no prior match). reconcile_durable_ids surfaces it as `mint_bound`
+    # so publish can thread it into stage_candidates without reaching into reconciler
+    # internals. Attached clusters are excluded.
+    snap = _snap(st_alpha=("aging", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "Senescence"))
+    table = _FakeTable()
+    table.put_item(Item={"PK": f"{SUBTOPIC_ID_PK_PREFIX}st_alpha", "SK": META_SK,
+                         "durable_id": "st_alpha", "slug_id": "slug_st_alpha", "topic_id": "aging",
+                         "label_at_mint": "Senescence", "created_at": "2026-01-01T00:00:00Z",
+                         "first_run_id": "run-0", "status": "active", "seed_pmids": [1, 2, 3]})
+    r = SubtopicReconciler(snap, thresholds=T, embed=_never_embed, arbiter=_never_arbiter)
+    store = SubtopicIdStore(table, SubtopicIdMinter(), reconciler=r)
+    membership = _mem(cont=("aging", [1, 2, 3, 4, 5, 6, 7, 8]), fresh=("aging", [90, 91, 92]))
+    hierarchy = {"topics": {"aging": {"subtopics": [{"id": "cont", "label": "Sen v2"}, {"id": "fresh", "label": "New"}]}}}
+    summary = reconcile_durable_ids(
+        store, membership=membership, hierarchy=hierarchy,
+        ctx=MintContext(run_id="run-1", created_at="2026-06-11T00:00:00Z",
+                        taxonomy_version="taxonomy_v2", hierarchy_version="v1"),
+        reconciler=r,
+    )
+    # 'cont' attached, 'fresh' minted -> mint_bound carries only 'fresh' with its seed count.
+    assert summary["mint_bound"] == [{"slug": "fresh", "n_papers": 3}]
+
+
+def test_reconcile_durable_ids_mint_bound_present_without_reconciler():
+    # Brick A path (no reconciler): every subtopic mints -> all appear in mint_bound.
+    store = SubtopicIdStore(_FakeTable(), SubtopicIdMinter())
+    m = _mem(a=("aging", [1, 2, 3]), b=("aging", []))
+    h = {"topics": {"aging": {"subtopics": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}]}}}
+    summary = reconcile_durable_ids(
+        store, membership=m, hierarchy=h,
+        ctx=MintContext(run_id="run-1", created_at="2026-06-11T00:00:00Z",
+                        taxonomy_version="t", hierarchy_version="v1"),
+    )
+    mb = {d["slug"]: d["n_papers"] for d in summary["mint_bound"]}
+    assert mb == {"a": 3, "b": 0}  # seedless cluster mints with n_papers=0
+
+
+# ---------- brick F PR-1: FLAG-OFF byte-identity (load-bearing) ----------
+
+
+class _ScanDeleteTable(_FakeTable):
+    """``_FakeTable`` (get/put) + a filter-agnostic paginating scan + delete_item, so
+    a flag-off run that would (but does not) call the lifecycle substrate can be
+    compared byte-for-byte against a baseline that never wires it."""
+
+    def scan(self, **kwargs):
+        rows = list(self.items.values())
+        start = kwargs.get("ExclusiveStartKey", 0)
+        chunk = rows[start : start + 100]
+        resp = {"Items": chunk}
+        if start + 100 < len(rows):
+            resp["LastEvaluatedKey"] = start + 100
+        return resp
+
+    def delete_item(self, Key):
+        self.items.pop((Key["PK"], Key["SK"]), None)
+
+
+def _run_reconcile(table):
+    """A reconcile_durable_ids pass that mints 2 + attaches 1, over `table`."""
+    from pipeline_hierarchy.subtopic_id_store import build_alias_map
+    from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+    snap = load_id_store_snapshot(table)
+    r = SubtopicReconciler(snap, thresholds=T, embed=_never_embed, arbiter=_never_arbiter)
+    store = SubtopicIdStore(table, SubtopicIdMinter(rand=lambda: 0.123456789), reconciler=r)
+    membership = _mem(cont=("aging", [1, 2, 3, 4, 5, 6, 7, 8]), fresh=("aging", [90, 91, 92]))
+    hierarchy = {"topics": {"aging": {"subtopics": [
+        {"id": "cont", "label": "Sen v2"}, {"id": "fresh", "label": "New"}]}}}
+    return reconcile_durable_ids(
+        store, membership=membership, hierarchy=hierarchy,
+        ctx=MintContext(run_id="run-1", created_at="2026-06-11T00:00:00Z",
+                        taxonomy_version="taxonomy_v2", hierarchy_version="v1"),
+        reconciler=r,
+    )
+
+
+def _seed_alpha(table):
+    table.put_item(Item={"PK": f"{SUBTOPIC_ID_PK_PREFIX}st_alpha", "SK": META_SK,
+                         "durable_id": "st_alpha", "slug_id": "slug_st_alpha", "topic_id": "aging",
+                         "label_at_mint": "Senescence", "created_at": "2026-01-01T00:00:00Z",
+                         "first_run_id": "run-0", "status": "active", "seed_pmids": [1, 2, 3]})
+
+
+def test_flag_off_run_is_byte_identical_and_writes_no_candidate_rows():
+    from pipeline_hierarchy.subtopic_id_store import (
+        SUBTOPIC_CANDIDATE_PK_PREFIX,
+        build_alias_map,
+    )
+    from pipeline_hierarchy.subtopic_lifecycle import (
+        LifecyclePolicy,
+        gc_candidates,
+        stage_candidates,
+        sweep_quiet_substrate,
+    )
+    from pipeline_hierarchy.subtopic_reconcile import load_id_store_snapshot
+
+    OFF = LifecyclePolicy(substrate_enabled=False, mint_floor_papers=5)
+
+    # baseline: reconcile only, lifecycle module NEVER invoked.
+    baseline = _ScanDeleteTable()
+    _seed_alpha(baseline)
+    _run_reconcile(baseline)
+
+    # flag-off: reconcile + the (no-op) substrate passes guarded by the OFF flag.
+    flag_off = _ScanDeleteTable()
+    _seed_alpha(flag_off)
+    summary = _run_reconcile(flag_off)
+    if OFF.substrate_enabled:  # pragma: no cover — the guard mirrors publish wiring
+        sweep_quiet_substrate(flag_off, claimed_ids=set(), all_prior_ids=set(),
+                              hierarchy_version="v1", policy=OFF)
+        seen = stage_candidates(flag_off, mint_bound=summary["mint_bound"],
+                                hierarchy_version="v1", policy=OFF)
+        gc_candidates(flag_off, seen_slugs=seen["seen_slugs"], policy=OFF)
+
+    def dump(tbl):
+        return json.dumps(
+            {f"{pk}|{sk}": row for (pk, sk), row in tbl.items.items()},
+            sort_keys=True, default=str,
+        )
+
+    assert dump(baseline) == dump(flag_off)  # store rows byte-identical
+    assert not any(
+        pk.startswith(SUBTOPIC_CANDIDATE_PK_PREFIX) for (pk, _sk) in flag_off.items
+    )
+    # aliases.json projection is byte-identical too (status stays 'active' on every row).
+    a = build_alias_map(load_id_store_snapshot(baseline), hierarchy_version="v1", taxonomy_version="t")
+    b = build_alias_map(load_id_store_snapshot(flag_off), hierarchy_version="v1", taxonomy_version="t")
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)

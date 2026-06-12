@@ -440,6 +440,12 @@ def reconcile_durable_id_store(
     try:
         # Lazy import: keeps publish's top-level imports light and avoids loading
         # numpy/openai on a --dry-run that never reaches here.
+        from pipeline_hierarchy.subtopic_lifecycle import (
+            LifecyclePolicy,
+            gc_candidates,
+            stage_candidates,
+            sweep_quiet_substrate,
+        )
         from pipeline_hierarchy.subtopic_reconcile import (
             ReconcileThresholds,
             SubtopicReconciler,
@@ -449,6 +455,7 @@ def reconcile_durable_id_store(
         if membership is None:
             membership = build_membership(hierarchy_dict, hierarchy_version=version)
         thresholds = ReconcileThresholds.from_config()
+        policy = LifecyclePolicy.from_config()
         snapshot = load_id_store_snapshot(table)
         reconciler = SubtopicReconciler(snapshot, thresholds=thresholds)
         store = SubtopicIdStore(table, reconciler=reconciler)
@@ -464,6 +471,42 @@ def reconcile_durable_id_store(
             ),
             reconciler=reconciler,
         )
+        # Brick F PR-1 (#191): forward-only lifecycle substrate. CAPTURE ONLY — no
+        # status transitions, no mint-gating. Runs POST-mint/POST-upload, so it cannot
+        # affect the published artifact or the skip-cache input hash; flag-off (default)
+        # it is a full no-op (store rows + aliases.json stay byte-identical). Inside the
+        # same broad except that swallows reconcile failures (best-effort, never fails
+        # the already-live publish).
+        if policy.substrate_enabled:
+            all_prior_ids = set(snapshot)
+            # CLAIMED = priors a successor matched this run = all priors minus the
+            # reconciler's unclaimed set (populated by precompute, which reconcile ran).
+            unclaimed = set(getattr(reconciler, "unclaimed_priors", set()) or set())
+            claimed = all_prior_ids - unclaimed
+            sweep_audit = sweep_quiet_substrate(
+                table,
+                claimed_ids=claimed,
+                all_prior_ids=all_prior_ids,
+                hierarchy_version=version,
+                policy=policy,
+            )
+            stage_audit = stage_candidates(
+                table,
+                mint_bound=summary.get("mint_bound") or [],
+                hierarchy_version=version,
+                policy=policy,
+            )
+            gc_deleted = gc_candidates(
+                table, seen_slugs=stage_audit.get("seen_slugs", set()), policy=policy
+            )
+            summary = {
+                **summary,
+                "lifecycle_quiet": sweep_audit,
+                "lifecycle_staged": stage_audit.get("staged", 0),
+                "lifecycle_candidates_gc": gc_deleted,
+            }
+        # mint_bound is an internal staging seam; drop it from the published event.
+        summary.pop("mint_bound", None)
         print(json.dumps({"event": "durable_ids_reconciled", "prior_subtopics": len(snapshot), **summary}, indent=2))
     except Exception as exc:  # noqa: BLE001 — artifact already live; never fail publish here
         logging.getLogger(__name__).warning(
