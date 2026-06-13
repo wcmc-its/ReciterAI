@@ -35,6 +35,21 @@ def _no_real_webhook(monkeypatch):
     monkeypatch.delenv("RECITERAI_TEAMS_WEBHOOK_URL", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _stub_impact_backpropagation(monkeypatch):
+    """#212 Part B: run_daily_enrichment / run_enrichment_backfill now
+    back-propagate impact_score onto TOPIC# rows (best-effort, after
+    mark_run_complete). The real path (compute_top_topic.fetch_activity_rows_for_pmid)
+    paginates on table.query; these tests use a MagicMock table, on which the
+    pagination loop never terminates. Propagation is covered directly in the
+    test_propagate_impact_best_effort_* tests, so neutralize it here to a no-op
+    for every other test. Tests that exercise it re-patch this symbol in-body."""
+    monkeypatch.setattr(
+        daily_job.ddb_writer, "propagate_impact_to_topic_rows",
+        lambda *a, **k: 0,
+    )
+
+
 # Step 3 PR 3.1: orchestrator's end-of-run DDB batch falls back to
 # get_table() when ddb_table=None. Without this autouse stub it would hit
 # boto3 / AWS during every happy-path test. The MagicMock natively supports
@@ -1744,3 +1759,57 @@ def test_spend_tracker_invoked_with_cost_and_run_id(
     rec.assert_called_once()
     assert rec.call_args.kwargs["run_id"] == "run-xyz"
     assert rec.call_args.args  # cost passed positionally as the first arg
+
+
+# ---------------------------------------------------------------------------
+# #212 Part B — best-effort back-propagation wrapper failure posture
+# ---------------------------------------------------------------------------
+
+def test_propagate_impact_best_effort_returns_count_on_success(monkeypatch):
+    monkeypatch.setattr(
+        daily_job.ddb_writer, "propagate_impact_to_topic_rows",
+        lambda table, items: 7,
+    )
+    alerts = []
+    n = daily_job._propagate_impact_best_effort(
+        MagicMock(),
+        [{"pmid": "1", "impact_score": 50}],
+        alert_fn=lambda *a, **k: alerts.append(a),
+        run_id="r1",
+        context_label="daily run",
+    )
+    assert n == 7
+    assert alerts == []  # no alert fired on success
+
+
+def test_propagate_impact_best_effort_swallows_error_and_alerts(monkeypatch):
+    """A propagation failure must NOT raise (the run is already committed) and
+    must fire an ERROR alert — impact_score on TOPIC# is a derived copy."""
+    def boom(table, items):
+        raise RuntimeError("ddb throttled")
+
+    monkeypatch.setattr(daily_job.ddb_writer, "propagate_impact_to_topic_rows", boom)
+    levels = []
+    n = daily_job._propagate_impact_best_effort(  # must not raise
+        MagicMock(),
+        [{"pmid": "1", "impact_score": 50}],
+        alert_fn=lambda level, *a, **k: levels.append(level),
+        run_id="r1",
+        context_label="daily run",
+    )
+    assert n == 0
+    assert levels and levels[0] == "ERROR"
+
+
+def test_propagate_impact_best_effort_noop_on_empty(monkeypatch):
+    called = []
+    monkeypatch.setattr(
+        daily_job.ddb_writer, "propagate_impact_to_topic_rows",
+        lambda table, items: called.append(1) or 9,
+    )
+    n = daily_job._propagate_impact_best_effort(
+        MagicMock(), [], alert_fn=lambda *a, **k: None,
+        run_id=None, context_label="enrichment backfill",
+    )
+    assert n == 0
+    assert called == []  # short-circuits before touching DynamoDB

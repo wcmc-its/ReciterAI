@@ -180,3 +180,101 @@ def test_build_topic_records_skips_pubs_without_faculty_authors():
     )
     assert len(records) == 1
     assert records[0]["pmid"] == {"S": "111"}
+
+
+# --- #212 Part A: build-time impact_score join -----------------------------
+
+
+def test_impact_score_and_justification_written_when_provided():
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=_AUTHORS,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+        impact_score="55",
+        impact_justification="cited widely",
+    )
+    assert rows[0]["impact_score"] == {"N": "55"}
+    assert rows[0]["impact_justification"] == {"S": "cited widely"}
+
+
+def test_impact_score_accepts_int_and_float():
+    for val, expected in ((72, "72"), (88.0, "88.0")):
+        rows = build_topic_rows_for_pmid(
+            pmid="111",
+            dense_scores={"cardio": {"score": 0.9}},
+            authors=_AUTHORS,
+            taxonomy_version="taxonomy_v2",
+            min_score=0.3,
+            impact_score=val,
+        )
+        assert rows[0]["impact_score"] == {"N": expected}
+
+
+def test_impact_justification_omitted_when_blank_even_if_score_present():
+    """Mirrors the stopgap backfill: justification only when present."""
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=_AUTHORS,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+        impact_score=72,
+        impact_justification="",
+    )
+    assert rows[0]["impact_score"] == {"N": "72"}
+    assert "impact_justification" not in rows[0]
+
+
+def test_impact_keys_omitted_when_score_absent_preserves_historical_shape():
+    """TOPIC#-before-enrichment ordering: no impact yet -> historical
+    7-attribute shape, Part B back-propagates later."""
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=_AUTHORS,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+        impact_score=None,
+        impact_justification="ignored when score is None",
+    )
+    assert "impact_score" not in rows[0]
+    assert "impact_justification" not in rows[0]
+    assert set(rows[0]) == {
+        "PK", "SK", "faculty_uid", "score",
+        "rationale", "topic_scores_version", "pmid",
+    }
+
+
+def test_impact_score_blank_string_treated_as_absent():
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=_AUTHORS,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+        impact_score="   ",
+        impact_justification="x",
+    )
+    assert "impact_score" not in rows[0]
+    assert "impact_justification" not in rows[0]
+
+
+def test_build_topic_records_joins_impact_from_scoring_results():
+    """Cold path: serialize_results stamps impact onto scoring_results.json
+    and build_topic_records joins it onto the TOPIC# rows."""
+    scoring_results = [
+        {
+            "pmid": "111",
+            "dense_scores": {"cardio": {"score": 0.9}},
+            "impact_score": "88",
+            "impact_justification": "j",
+        },
+    ]
+    author_mapping = {"111": [{"cwid": "abc1234", "position": "first"}]}
+    records = load_dynamodb.build_topic_records(
+        scoring_results, author_mapping, "taxonomy_v2", min_score=0.3
+    )
+    assert records[0]["impact_score"] == {"N": "88"}
+    assert records[0]["impact_justification"] == {"S": "j"}

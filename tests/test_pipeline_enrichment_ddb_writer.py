@@ -1,6 +1,9 @@
 """Unit tests for pipeline_enrichment.ddb_writer (#37 step 3 PR 3.1)."""
 from __future__ import annotations
 
+import sys
+import types
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
@@ -96,3 +99,90 @@ def test_write_impact_batch_propagates_exceptions():
     table.batch_writer.return_value.__enter__.side_effect = RuntimeError("boom")
     with pytest.raises(RuntimeError, match="boom"):
         ddb_writer.write_impact_batch(table, [{"PK": "x", "SK": "y"}])
+
+
+# ---------------------------------------------------------------------------
+# propagate_impact_to_topic_rows — #212 Part B back-propagation hook
+# ---------------------------------------------------------------------------
+
+def _install_fake_fetch(monkeypatch, rows_by_pmid):
+    """Inject a fake compute_top_topic so the lazy
+    `from compute_top_topic import fetch_activity_rows_for_pmid` inside
+    propagate_impact_to_topic_rows resolves to a stub — no boto3, no GSI."""
+    fake = types.ModuleType("compute_top_topic")
+
+    def fetch_activity_rows_for_pmid(table, pmid):  # noqa: ARG001 — table unused in stub
+        return rows_by_pmid.get(str(pmid), [])
+
+    fake.fetch_activity_rows_for_pmid = fetch_activity_rows_for_pmid
+    monkeypatch.setitem(sys.modules, "compute_top_topic", fake)
+
+
+def _impact(pmid="111", score=55, justification="cited by 3"):
+    d = {"pmid": pmid, "impact_score": score}
+    if justification is not None:
+        d["justification"] = justification
+    return d
+
+
+def _trow(sk="SCORE#0900#ACTIVITY#pmid_111#cwid_a", impact=None):
+    # Table-resource shape: plain dict, Numbers as Decimal.
+    r = {"PK": "TOPIC#cardio", "SK": sk}
+    if impact is not None:
+        r["impact_score"] = Decimal(str(impact))
+    return r
+
+
+def test_propagate_writes_missing_impact(monkeypatch):
+    _install_fake_fetch(monkeypatch, {"111": [_trow("SCORE#a#cwid_a"), _trow("SCORE#b#cwid_b")]})
+    table = MagicMock()
+    n = ddb_writer.propagate_impact_to_topic_rows(table, [_impact("111", 55, "good")])
+    assert n == 2
+    assert table.update_item.call_count == 2
+    kw = table.update_item.call_args_list[0].kwargs
+    assert kw["ExpressionAttributeValues"][":s"] == 55
+    assert kw["ExpressionAttributeValues"][":j"] == "good"
+    assert "impact_justification" in kw["UpdateExpression"]
+    assert "ConditionExpression" in kw  # overwrite-if-different guard
+
+
+def test_propagate_skips_rows_already_at_value(monkeypatch):
+    _install_fake_fetch(monkeypatch, {"222": [_trow("SCORE#a#cwid_a", impact=40), _trow("SCORE#b#cwid_b")]})
+    table = MagicMock()
+    n = ddb_writer.propagate_impact_to_topic_rows(table, [_impact("222", 40, "j")])
+    assert n == 1                       # only the missing row written
+    assert table.update_item.call_count == 1
+
+
+def test_propagate_overwrites_stale_value(monkeypatch):
+    """Annual --full rescore: a different value must overwrite, not be skipped."""
+    _install_fake_fetch(monkeypatch, {"333": [_trow("SCORE#a#cwid_a", impact=10)]})
+    table = MagicMock()
+    n = ddb_writer.propagate_impact_to_topic_rows(table, [_impact("333", 88, "j")])
+    assert n == 1
+    assert table.update_item.call_args_list[0].kwargs["ExpressionAttributeValues"][":s"] == 88
+
+
+def test_propagate_justification_omitted_when_blank(monkeypatch):
+    _install_fake_fetch(monkeypatch, {"444": [_trow("SCORE#a#cwid_a")]})
+    table = MagicMock()
+    n = ddb_writer.propagate_impact_to_topic_rows(table, [_impact("444", 70, justification="")])
+    assert n == 1
+    kw = table.update_item.call_args_list[0].kwargs
+    assert ":j" not in kw["ExpressionAttributeValues"]
+    assert "impact_justification" not in kw["UpdateExpression"]
+
+
+def test_propagate_empty_items_is_noop(monkeypatch):
+    _install_fake_fetch(monkeypatch, {})
+    table = MagicMock()
+    assert ddb_writer.propagate_impact_to_topic_rows(table, []) == 0
+    table.update_item.assert_not_called()
+
+
+def test_propagate_idempotent_full_skip(monkeypatch):
+    """All rows already correct -> zero writes (idempotent re-run)."""
+    _install_fake_fetch(monkeypatch, {"555": [_trow("SCORE#a#cwid_a", impact=60), _trow("SCORE#b#cwid_b", impact=60)]})
+    table = MagicMock()
+    assert ddb_writer.propagate_impact_to_topic_rows(table, [_impact("555", 60, "j")]) == 0
+    table.update_item.assert_not_called()
