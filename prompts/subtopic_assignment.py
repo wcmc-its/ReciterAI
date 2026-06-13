@@ -32,6 +32,25 @@ You will receive:
 Your job is to decide which of the listed subtopics the activity belongs to and
 how confident you are in each assignment.
 
+SUBSTRATE MATCHING (read carefully — this is a common failure mode):
+Many subtopics are defined by a DATA SUBSTRATE — the kind of data the study actually
+analyzes — not merely by an analytical method. Substrate qualifiers that may appear in a
+subtopic's label or description include: "electronic health records / EHR", "clinical
+notes / free text", "medical imaging / radiology / histopathology", "flow cytometry",
+"genomics / -omics / sequencing / methylation", "liquid biopsy / circulating tumor cells",
+"wearable sensors", "microbiome".
+
+When a subtopic names a data substrate, the activity must ACTUALLY USE that substrate to
+belong. Sharing only a method — machine learning, deep learning, classification,
+prediction, risk modeling — is NOT enough. A study that applies machine learning to
+proteomic, flow-cytometry, imaging, genomic, microbiome, or survey data does NOT belong in
+an electronic-health-record subtopic just because both involve prediction or classification.
+
+If the activity's substrate matches a DIFFERENT listed subtopic (e.g. an imaging, -omics,
+computational-pathology, or liquid-biopsy subtopic), assign it there instead. If none of the
+listed subtopics matches the activity's actual data substrate, return an empty assignments
+list rather than forcing a method-only match.
+
 OUTPUT FORMAT — return ONLY a JSON object with NO markdown fences, NO commentary, NO prose:
 
 {
