@@ -66,6 +66,7 @@ import pytest
 
 import rollup_by_cwid
 from spotlight.pool_ranker import rank_pool
+from utils.scoring import article_score
 
 
 # ===========================================================================
@@ -181,6 +182,7 @@ def _ddb_topic_item(
     primary_subtopic_id: str,
     year: int,
     impact_score: float,
+    relevance: float = 1.0,
     title: str = "",
     journal: str = "",
     impact_justification: str = "",
@@ -197,6 +199,10 @@ def _ddb_topic_item(
 
     The S/N wrappers are DynamoDB's low-level type tags (boto3 client API,
     not the Resource API). pool_ranker uses the low-level client.
+
+    ``relevance`` populates the ``score`` attribute (the dense topic-relevance
+    that build_topic_rows_for_pmid always writes); pool_ranker blends it with
+    impact_score via utils.scoring.article_score. Defaults to 1.0.
     """
     item = {
         "PK": {"S": f"TOPIC#unused#{pmid}"},
@@ -204,6 +210,7 @@ def _ddb_topic_item(
         "primary_subtopic_id": {"S": primary_subtopic_id},
         "year": {"N": str(year)},
         "impact_score": {"N": str(impact_score)},
+        "score": {"N": str(relevance)},
     }
     # Optional attributes — only set if non-empty (mirrors real assign output).
     if title:
@@ -329,14 +336,16 @@ def test_assign_topic_rows_consumed_by_pool_ranker():
     assert "topic_beta_sub1" in by_sid
 
     alpha = by_sid["topic_alpha_sub1"]
-    # pool_score for alpha = sum of top-K impact_scores (K ≥ 2). With
-    # K=6 default and 2 papers in the subtopic, pool_score = 85 + 60 = 145.
-    assert alpha.pool_score == 145.0, f"alpha pool_score expected 145.0; got {alpha.pool_score}"
+    # pool_score for alpha = sum of top-K article_scores (K ≥ 2). With the
+    # default K and 2 papers (impact 85 + 60, relevance 1.0), it's the sum of
+    # their article_scores.
+    expected_alpha = article_score(85.0, 1.0) + article_score(60.0, 1.0)
+    assert alpha.pool_score == expected_alpha, f"alpha pool_score expected {expected_alpha}; got {alpha.pool_score}"
     assert alpha.parent_topic == "topic_alpha"
     assert {p.pmid for p in alpha.papers} == {"11111", "22222"}
 
     beta = by_sid["topic_beta_sub1"]
-    assert beta.pool_score == 70.0
+    assert beta.pool_score == article_score(70.0, 1.0)
     assert beta.parent_topic == "topic_beta"
     assert beta.papers[0].pmid == "33333"
     assert beta.papers[0].first_author.person_identifier == "dave"
@@ -370,7 +379,7 @@ def test_assign_topic_row_with_missing_pmid_field_drops_paper():
     pool = rank_pool(client=_FakeDDBClient(items), author_resolver=None)
 
     assert len(pool) == 1
-    assert pool[0].pool_score == 50.0, (
+    assert pool[0].pool_score == article_score(50.0, 1.0), (
         "Malformed pmid-less row leaked into the pool; pool_ranker's drop "
         "contract is broken."
     )
@@ -398,6 +407,6 @@ def test_assign_topic_row_outside_recency_window_excluded():
 
     pool = rank_pool(client=_FakeDDBClient(items), author_resolver=None)
     assert len(pool) == 1
-    assert pool[0].pool_score == 40.0, (
+    assert pool[0].pool_score == article_score(40.0, 1.0), (
         "Stale (>24mo) paper leaked into pool — recency cutoff regressed."
     )

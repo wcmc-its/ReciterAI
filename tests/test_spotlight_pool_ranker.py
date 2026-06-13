@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from utils.scoring import article_score
+
 
 # ---------------------------------------------------------------------------
 # Synthetic DynamoDB client stub
@@ -54,11 +56,20 @@ def _topic_item(
     year: int,
     title: str = "Title",
     journal: str = "Journal",
+    relevance: float = 1.0,
 ):
-    """Build a TOPIC# item in DynamoDB low-level shape."""
+    """Build a TOPIC# item in DynamoDB low-level shape.
+
+    ``relevance`` populates the ``score`` attribute (the dense topic-relevance
+    the ranker blends with ``impact_score``). Defaults to 1.0 so tests that
+    only vary impact keep article_score monotonic in impact — i.e. impact-only
+    ordering still holds — while the value-level pool_score assertions use the
+    canonical ``article_score`` blend.
+    """
     item = {
         "pmid": {"S": pmid},
         "impact_score": {"N": str(impact_score)},
+        "score": {"N": str(relevance)},
         "year": {"N": str(year)},
         "title": {"S": title},
         "journal": {"S": journal},
@@ -94,8 +105,8 @@ def test_cutoff_excludes_old_publications():
 
     assert len(result) == 1
     assert result[0].subtopic_id == "aging_001"
-    # Only 30 + 40 = 70 from in-window publications
-    assert result[0].pool_score == 70.0
+    # Only the two in-window papers (impact 30 + 40, relevance 1.0) contribute.
+    assert result[0].pool_score == article_score(30.0, 1.0) + article_score(40.0, 1.0)
     pmids = {p.pmid for p in result[0].papers}
     assert pmids == {"102", "103"}
 
@@ -106,7 +117,7 @@ def test_cutoff_excludes_old_publications():
 
 
 def test_score_aggregation_sums_per_subtopic():
-    """Two items same subtopic, scores 30.0 + 20.0, result has pool_score 50.0."""
+    """Two items same subtopic: pool_score is the sum of their article_scores."""
     from spotlight.pool_ranker import rank_pool
 
     year = date.today().year
@@ -118,16 +129,17 @@ def test_score_aggregation_sums_per_subtopic():
 
     assert len(result) == 1
     assert result[0].subtopic_id == "aging_001"
-    assert result[0].pool_score == 50.0
+    assert result[0].pool_score == article_score(30.0, 1.0) + article_score(20.0, 1.0)
 
 
 def test_score_uses_top_n_papers_per_subtopic():
-    """Subtopic with 10 papers: pool_score = sum of top-7 impact_scores, NOT all 10.
+    """Subtopic with 10 papers: pool_score = sum of top-7 article_scores, NOT all 10.
 
     Regression test for the live-data smoke finding where summing every
-    paper's impact_score let high-volume subtopics dominate over high-quality
-    ones. With default ``top_papers_per_subtopic=7`` (#49 raised from 6),
-    10 papers of impact 100..91 yield pool_score = 100+99+98+97+96+95+94 = 679.
+    paper's score let high-volume subtopics dominate over high-quality
+    ones. With default ``top_papers_per_subtopic=7`` (#49 raised from 6) and
+    relevance held constant, the top-7 are the impact 100..94 papers and
+    pool_score is the sum of their article_scores.
     """
     from spotlight.pool_ranker import rank_pool
 
@@ -140,10 +152,45 @@ def test_score_uses_top_n_papers_per_subtopic():
     result = rank_pool(client=StubDynamoClient(items))
 
     assert len(result) == 1
-    assert result[0].pool_score == sum(100 - i for i in range(7))  # 679.0
+    assert result[0].pool_score == sum(article_score(100 - i, 1.0) for i in range(7))
     assert len(result[0].papers) == 7
-    # Top-7 papers ordered by impact_score DESC (PMID 700..706)
+    # Constant relevance → article_score monotonic in impact, so top-7 ordered
+    # by impact DESC (PMID 700..706).
     assert [p.pmid for p in result[0].papers] == [f"7{i:02d}" for i in range(7)]
+
+
+def test_ranking_blends_relevance_not_impact_alone():
+    """A lower-impact but on-topic paper outranks a higher-impact off-topic one.
+
+    Regression for the "EHR-Based Outcome Prediction Models" spotlight, where
+    prominent-but-off-substrate papers (a proteomics/HIV study, a flow-cytometry
+    study) surfaced as representative papers because the ranker keyed on impact
+    alone. The blended article_score (impact x topic-relevance) demotes the
+    high-impact / low-relevance paper below the genuinely on-topic one.
+    """
+    from spotlight.pool_ranker import rank_pool
+
+    year = date.today().year
+    # "900" = prominent but weak topic fit; "901" = lower impact, strong fit.
+    items = [
+        _topic_item(pmid="900", subtopic_id="ehr_001", impact_score=90.0,
+                    year=year, relevance=0.2),
+        _topic_item(pmid="901", subtopic_id="ehr_001", impact_score=40.0,
+                    year=year, relevance=0.95),
+    ]
+    # Precondition: impact alone would rank "900" first; the blend inverts it.
+    assert 90.0 > 40.0
+    assert article_score(40.0, 0.95) > article_score(90.0, 0.2)
+
+    result = rank_pool(client=StubDynamoClient(items))
+
+    assert len(result) == 1
+    order = [p.pmid for p in result[0].papers]
+    assert order == ["901", "900"], (
+        f"on-topic paper must lead despite lower impact; got {order}"
+    )
+    # relevance_score is carried onto the Paper for downstream consumers.
+    assert result[0].papers[0].relevance_score == 0.95
 
 
 def test_parent_lookup_overrides_regex():
@@ -249,7 +296,7 @@ def test_pmid_dedup_per_subtopic():
     result = rank_pool(client=StubDynamoClient(items))
 
     assert len(result) == 1
-    assert result[0].pool_score == 10.0  # not 30
+    assert result[0].pool_score == article_score(10.0, 1.0)  # counted once, not 3x
     assert len(result[0].papers) == 1
 
 
@@ -272,7 +319,7 @@ def test_missing_subtopic_id_skipped_without_raise():
 
     assert len(result) == 1
     assert result[0].subtopic_id == "aging_001"
-    assert result[0].pool_score == 5.0
+    assert result[0].pool_score == article_score(5.0, 1.0)
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,13 @@
-"""Pool ranker — top-50 subtopics by Sigma impact_score over last-24-months
+"""Pool ranker — top-N subtopics by Sigma article_score over last-24-months
 publications.
 
 Implements SPOT-01 (pool ranking) and SPOT-02 (determinism via tuple sort
 key). Reads TOPIC# enrichment from DynamoDB via Scan + paginator with
 ``begins_with(PK, "TOPIC#")``, filters publications older than the
-24-month window, sums ``impact_score`` per ``primary_subtopic_id``, and
-returns the top 50 PoolEntry objects sorted ``(score DESC, subtopic_id ASC)``.
+24-month window, sums the blended ``article_score`` (impact x topic-relevance,
+see ``utils.scoring``) of each subtopic's top-K papers per
+``primary_subtopic_id``, and returns the top-N PoolEntry objects sorted
+``(score DESC, subtopic_id ASC)``.
 
 Lazy boto3 initialization follows ``utils/bedrock_client.py:_get_client``.
 """
@@ -21,6 +23,7 @@ import boto3
 
 from spotlight.types import Author, Paper, PoolEntry
 from utils.env_check import load_thresholds
+from utils.scoring import article_score
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +117,9 @@ def _extract_paper(item: dict) -> Paper | None:
     impact_score = float(item.get("impact_score", {}).get("N", "0"))
     impact_justification = item.get("impact_justification", {}).get("S", "")
     synopsis = item.get("synopsis", {}).get("S", "")
+    # ``score`` is the dense topic-relevance for this TOPIC# row — the second
+    # ranking signal alongside impact_score (see utils.scoring.article_score).
+    relevance_score = float(item.get("score", {}).get("N", "0"))
 
     first_pid = item.get("first_author_person_identifier", {}).get("S", "")
     first_name = item.get("first_author_display_name", {}).get("S", "")
@@ -157,6 +163,7 @@ def _extract_paper(item: dict) -> Paper | None:
         synopsis=synopsis,
         first_author=first_author,
         last_author=last_author,
+        relevance_score=relevance_score,
     )
 
 
@@ -181,10 +188,12 @@ def rank_pool(
     SPOT-02: deterministic ordering via tuple sort key
     ``(-score, subtopic_id)`` — score DESC, subtopic_id ASC.
 
-    pool_score is the sum of the **top-K papers'** ``impact_score`` per
-    subtopic (default K=7). This anchors ranking to paper quality rather
-    than subtopic volume; large subtopics with many mediocre papers no
-    longer dominate the pool.
+    pool_score is the sum of the **top-K papers'** ``article_score`` per
+    subtopic (default K=7), where ``article_score`` blends impact with the
+    paper's topic-relevance (``utils.scoring.article_score``). This anchors
+    ranking to on-topic paper quality rather than subtopic volume or raw
+    prominence; large subtopics with many mediocre papers — and papers that
+    are prominent but off-topic — no longer dominate the pool.
 
     Args:
         client: optional boto3 DynamoDB client (test seam). If None, uses
@@ -195,14 +204,14 @@ def rank_pool(
         parent_lookup: optional dict mapping ``subtopic_id -> parent_topic``,
             sourced from hierarchy.json. If None or a subtopic_id is not
             in the dict, falls back to ``_parent_of`` (regex on _NNN suffix).
-        top_papers_per_subtopic: K. Sum the K highest impact_scores per
+        top_papers_per_subtopic: K. Sum the K highest article_scores per
             subtopic into pool_score. Pass ``len(papers)`` worth via a high
             value if you want the legacy "sum-all" behavior.
 
     Returns:
         List of PoolEntry, sorted (score DESC, subtopic_id ASC), capped at
         pool_size. Each PoolEntry contains the top-K papers contributing to
-        its score (PMIDs deduped per subtopic, sorted by impact_score DESC).
+        its score (PMIDs deduped per subtopic, sorted by article_score DESC).
     """
     client = client or _get_default_client()
     cutoff_year = date.today().year - (window_months // 12)
@@ -283,16 +292,24 @@ def rank_pool(
 
     parent_lookup = parent_lookup or {}
 
-    # Tuple sort key: impact_score DESC, then PMID-as-int ASC, then year DESC.
-    # The PMID cast surfaces non-digit PMIDs as a TypeError at sort time,
-    # which is the right failure mode — the schema bans non-digit PMIDs.
+    # Tuple sort key: article_score DESC, then PMID-as-int ASC, then year DESC.
+    # article_score blends impact with the paper's topic-relevance (the TOPIC#
+    # ``score``) so a high-impact paper that only grazes the subtopic can't
+    # outrank an on-topic one — the representative papers a card surfaces must
+    # fit the subtopic, not merely be prominent. The PMID cast surfaces
+    # non-digit PMIDs as a TypeError at sort time, which is the right failure
+    # mode — the schema bans non-digit PMIDs.
     scored: list[tuple[str, float, tuple[Paper, ...]]] = []
     for sid, papers in by_subtopic.items():
         top = sorted(
             papers,
-            key=lambda p: (-p.impact_score, int(p.pmid), -p.year),
+            key=lambda p: (
+                -article_score(p.impact_score, p.relevance_score),
+                int(p.pmid),
+                -p.year,
+            ),
         )[:top_papers_per_subtopic]
-        score = sum(p.impact_score for p in top)
+        score = sum(article_score(p.impact_score, p.relevance_score) for p in top)
         scored.append((sid, score, tuple(top)))
 
     # SPOT-02: tuple sort key — score DESC, subtopic_id ASC.
