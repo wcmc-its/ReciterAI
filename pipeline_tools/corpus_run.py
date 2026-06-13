@@ -326,6 +326,7 @@ def run_corpus(
     apply_family_overrides: bool = False,
     apply_consolidation: bool = False,
     apply_adhoc_dedup: bool = False,
+    label_uniqueness: bool = True,
     checkpoint_dir=None,
 ) -> CorpusResult:
     """Run the A2 corpus pipeline over ``mentions`` and return registries + outputs.
@@ -483,6 +484,7 @@ def run_corpus(
     override_deltas: list[dict] = []
     consolidation_deltas: list[dict] = []
     adhoc_deltas: list[dict] = []
+    label_uniqueness_deltas: list[dict] = []
     define_deltas: list[dict] = []
     if relabel:
         from pipeline_tools.family_rebuild import form_families
@@ -528,6 +530,15 @@ def run_corpus(
         forks = cross_supercategory_label_forks(family_registry)
         for fk in forks:
             exceptions.append({"type": EXC_CROSS_SUPERCATEGORY, **fk})
+        # #215 label-uniqueness invariant — deterministic cross-supercategory disambiguation
+        # + hard gate. Runs AFTER the ad-hoc dedup (config merges/relabels take precedence by
+        # construction) and the cross-SC guard (whose fork audit above we keep intact), and
+        # BEFORE the faculty rollup / artifact emit. Appends a supercategory-derived qualifier
+        # so genuine keep-separate forks (AAV reagent vs therapeutic) never publish two
+        # identical chips; a residual same-supercategory collision (a missed merge) fails loud.
+        if label_uniqueness:
+            from pipeline_tools.family_label_uniqueness import enforce_label_uniqueness
+            label_uniqueness_deltas = enforce_label_uniqueness(family_registry)
     else:
         family_registry = FamilyRegistry([], cache=cache)  # tools-only dev run (no LLM)
         forks = []
@@ -594,6 +605,7 @@ def run_corpus(
     result.override_deltas = override_deltas
     result.consolidation_deltas = consolidation_deltas
     result.adhoc_deltas = adhoc_deltas
+    result.label_uniqueness_deltas = label_uniqueness_deltas
     result.define_deltas = define_deltas
     result.thresholds = thresholds
     result.telemetry = _telemetry(
