@@ -25,7 +25,7 @@ ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from
 
 ## Architecture
 
-Seven version-controlled diagrams, generated from plain-data specs by a dependency-free SVG toolkit in [`scripts/diagrams/`](scripts/diagrams/). Regenerate with `node scripts/diagrams/build.mjs`; the full gallery (zoomable, ⌘P → PDF) is [`docs/architecture/index.html`](docs/architecture/index.html).
+Eight version-controlled diagrams, generated from plain-data specs by a dependency-free SVG toolkit in [`scripts/diagrams/`](scripts/diagrams/). Regenerate with `node scripts/diagrams/build.mjs`; the full gallery (zoomable, ⌘P → PDF) is [`docs/architecture/index.html`](docs/architecture/index.html).
 
 **① System context** — what feeds ReciterAI and who consumes it.
 
@@ -55,13 +55,20 @@ Seven version-controlled diagrams, generated from plain-data specs by a dependen
 
 ![Stability and drift: three sources of run-to-run jitter (subtopic relabel, upstream author churn, daily grounding churn) are damped by a band of stabilizers (durable subtopic ids via match-or-mint, the overlap-to-LLM reconcile ladder, the STAGE# content-addressed skip-cache, the lede/relabel skip gates, and the rotation selector), which read and write durable DynamoDB state; drift, onboarding, and feedback watchdogs measure residual drift and alert MS Teams and GitHub.](docs/architecture/stability-drift.svg)
 
+**⑧ Key event sequences** — worked step-by-step traces of the five recurring events, from trigger to the record each produces.
+
+![Key event sequences: five swimlane traces — a new publication scored (Haiku screen at 0.3, Sonnet dense score, assign and rollup) weekly, the daily enrichment tick (Sonnet synopsis plus impact with an OpenAI gpt-5.1 content-filter fallback), the monthly spotlight publish (dirty-gate, Opus lede with Haiku critic, clone/coverage gate, publish and rotate), an operator hierarchy rebuild (re-cluster, reconcile, match-or-mint durable id, publish with sha256), and the daily drift watchdog (scan, threshold check, DRIFT# row, Teams alert).](docs/architecture/key-event-sequences.svg)
+
+→ **Worked examples with real values** for each of these events: [`docs/architecture/event-walkthroughs.md`](docs/architecture/event-walkthroughs.md).
+
 > The diagrams are the picture, not the source of truth — edit the specs in [`scripts/diagrams/`](scripts/diagrams/README.md) and rebuild. The SVGs above are committed and render inline on GitHub; PNGs are gitignored and regenerable.
 
 ## Documentation
 
 - [GETTING_STARTED.md](GETTING_STARTED.md) — local setup, env vars, running each pipeline
 - [ARCHITECTURE.md](ARCHITECTURE.md) — data flow, axes, publishing channels
-- [docs/architecture/](docs/architecture/index.html) — rendered architecture diagrams (system context, processing pipeline, AWS topology, publish contract, functional overview, technical stack, stability & drift); regenerate with `node scripts/diagrams/build.mjs`, edit via [`scripts/diagrams/`](scripts/diagrams/README.md)
+- [docs/architecture/](docs/architecture/index.html) — rendered architecture diagrams (system context, processing pipeline, AWS topology, publish contract, functional overview, technical stack, stability & drift, key event sequences); regenerate with `node scripts/diagrams/build.mjs`, edit via [`scripts/diagrams/`](scripts/diagrams/README.md)
+- [docs/architecture/event-walkthroughs.md](docs/architecture/event-walkthroughs.md) — worked examples (real values from the published artifacts) for each key event in diagram ⑧
 - [docs/RECITERAI-SPEC.md](docs/RECITERAI-SPEC.md) — architectural decisions and execution status (read this before picking up any architectural work)
 - [docs/stage-records-and-gates.md](docs/stage-records-and-gates.md) — Phase 9 substrate guide for new stage authors
 - [docs/taxonomy-methodology.md](docs/taxonomy-methodology.md) — design principles for the Axis 1 taxonomy

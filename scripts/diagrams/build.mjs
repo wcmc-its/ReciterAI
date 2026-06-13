@@ -138,8 +138,8 @@ function buildHtml(items) {
   const docDesc =
     "Architecture of ReciterAI — the upstream service that builds Weill Cornell Medicine's research-domain " +
     "hierarchy, publication scores, faculty rollups, and spotlight artifacts for the Scholars Profile System. " +
-    "Seven views: system context, processing pipeline, AWS runtime topology, the publish contract, a functional " +
-    "overview, the technical stack, and the stability &amp; drift dynamics.";
+    "Eight views: system context, processing pipeline, AWS runtime topology, the publish contract, a functional " +
+    "overview, the technical stack, the stability &amp; drift dynamics, and worked key-event sequences.";
   const prov = gitProvenance();
   const provLine = prov ? ` · source commit <code>${prov.sha}</code> (${prov.date})` : "";
   const nav = items.map((it) => `<a href="#${it.spec.id}">${it.meta.nav}</a>`).join("\n  ");
@@ -216,7 +216,8 @@ function buildHtml(items) {
      the <b>AWS runtime topology</b> (the scheduled Fargate run reaching Bedrock, DynamoDB, and S3),
      the <b>publish contract</b> (the two-channel hand-off to the Scholars Profile System), a plain-English
      <b>functional overview</b> (what it actually does), the <b>technical stack</b> (the technology layers),
-     and the <b>stability &amp; drift</b> view (the run-to-run dynamics that keep ids, ledes, and rankings from jiggling).</p>
+     the <b>stability &amp; drift</b> view (the run-to-run dynamics that keep ids, ledes, and rankings from jiggling),
+     and the <b>key event sequences</b> (step-by-step traces of the recurring events).</p>
   <div class="meta">
     <span>AWS Bedrock · Claude Sonnet · Haiku · Opus (OpenAI fallback)</span>
     <span>ECS Fargate · EventBridge cron</span>
