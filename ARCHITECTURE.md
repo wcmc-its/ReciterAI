@@ -1,6 +1,6 @@
 # Architecture
 
-> **Rendered diagrams:** seven version-controlled views (system context, processing pipeline, AWS runtime topology, publish contract, functional overview, technical stack, stability & drift) live in [`docs/architecture/`](docs/architecture/index.html) — generated from plain-data specs in [`scripts/diagrams/`](scripts/diagrams/README.md). The text below is the source of truth; the diagrams visualize it.
+> **Rendered diagrams:** eight version-controlled views (system context, processing pipeline, AWS runtime topology, publish contract, functional overview, technical stack, stability & drift, key event sequences) live in [`docs/architecture/`](docs/architecture/index.html) — generated from plain-data specs in [`scripts/diagrams/`](scripts/diagrams/README.md). The text below is the source of truth; the diagrams visualize it.
 
 ## Data flow
 
