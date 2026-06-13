@@ -772,7 +772,11 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     # #167 relaxes strict uniqueness to OPENER_REUSE_CAP). Only openers that
     # have already hit the cap are excluded — the generator may keep reusing an
     # opener until it reaches OPENER_REUSE_CAP uses.
-    from spotlight.critic import OPENER_RE, OPENER_REUSE_CAP
+    from spotlight.critic import (
+        OPENER_RE,
+        OPENER_REUSE_CAP,
+        effective_excluded_openers,
+    )
 
     # #191 brick E lede-skip: build the reuse map ONCE (gated OFF by default inside
     # load_lede_skip_map; read-only — one store Scan + one S3 GET; returns {} on any
@@ -804,9 +808,12 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
                 sel.entry.subtopic_id,
             )
             continue
-        at_cap = tuple(
-            o for o, c in opener_counts.items() if c >= OPENER_REUSE_CAP
-        )
+        # #219: exclude openers at the reuse cap, but never so many that the
+        # generator is left with no allowed opener (which forces a refusal that
+        # then gets persisted as the lede). effective_excluded_openers keeps at
+        # least OPENER_MIN_AVAILABLE openers usable, releasing the least-used
+        # at-cap openers when the pool is larger than the opener budget allows.
+        at_cap = effective_excluded_openers(opener_counts)
         # #191 brick E lede-skip (dual gate): when this subtopic's prior lede is
         # eligible (gate 1, in the map) AND the current run's top-3 grounding PMIDs
         # match the prior lede's (gate 2), carry the prior lede forward — no OPUS, no

@@ -99,6 +99,14 @@ ALLOWED_OPENERS = (
 # opener rarely co-appears and the surface still doesn't read mechanical.
 OPENER_REUSE_CAP = 2
 
+# #219: there are only len(ALLOWED_OPENERS) openers, each usable OPENER_REUSE_CAP
+# times, so a candidate pool larger than (openers * cap) would otherwise drive
+# every opener to the cap and leave a late candidate with NO allowed opener. The
+# generator, told it MUST NOT use any allowed opener, then refuses -- and the
+# refusal text gets persisted as the lede. Guarantee at least this many openers
+# stay usable for any single generation so the constraint is never unsatisfiable.
+OPENER_MIN_AVAILABLE = 2
+
 # OPENER_RE matches any of the allowed openers WITHOUT the verb suffix —
 # used by the artifact-level duplicate check to extract just the opener
 # phrase for comparison. Case-sensitive (proper-noun phrases).
@@ -113,6 +121,38 @@ OPENER_RE = re.compile(
 TIC_RE = re.compile(
     r"\b(?:" + "|".join(re.escape(o) for o in ALLOWED_OPENERS) + r") [a-zA-Z]+ing\b"
 )
+
+
+def effective_excluded_openers(
+    opener_counts: dict[str, int],
+    cap: int = OPENER_REUSE_CAP,
+    min_available: int = OPENER_MIN_AVAILABLE,
+) -> tuple[str, ...]:
+    """Openers to forbid for the next lede, never leaving < ``min_available`` usable.
+
+    Excludes every opener whose running count has reached ``cap``, EXCEPT that it
+    never excludes so many that fewer than ``min_available`` allowed openers
+    remain choosable. When the at-cap set would breach that floor, the least-used
+    at-cap openers are released (allowed to repeat): reusing a least-used opener
+    reads least mechanical, and a repeated opener is a soft cost where a
+    refusal-as-lede is a hard failure (#219; wcmc-its/ReciterAI#2 §3). Opener
+    rotation is a soft anti-repetition goal, not a correctness constraint, so it
+    degrades gracefully here rather than emitting an unsatisfiable constraint.
+
+    Returns a subset of ``ALLOWED_OPENERS`` in ``ALLOWED_OPENERS`` order
+    (deterministic; ties broken by opener order).
+    """
+    at_cap = [o for o in ALLOWED_OPENERS if opener_counts.get(o, 0) >= cap]
+    available = len(ALLOWED_OPENERS) - len(at_cap)
+    if available >= min_available:
+        return tuple(at_cap)
+    # Release the least-used at-cap openers until min_available remain usable.
+    order = {o: i for i, o in enumerate(ALLOWED_OPENERS)}
+    least_used_first = sorted(at_cap, key=lambda o: (opener_counts.get(o, 0), order[o]))
+    release_n = min_available - available
+    released = set(least_used_first[:release_n])
+    return tuple(o for o in at_cap if o not in released)
+
 
 # Meta-language about the model's own input — leaks of "the papers
 # provided" / "the input papers" / "based on the synopses" etc. The
@@ -509,12 +549,21 @@ def run_critic_loop(
     last_deterministic_verdict: DeterministicVerdict | None = None
 
     for attempt_idx in range(MAX_RETRIES + 1):
+        # #219 backstop: on the FINAL attempt, drop opener exclusions entirely so
+        # the constraint is always satisfiable. Opener rotation is a soft goal --
+        # a repeated opener (catchable later at the artifact-level duplicate-opener
+        # check) is acceptable; spending the last retry re-refusing an impossible
+        # constraint and persisting the refusal as the lede is not. Upstream layers
+        # (effective_excluded_openers at the call site, the _render_prompt
+        # all-excluded guard) normally keep openers available, but this guarantees
+        # it regardless of how excluded_openers was constructed.
+        attempt_excluded = () if attempt_idx == MAX_RETRIES else excluded_openers
         lede_text, selected_papers = generate_lede(
             meta,
             papers,
             prior_failure=last_failure_reason,
             client=lede_client,
-            excluded_openers=excluded_openers,
+            excluded_openers=attempt_excluded,
         )
         last_lede = lede_text
         last_papers = selected_papers
@@ -524,9 +573,11 @@ def run_critic_loop(
         # by an earlier spotlight in this publish. Treated as a deterministic
         # violation so the retry-3 budget gets spent on regen with the same
         # excluded list — model picks a different variant on the next try.
-        if excluded_openers and det.passed:
+        # Skipped on the final attempt (attempt_excluded is empty) so a forced
+        # opener reuse is not itself re-failed into the review queue.
+        if attempt_excluded and det.passed:
             opener_match = OPENER_RE.search(lede_text)
-            if opener_match and opener_match.group(0) in excluded_openers:
+            if opener_match and opener_match.group(0) in attempt_excluded:
                 det = DeterministicVerdict(
                     passed=False,
                     failed_constraints=(f"opener_already_used:{opener_match.group(0)}",),
