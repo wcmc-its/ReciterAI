@@ -25,7 +25,7 @@ ReciterAI is **upstream**; SPS is downstream. SPS runs its own ETLs to pull from
 
 ## Architecture
 
-Four version-controlled diagrams, generated from plain-data specs by a dependency-free SVG toolkit in [`scripts/diagrams/`](scripts/diagrams/). Regenerate with `node scripts/diagrams/build.mjs`; the full gallery (zoomable, ⌘P → PDF) is [`docs/architecture/index.html`](docs/architecture/index.html).
+Seven version-controlled diagrams, generated from plain-data specs by a dependency-free SVG toolkit in [`scripts/diagrams/`](scripts/diagrams/). Regenerate with `node scripts/diagrams/build.mjs`; the full gallery (zoomable, ⌘P → PDF) is [`docs/architecture/index.html`](docs/architecture/index.html).
 
 **① System context** — what feeds ReciterAI and who consumes it.
 
@@ -43,13 +43,25 @@ Four version-controlled diagrams, generated from plain-data specs by a dependenc
 
 ![Publish contract: ReciterAI publishers write two versioned S3 channels (hierarchy and artifacts, each with a latest/ pointer, a co-published JSON Schema, and a sha256 manifest) plus DynamoDB record types; the SPS ETLs pull each into its Prisma/MySQL application database.](docs/architecture/publish-contract.svg)
 
+**⑤ Functional overview** — a plain-English picture of what ReciterAI does, framed by the question each step answers.
+
+![Functional overview: ReciterAI reads every WCM publication and, against a frozen research-domain map, understands each paper on three axes (domain, theme, methods) plus a one-line synopsis and impact score; the labelled papers roll up into per-faculty profiles, a spotlight curates the strongest theme, and everything is published to the ~9,000 public faculty profiles.](docs/architecture/functional-overview.svg)
+
+**⑥ Technical stack** — the technology layers, from the Python application code down to the data plane and dev tooling.
+
+![Technical stack: pure Python 3.12 (boto3, OpenAI SDK, SQLAlchemy, jsonschema) calls AWS Bedrock for Claude inference with an OpenAI gpt-5.1 fallback; runs as a Docker image on ECS Fargate and three Lambdas orchestrated by Step Functions and EventBridge cron; persists to DynamoDB and S3 while reading the corpus from ReciterDB; configured by Secrets Manager and checked-in JSON/YAML.](docs/architecture/tech-stack.svg)
+
+**⑦ Stability & drift** — the run-to-run dynamics: what jiggles, what damps it, and the watchdogs that measure residual drift.
+
+![Stability and drift: three sources of run-to-run jitter (subtopic relabel, upstream author churn, daily grounding churn) are damped by a band of stabilizers (durable subtopic ids via match-or-mint, the overlap-to-LLM reconcile ladder, the STAGE# content-addressed skip-cache, the lede/relabel skip gates, and the rotation selector), which read and write durable DynamoDB state; drift, onboarding, and feedback watchdogs measure residual drift and alert MS Teams and GitHub.](docs/architecture/stability-drift.svg)
+
 > The diagrams are the picture, not the source of truth — edit the specs in [`scripts/diagrams/`](scripts/diagrams/README.md) and rebuild. The SVGs above are committed and render inline on GitHub; PNGs are gitignored and regenerable.
 
 ## Documentation
 
 - [GETTING_STARTED.md](GETTING_STARTED.md) — local setup, env vars, running each pipeline
 - [ARCHITECTURE.md](ARCHITECTURE.md) — data flow, axes, publishing channels
-- [docs/architecture/](docs/architecture/index.html) — rendered architecture diagrams (system context, pipeline, AWS topology, publish contract); regenerate with `node scripts/diagrams/build.mjs`, edit via [`scripts/diagrams/`](scripts/diagrams/README.md)
+- [docs/architecture/](docs/architecture/index.html) — rendered architecture diagrams (system context, processing pipeline, AWS topology, publish contract, functional overview, technical stack, stability & drift); regenerate with `node scripts/diagrams/build.mjs`, edit via [`scripts/diagrams/`](scripts/diagrams/README.md)
 - [docs/RECITERAI-SPEC.md](docs/RECITERAI-SPEC.md) — architectural decisions and execution status (read this before picking up any architectural work)
 - [docs/stage-records-and-gates.md](docs/stage-records-and-gates.md) — Phase 9 substrate guide for new stage authors
 - [docs/taxonomy-methodology.md](docs/taxonomy-methodology.md) — design principles for the Axis 1 taxonomy

@@ -138,7 +138,8 @@ function buildHtml(items) {
   const docDesc =
     "Architecture of ReciterAI — the upstream service that builds Weill Cornell Medicine's research-domain " +
     "hierarchy, publication scores, faculty rollups, and spotlight artifacts for the Scholars Profile System. " +
-    "Four views: system context, processing pipeline, AWS runtime topology, and the publish contract.";
+    "Seven views: system context, processing pipeline, AWS runtime topology, the publish contract, a functional " +
+    "overview, the technical stack, and the stability &amp; drift dynamics.";
   const prov = gitProvenance();
   const provLine = prov ? ` · source commit <code>${prov.sha}</code> (${prov.date})` : "";
   const nav = items.map((it) => `<a href="#${it.spec.id}">${it.meta.nav}</a>`).join("\n  ");
@@ -210,10 +211,12 @@ function buildHtml(items) {
   <h1>${docTitle}</h1>
   <p>The architecture of <b>ReciterAI</b> — the upstream service that builds Weill Cornell's
      canonical research-domain hierarchy, publication scores, faculty rollups, and spotlight
-     artifacts. Four views: its <b>system context</b> (what feeds it, who consumes it), the
+     artifacts. Six views: its <b>system context</b> (what feeds it, who consumes it), the
      <b>processing pipeline</b> (taxonomy → scoring → subtopics → rollups → spotlights → publish),
      the <b>AWS runtime topology</b> (the scheduled Fargate run reaching Bedrock, DynamoDB, and S3),
-     and the <b>publish contract</b> (the two-channel hand-off to the Scholars Profile System).</p>
+     the <b>publish contract</b> (the two-channel hand-off to the Scholars Profile System), a plain-English
+     <b>functional overview</b> (what it actually does), the <b>technical stack</b> (the technology layers),
+     and the <b>stability &amp; drift</b> view (the run-to-run dynamics that keep ids, ledes, and rankings from jiggling).</p>
   <div class="meta">
     <span>AWS Bedrock · Claude Sonnet · Haiku · Opus (OpenAI fallback)</span>
     <span>ECS Fargate · EventBridge cron</span>
