@@ -4,8 +4,10 @@ Pass 3 (Aggregation): arithmetic-only faculty subtopic scores.
 Python source of truth for faculty subtopic scores. PM TypeScript reads the
 resulting `subtopic_scores` dict directly from DynamoDB — it does NOT
 recompute. Never recompute articleScore in TypeScript (Pitfall P-10): the
-formula lives here and in `ReCiter-Publication-Manager/controllers/chatbot/
-retrieval/shared.ts` only, and the two MUST stay byte-for-byte identical.
+canonical Python formula lives in `utils/scoring.py:article_score` (imported
+below; the only Python definition) and mirrors `ReCiter-Publication-Manager/
+controllers/chatbot/retrieval/shared.ts`, and the two MUST stay byte-for-byte
+identical.
 
 Design decisions honored:
   D-03  Primary-only aggregation. Secondaries carry zero weight. Each
@@ -55,6 +57,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from utils.scoring import article_score
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.dynamodb_subtopic_migration import (
     update_faculty_subtopic_scores,
@@ -166,14 +169,14 @@ def _aggregate_exclusive(rows: list) -> tuple[dict, dict]:
             skipped_bad += 1
             continue
 
-        # articleScore formula — MUST match PM shared.ts byte-for-byte (P-10):
-        #   TS: Math.pow(impactScore / 100, 1.2) * Math.pow(relevanceScore, 1.4)
-        article_score = (impact_score / 100) ** 1.2 * relevance_score ** 1.4
+        # articleScore — canonical blend, MUST match PM shared.ts byte-for-byte
+        # (P-10). See utils.scoring.article_score.
+        art_score = article_score(impact_score, relevance_score)
 
         # Secondaries intentionally carry zero weight (D-03). Faculty ranking within
         # secondary subtopics is impossible by design — see CONTEXT.md deferred item #3.
-        faculty_scores[person_identifier][primary] += article_score
-        subtopic_total_weights[primary] += article_score
+        faculty_scores[person_identifier][primary] += art_score
+        subtopic_total_weights[primary] += art_score
         included += 1
 
     logger.info(
@@ -231,14 +234,14 @@ def _aggregate_inclusive(rows: list) -> tuple[dict, dict]:
             skipped_bad += 1
             continue
 
-        # articleScore formula — MUST match PM shared.ts byte-for-byte (P-10):
-        #   TS: Math.pow(impactScore / 100, 1.2) * Math.pow(relevanceScore, 1.4)
-        article_score = (impact_score / 100) ** 1.2 * relevance_score ** 1.4
+        # articleScore — canonical blend, MUST match PM shared.ts byte-for-byte
+        # (P-10). See utils.scoring.article_score.
+        art_score = article_score(impact_score, relevance_score)
 
         # D-15: uniform full weight — every above-floor subtopic_id gets the FULL score
         for sid in subtopic_ids:
-            faculty_scores[person_identifier][sid] += article_score
-            subtopic_total_weights[sid] += article_score
+            faculty_scores[person_identifier][sid] += art_score
+            subtopic_total_weights[sid] += art_score
         included += 1
 
     logger.info(

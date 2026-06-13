@@ -27,6 +27,7 @@ from pathlib import Path
 from spotlight.sensitive_gate import SubtopicMeta
 from spotlight.types import Paper
 from utils.bedrock_client import BedrockClient, OPUS_MODEL
+from utils.scoring import article_score
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +75,20 @@ def _filter_and_clamp_papers(papers: list[Paper]) -> list[Paper]:
     may emit such Papers when the source TOPIC# row predates the author
     fanout enrichment (see ``spotlight/types.Paper`` docstring).
 
-    The remaining valid papers are sorted by ``impact_score`` DESC and
-    clamped to the top MAX_PAPERS. Caller is responsible for raising
-    when the result is shorter than MIN_PAPERS.
+    The remaining valid papers are sorted by the blended ``article_score``
+    (impact x topic-relevance, ``utils.scoring.article_score``) DESC and
+    clamped to the top MAX_PAPERS, so the lede is grounded in the papers
+    that best fit the subtopic rather than the most prominent ones. Caller
+    is responsible for raising when the result is shorter than MIN_PAPERS.
     """
     valid = [
         p for p in papers
         if p.first_author.person_identifier or p.last_author.person_identifier
     ]
-    valid.sort(key=lambda p: p.impact_score, reverse=True)
+    valid.sort(
+        key=lambda p: article_score(p.impact_score, p.relevance_score),
+        reverse=True,
+    )
     return valid[:MAX_PAPERS]
 
 

@@ -44,6 +44,14 @@ class Paper:
     with empty author payloads when the source TOPIC# row predates the
     Phase 6 author-fanout enrichment. Plan 06-05 lede generator filters
     out papers with no author identity.
+
+    ``relevance_score`` is the publication's dense topic-relevance for the
+    subtopic this Paper was pooled under (the ``score`` attribute on the
+    ``TOPIC#`` row). Combined with ``impact_score`` via
+    ``utils.scoring.article_score`` to rank papers *for a topic* rather than
+    on raw prominence. Defaults to 0.0 for reconstruction paths (e.g. the
+    lede-reuse rebuild from a published artifact, where per-paper scores are
+    dropped) that never re-rank.
     """
 
     pmid: str
@@ -55,6 +63,7 @@ class Paper:
     synopsis: str
     first_author: Author
     last_author: Author
+    relevance_score: float = 0.0
 
 
 @dataclass(frozen=True)
