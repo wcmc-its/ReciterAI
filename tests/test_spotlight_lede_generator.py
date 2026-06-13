@@ -277,3 +277,35 @@ def test_8_no_model_id_string_literal_in_source():
         "lede_generator.py must import OPUS_MODEL from utils.bedrock_client; "
         "never type the Bedrock model ID literal (RESEARCH Pitfall 5)."
     )
+
+
+# ---------------------------------------------------------------------------
+# #219: opener-constraint must degrade gracefully, never forbid the whole list
+# ---------------------------------------------------------------------------
+
+
+def test_219_render_prompt_partial_exclusion_keeps_hard_constraint():
+    """When some allowed openers remain, the prompt keeps the hard MUST-NOT
+    constraint (unchanged behavior)."""
+    from spotlight.critic import ALLOWED_OPENERS
+
+    client = _make_mock_client()
+    papers = [_paper("100", 0.9), _paper("101", 0.8)]
+    generate_lede(_meta(), papers, client=client, excluded_openers=(ALLOWED_OPENERS[0],))
+    rendered = client.call.call_args.kwargs["messages"][0]["content"]
+    assert "MUST NOT be used here" in rendered
+
+
+def test_219_render_prompt_all_excluded_degrades_to_reuse():
+    """#219 layer 2: if EVERY allowed opener is excluded, the prompt must not
+    forbid the entire voice list (which forces a refusal that then gets persisted
+    as the lede). It asks the model to REUSE an opener instead."""
+    from spotlight.critic import ALLOWED_OPENERS
+
+    client = _make_mock_client()
+    papers = [_paper("100", 0.9), _paper("101", 0.8)]
+    generate_lede(_meta(), papers, client=client, excluded_openers=tuple(ALLOWED_OPENERS))
+    rendered = client.call.call_args.kwargs["messages"][0]["content"]
+    assert "MUST NOT be used here" not in rendered
+    assert "REUSE" in rendered
+    assert "do NOT refuse" in rendered

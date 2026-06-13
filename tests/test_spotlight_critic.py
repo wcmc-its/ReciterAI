@@ -564,3 +564,119 @@ def test_run_llm_critic_call_shape():
     assert kwargs["model"] == HAIKU_MODEL
     assert kwargs["temperature"] == 0.0
     assert kwargs["max_tokens"] == CRITIC_MAX_TOKENS
+
+
+# ---------------------------------------------------------------------------
+# #219: opener-exhaustion must never produce an unsatisfiable exclusion set
+# ---------------------------------------------------------------------------
+
+
+def test_219_effective_excluded_empty_when_nothing_at_cap():
+    from spotlight.critic import effective_excluded_openers
+
+    assert effective_excluded_openers({}) == ()
+
+
+def test_219_effective_excluded_returns_at_cap_set_when_enough_remain():
+    """With plenty of openers still available, behaves like the plain
+    'exclude everything at the cap' rule."""
+    from spotlight.critic import (
+        ALLOWED_OPENERS,
+        OPENER_REUSE_CAP,
+        effective_excluded_openers,
+    )
+
+    counts = {ALLOWED_OPENERS[0]: OPENER_REUSE_CAP, ALLOWED_OPENERS[1]: OPENER_REUSE_CAP}
+    excluded = effective_excluded_openers(counts)
+    assert set(excluded) == {ALLOWED_OPENERS[0], ALLOWED_OPENERS[1]}
+
+
+def test_219_effective_excluded_never_covers_all_openers():
+    """Core invariant: even when EVERY opener is at the cap, at least
+    OPENER_MIN_AVAILABLE openers stay usable. The #219 bug was an all-excluded
+    set, which forced the generator to refuse and persisted the refusal as a lede."""
+    from spotlight.critic import (
+        ALLOWED_OPENERS,
+        OPENER_MIN_AVAILABLE,
+        OPENER_REUSE_CAP,
+        effective_excluded_openers,
+    )
+
+    counts = {o: OPENER_REUSE_CAP for o in ALLOWED_OPENERS}
+    excluded = effective_excluded_openers(counts)
+    available = [o for o in ALLOWED_OPENERS if o not in set(excluded)]
+    assert len(available) >= OPENER_MIN_AVAILABLE
+    assert len(excluded) == len(ALLOWED_OPENERS) - OPENER_MIN_AVAILABLE
+    assert set(excluded) != set(ALLOWED_OPENERS)
+
+
+def test_219_effective_excluded_releases_least_used_first():
+    """When the available floor is breached, the LEAST-used at-cap openers are
+    released (reusing a least-used opener reads least mechanical)."""
+    from spotlight.critic import (
+        ALLOWED_OPENERS,
+        OPENER_REUSE_CAP,
+        effective_excluded_openers,
+    )
+
+    counts = {o: OPENER_REUSE_CAP + 5 for o in ALLOWED_OPENERS}
+    counts[ALLOWED_OPENERS[8]] = OPENER_REUSE_CAP  # least used (exactly at cap)
+    counts[ALLOWED_OPENERS[9]] = OPENER_REUSE_CAP  # least used (exactly at cap)
+    excluded = effective_excluded_openers(counts, min_available=2)
+    released = [o for o in ALLOWED_OPENERS if o not in set(excluded)]
+    assert set(released) == {ALLOWED_OPENERS[8], ALLOWED_OPENERS[9]}
+
+
+def test_219_effective_excluded_deterministic_and_ordered():
+    from spotlight.critic import (
+        ALLOWED_OPENERS,
+        OPENER_REUSE_CAP,
+        effective_excluded_openers,
+    )
+
+    counts = {o: OPENER_REUSE_CAP for o in ALLOWED_OPENERS}
+    a = effective_excluded_openers(counts)
+    b = effective_excluded_openers(counts)
+    assert a == b
+    order = {o: i for i, o in enumerate(ALLOWED_OPENERS)}
+    idxs = [order[o] for o in a]
+    assert idxs == sorted(idxs)
+
+
+def test_219_run_critic_loop_final_attempt_drops_opener_exclusions():
+    """#219 layer 3: the final attempt always generates with excluded_openers=()
+    so an exhausted opener set can never spend the whole retry budget re-refusing
+    and persist the refusal as the lede.
+
+    With every opener excluded, attempts 1-3 fail the opener_already_used override
+    (CLEAN_LEDE's opener is in the excluded set); the 4th attempt drops exclusions,
+    the override is skipped, and the lede passes."""
+    from spotlight.critic import ALLOWED_OPENERS
+
+    lede_client = MagicMock()
+    critic_client = MagicMock()
+    critic_client.call.return_value = _llm_pass_response()
+    dynamo_client = MagicMock()
+    papers = [_paper("100", 0.9), _paper("101", 0.8)]
+    all_openers = tuple(ALLOWED_OPENERS)
+
+    def fake_generate(meta, papers_, prior_failure=None, client=None, excluded_openers=()):
+        return (CLEAN_LEDE, papers_)
+
+    with patch("spotlight.critic.generate_lede", side_effect=fake_generate) as mock_gen:
+        result = run_critic_loop(
+            meta=_meta(),
+            papers=papers,
+            publish_id="pub1",
+            parent_topic="Aging & Geroscience",
+            lede_client=lede_client,
+            critic_client=critic_client,
+            dynamo_client=dynamo_client,
+            excluded_openers=all_openers,
+        )
+
+    assert mock_gen.call_count == MAX_RETRIES + 1 == 4
+    for call in mock_gen.call_args_list[:3]:
+        assert call.kwargs["excluded_openers"] == all_openers
+    assert mock_gen.call_args_list[3].kwargs["excluded_openers"] == ()
+    assert result.status == "pass"

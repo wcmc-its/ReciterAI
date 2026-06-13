@@ -139,13 +139,30 @@ def _render_prompt(
         )
 
     if excluded_openers:
-        opener_list = ", ".join(repr(o) for o in excluded_openers)
-        user_msg += (
-            f"\n\nOPENER CONSTRAINT: the following institutional-voice openers "
-            f"have already been used by other spotlights in this publish run "
-            f"and MUST NOT be used here: {opener_list}. Pick a DIFFERENT allowed "
-            f"opener from the <voice> list."
-        )
+        # #219 defense in depth: never emit an unsatisfiable constraint. If every
+        # allowed opener is already excluded, forbidding the entire voice list
+        # forces the model to refuse -- and that refusal gets persisted as the
+        # lede. Opener rotation is a soft anti-repetition goal, so when variety is
+        # exhausted, ask the model to REUSE an opener rather than forbidding all.
+        from spotlight.critic import ALLOWED_OPENERS
+
+        remaining = [o for o in ALLOWED_OPENERS if o not in set(excluded_openers)]
+        if remaining:
+            opener_list = ", ".join(repr(o) for o in excluded_openers)
+            user_msg += (
+                f"\n\nOPENER CONSTRAINT: the following institutional-voice openers "
+                f"have already been used by other spotlights in this publish run "
+                f"and MUST NOT be used here: {opener_list}. Pick a DIFFERENT allowed "
+                f"opener from the <voice> list."
+            )
+        else:
+            user_msg += (
+                "\n\nOPENER CONSTRAINT: every allowed institutional-voice opener has "
+                "already been used in this publish run, so opener variety is "
+                "exhausted. REUSE an allowed opener from the <voice> list (do NOT "
+                "invent a new opener, and do NOT refuse) -- pick whichever fits the "
+                "lede best."
+            )
 
     return user_msg
 
