@@ -2,6 +2,8 @@
 
 *v2, 2026-05-11. Repo state: commit `058529c`. Not a contract — `docs/hierarchy-contract.md` and `docs/spotlight-contract.md` hold those. This is the design rationale that informs them.*
 
+> **Orientation:** for the visual picture, see the rendered architecture gallery in [`docs/architecture/`](architecture/index.html) (system context, processing pipeline, AWS topology, publish contract, functional overview, technical stack, stability & drift).
+
 v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered around six structural decisions that, once made, dissolve the gaps automatically. v2 is organized around those decisions. A residual list of seven hygiene items survives at the end — these are independent of the architecture and need their own commits, not their own design.
 
 ---
