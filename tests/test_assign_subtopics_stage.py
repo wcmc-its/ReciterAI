@@ -214,6 +214,57 @@ def test_parse_pmid_list_missing_file_raises(tmp_path: Path):
         ast_mod._parse_pmid_list_arg(f"@{tmp_path}/does-not-exist.txt")
 
 
+# ---------- --force bypasses the should_skip gate (#210 re-assignment) ----------
+
+
+def _drive_run_with_skip_gate(monkeypatch, tmp_path, *, force):
+    """Drive run() with a stage_table present and should_skip → (True, ...) over an
+    EMPTY topic (no classify/update side-effects). Returns (result, should_skip_mock).
+
+    Empty topic keeps it isolated: the only seams exercised are the STAGE# gate and
+    the terminal complete/skipped write, all stubbed — no DynamoDB, no Bedrock.
+    """
+    monkeypatch.setenv("RECITERAI_HIERARCHY_VERSION", "v2026-06-01")
+    monkeypatch.setattr(ast_mod, "get_table", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(ast_mod, "_get_flag", lambda *a, **k: False)  # no durable-id snapshot
+    monkeypatch.setattr(ast_mod, "_query_topic_activity_rows", lambda tid: [])
+    monkeypatch.setattr(ast_mod, "_dedupe_by_pmid", lambda rows: {})
+    skip_mock = MagicMock(return_value=(True, {"started_at": "2026-01-01T00:00:00Z"}))
+    monkeypatch.setattr(ast_mod, "should_skip", skip_mock)
+    monkeypatch.setattr(ast_mod, "write_complete", lambda *a, **k: None)
+    monkeypatch.setattr(ast_mod, "write_skipped", lambda *a, **k: None)
+
+    draft = {
+        "topic_id": "cardiovascular_disease",
+        "subtopics": [{"id": "atherosclerosis", "label": "A", "description": "..."}],
+        "review_status": "approved",
+    }
+    draft_path = tmp_path / "draft.json"
+    draft_path.write_text(json.dumps(draft))
+
+    result = ast_mod.run(
+        topic_id="cardiovascular_disease", draft_path=draft_path,
+        concurrency=1, confidence_floor=0.3, limit=None, resume=False,
+        dry_run=False, force=force,
+    )
+    return result, skip_mock
+
+
+def test_force_bypasses_should_skip_gate(monkeypatch, tmp_path):
+    """--force re-runs even when a prior complete STAGE# row would skip — the gate
+    is bypassed, not even consulted."""
+    result, skip_mock = _drive_run_with_skip_gate(monkeypatch, tmp_path, force=True)
+    skip_mock.assert_not_called()
+    assert result.get("stage_status") != "skipped"
+
+
+def test_without_force_a_prior_complete_row_skips(monkeypatch, tmp_path):
+    """Control: without --force, a should_skip verdict skips the re-run."""
+    result, skip_mock = _drive_run_with_skip_gate(monkeypatch, tmp_path, force=False)
+    skip_mock.assert_called_once()
+    assert result.get("stage_status") == "skipped"
+
+
 # ---------------------------------------------------------------------------
 # Phase 11 Task 1 — Test 5: hierarchy_version propagated through run()
 # ---------------------------------------------------------------------------
