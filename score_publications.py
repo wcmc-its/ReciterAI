@@ -233,6 +233,13 @@ class ScoringResult:
     synopsis: str
     abstract: str
     title: str = ""  # article title — TOPIC# materialization (#80 PR 4a)
+    # #212 Part A — enriched impact value, joined off the IMPACT# row at
+    # extraction (see _attach_synopses_from_ddb) and written onto the TOPIC#
+    # rows at materialization so a PMID scored after enrichment carries
+    # impact_score from birth. impact_score stays the DDB-string form (or
+    # None when the IMPACT# row has no score yet); the builder coerces it.
+    impact_score: str | None = None
+    impact_justification: str = ""
     screening_scores: dict = field(default_factory=dict)  # {topic_id: score}
     dense_scores: dict = field(default_factory=dict)      # {topic_id: {score, rationale}}
     status: str = "pending"
@@ -335,6 +342,13 @@ def _attach_synopses_from_ddb(rows: list[dict]) -> list[dict]:
         enriched_row["synopsis"] = rec["synopsis"]
         enriched_row["synopsis_model"] = rec.get("synopsis_model", "")
         enriched_row["enriched_at"] = rec.get("enriched_at", "")
+        # #212 Part A: join the enriched impact value off the same IMPACT#
+        # fetch so the TOPIC# rows minted at Score time carry impact_score
+        # from birth (closes the onboarding race — IMPACT# already exists at
+        # Score time). impact_score is None when the row carries no score yet
+        # (synopsis-before-impact ordering); that case is Part B's job.
+        enriched_row["impact_score"] = rec.get("impact_score")
+        enriched_row["impact_justification"] = rec.get("impact_justification", "")
         enriched.append(enriched_row)
     return enriched
 
@@ -656,6 +670,8 @@ def _materialize_topic_rows(
     taxonomy_version: str,
     synopsis: str,
     title: str,
+    impact_score: str | int | None = None,
+    impact_justification: str = "",
 ) -> None:
     """Persist one PMID's TOPIC# activity rows (#80 PR 4a — onboarding).
 
@@ -681,6 +697,11 @@ def _materialize_topic_rows(
         min_score=SCREENING_THRESHOLD,
         synopsis=synopsis,
         title=title,
+        # #212 Part A — join the enriched impact value at build time so the
+        # rows carry it from birth (onboarding ordering). Absent when the
+        # IMPACT# row had no score yet; Part B back-propagates that case.
+        impact_score=impact_score,
+        impact_justification=impact_justification,
     )
     faculty_uids = {f"cwid_{a['cwid']}" for a in authors}
     _delete_topic_rows_for_pmid(dynamo_client, table_name, pmid, faculty_uids)
@@ -715,6 +736,10 @@ def score_one_publication(
         synopsis=str(pub.get('synopsis') or ''),
         abstract=str(pub.get('abstract') or ''),
         title=str(pub.get('title') or ''),
+        # #212 Part A — carry the enriched impact value through to
+        # _materialize_topic_rows. None when the IMPACT# row has no score yet.
+        impact_score=pub.get('impact_score'),
+        impact_justification=str(pub.get('impact_justification') or ''),
     )
 
     t_pmid_start = time.monotonic()
@@ -770,6 +795,8 @@ def score_one_publication(
                     dynamo_client, table_name, pmid=pmid, dense_scores={},
                     authors=authors or [], taxonomy_version=taxonomy_version,
                     synopsis=result.synopsis, title=result.title,
+                    impact_score=result.impact_score,
+                    impact_justification=result.impact_justification,
                 )
             mark_processing(
                 dynamo_client, table_name, pmid, 'complete', taxonomy_version,
@@ -827,6 +854,8 @@ def score_one_publication(
                 dynamo_client, table_name, pmid=pmid, dense_scores=dense_scores,
                 authors=authors or [], taxonomy_version=taxonomy_version,
                 synopsis=result.synopsis, title=result.title,
+                impact_score=result.impact_score,
+                impact_justification=result.impact_justification,
             )
 
         # Mark as complete; persist fallback_model when the OpenAI path
@@ -1056,6 +1085,15 @@ def serialize_results(results: list) -> list:
             }
             if r.fallback_model:
                 entry['fallback_model'] = r.fallback_model
+            # #212 Part A — carry the enriched impact value into
+            # scoring_results.json so the cold-path loader
+            # (load_dynamodb.build_topic_records) can join it onto TOPIC#
+            # rows too. Only when known; absent keys keep the cold path's
+            # historical row shape.
+            if r.impact_score is not None and str(r.impact_score).strip() != "":
+                entry['impact_score'] = r.impact_score
+                if r.impact_justification:
+                    entry['impact_justification'] = r.impact_justification
             output.append(entry)
     return output
 

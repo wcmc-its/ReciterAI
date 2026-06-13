@@ -17,6 +17,15 @@ used by:
 The optional ``synopsis`` / ``title`` attributes are written for
 onboarding — the Assign stage's subtopic classifier reads them. The
 cold loader omits both, preserving its historical 7-attribute row shape.
+
+The optional ``impact_score`` / ``impact_justification`` attributes are
+the #212 Part A build-time join: when the PMID's ``IMPACT#`` row already
+carries an enriched score at materialization time (the onboarding
+ordering — Enrich runs before Score), that value is joined onto every
+``TOPIC#`` row at birth so it can never be missing for downstream
+representative-paper ranking. When the IMPACT# row has no score yet
+(``TOPIC#``-before-enrichment), the keys are simply omitted and the daily
+back-propagation hook (#212 Part B) fills them when enrichment lands.
 """
 
 from __future__ import annotations
@@ -33,6 +42,8 @@ def build_topic_rows_for_pmid(
     min_score: float,
     synopsis: str = "",
     title: str = "",
+    impact_score: str | int | float | None = None,
+    impact_justification: str = "",
 ) -> list[dict]:
     """Build the ``TOPIC#`` DynamoDB items for a single PMID.
 
@@ -52,6 +63,15 @@ def build_topic_rows_for_pmid(
             when non-empty so the Assign subtopic classifier can read it.
         title: article title; written as the ``title`` attribute when
             non-empty, same rationale.
+        impact_score: enriched impact score copied from the PMID's ``IMPACT#``
+            row (#212 Part A). May be the DDB string form ("N"), an int/float,
+            or None. Written as the ``impact_score`` Number attribute ONLY when
+            present (not None / not blank) — when absent the key is omitted, so
+            the row keeps its historical shape and Part B fills it later.
+        impact_justification: the enriched impact justification; written as the
+            ``impact_justification`` attribute only when both it and
+            ``impact_score`` are present (mirrors the stopgap backfill, which
+            sets the justification only when the IMPACT# row carries one).
 
     A PMID with no faculty authors yields no rows — ``TOPIC#`` rows are
     faculty-scoped (the ``FacultyIndex`` GSI keys on ``faculty_uid``).
@@ -59,6 +79,13 @@ def build_topic_rows_for_pmid(
     pmid = str(pmid)
     rows: list[dict] = []
     seen_keys: set = set()
+
+    # #212 Part A — resolve the impact attributes once; every row for this
+    # PMID carries the same copy. A None / blank impact_score means the
+    # IMPACT# row had no enriched score at build time — omit both keys.
+    impact_score_n: str | None = None
+    if impact_score is not None and str(impact_score).strip() != "":
+        impact_score_n = str(impact_score)
 
     for topic_id, score_data in (dense_scores or {}).items():
         if isinstance(score_data, dict):
@@ -91,6 +118,11 @@ def build_topic_rows_for_pmid(
                 item["synopsis"] = {"S": str(synopsis)}
             if title:
                 item["title"] = {"S": str(title)}
+            if impact_score_n is not None:
+                item["impact_score"] = {"N": impact_score_n}
+                # Match the stopgap backfill: justification only when present.
+                if impact_justification:
+                    item["impact_justification"] = {"S": str(impact_justification)}
             rows.append(item)
 
     return rows

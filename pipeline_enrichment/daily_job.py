@@ -248,6 +248,61 @@ def _write_stage_row(
         )
 
 
+def _propagate_impact_best_effort(
+    table: Any,
+    impact_items: list[dict[str, Any]],
+    *,
+    alert_fn: Callable[..., None],
+    run_id: Optional[str],
+    context_label: str,
+) -> int:
+    """Best-effort #212 Part B: back-propagate impact_score onto existing
+    TOPIC# rows for the just-enriched PMIDs.
+
+    Mirrors the best-effort STAGE# row write at ``_write_stage_row``: NEVER
+    raises. ``impact_score`` on TOPIC# is a derived copy of the authoritative
+    IMPACT# row, so a propagation failure must not fail the run or unadvance
+    the watermark (the caller has already committed it). The gap is auditable
+    via ``scripts/backfill_topic_impact_from_impact_rows.py --all`` and is
+    re-attempted whenever the same value is later re-enriched (overwrite-if-
+    different). On failure we log + fire an ERROR alert for operator triage.
+
+    Returns the number of TOPIC# rows written (0 on failure or no-op).
+    """
+    if not impact_items:
+        return 0
+    try:
+        written = ddb_writer.propagate_impact_to_topic_rows(table, impact_items)
+        logger.info(
+            "%s: back-propagated impact_score to %d TOPIC# row(s)",
+            context_label, written,
+        )
+        return written
+    except Exception as e:  # noqa: BLE001 — best-effort copy, must not fail run
+        logger.error(
+            "%s: impact_score back-propagation to TOPIC# rows failed "
+            "(best-effort; watermark already committed; IMPACT# rows are the "
+            "source of truth and the gap is auditable via the backfill probe). "
+            "error=%s",
+            context_label, e,
+        )
+        alert_fn(
+            "ERROR",
+            "Impact back-propagation to TOPIC# rows failed",
+            f"The IMPACT# dual-write succeeded but back-propagating "
+            f"impact_score onto existing TOPIC# rows failed (#212 Part B). "
+            f"The run is NOT failed and the watermark is NOT unadvanced — "
+            f"impact_score on TOPIC# is a derived copy. Audit residual gaps "
+            f"with `backfill_topic_impact_from_impact_rows.py --all` (dry-run).",
+            context={
+                "run_id": run_id,
+                "enriched_pmids": len(impact_items),
+                "error": str(e),
+            },
+        )
+        return 0
+
+
 def run_daily_enrichment(
     *,
     full: bool = False,
@@ -526,6 +581,16 @@ def run_daily_enrichment(
         logger.info(
             "daily run: complete — %d/%d succeeded, watermark → %d",
             len(outcomes), delta_size, new_max,
+        )
+        # 6b. #212 Part B — back-propagate the just-written impact_score onto
+        # any pre-existing TOPIC# rows for these PMIDs (TOPIC#-before-enrichment
+        # ordering). Runs AFTER mark_run_complete, best-effort: a failure here
+        # must not fail the run or unadvance the watermark — impact_score on
+        # TOPIC# is a derived copy of the authoritative IMPACT# row.
+        _propagate_impact_best_effort(
+            ddb_target, impact_items,
+            alert_fn=alert_fn, run_id=run_id,
+            context_label="daily run",
         )
         _post_success_summary(
             alert_fn,
@@ -923,6 +988,18 @@ def run_enrichment_backfill(
                 "writes — %d PMID(s) have synopsis+impact in MariaDB but no "
                 "IMPACT# row. Re-run with --force. error=%s",
                 len(succeeded), e,
+            )
+        else:
+            # #212 Part B — back-propagate impact_score onto pre-existing
+            # TOPIC# rows for the just-enriched PMIDs. Best-effort and
+            # partial-tolerant: the backfill has no watermark to protect, so a
+            # propagation failure is logged + alerted but never changes the
+            # terminal status. Only runs when the IMPACT# batch itself
+            # succeeded (no point copying values whose IMPACT# write failed).
+            _propagate_impact_best_effort(
+                ddb_target, impact_items,
+                alert_fn=alert_fn, run_id=None,
+                context_label="enrichment backfill",
             )
 
     # 7. Terminal status + operator alert.

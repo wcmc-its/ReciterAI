@@ -40,6 +40,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from boto3.dynamodb.conditions import Attr
+
 logger = logging.getLogger(__name__)
 
 IMPACT_PK_PREFIX = "IMPACT#pmid_"
@@ -93,3 +95,86 @@ def write_impact_batch(table: Any, items: list[dict[str, Any]]) -> int:
             batch.put_item(Item=item)
     logger.info("ddb_writer: wrote %d IMPACT# items", len(items))
     return len(items)
+
+
+def propagate_impact_to_topic_rows(table: Any, items: list[dict[str, Any]]) -> int:
+    """Back-propagate the freshly-enriched ``impact_score`` onto every existing
+    ``TOPIC#.../SCORE#...`` row for each enriched PMID (#212 Part B).
+
+    Closes the daily / pre-existing ordering: when a PMID's ``TOPIC#`` rows
+    were minted *before* its impact enrichment landed, those rows carry no
+    ``impact_score`` and downstream representative-paper ranking coalesces the
+    absent attribute to 0 — collapsing ``article_score`` and dropping a
+    genuinely on-topic paper from the spotlight pool. Part A covers the reverse
+    ordering (IMPACT# already exists at Score time) at build time; this hook
+    covers TOPIC#-before-enrichment when enrichment finally lands.
+
+    Reuses ``compute_top_topic.fetch_activity_rows_for_pmid`` — the proven
+    ``PmidIndex`` GSI query that already filters to ``TOPIC#`` PKs with
+    ``SCORE#`` SKs, so faculty / PROCESSING# / STAGE# rows the GSI also
+    surfaces are never touched, and pagination is handled.
+
+    Write policy — **overwrite-if-different**, NOT ``attribute_not_exists``-only.
+    The freshly-enriched value is authoritative-latest: an annual ``--full``
+    rescore re-computes ``impact_score`` for already-enriched PMIDs, and an
+    exists-only guard would silently keep the stale copy on populated rows.
+    The equal-value skip keeps the steady state cheap (zero writes when nothing
+    changed → idempotent re-runs); the ``not_exists() | ne()`` condition makes
+    the write self-cancel under a concurrent race.
+
+    ``impact_justification`` is set only when the IMPACT# row carries a
+    non-empty justification — mirroring the stopgap backfill.
+
+    Idempotent and **best-effort**: the caller runs this AFTER the watermark
+    commits and must not fail the run on a propagation error — ``impact_score``
+    on ``TOPIC#`` is a derived copy, the ``IMPACT#`` row is the source of truth.
+
+    Args:
+        table: a boto3 DynamoDB Table *resource* (not the low-level client).
+            ``fetch_activity_rows_for_pmid`` and ``update_item`` use the
+            resource idiom (Key/Attr, Decimal-typed values).
+        items: the IMPACT# items already built this run (the
+            ``build_impact_item`` output). Each must carry ``pmid`` and
+            ``impact_score``; ``justification`` is optional.
+
+    Returns:
+        The number of ``TOPIC#`` rows written (rows already at the correct
+        value are skipped and not counted).
+    """
+    # Imported lazily so importing ddb_writer (a leaf module) never pulls in
+    # compute_top_topic's boto3 / Config module-level setup.
+    from compute_top_topic import fetch_activity_rows_for_pmid
+
+    written = 0
+    for it in items:
+        pmid = str(it["pmid"])
+        score = float(it["impact_score"])  # Table resource → Decimal → float, matches consumers
+        just = it.get("justification") or ""
+        for row in fetch_activity_rows_for_pmid(table, pmid):
+            # Skip rows already at the correct value — compare with float() so a
+            # Decimal("50")/int(50)/50.0 copy all read equal (matches consumers).
+            existing = row.get("impact_score")
+            if existing is not None and float(existing) == score:
+                continue
+            expr = "SET impact_score = :s"
+            vals: dict[str, Any] = {":s": it["impact_score"]}
+            if just:
+                expr += ", impact_justification = :j"
+                vals[":j"] = just
+            table.update_item(
+                Key={"PK": row["PK"], "SK": row["SK"]},
+                UpdateExpression=expr,
+                ConditionExpression=(
+                    Attr("impact_score").not_exists()
+                    | Attr("impact_score").ne(it["impact_score"])
+                ),
+                ExpressionAttributeValues=vals,
+            )
+            written += 1
+    if written:
+        logger.info(
+            "ddb_writer: back-propagated impact_score to %d TOPIC# row(s) "
+            "across %d PMID(s)",
+            written, len(items),
+        )
+    return written

@@ -832,18 +832,31 @@ def fetch_synopses_for_pmids(client, pmids: list[str]) -> dict[str, str]:
 
 def fetch_synopsis_records(client, pmids: list[str]) -> dict:
     """Like ``fetch_synopses_for_pmids`` but also returns synopsis provenance
-    (``synopsis_model``, ``enriched_at``) for #150 item 2.
+    (``synopsis_model``, ``enriched_at``) for #150 item 2 and the enriched
+    impact value (``impact_score``, ``impact_justification``) for #212 Part A.
 
-    The scorer stamps these onto the ``PROCESSING#`` row at score time
+    The scorer stamps the provenance onto the ``PROCESSING#`` row at score time
     (``scored_synopsis_model`` / ``scored_enriched_at``) so a later drift sweep
     can tell whether a publication's synopsis was regenerated after it was
     scored — ``IMPACT#.enriched_at`` advancing past the stamped
     ``scored_enriched_at``, or a ``synopsis_model`` change.
 
-    Returns ``{pmid: {"synopsis", "synopsis_model", "enriched_at"}}`` for every
-    PMID whose ``IMPACT#`` row carries a non-empty synopsis (same inner-join
-    filter as ``fetch_synopses_for_pmids``). BatchGetItem in 100-key chunks,
-    re-queuing ``UnprocessedKeys``.
+    The impact attributes (#212 Part A) are joined onto the freshly-built
+    ``TOPIC#`` rows at materialization so a PMID scored after its ``IMPACT#``
+    row already exists (the onboarding ordering) carries ``impact_score`` from
+    birth — closing the join gap at the source rather than back-filling. They
+    are projected off the SAME ``IMPACT#`` item this fetch already reads, so
+    Part A adds no extra round-trip. ``justification`` is the IMPACT# row's
+    attribute name; it is surfaced here under the ``impact_justification`` key
+    that consumers / ``TOPIC#`` rows use.
+
+    Returns ``{pmid: {"synopsis", "synopsis_model", "enriched_at",
+    "impact_score", "impact_justification"}}`` for every PMID whose ``IMPACT#``
+    row carries a non-empty synopsis (same inner-join filter as
+    ``fetch_synopses_for_pmids``). ``impact_score`` is ``None`` when the
+    IMPACT# row carries no enriched score yet (synopsis landed before impact);
+    ``impact_justification`` is ``""`` when absent. BatchGetItem in 100-key
+    chunks, re-queuing ``UnprocessedKeys``.
     """
     if not pmids:
         return {}
@@ -861,7 +874,10 @@ def fetch_synopsis_records(client, pmids: list[str]) -> dict:
                     {"PK": {"S": f"{IMPACT_PK_PREFIX}{p}"}, "SK": {"S": IMPACT_SK}}
                     for p in chunk
                 ],
-                "ProjectionExpression": "PK, synopsis, synopsis_model, enriched_at",
+                "ProjectionExpression": (
+                    "PK, synopsis, synopsis_model, enriched_at, "
+                    "impact_score, justification"
+                ),
             }
         }
         while request:
@@ -874,10 +890,21 @@ def fetch_synopsis_records(client, pmids: list[str]) -> dict:
                 if not synopsis:
                     continue
                 pmid = pk[len(IMPACT_PK_PREFIX):]
+                # #212 Part A: surface the enriched impact value off the same
+                # IMPACT# item. `impact_score` is a DDB Number (N) — keep it as
+                # the string DDB returns; None when the row carries no score
+                # yet (synopsis landed before impact). `justification` (the
+                # IMPACT# attribute) is surfaced under `impact_justification`,
+                # the name TOPIC# rows / consumers use.
+                impact_score = item.get("impact_score", {}).get("N")
                 result[pmid] = {
                     "synopsis": synopsis,
                     "synopsis_model": item.get("synopsis_model", {}).get("S", ""),
                     "enriched_at": item.get("enriched_at", {}).get("S", ""),
+                    "impact_score": impact_score,
+                    "impact_justification": item.get(
+                        "justification", {}
+                    ).get("S", ""),
                 }
             request = response.get("UnprocessedKeys") or None
     return result
