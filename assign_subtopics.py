@@ -761,6 +761,7 @@ def run(
     dry_run: bool,
     delta_pmids: list[str] | None = None,
     emit_envelope: bool = False,
+    force: bool = False,
 ) -> dict:
     # Phase 11 D-01: resolve hierarchy_version from env before any work.
     # pipeline_cold.run.main() sets this env var for all subprocess stages.
@@ -882,7 +883,18 @@ def run(
     input_hash = compute_assign_input_hash(
         hierarchy_draft=hierarchy, pmids=pmids_todo
     )
-    if stage_table is not None:
+    if force and stage_table is not None:
+        # --force bypasses the should_skip gate: the STAGE# input_hash is
+        # content-addressed on (hierarchy, pmid-set, model_ids) and is blind to
+        # a system-prompt change (e.g. the #210 substrate gate), so a prior
+        # `complete` row would otherwise skip a re-run that SHOULD happen. The
+        # run still writes a fresh `complete` row at the end, so a subsequent
+        # non-force run resumes normal skip behavior.
+        logger.info(
+            f"[STAGE# force] assign_subtopics topic={topic_id} re-running despite "
+            f"a prior complete row (input_hash {input_hash[:12]}); skip gate bypassed"
+        )
+    if stage_table is not None and not force:
         skip, prior = should_skip(
             stage_table,
             stage=STAGE_NAME,
@@ -1130,6 +1142,14 @@ def _parse_args():
         help="Classify but do NOT write DynamoDB updates",
     )
     parser.add_argument(
+        "--force", action="store_true",
+        help=(
+            "Re-run even if a prior complete STAGE# row exists (bypass the "
+            "should_skip gate). Use after a system-prompt change the input_hash "
+            "cannot see — e.g. forcing the #210 substrate-gate re-assignment."
+        ),
+    )
+    parser.add_argument(
         "--delta-pmids", default=None, metavar="LIST",
         help=(
             "Phase 10 hot-path filter. Comma-separated PMIDs or '@/path' to a "
@@ -1163,4 +1183,5 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
         delta_pmids=_parse_pmid_list_arg(args.delta_pmids),
         emit_envelope=args.emit_envelope,
+        force=args.force,
     )
