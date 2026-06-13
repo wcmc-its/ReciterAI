@@ -93,6 +93,12 @@ def build_topic_records(
             authors=authors,
             taxonomy_version=taxonomy_version,
             min_score=min_score,
+            # #212 Part A — cold-path build-time join. scoring_results.json
+            # carries impact_score/impact_justification only when the IMPACT#
+            # row was enriched at score time; absent keys leave the row at its
+            # historical shape (Part B fills it when enrichment later lands).
+            impact_score=pub.get('impact_score'),
+            impact_justification=pub.get('impact_justification', ''),
         )
         for row in pmid_rows:
             key = (row['PK']['S'], row['SK']['S'])
