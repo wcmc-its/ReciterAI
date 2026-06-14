@@ -1,0 +1,53 @@
+{
+  "_comment": "Declarative spec for the `reciterai` DynamoDB table (#223 IaC, single-file convention per infra/README.md D-10). This file is BOTH the rebuild spec and the documented durability invariant. KeySchema / AttributeDefinitions / GlobalSecondaryIndexes / BillingMode are byte-faithful to utils/dynamodb_helpers.py create_chatbot_table (enforced by tests/test_infra_dynamodb_table_parity.py, so they cannot silently drift). DeletionProtectionEnabled + Tags are the durability hardening the bare creator historically omitted; DeletionProtectionEnabled is now also set inline in create_chatbot_table. PITR is NOT a CreateTable attribute -- see _pitr and scripts/apply_backup_config.sh.",
+  "TableName": "reciterai",
+  "BillingMode": "PAY_PER_REQUEST",
+  "KeySchema": [
+    {"AttributeName": "PK", "KeyType": "HASH"},
+    {"AttributeName": "SK", "KeyType": "RANGE"}
+  ],
+  "AttributeDefinitions": [
+    {"AttributeName": "PK", "AttributeType": "S"},
+    {"AttributeName": "SK", "AttributeType": "S"},
+    {"AttributeName": "faculty_uid", "AttributeType": "S"},
+    {"AttributeName": "taxonomy_version", "AttributeType": "S"},
+    {"AttributeName": "status", "AttributeType": "S"},
+    {"AttributeName": "pmid", "AttributeType": "S"}
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "FacultyIndex",
+      "KeySchema": [
+        {"AttributeName": "faculty_uid", "KeyType": "HASH"},
+        {"AttributeName": "PK", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "ALL"}
+    },
+    {
+      "IndexName": "ProcessingByVersionIndex",
+      "KeySchema": [
+        {"AttributeName": "taxonomy_version", "KeyType": "HASH"},
+        {"AttributeName": "status", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "KEYS_ONLY"}
+    },
+    {
+      "IndexName": "PmidIndex",
+      "KeySchema": [
+        {"AttributeName": "pmid", "KeyType": "HASH"},
+        {"AttributeName": "PK", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "ALL"}
+    }
+  ],
+  "DeletionProtectionEnabled": true,
+  "Tags": [
+    {"Key": "app", "Value": "reciterai"},
+    {"Key": "managed-by", "Value": "infra/dynamodb_table.json"}
+  ],
+  "_pitr": {
+    "PointInTimeRecoveryEnabled": true,
+    "RecoveryPeriodInDays": 35,
+    "note": "PITR is not a CreateTable attribute. scripts/apply_backup_config.sh enables it via `update-continuous-backups` after the table is ACTIVE. A PITR-restored table comes back with PITR OFF -- re-run apply_backup_config.sh post-restore (docs/dr-runbook.md, Scenario A step A5)."
+  }
+}
