@@ -18,6 +18,9 @@ overlays.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
+- **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
+- **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
+- **`../scripts/apply_backup_config.sh`** (#223) — idempotent wrapper (mirrors `deploy_cron.sh`: `--dry-run`, per-control verify) that enables DDB PITR + deletion protection and S3 versioning + the lifecycle on both buckets. One-time apply + drift recheck (`--verify`), not a cron.
 - **`../scripts/deploy_cron.sh`** — `aws events put-rule` + `aws events put-targets` + `aws lambda add-permission` per rule. Supports `--dry-run` and `--rule <name>`. ECS target kind (#37 PR 4) needs `RECITERAI_ENRICHMENT_SUBNETS` + `RECITERAI_ENRICHMENT_SECURITY_GROUPS` env vars (comma-separated).
 
 ## Operator quickstart
@@ -165,6 +168,26 @@ it, not the state machine. `dynamodb:PutItem` covers the ASL's inline
 `arn:aws:states:::dynamodb:putItem` states (the terminal `STAGE#onboarding`
 row and the per-stage `STAGE#` rows). This mirrors the hot path's
 state-machine role.
+
+## Backup / DR posture (#223)
+
+The `reciterai` table and both artifact buckets are now durability-hardened:
+
+- **DynamoDB `reciterai`**: PITR (35-day continuous restore) + deletion protection.
+  PITR is the only protection against a bad pipeline run overwriting rows in place
+  (S3-style versioning can't recover an in-place `UpdateItem`). Declared in
+  `dynamodb_table.json`; `DeletionProtectionEnabled` is also set inline in
+  `create_chatbot_table` so a recreate can't silently reintroduce the gap.
+- **`wcmc-reciterai-artifacts` + `wcmc-reciterai-hierarchy`**: bucket versioning +
+  a 90-day noncurrent-version expiration lifecycle (`s3_lifecycle_noncurrent.json`).
+  Canonical history lives in `{version}/` and `spotlight/runs/{run_id}/` as
+  **current** objects (never expired by the rule); the lifecycle only bounds
+  superseded `latest/*` pointers.
+
+Apply / re-check with `scripts/apply_backup_config.sh` (`--dry-run` / `--verify`).
+Restore procedures are in `docs/dr-runbook.md`. This **declares** existing
+resources and adds none, so it does not trip the D-10 CDK-migration threshold
+above.
 
 ## Related
 

@@ -78,6 +78,12 @@ def create_chatbot_table(client, table_name: str = TABLE_NAME):
     - GSI 3 "PmidIndex": pmid (HASH) + PK (RANGE), Projection: ALL
       Access: "Get all data for PMID X" (topics, tools, impact)
     - BillingMode: PAY_PER_REQUEST (on-demand)
+    - DeletionProtectionEnabled: True (#223 — block an accidental DeleteTable on
+      a recreate from this path; see infra/dynamodb_table.json)
+
+    PITR (point-in-time recovery) is not a create-table parameter; it is enabled
+    out-of-band by scripts/apply_backup_config.sh after the table is ACTIVE (a
+    PITR-restored table also comes back with PITR OFF). See docs/dr-runbook.md.
 
     Args:
         client: boto3 DynamoDB client.
@@ -136,6 +142,11 @@ def create_chatbot_table(client, table_name: str = TABLE_NAME):
                     'Projection': {'ProjectionType': 'ALL'},
                 },
             ],
+            # #223: block an accidental DeleteTable on any recreate from this
+            # path. The live table is already protected via
+            # scripts/apply_backup_config.sh; this keeps a rebuild from silently
+            # reintroducing the unprotected state.
+            DeletionProtectionEnabled=True,
         )
         logger.info(f"Created DynamoDB table: {table_name}")
         print(f"[DynamoDB] Created table '{table_name}'. Waiting for it to become ACTIVE...")
