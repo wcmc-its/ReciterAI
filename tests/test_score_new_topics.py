@@ -1,9 +1,9 @@
 """Tests for the additive new-topic scorer (cli/score_new_topics.py).
 
-Covers the bug-prone pure logic — additive TOPIC# rows, the FACULTY# merge
-that must preserve every existing topic, the affected-faculty write filter,
-the genuinely-new guards, and the two-pass parse/floor in score_one — without
-touching Bedrock or DynamoDB.
+Covers the bug-prone pure logic — additive TOPIC# rows, the DDB-sourced
+FACULTY# merge that must preserve every existing topic, the affected-faculty
+write filter, the FacultyIndex parse, the guards, and the two-pass parse/floor
+in score_one — without touching Bedrock or a live DynamoDB.
 """
 
 from __future__ import annotations
@@ -23,28 +23,46 @@ TAX = {
 }
 
 
+def _faculty_meta(*cwids):
+    return {c: {"name": c.upper(), "department": "Dept", "h_index": 1,
+               "article_count": 1, "first_author_count": 1, "last_author_count": 0}
+            for c in cwids}
+
+
 # --------------------------------------------------------------------------- guards
 
-def test_assert_topics_are_new_passes_for_unscored_topic():
-    scoring_results = [{"pmid": "1", "dense_scores": {"cardio": {"score": 0.9}}}]
-    snt.assert_topics_are_new([NEW], TAX, scoring_results)  # no raise
+def test_assert_topics_in_taxonomy_passes_for_present_topic():
+    snt.assert_topics_in_taxonomy([NEW], TAX)  # no raise
 
 
-def test_assert_topics_are_new_rejects_topic_missing_from_taxonomy():
+def test_assert_topics_in_taxonomy_rejects_missing_topic():
     with pytest.raises(AssertionError, match="not in taxonomy"):
-        snt.assert_topics_are_new(["nonexistent"], TAX, [])
-
-
-def test_assert_topics_are_new_rejects_already_scored_topic():
-    scoring_results = [{"pmid": "1", "dense_scores": {NEW: {"score": 0.7}}}]
-    with pytest.raises(AssertionError, match="already have scores"):
-        snt.assert_topics_are_new([NEW], TAX, scoring_results)
+        snt.assert_topics_in_taxonomy(["nonexistent"], TAX)
 
 
 def test_single_topic_view_restricts_to_targets():
     view = snt.single_topic_view(TAX, [NEW])
     assert [t["id"] for t in view["topics"]] == [NEW]
     assert view["taxonomy_version"] == "taxonomy_v2"
+
+
+class _FakeQueryDDB:
+    """Minimal DDB stub whose query() returns a fixed Items page (no paging)."""
+    def __init__(self, items):
+        self._items = items
+
+    def query(self, **kwargs):
+        return {"Items": self._items}
+
+
+def test_assert_no_existing_ddb_rows_passes_when_empty():
+    snt.assert_no_existing_ddb_rows(_FakeQueryDDB([]), "reciterai", [NEW])  # no raise
+
+
+def test_assert_no_existing_ddb_rows_rejects_when_rows_exist():
+    rows = [{"PK": {"S": f"TOPIC#{NEW}"}, "SK": {"S": "x"}}]
+    with pytest.raises(AssertionError, match="already has rows"):
+        snt.assert_no_existing_ddb_rows(_FakeQueryDDB(rows), "reciterai", [NEW])
 
 
 # --------------------------------------------------------------------------- TOPIC#
@@ -65,56 +83,80 @@ def test_additive_topic_rows_skip_pub_with_no_authors():
     assert rows == []
 
 
+# --------------------------------------------------------- FacultyIndex parse
+
+def test_fetch_faculty_existing_parses_topic_max_and_pmids():
+    items = [
+        {"PK": {"S": "TOPIC#cardio"},
+         "SK": {"S": "SCORE#0900#ACTIVITY#pmid_100#cwid_aaa"}, "score": {"N": "0.9"}},
+        {"PK": {"S": "TOPIC#cardio"},
+         "SK": {"S": "SCORE#0700#ACTIVITY#pmid_101#cwid_aaa"}, "score": {"N": "0.7"}},
+        {"PK": {"S": "TOPIC#neuro"},
+         "SK": {"S": "SCORE#0600#ACTIVITY#pmid_100#cwid_aaa"}, "score": {"N": "0.6"}},
+    ]
+    topic_max, pmids = snt.fetch_faculty_existing(_FakeQueryDDB(items), "reciterai", "aaa")
+    assert topic_max == {"cardio": 0.9, "neuro": 0.6}  # max across pubs
+    assert pmids == {"100", "101"}
+
+
 # --------------------------------------------------------------------------- FACULTY#
 
-def _faculty_meta(*cwids):
-    return {c: {"name": c.upper(), "department": "Dept", "h_index": 1,
-               "article_count": 1, "first_author_count": 1, "last_author_count": 0}
-            for c in cwids}
+def _fetcher(existing):
+    """existing: {cwid: (topic_max, pmids)} -> callable used by build_merged_faculty_rows."""
+    return lambda cwid: existing.get(cwid, ({}, set()))
 
 
 def test_faculty_merge_preserves_existing_topics():
-    """The crux: rebuilding FACULTY# after the merge must NOT drop a faculty's
-    pre-existing topics — the new topic just joins the top-10 contest."""
-    scoring_results = [{"pmid": "1", "dense_scores": {"cardio": {"score": 0.9}}}]
+    """The crux: merging the new topic must NOT drop a faculty's pre-existing
+    topics, and must recompute the top-10 with the new topic joining."""
     scored = {"1": {NEW: {"score": 0.8, "rationale": "r"}}}
     author_mapping = {"1": [{"cwid": "aaa", "position": "first"}]}
+    fetch = _fetcher({"aaa": ({"cardio": 0.9}, {"100"})})
     rows = snt.build_merged_faculty_rows(
-        scored, scoring_results, author_mapping, _faculty_meta("aaa"), "taxonomy_v2"
+        scored, author_mapping, _faculty_meta("aaa"), "taxonomy_v2", fetch
     )
     assert len(rows) == 1
     top = {m["M"]["topic_id"]["S"]: float(m["M"]["max_score"]["N"])
            for m in rows[0]["top_topics"]["L"]}
-    assert top == {"cardio": 0.9, NEW: 0.8}  # both present
+    assert top == {"cardio": 0.9, NEW: 0.8}                 # existing preserved + new
+    assert rows[0]["scored_pub_count"]["N"] == "2"          # {100} ∪ {1}
 
 
-def test_faculty_merge_creates_record_for_pub_absent_from_scoring_results():
-    """A pure new-topic paper missing from scoring_results.json still yields a
-    FACULTY# record for its author."""
-    scoring_results = []  # pmid 2 never scored on any old topic
+def test_faculty_merge_creates_record_for_faculty_with_no_existing_rows():
+    """A faculty whose only scored pub is the new-topic one (no existing
+    TOPIC# rows) still yields a FACULTY# record."""
     scored = {"2": {NEW: {"score": 0.95, "rationale": "r"}}}
     author_mapping = {"2": [{"cwid": "bbb", "position": "last"}]}
+    fetch = _fetcher({})  # bbb has nothing yet
     rows = snt.build_merged_faculty_rows(
-        scored, scoring_results, author_mapping, _faculty_meta("bbb"), "taxonomy_v2"
+        scored, author_mapping, _faculty_meta("bbb"), "taxonomy_v2", fetch
     )
     assert len(rows) == 1
     assert rows[0]["PK"]["S"] == "FACULTY#cwid_bbb"
     assert rows[0]["scored_pub_count"]["N"] == "1"
 
 
-def test_faculty_merge_filters_out_unaffected_faculty():
-    """Faculty with no qualifying new-topic pub must not be rewritten."""
-    scoring_results = [
-        {"pmid": "1", "dense_scores": {"cardio": {"score": 0.9}}},   # aaa, affected
-        {"pmid": "3", "dense_scores": {"neuro": {"score": 0.7}}},    # ccc, untouched
-    ]
+def test_faculty_merge_skips_faculty_without_metadata():
+    """No faculty_metadata entry → no FACULTY# record (matches the canonical
+    builder); the additive TOPIC# rows are still written elsewhere."""
+    scored = {"1": {NEW: {"score": 0.8}}}
+    author_mapping = {"1": [{"cwid": "ghost", "position": "first"}]}
+    rows = snt.build_merged_faculty_rows(
+        scored, author_mapping, _faculty_meta(), "taxonomy_v2", _fetcher({})
+    )
+    assert rows == []
+
+
+def test_faculty_merge_only_emits_affected_faculty():
+    """Only faculty who co-authored a qualifying new-topic pub are emitted."""
     scored = {"1": {NEW: {"score": 0.8}}}
     author_mapping = {
         "1": [{"cwid": "aaa", "position": "first"}],
-        "3": [{"cwid": "ccc", "position": "first"}],
+        "3": [{"cwid": "ccc", "position": "first"}],  # ccc not in scored → untouched
     }
+    fetch = _fetcher({"aaa": ({"cardio": 0.9}, {"100"})})
     rows = snt.build_merged_faculty_rows(
-        scored, scoring_results, author_mapping, _faculty_meta("aaa", "ccc"), "taxonomy_v2"
+        scored, author_mapping, _faculty_meta("aaa", "ccc"), "taxonomy_v2", fetch
     )
     assert {r["PK"]["S"] for r in rows} == {"FACULTY#cwid_aaa"}
 
@@ -139,7 +181,7 @@ def test_score_one_below_floor_skips_dense(monkeypatch):
         return {}, None
     monkeypatch.setattr(snt.sp, "_dense_score", _no_dense)
 
-    screening, dense = snt.score_one(
+    _screening, dense = snt.score_one(
         {"pmid": "1", "synopsis": "x", "abstract": ""},
         _FakeBedrock({"0": 0.1}), view, int_to_id, id_to_int,
     )
@@ -154,7 +196,7 @@ def test_score_one_above_floor_returns_dense(monkeypatch):
         snt.sp, "_dense_score",
         lambda *a, **k: ({"0": {"score": 0.7, "rationale": "r"}}, None),
     )
-    screening, dense = snt.score_one(
+    _screening, dense = snt.score_one(
         {"pmid": "1", "synopsis": "x", "abstract": ""},
         _FakeBedrock({"0": 0.6}), view, int_to_id, id_to_int,
     )

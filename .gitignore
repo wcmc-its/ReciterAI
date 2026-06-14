@@ -75,3 +75,7 @@ docs/architecture/*.png
 # Playwright MCP working artifacts (screenshots, transcripts)
 .playwright-mcp/
 gallery-view*.png
+
+# score_new_topics.py local run checkpoints (run artifacts, not source)
+score_new_topics_checkpoint.json
+*_scoring_ckpt.json
