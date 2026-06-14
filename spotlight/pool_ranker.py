@@ -250,12 +250,15 @@ def rank_pool(
             if existing is None or _author_rank(paper) > _author_rank(existing):
                 by_subtopic_pmid[subtopic_id][paper.pmid] = paper
 
-    # B1 strict-author resolution (operator decision 2026-05-07): require
-    # both first AND last authors to be WCM faculty, sourced from
-    # analysis_summary_author. Papers that don't pass this check are dropped
-    # from the pool BEFORE the top-N cut, so subtopics still surface their
-    # strongest WCM-paired papers rather than burning the budget on papers
-    # we'll have to drop anyway.
+    # B1 author resolution. The resolver applies one of two rules per the
+    # spotlight_b1_faculty_or_enabled flag: default strict-AND (both leads
+    # present, 2026-05-07) or, when enabled, the #231 fulltime-faculty OR rule
+    # (first OR last author is identity.fullTimeFaculty='yes'). Either way,
+    # papers that don't pass are dropped from the pool BEFORE the top-N cut so
+    # subtopics surface their strongest qualifying papers rather than burning the
+    # budget on papers we'll drop anyway. The DDB substrate rows are untouched —
+    # this is an in-memory skip (the OR path also logs skips as
+    # no_fulltime_faculty_lead).
     if author_resolver is not None:
         import dataclasses
         all_pmids = sorted(
