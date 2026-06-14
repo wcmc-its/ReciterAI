@@ -321,6 +321,39 @@
       "type": "integer",
       "minimum": 1,
       "description": "Brick F PR-2 archive threshold (#191), PROVISIONAL. A demoted durable id still UNCLAIMED for a FURTHER this-many runs (consecutive_quiet_runs >= subtopic_lifecycle_demote_quiet_runs + this) transitions demoted->archived in the retire sweep. Counted in RUNS (cadence-agnostic). A re-claim un-demotes an archived id straight back to active (§8 reversibility). Only consulted when subtopic_lifecycle_policy_enabled=true. Co-decided with the cadence in #37."
+    },
+    "corpus_read_floor_publications": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "#224 degraded-read floor. extract_publications (full-corpus, non-delta) aborts with DegradedReadError when the SQL corpus returns fewer than this many rows -- the symptom of a degraded/partial ReCiterDB read, not normal variation. Calibrated ~6% of the live corpus (74,456 rows, 2026-06-13). Not in 'required': a missing key degrades to the code default (5000)."
+    },
+    "corpus_read_floor_faculty": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "#224 degraded-read floor for extract_faculty_metadata (FACULTY_METADATA_SQL). Aborts below this faculty-row count. ~6% of the live roster (2,399, 2026-06-13). Code default 150."
+    },
+    "corpus_read_floor_author_links": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "#224 degraded-read floor for extract_author_mapping (AUTHOR_MAPPING_SQL author-link rows). Aborts below this count -- the corpus-sized substrate the #222 cull keys on. ~5% of live links (107,421, 2026-06-13). Code default 5000."
+    },
+    "hierarchy_publish_shrink_max_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "#224 publish shrink guard (hierarchy). The shrink_guard publish gate BLOCKS when the new subtopic count is below prev*(1-this) vs the prior published artifact. 0.20 = block losing >20% of subtopics. Override an intentional large recluster via `python -m gates --force --force-reason`. Code default 0.20."
+    },
+    "spotlight_publish_shrink_max_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "#224 publish shrink guard (spotlight). spotlight/publish.py aborts (returns non-zero, no PutObject) when the new card count is below prev*(1-this) vs the prior latest/ artifact, unless --force. 0.34 ~= block losing >3 of 9 cards while tolerating normal 1-2 card rotation. Code default 0.34."
+    },
+    "spotlight_author_resolve_min_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "#224 fast-WARN floor in spotlight resolve_authors: warn when resolved/requested PMIDs falls below this -- the symptom of a degraded analysis_summary_author read (the hard abort stays at rotation_selector's n_floor). Code default 0.5."
     }
   }
 }

@@ -13,6 +13,7 @@ Security:
 import os
 
 from utils.db import get_engine
+from utils.read_guards import guard_unexpected_empty
 
 
 # ---------------------------------------------------------------------------
@@ -374,8 +375,12 @@ def scan_faculty_publication_gaps(client=None) -> list[dict]:
         conn.close()
 
     sql_rows = [{"cwid": str(r["cwid"]), "pmid": str(r["pmid"])} for r in rows]
-    if not sql_rows:
-        return []
+    # #224: the docstring invariant is "empty is never the normal case" — enforce
+    # it. A degraded read returning zero pairs would make the global gap scan
+    # silently no-op across ALL faculty (every CWID looks covered); abort instead.
+    guard_unexpected_empty(
+        sql_rows, source="scan_faculty_publication_gaps", mode="abort", floor=1
+    )
 
     unique_pmids = sorted({r["pmid"] for r in sql_rows})
     client = client or get_dynamo_client()

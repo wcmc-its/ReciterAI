@@ -71,6 +71,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from utils.event_records import load_thresholds, write_uncovered_pmid
+from utils.read_guards import guard_unexpected_empty
 from utils.iso_clock import now_iso
 
 logging.basicConfig(
@@ -305,6 +306,17 @@ def extract_publications(delta_since: str | None = None) -> list:
     finally:
         conn.close()
 
+    if not delta_since:
+        # #224: a degraded full-corpus read silently shrinks scoring input.
+        # Abort rather than propagate a thinned corpus into the put-only sinks.
+        # The delta path legitimately returns few/zero rows, so it is exempt.
+        guard_unexpected_empty(
+            corpus,
+            source="extract_publications",
+            mode="abort",
+            floor=int(load_thresholds().get("corpus_read_floor_publications", 5000)),
+        )
+
     publications = _attach_synopses_from_ddb(corpus)
     if delta_since:
         print(f"Extracted {len(publications)} publications from ReciterDB "
@@ -414,6 +426,14 @@ def extract_faculty_metadata() -> dict:
         from sqlalchemy import text
         result = conn.execute(text(FACULTY_METADATA_SQL))
         rows = result.mappings().all()
+        # #224: the faculty roster should never read (near-)empty; abort a
+        # degraded read rather than write a thinned FACULTY# set.
+        guard_unexpected_empty(
+            rows,
+            source="extract_faculty_metadata",
+            mode="abort",
+            floor=int(load_thresholds().get("corpus_read_floor_faculty", 150)),
+        )
         metadata = {}
         for row in rows:
             r = dict(row)
@@ -446,6 +466,14 @@ def extract_author_mapping() -> dict:
         from sqlalchemy import text
         result = conn.execute(text(AUTHOR_MAPPING_SQL))
         rows = result.mappings().all()
+        # #224: the author mapping is the corpus-sized substrate the #222 cull
+        # will key on; abort a degraded read rather than under-write/under-cull.
+        guard_unexpected_empty(
+            rows,
+            source="extract_author_mapping",
+            mode="abort",
+            floor=int(load_thresholds().get("corpus_read_floor_author_links", 5000)),
+        )
 
         mapping = {}
         for row in rows:

@@ -19,7 +19,6 @@ names parse reliably regardless of truncation.
 from __future__ import annotations
 
 import logging
-import os
 import re
 from typing import NamedTuple
 
@@ -36,22 +35,18 @@ class AuthorPair(NamedTuple):
 
 
 # ---------------------------------------------------------------------------
-# Lazy SQLAlchemy engine (DB_HOST/DB_USERNAME/DB_PASSWORD/DB_NAME env vars)
+# Default SQLAlchemy engine — the shared hardened factory (#224)
 # ---------------------------------------------------------------------------
-
-_default_engine = None
 
 
 def _get_default_engine():
-    global _default_engine
-    if _default_engine is None:
-        from sqlalchemy import create_engine
+    # #224: use utils.db.get_engine (pool_pre_ping + pool_recycle + connect/
+    # read/write timeouts) instead of a second, un-hardened engine. It reads
+    # the same DB_* env vars and is a singleton; the only DSN delta is the
+    # correct ?charset=utf8mb4 it appends (a latent fix for byline mojibake).
+    from utils.db import get_engine
 
-        _default_engine = create_engine(
-            f"mysql+pymysql://{os.environ['DB_USERNAME']}:{os.environ['DB_PASSWORD']}"
-            f"@{os.environ['DB_HOST']}/{os.environ['DB_NAME']}"
-        )
-    return _default_engine
+    return get_engine()
 
 
 # ---------------------------------------------------------------------------
