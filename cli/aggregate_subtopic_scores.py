@@ -113,6 +113,47 @@ def _query_topic_rows(topic_id: str) -> list:
     return rows
 
 
+def _filter_rows_to_live(rows: list, live_pairs: set | None = None) -> list:
+    """#222 read-time live-intersection: drop SCORE# rows whose (cwid, pmid)
+    attribution no longer exists in the live MariaDB faculty-author mapping, so
+    stale rows stop inflating the SUBTOPIC_SCORE# partitions and FACULTY#
+    subtopic_scores map that the SPS home-page grid ranks on. No deletes — the
+    stale rows remain in DynamoDB; they are simply excluded from this read.
+
+    The live set is built at the all-positions TOPIC# mint scope (see
+    utils.attribution); using a first/last-scoped set here would drop real
+    middle-author attributions. ``live_pairs`` is injectable for tests; in
+    production it is loaded once per run and inherits the #224 under-floor abort.
+
+    Note (documented limitation): a faculty member who loses ALL rows for this
+    topic drops out of the recomputed scores, so the wholesale per-subtopic
+    SUBTOPIC_SCORE# partitions correctly omit them, but D-06 only clears the
+    FACULTY#.subtopic_scores map for faculty that still have surviving rows
+    (``touched_pids``). A fully-dropped faculty therefore keeps a stale
+    subtopic_scores entry on their FACULTY# record until the deferred cull
+    removes the rows. This residual is bounded (it requires every one of a
+    faculty's papers in a topic to go stale) and does not affect the
+    partition-ranked grid.
+    """
+    from utils.attribution import is_stale, load_live_attribution_pairs
+
+    if live_pairs is None:
+        live_pairs = load_live_attribution_pairs()
+
+    kept: list = []
+    dropped = 0
+    for row in rows:
+        if is_stale(live_pairs, row.get("faculty_uid", ""), row.get("pmid", "")):
+            dropped += 1
+            continue
+        kept.append(row)
+    logger.info(
+        f"#222 live-intersection: kept {len(kept)} rows, dropped {dropped} "
+        f"stale (no live faculty-author attribution)"
+    )
+    return kept
+
+
 # ---------------------------------------------------------------------------
 # Aggregation
 # ---------------------------------------------------------------------------
@@ -533,6 +574,10 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
         sys.exit(3)
 
     rows = _query_topic_rows(topic_id)
+
+    # #222: drop stale rows (faculty no longer attributed to the pmid in the
+    # live MariaDB mapping) before aggregating, so they stop inflating scores.
+    rows = _filter_rows_to_live(rows)
 
     # Phase 12 §8: run both aggregations side by side
     faculty_scores, total_weights = _aggregate_exclusive(rows)

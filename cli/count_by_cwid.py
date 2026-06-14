@@ -13,10 +13,15 @@ deprecation window. It will be removed in a later phase.
 The cwid_topic_counts.csv emission is unchanged (D-13 scope is subtopic-level only).
 """
 import csv
+import sys
 from collections import defaultdict
 from pathlib import Path
 
 import boto3
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.attribution import is_stale, load_live_attribution_pairs
 
 # Phase 12 D-13 CSV name constants.
 NEW_EXCLUSIVE_CSV = "faculty_subtopic_counts_exclusive.csv"
@@ -92,9 +97,14 @@ if __name__ == "__main__":
     # CR-03: project subtopic_ids as well so the inclusive aggregation can see
     # every above-floor subtopic per activity row (D-13/D-15 contract). The
     # projection cost is a single string-set attribute per row.
+    # #222: live faculty-author set (all-positions mint scope) to exclude stale
+    # rows from the counts so they don't re-inflate per-CWID activity totals.
+    live_pairs = load_live_attribution_pairs()
+
     pages = paginator.paginate(
         TableName=TABLE,
-        ProjectionExpression="#PK, faculty_uid, primary_subtopic_id, subtopic_ids",
+        # #222: project pmid so each row can be intersected with the live set.
+        ProjectionExpression="#PK, faculty_uid, pmid, primary_subtopic_id, subtopic_ids",
         ExpressionAttributeNames={"#PK": "PK"},
     )
 
@@ -102,6 +112,7 @@ if __name__ == "__main__":
     topic_rows = 0
     subtopic_rows = 0
     inclusive_rows = 0
+    stale_skipped = 0
     for page in pages:
         for item in page.get("Items", []):
             scanned += 1
@@ -111,6 +122,11 @@ if __name__ == "__main__":
             topic_id = pk[len("TOPIC#"):]
             cwid_raw = item.get("faculty_uid", {}).get("S", "")
             if not cwid_raw:
+                continue
+            # #222: drop rows whose (cwid, pmid) is no longer a live attribution.
+            pmid = item.get("pmid", {}).get("S", "")
+            if is_stale(live_pairs, cwid_raw, pmid):
+                stale_skipped += 1
                 continue
             cwid = cwid_raw[len("cwid_"):] if cwid_raw.startswith("cwid_") else cwid_raw
             topic_counts[(cwid, topic_id)] += 1
@@ -141,6 +157,7 @@ if __name__ == "__main__":
             )
 
     print(f"\nTotal scanned: {scanned:,}")
+    print(f"#222 stale rows skipped (no live attribution): {stale_skipped:,}")
     print(f"TOPIC# activity rows: {topic_rows:,}")
     print(f"Activity rows with primary_subtopic_id: {subtopic_rows:,}")
     print(f"Inclusive (cwid, subtopic) increments: {inclusive_rows:,}")
