@@ -175,4 +175,23 @@ def resolve_authors(
         len(resolved),
         len(int_pmids),
     )
+    # #224 fast WARN: a resolved/requested ratio below the floor is the symptom
+    # of a degraded analysis_summary_author read (vs genuinely non-WCM bylines).
+    # The hard abort stays downstream at rotation_selector's n_floor.
+    if int_pmids:
+        ratio = len(resolved) / len(int_pmids)
+        try:
+            from utils.env_check import load_thresholds
+
+            min_ratio = float(
+                load_thresholds().get("spotlight_author_resolve_min_ratio", 0.5)
+            )
+        except Exception:
+            min_ratio = 0.5
+        if ratio < min_ratio:
+            logger.warning(
+                "Author resolver: only %d/%d PMIDs resolved (%.0f%% < %.0f%% floor) "
+                "— possible degraded analysis_summary_author read",
+                len(resolved), len(int_pmids), ratio * 100, min_ratio * 100,
+            )
     return resolved
