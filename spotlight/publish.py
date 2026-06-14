@@ -72,6 +72,33 @@ SPOTLIGHT_VERSION = "spotlight_v1"
 # ---------------------------------------------------------------------------
 
 
+def _spotlight_shrink_fraction() -> float:
+    try:
+        from utils.env_check import load_thresholds
+
+        return float(
+            load_thresholds().get("spotlight_publish_shrink_max_fraction", 0.34)
+        )
+    except Exception:
+        return 0.34
+
+
+def _prior_spotlight_card_count(s3) -> int | None:
+    """#224 best-effort prior card count from latest/spotlight.json.
+
+    Returns None on any error (no prior, S3 hiccup, parse failure) so a missing
+    or corrupt prior never blocks a legitimate publish (fail-open).
+    """
+    try:
+        key = f"{PREFIX}/latest/spotlight.json"
+        if not s3.key_exists(key):
+            return None
+        prior = json.loads(s3.get_object_bytes(key))
+        return len(prior.get("spotlights", []))
+    except Exception:
+        return None
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +114,7 @@ def publish_artifact(
     s3_client=None,
     dynamo_client=None,
     run_id: str | None = None,
+    force: bool = False,
 ) -> int:
     """Validate + upload the spotlight artifact to S3, then write history.
 
@@ -191,6 +219,22 @@ def publish_artifact(
                 f"{PREFIX}/{version}/ already exists in s3://{ARTIFACTS_BUCKET} "
                 f"— overwriting (same-day re-publish)."
             )
+
+        # #224 shrink guard: abort BEFORE any PutObject if the new artifact lost
+        # most of its cards vs the prior latest/ (the symptom of a degraded
+        # upstream read thinning the pool). Fail-open on a missing/corrupt prior;
+        # fail-closed on a real shrink. Overridable with force=True.
+        if not force:
+            prev_count = _prior_spotlight_card_count(s3)
+            new_count = len(artifact.get("spotlights", []))
+            frac = _spotlight_shrink_fraction()
+            if prev_count and new_count < prev_count * (1.0 - frac):
+                print(
+                    f"\nABORT: spotlight shrank from {prev_count} to {new_count} "
+                    f"cards (>{frac:.0%} drop) — refusing to overwrite latest/. "
+                    f"Re-run with force=True to override."
+                )
+                return 1
 
         # Versioned prefix (CONTEXT decision Q2.2).
         s3.put_object(f"{PREFIX}/{version}/spotlight.json",        artifact_bytes)

@@ -119,10 +119,12 @@ def test_scan_populates_has_synopsis_from_ddb(monkeypatch):
     conn.close.assert_called_once()
 
 
-def test_scan_empty_sql_result_skips_ddb_lookup(monkeypatch):
-    """No SQL rows → no DDB call (BatchGetItem on an empty key set is wasted
-    work). Matches the empty-input short-circuit in fetch_synopses_for_pmids."""
+def test_scan_empty_sql_result_aborts_before_ddb_lookup(monkeypatch):
+    """#224: an empty SQL result is "never the normal case" (the function's own
+    docstring invariant), so it now ABORTS with DegradedReadError rather than
+    returning [] — and still never touches DDB (no wasted BatchGetItem)."""
     import utils.sql_queries as sq
+    from utils.read_guards import DegradedReadError
 
     conn = _fake_sql_conn([])
     monkeypatch.setattr(sq, "get_db_connection", lambda: conn)
@@ -132,7 +134,8 @@ def test_scan_empty_sql_result_skips_ddb_lookup(monkeypatch):
     get_client = MagicMock()
     monkeypatch.setattr("utils.dynamodb_helpers.get_dynamo_client", get_client)
 
-    assert scan_faculty_publication_gaps() == []
+    with pytest.raises(DegradedReadError):
+        scan_faculty_publication_gaps()
     fetch.assert_not_called()
     get_client.assert_not_called()
 

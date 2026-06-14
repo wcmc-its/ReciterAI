@@ -53,6 +53,8 @@ import gates.schema_roundtrip    # noqa: F401  (registers schema_roundtrip gate)
 import gates.schema_validation   # noqa: F401  (registers schema_validation gate)
 import pipeline_hierarchy
 from gates.registry import any_blocked, run_gates
+from gates.shrink_guard import shrink_guard_gate  # noqa: F401 (also registers gate)
+from pipeline_hierarchy.diff_stats import _index_subtopics
 from pipeline_hierarchy.bundler import (
     DEFAULT_EXCLUDED_PATH,
     MissingUIFieldsError,
@@ -799,6 +801,49 @@ def main(argv: list[str] | None = None) -> int:
         s3_client=s3,
     )
     diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
+
+    # 5c. #224 shrink guard — block a catastrophic subtopic shrink BEFORE the
+    #     latest/ overwrite. Reuses compute_diff's counts (no extra S3 GET):
+    #     prev = new - added + removed. Fail-open: prev_version None (first
+    #     publish) or a failed prev-fetch (empty added/removed) yields prev
+    #     None/equal-to-new, so only a real shrink blocks. Overridable with --force.
+    _new_subs = len(_index_subtopics(hierarchy_dict))
+    _prev_subs = (
+        _new_subs
+        - len(diff.get("added_subtopics", []))
+        + len(diff.get("removed_subtopics", []))
+        if prev_version
+        else None
+    )
+    shrink_result = shrink_guard_gate(
+        prev_subtopic_count=_prev_subs, new_subtopic_count=_new_subs
+    )
+    if shrink_result.blocked and not args.force:
+        completed_at = now_iso()
+        duration_ms = int((time.monotonic() - t_start) * 1000)
+        write_failed(
+            table,
+            stage=STAGE_NAME,
+            scope=STAGE_SCOPE,
+            input_hash=input_hash,
+            error_code="GATE_BLOCK_shrink_guard",
+            error_message=shrink_result.summary,
+            started_at=started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=PUBLISH_COST_USD,
+            failure_details={"shrink_guard": shrink_result.details},
+            model_ids_snapshot=sorted(set(MODEL_IDS_BY_STAGE.values())),
+        )
+        print(json.dumps(
+            {
+                "event": "publish_blocked_by_shrink_guard",
+                "summary": shrink_result.summary,
+                "details": shrink_result.details,
+            },
+            indent=2,
+        ), file=sys.stderr)
+        return EXIT_GATE_BLOCKED
 
     # 5b. Build the brick-D slug->durable alias map sidecar from the durable-ID store
     #     (best-effort: None if the store is unavailable; never fails the publish).

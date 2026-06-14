@@ -32,6 +32,7 @@ import gates.parent_prefix       # noqa: F401
 import gates.pii                 # noqa: F401
 import gates.schema_roundtrip    # noqa: F401
 import gates.schema_validation   # noqa: F401
+import gates.shrink_guard         # noqa: F401
 from gates.registry import any_blocked, list_gates, run_gates
 from utils.s3_client import S3HierarchyClient
 
