@@ -577,6 +577,48 @@ def _write_run_ledger(
         )
 
 
+def _check_or_flag_schema_coherent(schema_path: Path | None = None) -> bool:
+    """#233 pre-flight: if the B1 OR rule is enabled, the published schema MUST
+    allow an empty ``Author.personIdentifier`` (the OR rule emits pid-less
+    external co-leads). Return False — after printing why — when the flag is on
+    but the schema still requires a non-empty pid, so a flag flip without the
+    schema relax fails fast here (before the pool/Bedrock spend) instead of at
+    the late publish.py schema gate. Returns True when coherent or the flag is
+    off.
+    """
+    from spotlight.author_resolver import _faculty_or_enabled
+
+    if not _faculty_or_enabled():
+        return True
+    path = Path(schema_path) if schema_path is not None else SCHEMA_PATH
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001 — any read/parse error must fail loud
+        print(
+            f"[#233 pre-flight] spotlight_b1_faculty_or_enabled is true but the "
+            f"schema at {path} could not be read to verify it permits an empty "
+            f"personIdentifier: {exc}"
+        )
+        return False
+    min_len = (
+        schema.get("$defs", {})
+        .get("Author", {})
+        .get("properties", {})
+        .get("personIdentifier", {})
+        .get("minLength", 0)
+    )
+    if min_len and min_len >= 1:
+        print(
+            "[#233 pre-flight] spotlight_b1_faculty_or_enabled is true but "
+            f"{path} still requires Author.personIdentifier minLength>={min_len}. "
+            "The OR rule emits pid-less external co-leads, which that constraint "
+            "rejects at publish — relax it (remove minLength) before enabling the "
+            "flag, or set the flag false. Aborting before spend."
+        )
+        return False
+    return True
+
+
 def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     """Main pipeline orchestrator.
 
@@ -589,6 +631,10 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
       5. Assembler (assembler.build_artifact)
       6. Publish (publish.publish_artifact) — only on --publish
     """
+    # #233 pre-flight: fail fast (before the pool/Bedrock spend) if the B1 OR
+    # rule is enabled but the schema still rejects an empty personIdentifier.
+    if not _check_or_flag_schema_coherent():
+        return 1
     from spotlight.pool_ranker import rank_pool
     from spotlight.rotation_selector import (
         PUBLISH_TARGET,
