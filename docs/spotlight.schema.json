@@ -13,8 +13,7 @@
       "properties": {
         "personIdentifier": {
           "type": "string",
-          "minLength": 1,
-          "description": "WCM faculty UID; SPS photo-store join key."
+          "description": "WCM faculty UID and SPS photo-store join key. May be an empty string for a non-faculty external/trainee co-lead under the #231 B1 OR rule (the qualifying faculty lead always carries a real UID; both leads are never empty). Consumers resolve a headshot only when non-empty. minLength relaxed from 1 in #233 to admit pid-less co-leads."
         },
         "displayName": {
           "type": "string"

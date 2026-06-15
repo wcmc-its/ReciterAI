@@ -176,7 +176,7 @@ The published artifact contains ONLY auto-publishable spotlights — entries tha
 
 ## Author Headshot Rendering
 
-Each `spotlights[].papers[]` entry includes `first_author` and `last_author` shaped as `{personIdentifier, displayName, position}`. Per-paper authorship is canonical (D-19 / SPOT-09 design): the artifact names exactly two authors per paper, the WCM full-time faculty in first or last position. Middle authors and other position roles are out of scope for v1.
+Each `spotlights[].papers[]` entry includes `first_author` and `last_author` shaped as `{personIdentifier, displayName, position}`. Per-paper authorship is canonical (D-19 / SPOT-09 design): the artifact names exactly two authors per paper, the first and last byline leads. Under the B1 OR rule (live as of #233) at least one of the two is WCM full-time faculty with a real `personIdentifier`; the other may be a non-faculty external/trainee co-lead with an empty `personIdentifier` (see §B1 Author Eligibility). Middle authors and other position roles are out of scope for v1.
 
 **Consumer rule:** SPS resolves `personIdentifier` to a faculty headshot via its existing photo store. This is the same join key SPS uses for `RecentContributionsGrid` per Phase 2 verification — no new join semantics. The ReciterAI artifact carries NO image URLs, NO image hashes, and NO image references. If SPS lacks a photo for a given `personIdentifier`, render a fallback initial-avatar (`displayName` initials); do NOT call back to ReciterAI for image data.
 
@@ -190,8 +190,8 @@ Each `spotlights[].papers[]` entry includes `first_author` and `last_author` sha
 
 A paper enters the spotlight pool through the **B1 author rule**, selected by the `spotlight_b1_faculty_or_enabled` threshold flag (ReciterAI producer side):
 
-- **Default (flag off) — strict-AND:** both the first AND the last byline lead are WCM-disambiguated (non-empty `personIdentifier`). Every emitted author carries a non-empty pid. This is the rule live today.
-- **Flag on (#231) — fulltime-faculty OR:** a paper qualifies when its **first OR last** author is `identity.fullTimeFaculty = 'yes'`. The qualifying faculty lead always carries a real `personIdentifier`; the *other* co-lead may be a non-faculty external/trainee author with an **empty `personIdentifier`** ("show both as-is"). Both leads can never be empty — a paper with no fulltime-faculty lead is skipped. Enabling the flag requires relaxing `Author.personIdentifier` `minLength` (see §Schema / issue #233); it stays off until then.
+- **Flag on (#231) — fulltime-faculty OR (live as of #233):** a paper qualifies when its **first OR last** author is `identity.fullTimeFaculty = 'yes'`. The qualifying faculty lead always carries a real `personIdentifier`; the *other* co-lead may be a non-faculty external/trainee author with an **empty `personIdentifier`** ("show both as-is"). Both leads can never be empty — a paper with no fulltime-faculty lead is skipped. This is the rule live today; `Author.personIdentifier` `minLength` was relaxed in lockstep (see §Schema / Changelog), and a publish-time pre-flight aborts if the flag is ever on while the schema still rejects an empty pid.
+- **Flag off — strict-AND (pre-#233 / fallback):** both the first AND the last byline lead are WCM-disambiguated (non-empty `personIdentifier`); every emitted author carries a non-empty pid. The resolver also falls back to this rule if `config/thresholds.json` can't be read (fail-closed).
 
 **Eligibility is not the same as "active", and that split is by design.** The B1 rule keys on `fullTimeFaculty = 'yes'` only — it does **not** additionally filter on `endDateWCMFaculty` or any active/departed status. "Active" is enforced one layer down, by the **consumer at display time**:
 
@@ -211,6 +211,13 @@ A paper is *eligible* if a byline lead is current fulltime faculty, and it *disp
 ## Changelog
 
 Entries are in reverse-chronological order (newest first). Each entry documents the schema_version delta, the change type (additive vs breaking vs data-only), the trigger, and migration notes for consumers.
+
+### 2026-06-15 — `Author.personIdentifier` minLength relaxed (constraint relaxation, non-breaking)
+
+- **schema_version:** unchanged. Relaxing a constraint is backward-compatible — every prior artifact still validates, and consumers fetch the version-matched schema published alongside each artifact, so a consumer never validates a new artifact against an older schema.
+- **Change:** `$defs.Author.personIdentifier` no longer carries `minLength: 1`; an empty string is now valid (the field stays required — always present).
+- **Trigger:** the #231/#233 B1 fulltime-faculty OR rule went live (`spotlight_b1_faculty_or_enabled=true`). A paper now qualifies when its first OR last author is fulltime faculty; the non-faculty co-lead may be an external/trainee with no WCM UID, emitted with an empty `personIdentifier`.
+- **Consumer migration:** none required. Resolve a headshot only when `personIdentifier` is non-empty (render name-only otherwise). SPS's home render already re-derives authors from its own DB by PMID and ignores the artifact pid.
 
 ---
 

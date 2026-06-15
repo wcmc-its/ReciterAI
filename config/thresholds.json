@@ -60,5 +60,5 @@
   "hierarchy_publish_shrink_max_fraction": 0.20,
   "spotlight_publish_shrink_max_fraction": 0.34,
   "spotlight_author_resolve_min_ratio": 0.5,
-  "spotlight_b1_faculty_or_enabled": false
+  "spotlight_b1_faculty_or_enabled": true
 }
