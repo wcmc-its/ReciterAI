@@ -21,9 +21,17 @@ threshold flag:
 
 The OR rule is OFF by default because its unlocked papers carry an EMPTY co-lead
 personIdentifier (the external/trainee side has no WCM UID), which violates the
-published schema's ``minLength: 1`` and the SPS headshot-join contract. Flip the
-flag only after the schema is relaxed AND SPS renders pid-less co-authors
-name-only (the #231 publish follow-up).
+published schema's ``minLength: 1`` (publish.py hard-validates). Flip the flag only
+after that minLength is relaxed (the #233 follow-up). SPS's spotlight render
+re-derives authors from its own scholar DB by PMID and does NOT read the artifact
+``personIdentifier``, so an empty co-lead pid is render-safe there — no SPS change.
+
+Eligibility keys on ``fullTimeFaculty = 'yes'`` ONLY — it deliberately does NOT
+filter on active/end-date status. "Active" is enforced one layer down by the
+consumer at display time (SPS requires an active scholar among the PMID's authors),
+so a second upstream active filter would be redundant and could drop faculty whose
+end-date is a contract-renewal artifact. See docs/spotlight-contract.md
+§"B1 Author Eligibility & the Two-Layer Active Check".
 
 This is the runtime alternative to backfilling first_author_*/last_author_*
 fields onto every TOPIC# row; it costs one MariaDB round-trip per

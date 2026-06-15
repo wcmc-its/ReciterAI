@@ -186,6 +186,28 @@ Each `spotlights[].papers[]` entry includes `first_author` and `last_author` sha
 
 ---
 
+## B1 Author Eligibility & the Two-Layer Active Check
+
+A paper enters the spotlight pool through the **B1 author rule**, selected by the `spotlight_b1_faculty_or_enabled` threshold flag (ReciterAI producer side):
+
+- **Default (flag off) — strict-AND:** both the first AND the last byline lead are WCM-disambiguated (non-empty `personIdentifier`). Every emitted author carries a non-empty pid. This is the rule live today.
+- **Flag on (#231) — fulltime-faculty OR:** a paper qualifies when its **first OR last** author is `identity.fullTimeFaculty = 'yes'`. The qualifying faculty lead always carries a real `personIdentifier`; the *other* co-lead may be a non-faculty external/trainee author with an **empty `personIdentifier`** ("show both as-is"). Both leads can never be empty — a paper with no fulltime-faculty lead is skipped. Enabling the flag requires relaxing `Author.personIdentifier` `minLength` (see §Schema / issue #233); it stays off until then.
+
+**Eligibility is not the same as "active", and that split is by design.** The B1 rule keys on `fullTimeFaculty = 'yes'` only — it does **not** additionally filter on `endDateWCMFaculty` or any active/departed status. "Active" is enforced one layer down, by the **consumer at display time**:
+
+| Layer | Enforces | On |
+|---|---|---|
+| ReciterAI (eligibility) | first **or** last is `fullTimeFaculty='yes'` | the two byline leads |
+| SPS (display) | ≥1 author is an **active** scholar (`status='active'`, not deleted) | **any** author of the PMID |
+
+A paper is *eligible* if a byline lead is current fulltime faculty, and it *displays* only if the consumer resolves at least one active scholar for that PMID. The two align in practice — `fullTimeFaculty='yes'` is the WCM directory's current fulltime-faculty flag (`inactiveFaculty` is unset for all ~2,400 such people) — so a small number of eligible papers whose only faculty lead is no longer active in the consumer simply do not render (benign over-inclusion in the pool, not an error).
+
+**Decision (2026-06-15): keep the ReciterAI rule at `fullTimeFaculty='yes'` with no active filter.** It matches the corpus-wide faculty definition (`AUTHOR_MAPPING_SQL` et al.), and the consumer already enforces active at display, so a second upstream active filter would be redundant and could exclude faculty whose end-date is a contract-renewal artifact.
+
+**Render note:** SPS's home spotlight render re-derives the displayed authors from its own scholar DB by PMID (`publicationAuthor` → `scholar`, headshot from `scholar.cwid`) and does **not** read the artifact's `personIdentifier`, so an empty co-lead pid in the artifact is render-safe there. The artifact still carries the honest byline (faculty lead + possibly pid-less co-lead) for schema completeness and any other consumer.
+
+---
+
 ## Changelog
 
 Entries are in reverse-chronological order (newest first). Each entry documents the schema_version delta, the change type (additive vs breaking vs data-only), the trigger, and migration notes for consumers.
