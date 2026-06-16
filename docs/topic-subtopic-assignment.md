@@ -4,6 +4,12 @@ This document describes how publications get assigned to topics and subtopics: w
 
 It complements `taxonomy-methodology.md`, which covers the design *principles* behind the taxonomy. This doc covers the *mechanics* of generation and assignment.
 
+## Plain-language summary — "How are topics assigned?" (Scholars About page)
+
+> Copy approved for public, faculty-facing use (e.g., the SPS Scholars About page). Keep it jargon-free; the technical detail lives in the sections below.
+
+Topics aren't chosen from a fixed list — they're derived from the research itself. Rather than borrowing a standard subject classification, the system reads across plain-language summaries of every Weill Cornell publication and lets the major research domains emerge from what's actually there — areas like Cardiovascular Disease, Immunology, and Cancer Biology. The AI consolidates overlapping areas and validates the result against a set of representative queries, so the domains hold together without being hand-built. As an independent check, that map was benchmarked against authoritative institutional reference points — Weill Cornell's divisions and departments, its strategic research roadmap, and NIH research designations — and aligned cleanly with all three, confirming that what the AI surfaced from the literature mirrors how the institution and the wider field already organize science. Within each domain, the same approach surfaces more specific subtopics, and every publication is scored for how strongly it relates to each topic. Because real research often spans several areas, a single paper can be associated with more than one. The topics shown on a scholar's profile reflect the balance of their published work across these areas, and they update automatically as new publications are added.
+
 ## 1. Two-Axis Architecture
 
 The classification system is two orthogonal axes, not a single hierarchy:
@@ -12,9 +18,9 @@ The classification system is two orthogonal axes, not a single hierarchy:
 |---|---|---|
 | **Axis 1 — Topics** (~67) | "What domain is this paper in?" | `taxonomy_v2.json`, generated inductively from synopses |
 | **Axis 1.5 — Subtopics** (~8–15 per topic) | "Within this domain, which theme?" | Per-topic inductive clustering from scored activities |
-| **Axis 2 — Tools** | "What methods/techniques?" | `reciterai_keyword_relevance` (not LLM-generated) |
+| **Axis 2 — Tools** | "What methods/techniques?" | LLM-extracted from faculty publication/grant abstracts, then deduped → classified → grouped into method families (A2 pipeline) |
 
-Topics and subtopics together form an inductive hierarchy: subtopics are scoped to their parent topic (D-05). Tools are produced by a completely separate pipeline (ReCiter AI keyword extraction) and are not covered here.
+Topics and subtopics together form an inductive hierarchy: subtopics are scoped to their parent topic (D-05). Tools are produced by a completely separate pipeline (LLM extraction from abstracts → canonical-tool dedup → classification → ~878 method families; see [`tools-a2-architecture.md`](./tools-a2-architecture.md)) and are not covered here.
 
 ## 2. Where Topics Come From
 
@@ -40,6 +46,7 @@ The taxonomy is **derived from the corpus**, not authored from a list of biomedi
 - 12 hardcoded research-dean queries (`generate_taxonomy.py:51`) are run against the candidate taxonomy
 - Examples: "Who works on aging and cognitive decline?", "Find researchers using CRISPR gene editing", "Who studies neurodegeneration and Alzheimer's disease?"
 - If any query has no plausible topic match, the taxonomy fails validation and must be regenerated
+- **Convergent-validity sanity check:** beyond the automated query pass, the emergent domain set was benchmarked against external institutional reference points — WCM divisions/departments, the institutional research roadmap, and NIH research designations — and found to align with all three. These sources were a corroboration cross-check, **not** an input: the domains were derived inductively from the corpus, then confirmed to mirror how the institution and NIH already organize research.
 
 ### Human review gate (D-07)
 
@@ -50,6 +57,17 @@ The taxonomy is **derived from the corpus**, not authored from a list of biomedi
 ### Topic ID stability
 
 Topic IDs **are stable** across the lifecycle of a `taxonomy_version`. Every score record in DynamoDB carries the `taxonomy_version` it was scored against, so taxonomy bumps trigger *targeted* recomputation rather than a full rebuild.
+
+### Adding a single topic later (additive path, #225)
+
+A genuinely new domain can be minted into the existing taxonomy without re-running the full generate-and-score pipeline. Hematology & Medical Oncology (taxonomy `67 → 68`) was added this way.
+
+Generator: `cli/score_new_topics.py`.
+
+- Hand-add the new topic to `taxonomy_v2.json`, then score **only that topic** against a small set of "context" competitor topics for contrastive routing (so a heme/onc paper isn't mis-routed to a neighboring cancer topic).
+- Same two-pass shape as the full scorer (Haiku screen ≥ 0.3 → Sonnet dense), reusing `score_publications.py`'s prompts, plus a **per-topic rubric** in `config/rubrics/<topic_id>.txt` (decision order + score bands) that restores routing fidelity lost when a topic is scored in isolation. `--verify-fidelity` quantifies the delta on a sample before any writes.
+- Writes are **additive**: new `TOPIC#` rows (never a delete-and-rewrite), affected `FACULTY#` rows merged from the live `FacultyIndex` GSI (the ephemeral scoring-results file is not the source of truth), and a refreshed `TAXONOMY#{version}` record.
+- Cost is roughly an order of magnitude below a full run, but note it is **not** trivial: per-call cost is content-dominated, so scoring one topic across the corpus is still on the order of a full pass's per-paper spend.
 
 ## 3. How Papers Get Assigned to Topics
 
@@ -155,6 +173,10 @@ For each topic:
 > Subtopic IDs may change on each full recompute. Consumers MUST re-read `hierarchy.json` after regeneration and MUST NOT persist subtopic IDs in external systems that outlive a recompute cycle.
 
 This is the opposite of topic IDs (which are stable within a `taxonomy_version`). The reasoning: subtopics are wholesale-regenerated when their parent topic's activity set shifts meaningfully, and trying to preserve IDs across runs would lock in stale clusters.
+
+#### Durable opaque IDs — the stability layer (#191)
+
+The unstable slugs above are the *clustering-time* identity. A separate **durable-ID layer** (issue #191, "Option C") sits on top to give consumers a stable handle across re-clustering: each subtopic gets a mint-once opaque id (`st_` + 26 random chars) that survives label/slug churn. After each hierarchy publish, a post-upload **match-or-mint reconcile** maps the new run's slugs back to existing durable ids via a deterministic-first cascade — Stage 1 seed-PMID membership overlap → Stage 2 label-embedding centroid (Titan v2) → Stage 3 LLM arbiter (Sonnet, OpenAI fallback; verdicts cached by *stable content hash*, never by id or mint order) — and records split/merge lineage edges. The bricks (A mint-store, B reconcile, C lineage, D consumer alias map, E relabel/lede skip-logic, F lifecycle) are merged **flag-off**; gate-on is pending a prod cold-run (see #204). Full contract: `docs/subtopic-durable-id-store.md` and `docs/subtopic-lifecycle-and-evolution.md`.
 
 ## 6. How Papers Get Assigned to Subtopics
 
@@ -262,8 +284,11 @@ Full initial build at WCM scale: ~$170. Annual maintenance: ~$50–80.
 | File | Role |
 |---|---|
 | `generate_taxonomy.py` | Inductive taxonomy generation (3 phases + validation) |
+| `cli/score_new_topics.py` | Additive single-topic minting (no full re-run); `config/rubrics/<topic>.txt` per-topic rubrics |
 | `taxonomy_v1.json` / `taxonomy_v2.json` | Locked taxonomy artifacts (D-07 review gate output) |
 | `score_publications.py` | Two-pass topic scoring (Haiku screening → Sonnet dense) |
+| `utils/bedrock_client.py` | Current model pins (`MODEL_IDS_BY_STAGE`): screening/assignment → Haiku 4.5; scoring/discovery/relabel/reconcile → Sonnet 4.6; spotlight lede → Opus 4.7 |
+| `pipeline_hierarchy/` + `docs/subtopic-durable-id-store.md` | Hierarchy assembly/publish + durable opaque subtopic IDs & match-or-mint reconcile (#191) |
 | `discover_subtopics.py` | Per-topic inductive subtopic clustering (Pass 1) |
 | `prompts/subtopic_discovery.py` | Discovery + extension prompts; encodes the "no speculative subtopics" rule |
 | `assign_subtopics.py` | Per-activity Haiku subtopic classifier (Pass 2), primary selection + tiebreaker |

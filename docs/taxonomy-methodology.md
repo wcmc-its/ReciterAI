@@ -5,7 +5,7 @@
 The ReCiter AI Chatbot uses a **multi-axis scoring architecture** to classify research publications and enable faculty expertise discovery:
 
 - **Axis 1 — Domain Taxonomy** (`taxonomy_v2.json`): Disease areas, organ systems, basic science fields, clinical specialties, population contexts, and research infrastructure domains. Scored per-publication via LLM.
-- **Axis 2 — Research Tools & Methods** (TOOL# records in DynamoDB): Techniques, methods, and approaches extracted from `reciterai_keyword_relevance`. No LLM scoring needed — sourced directly from structured data.
+- **Axis 2 — Research Tools & Methods** (TOOL# records in DynamoDB): Techniques, instruments, datasets, models, and software, **extracted by an LLM (Haiku) from each faculty-led publication and grant abstract**, then deduplicated into canonical tools, classified into ~13 supercategories, grouped into ~878 method families, and tiered by cross-faculty salience. See [`tools-a2-architecture.md`](./tools-a2-architecture.md) and [`tool-classifier-spec.md`](./tool-classifier-spec.md) for the full pipeline. *(Historical note: an earlier POC sourced tools from the static `reciterai_keyword_relevance` table; the current A2 pipeline is LLM-extraction-based.)*
 
 A query like *"who does immunotherapy for lung cancer?"* hits both axes: `lung_cancer` (Axis 1) + immunotherapy keywords (Axis 2).
 
