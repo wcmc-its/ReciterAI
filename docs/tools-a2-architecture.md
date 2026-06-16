@@ -7,6 +7,14 @@ this doc is the *implementation* and *rationale*.
 
 ---
 
+## Plain-language summary — "How are methods & tools assigned?" (Scholars About page)
+
+> Copy approved for public, faculty-facing use (e.g., the SPS Scholars About page / Methods lens). Keep it jargon-free; the technical detail lives below.
+
+Methods and tools describe *how* a scholar does their research — the techniques, instruments, datasets, models, and software behind the work — and they're read directly from the publications themselves. AI scans the abstracts of each Weill Cornell scholar's papers and grants and identifies the specific methods and resources actually used, deliberately skipping the commodity lab staples that don't distinguish one group from another. Closely related mentions are merged — "MRI," "magnetic resonance imaging," and "MRI scanner" become a single entry — and grouped into broader capability families, so a profile reads at the right level rather than as a list of synonyms. Each method is weighted by how distinctive it is across the institution: a technique only a handful of labs use ranks higher than one everyone shares. Because this is drawn from a scholar's own publications, it reflects demonstrated, hands-on use rather than self-reported interests, and it refreshes automatically as new work is published.
+
+---
+
 ## 1. What A2 produces
 
 A browsable **Methods lens** for the Scholars Profile System (SPS), shown beside
