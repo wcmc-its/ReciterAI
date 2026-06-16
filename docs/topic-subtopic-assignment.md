@@ -83,7 +83,7 @@ Two-pass, offline, batch-processed. Lives in `score_publications.py`.
 
 ### Pass 1 — Haiku screening (recall-first)
 
-- **Input**: one publication's synopsis + the full taxonomy (all ~67 research areas in a single prompt)
+- **Input**: one publication's synopsis **and abstract** + the full taxonomy (all ~67 research areas in a single prompt). Only those two text fields are scored — the title, MeSH descriptors, and NIH RePORTER terms are **not** inputs to research-area scoring (the title is stored on the `TOPIC#` row for display; MeSH feeds the separate "Topics" lens; NIH RePORTER feeds the methods/tools pipeline). See `make_screening_prompt` (`score_publications.py:510`).
 - **Model**: Claude Haiku via Bedrock Batch API
 - **Output**: JSON map `{topic_id: score}` for every research area the model finds plausible
 - **Threshold**: `SCREENING_THRESHOLD = 0.3` (`score_publications.py:61`)
@@ -96,7 +96,7 @@ Two-pass, offline, batch-processed. Lives in `score_publications.py`.
 
 ### Pass 2 — Sonnet dense scoring (precision)
 
-- **Input**: only the research areas that cleared 0.3 in Pass 1 (typically 30–40% of activities; per-activity, only the areas that passed)
+- **Input**: the same synopsis + abstract, re-scored against only the research areas that cleared 0.3 in Pass 1 (typically 30–40% of activities; per-activity, only the areas that passed)
 - **Model**: Claude Sonnet via Batch API
 - **Output**: calibrated 0.0–1.0 score per research area + ≤80-char rationale
 - **Cost**: ~$0.008/activity
