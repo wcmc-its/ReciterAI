@@ -82,8 +82,27 @@ class ExtractionResult:
 
 
 def _truncate(text: str, limit: int = CONTEXT_MAX_CHARS) -> str:
+    """Clamp the grounding snippet to ``limit`` chars without leaving a broken tail.
+
+    The snippet is surfaced standalone by SPS, so an overflow must not cut mid-word
+    (#238). The prompt already asks for one complete sentence ≤ limit, so this is a
+    safety net for the rare overshoot: prefer ending at the last sentence-terminator
+    within budget, else at the last word boundary, and only hard-cut as a last resort
+    (e.g. a single unbroken token longer than the limit).
+    """
     text = (text or "").strip()
-    return text if len(text) <= limit else text[:limit].rstrip()
+    if len(text) <= limit:
+        return text
+    window = text[:limit]
+    # End at a clause/sentence terminator if one lands in the back half of the window.
+    cut = max(window.rfind(c) for c in ".!?;")
+    if cut >= limit // 2:
+        return window[: cut + 1].rstrip()
+    # Otherwise back off to the last whitespace so we never split a word.
+    space = window.rfind(" ")
+    if space >= limit // 2:
+        return window[:space].rstrip()
+    return window.rstrip()
 
 
 def _tag_author_fields(mention: dict, pub_row: dict) -> None:

@@ -197,9 +197,13 @@ recomputable.
 
 ### 3.7 The `context` field is load-bearing and under-surfaced
 
-Every mention carries a ≤200-char grounding snippet. It drives use-context
-routing (§6.1 reagent-as-therapeutic vs probe) and is retained as
-`context_evidence` on each canonical tool in `tools.json`.
+Every mention carries a ≤300-char grounding snippet — a **complete sentence**
+quoted from the abstract (sentence-aligned at extraction time so it reads
+standalone, #238; the extractor backs an overlong sentence off to a clause/word
+boundary, never a mid-word cut). It drives use-context routing (§6.1
+reagent-as-therapeutic vs probe), is retained as `context_evidence` on each
+canonical tool in `tools.json`, and is surfaced standalone by SPS ("How X is
+used"), which is why a self-contained span matters downstream.
 
 The flat `context_evidence` list lost the link from a snippet back to the
 publication (and therefore the scholar) it describes. **#193 restores that link

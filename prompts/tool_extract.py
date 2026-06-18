@@ -35,8 +35,13 @@ from pipeline_tools import vocab
 # extractor's hint vocabulary tracks the classifier's, not a hand-copied list.
 _HINT_TAGS = sorted(vocab.LEGACY_CATEGORY_PRIOR.keys())
 
-# A short max so the grounding snippet is a quote, not a re-summary of the abstract.
-CONTEXT_MAX_CHARS = 200
+# Budget for ONE complete sentence quoted from the abstract (not a re-summary).
+# Sized for a typical biomedical sentence: the snippet is surfaced standalone by
+# SPS ("How X is used"), so it must read as a self-contained clause, and a hard
+# char cut mid-sentence is the very fragment problem this budget exists to avoid
+# (#238). 300 holds the large majority of enclosing sentences; longer ones fall
+# back to a clause boundary in extract._truncate, never a mid-word cut.
+CONTEXT_MAX_CHARS = 300
 
 
 EXTRACT_SYSTEM_PROMPT = f"""You are an expert biomedical research-methods analyst. Given ONE publication's \
@@ -76,15 +81,19 @@ For EACH extracted mention emit:
 together if both appear, e.g. "single-cell RNA sequencing (scRNA-seq)").
   - tool_category_hint: your single best WEAK guess of the legacy category, one of {_HINT_TAGS}, \
 or null if unsure. This is only a hint; downstream classification re-decides.
-  - context: a SHORT verbatim-ish snippet (≤ {CONTEXT_MAX_CHARS} chars) from the abstract showing how \
-the tool was used — this grounds the later use-context routing (e.g. drug administered vs probe). Never \
-invent; quote/paraphrase from the abstract only.
+  - context: the COMPLETE sentence from the abstract that shows how the tool/method was used — copied \
+VERBATIM and contiguous (start at the sentence's first word, end at its period), ≤ {CONTEXT_MAX_CHARS} \
+chars. It MUST read correctly on its OWN: do NOT begin mid-clause (no "were compared measuring …", no \
+"involving …") and do NOT leave a dangling "this"/"these"/"the latter" with no referent in the snippet. \
+This both grounds the later use-context routing (e.g. drug administered vs probe) AND is surfaced \
+standalone to readers, so a broken fragment is unusable. If the relevant sentence exceeds the limit, copy \
+the longest leading self-contained clause of it. Never invent or summarise; quote the abstract only.
   - confidence: "high" if clearly a named research tool/method; "low" if it might be the studied subject, \
 a commodity item, or ambiguous (a low-confidence mention is still emitted — it routes to review).
 
 Respond with VALID JSON ONLY, no markdown:
-{{"mentions": [{{"raw_name": "<verbatim>", "tool_category_hint": "...|null", "context": "<short snippet>", \
-"confidence": "high|low"}}]}}
+{{"mentions": [{{"raw_name": "<verbatim>", "tool_category_hint": "...|null", \
+"context": "<complete sentence, verbatim from the abstract>", "confidence": "high|low"}}]}}
 If the abstract names no distinctive tool or method, return {{"mentions": []}}.
 """
 

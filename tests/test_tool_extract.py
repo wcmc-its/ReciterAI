@@ -13,10 +13,12 @@ from decimal import Decimal
 from pipeline_tools.checkpoint import ExtractionCheckpoint
 from pipeline_tools.cost_guard import CostCeiling
 from pipeline_tools.extract import (
+    _truncate,
     extract_mentions,
     normalize_mention,
     run_extraction,
 )
+from prompts.tool_extract import CONTEXT_MAX_CHARS
 from utils.bedrock_client import HAIKU_MODEL
 
 
@@ -71,12 +73,32 @@ def test_normalize_truncates_context_and_tags_author_fields():
     long_ctx = "x" * 500
     row = _row("42", cwid="abc2001", author_role="lead", authors=[{"cwid": "abc2001", "author_role": "lead"}])
     m = normalize_mention({"raw_name": "patch-clamp", "context": long_ctx, "confidence": "LOW"}, row)
-    assert len(m["context"]) <= 200
+    assert len(m["context"]) <= CONTEXT_MAX_CHARS
     assert m["pmid"] == "42"
     assert m["cwid"] == "abc2001"
     assert m["author_role"] == "lead"
     assert m["authors"] == [{"cwid": "abc2001", "author_role": "lead"}]
     assert m["confidence"] == "low"
+
+
+def test_truncate_prefers_sentence_terminator_on_overflow():
+    # Two sentences; the second pushes past the limit -> keep the first, ending at its period.
+    head = "We used patch-clamp to record currents from CA1 pyramidal neurons."
+    text = head + " " + "A second sentence that should be dropped because it overflows the budget by a lot." * 4
+    out = _truncate(text, limit=len(head) + 30)
+    assert out == head
+    assert out.endswith(".")
+
+
+def test_truncate_backs_off_to_word_boundary_never_mid_word():
+    # One long sentence, no internal terminator -> back off to a space, not mid-word.
+    text = "magnetic resonance imaging acquired diffusion weighted volumes across the whole cohort longitudinally"
+    out = _truncate(text, limit=40)
+    assert out == "magnetic resonance imaging acquired"  # clean word boundary, no split token
+
+
+def test_truncate_hard_cuts_unbroken_token_as_last_resort():
+    assert _truncate("x" * 100, limit=20) == "x" * 20
 
 
 def test_normalize_source_kind_defaults_publication_and_honors_grant():
