@@ -18,6 +18,8 @@ overlays.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
+- **`cold_run_task_definition.json`** (#240) — the Fargate task definition for the on-demand **taxonomy cold-run** (`python -m pipeline_cold.run`). Reuses the same image as the enrichment task (the repo's single Dockerfile already contains `pipeline_cold`); it only overrides the default CMD. Sized 1 vCPU / 4 GB. See "Cold-run launch path" below.
+- **`cold_run_task_iam_policy.json`** (#240) — minimum-privilege policy for the cold-run task role: the enrichment policy's DynamoDB CRUD on `reciterai` + **a new S3 read/write statement** on `wcmc-reciterai-hierarchy/*` and `wcmc-reciterai-artifacts/spotlight/*` (the cold-run is the only ReciterAI task that publishes those artifacts), Secrets Manager read on the DB + OpenAI secrets, and CloudWatch Logs on `/ecs/reciterai-cold`. No `bedrock:InvokeModel` (bearer-token auth, same as enrichment).
 - **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
 - **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
 - **`../scripts/apply_backup_config.sh`** (#223) — idempotent wrapper (mirrors `deploy_cron.sh`: `--dry-run`, per-control verify) that enables DDB PITR + deletion protection and S3 versioning + the lifecycle on both buckets. One-time apply + drift recheck (`--verify`), not a cron.
@@ -51,6 +53,66 @@ target resources. The hot-path Step Functions deployment is in
 stays manual `aws lambda create-function` / `update-function-code` — there
 is no `deploy_lambda.sh` (current practice until a function boundary
 changes frequently enough to justify automation).
+
+## Cold-run launch path (#240)
+
+The **taxonomy cold-run** (`python -m pipeline_cold.run`) is the full-corpus
+rebuild — 10 sequential stages (`score → assign → discover[no-op] → relabel →
+top_topic → count → rollup → feedback_sweep → backfill_spotlight[--publish] →
+publish_hierarchy`, `pipeline_cold/run.py:94-185`) ending in the two prod
+publishes (spotlight → `wcmc-reciterai-artifacts`, hierarchy →
+`wcmc-reciterai-hierarchy`). Until #240 it had **no AWS launch path** — it had
+only ever run from an operator workstation. This is the Fargate home for it.
+
+It is **on-demand and operator-gated** — there is deliberately **no EventBridge
+schedule** (the cold-run is annual/infrequent and ~$210 in Bedrock per run). The
+schedule is future infra (see #191 rollout `0011`, the "Brick F EventBridge"
+step); when it lands it adds one rule here, like the others.
+
+### One-time deploy
+1. **IAM role** `reciterai-cold-task` with `cold_run_task_iam_policy.json` attached
+   (a NEW role — the enrichment task role has no S3 grant and cannot be reused).
+   The execution role (`ecsTaskExecutionRole`) is reused; extend its inline
+   Secrets grant to `reciterai/bedrock-api-key` if it is not already there.
+2. **Register the task def:** substitute the `{…}` placeholders in
+   `cold_run_task_definition.json` (use the SAME ECR image as the enrichment task —
+   built from the commit whose `config/thresholds.json` carries the intended flag
+   state, since the flags are baked into the image) and
+   `aws ecs register-task-definition --cli-input-json file://…`.
+
+### Launch (use `scripts/run_cold_run.sh`)
+```bash
+export AWS_REGION=us-east-1 ECS_CLUSTER_NAME=reciterai-cluster
+export RECITERAI_COLD_SUBNETS=subnet-...,subnet-...        # same VPC layout as enrichment;
+export RECITERAI_COLD_SECURITY_GROUPS=sg-...                # falls back to RECITERAI_ENRICHMENT_* if unset
+
+# 1. dry-run plumbing gate — prints the stage plan, exits 0, zero Bedrock cost:
+COLD_MODE=dry-run scripts/run_cold_run.sh
+
+# 2. the real multi-hour publishing run — launches, prints monitoring commands, does NOT block:
+COLD_MODE=run scripts/run_cold_run.sh
+```
+Monitor: `aws logs tail /ecs/reciterai-cold --follow`. Validate after the task
+reaches `STOPPED` with `exitCode 0`: STAGE# rows in `reciterai` per stage, and the
+refreshed `hierarchy latest/manifest.json` + `spotlight/latest/`.
+
+### Gotchas
+- **This IS the prod path now.** The cold-run overwrites the `latest/` pointers
+  SPS consumes. It exists precisely so flag-on validation (e.g. #204) rides a real
+  Fargate run instead of a `--publish` from a local checkout (Gotcha A).
+- **Flags are image-baked.** `config/thresholds.json` is read from the repo at
+  `REPO_ROOT` — there is no runtime override — so the intended flag state must be in
+  the image you deploy (rebuild + push to flip a flag).
+- **One container / one task.** Stages hand off via local files on a shared
+  filesystem (`assign` writes `hierarchy_augmented_*.json`; `publish_hierarchy`
+  reads them), so the whole run is a single task — stages cannot be split.
+- **First Fargate run starts with a cold `.planning/`.** The pipeline has only ever
+  run on a workstation with warm local draft state; a fresh container regenerates
+  the drafts from `taxonomy_v2.json` + DynamoDB during `assign`/`relabel`. Validate
+  the first real run closely (it should produce a complete hierarchy with every
+  subtopic carrying `display_name`/`short_description`, which `publish_hierarchy`
+  enforces). This makes `--from-stage` resume best-effort until the intermediates
+  are externalized.
 
 ## D-10 migration trigger — when to adopt CDK
 
@@ -92,6 +154,15 @@ deferred Phase**, not a blocker for #37. With ReCiter-CDK#11 closed, the
 closed-loop reference for the eventual revisit is this PR + the #80
 onboarding deploy — both demonstrate a named, deployable hosting path
 under the single-file IaC convention.
+
+**#240 update (2026-06) — overshoots again, deliberately.** The cold-run Fargate
+task (`cold_run_task_definition.json` + `cold_run_task_iam_policy.json`) adds a
+second ECS task definition and a second IAM task-role policy — and is exactly the
+"separate cold-path … compute" that trigger **(a)** named. Per the established
+posture (#80, #37), the CDK migration stays a deferred Phase, not a blocker: #240
+extends this directory once more under the single-file convention (no EventBridge
+rule yet — the cold-run is on-demand). The acknowledged overshoot grows; a full
+CDK migration of all ReciterAI infra remains the eventual target.
 
 When the threshold fires, file the migration as its own Phase. Reciter-
 CDK (the existing IaC repo for the Java retrieval services) is the

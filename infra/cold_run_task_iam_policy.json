@@ -1,0 +1,68 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for the ReciterAI taxonomy COLD-RUN Fargate task role (#240; `python -m pipeline_cold.run`). Attach to the task role referenced by `cold_run_task_definition.json.taskRoleArn`. Modeled on `enrichment_task_iam_policy.json` (#37 PR 4) and adds the cold-run's S3 publish surface. Differences from the enrichment policy: (1) ADDS an S3 statement — the cold-run PUBLISHES `hierarchy.json`/`spotlight.json` + their `{version}/` sidecars + `latest/` pointers, and READS the prior published artifacts for the diff + relabel/lede skip-logic; (2) the CloudWatch log group is `/ecs/reciterai-cold` (not `/ecs/reciterai-enrichment`); (3) the Secrets statement is the true 2-secret minimum the cold-run code reads (DB creds + OpenAI fallback) — `teams-webhook-url` is unused on the cold path and `bedrock-api-key` is injected as the `AWS_BEARER_TOKEN_BEDROCK` env var by the EXECUTION role (not fetched by the task role). The DynamoDB statement is byte-identical to enrichment's (already a superset of the cold-run's TOPIC#/SUBTOPIC_ID#/SUBTOPIC_SLUG#/STAGE#/SPOTLIGHT_HISTORY# CRUD + the durable-ID store Scan/Put + rollup/top_topic Query on the GSIs). NO `bedrock:InvokeModel` — every `bedrock-runtime` call (Converse + `invoke_model` for Titan embeddings and the feedback sweep) authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token, so SigV4 IAM auth against the task role is intentionally not load-bearing (identical posture to enrichment). NOTE: the cold-run does NOT publish the tools/families/faculty bundles — that is the separate `pipeline_tools/corpus_run.py` path; if one role is ever made to run both, add `arn:aws:s3:::wcmc-reciterai-artifacts/tools/*` to the S3 PutObject resource.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBReciterAITableColdRunCRUD",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai",
+        "arn:aws:dynamodb:*:*:table/reciterai/index/*"
+      ]
+    },
+    {
+      "Sid": "S3HierarchyAndSpotlightPublish",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-hierarchy/*",
+        "arn:aws:s3:::wcmc-reciterai-artifacts/spotlight/*"
+      ]
+    },
+    {
+      "Sid": "S3ListBucketsForKeyExists",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-hierarchy",
+        "arn:aws:s3:::wcmc-reciterai-artifacts"
+      ]
+    },
+    {
+      "Sid": "SecretsManagerColdRunSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:*:*:secret:reciterai/reciter-analysis-db-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/openai-api-key-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/reciterai-cold:*"
+    }
+  ]
+}
