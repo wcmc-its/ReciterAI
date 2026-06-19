@@ -195,6 +195,10 @@ def test_task_def_logs_to_cold_log_group(task_def):
     log_cfg = task_def["containerDefinitions"][0]["logConfiguration"]
     assert log_cfg["logDriver"] == "awslogs"
     assert log_cfg["options"]["awslogs-group"] == "/ecs/reciterai-cold"
+    # ecsTaskExecutionRole lacks logs:CreateLogGroup, so the group is pre-created at
+    # deploy time and awslogs-create-group is omitted (ECS rejects "false"; runtime
+    # CreateLogGroup would AccessDenied). Pin the omission so it can't regress.
+    assert "awslogs-create-group" not in log_cfg["options"]
 
 
 def test_task_def_uses_placeholders_for_account_specific_arns(task_def):

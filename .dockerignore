@@ -24,6 +24,7 @@ docs
 Dockerfile
 .dockerignore
 .DS_Store
+out
 node_modules
 *.log
 .vscode
