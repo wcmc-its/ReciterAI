@@ -34,8 +34,9 @@ from typing import Callable
 
 from pipeline_tools import vocab
 from pipeline_tools.checkpoint import ExtractionCheckpoint
+from pipeline_tools.context_quality import MAX_SENTENCE_CHARS, accept_snippet
 from pipeline_tools.cost_guard import CostCeiling, CostCeilingExceeded
-from prompts.tool_extract import CONTEXT_MAX_CHARS, build_extract_user_message, EXTRACT_SYSTEM_PROMPT
+from prompts.tool_extract import build_extract_user_message, EXTRACT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -81,28 +82,24 @@ class ExtractionResult:
 # ---------------------------------------------------------------------------
 
 
-def _truncate(text: str, limit: int = CONTEXT_MAX_CHARS) -> str:
-    """Clamp the grounding snippet to ``limit`` chars without leaving a broken tail.
+def _clean_context(raw_context: str | None, raw_name: str, pub_row: dict) -> str | None:
+    """Accept the emitted snippet only if it's a verbatim, tool-naming, single sentence.
 
-    The snippet is surfaced standalone by SPS, so an overflow must not cut mid-word
-    (#238). The prompt already asks for one complete sentence ≤ limit, so this is a
-    safety net for the rare overshoot: prefer ending at the last sentence-terminator
-    within budget, else at the last word boundary, and only hard-cut as a last resort
-    (e.g. a single unbroken token longer than the limit).
+    The context is surfaced standalone by SPS AND grounds its bio generator with no
+    abstract fallback (#238), so a fragment / off-topic / run-on snippet is harmful.
+    We never clamp (that just relocates the fragment to the tail) — a snippet that
+    fails the shared guard is dropped to None (the mention keeps its name + hint;
+    SPS simply has no usage snippet for that (tool, pmid), and picks another). When
+    no abstract is available to verify against (non-prod/edge), keep the snippet if
+    it is within the run-on ceiling.
     """
-    text = (text or "").strip()
-    if len(text) <= limit:
-        return text
-    window = text[:limit]
-    # End at a clause/sentence terminator if one lands in the back half of the window.
-    cut = max(window.rfind(c) for c in ".!?;")
-    if cut >= limit // 2:
-        return window[: cut + 1].rstrip()
-    # Otherwise back off to the last whitespace so we never split a word.
-    space = window.rfind(" ")
-    if space >= limit // 2:
-        return window[:space].rstrip()
-    return window.rstrip()
+    ctx = (raw_context or "").strip()
+    if not ctx:
+        return None
+    abstract = pub_row.get("abstractVarchar") or pub_row.get("abstract") or ""
+    if abstract:
+        return ctx if accept_snippet(ctx, abstract, raw_name) else None
+    return ctx if len(ctx) <= MAX_SENTENCE_CHARS else None
 
 
 def _tag_author_fields(mention: dict, pub_row: dict) -> None:
@@ -127,7 +124,7 @@ def normalize_mention(raw: dict, pub_row: dict) -> dict | None:
     mention = {
         "raw_name": name,
         "tool_category": hint,   # keyed 'tool_category' to match the classifier's §4 input
-        "context": _truncate(raw.get("context") or "") or None,
+        "context": _clean_context(raw.get("context"), name, pub_row),
         "confidence": confidence,
         "pmid": str(pub_row.get("pmid", "")),
         # publication | grant — grant-sourced mentions feed extraction/salience/

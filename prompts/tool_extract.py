@@ -35,16 +35,14 @@ from pipeline_tools import vocab
 # extractor's hint vocabulary tracks the classifier's, not a hand-copied list.
 _HINT_TAGS = sorted(vocab.LEGACY_CATEGORY_PRIOR.keys())
 
-# Budget for ONE complete sentence quoted from the abstract (not a re-summary).
-# The snippet is surfaced standalone by SPS ("How X is used") AND is the bio
-# generator's grounding (SPS grounds on it with no abstract fallback), so it must
-# read as a self-contained clause — a hard char cut mid-sentence is the very
-# fragment problem this budget exists to avoid (#238). Pinned to SPS's display
-# clamp (MAX_SNIPPET_LEN = 240, etl/tools/tool-context.ts): emit ≤ the consumer's
-# cap so stored == displayed and SPS never re-clips a sentence mid-tail. Longer
-# enclosing sentences fall back to the longest leading clause in extract._truncate,
-# never a mid-word cut. See docs/tool-context-style-decision.md.
-CONTEXT_MAX_CHARS = 240
+# The `context` is ONE complete sentence quoted verbatim from the abstract — no
+# character budget and NO truncation. It is surfaced standalone by SPS ("How X is
+# used") AND grounds the bio generator (no abstract fallback), so it must read as a
+# whole, faithful, tool-naming sentence (#238). A clamp would just relocate the
+# fragment to the tail; instead pipeline_tools.context_quality.accept_snippet drops
+# any snippet that is not verbatim / does not name the tool / is a two-sentence
+# run-on, and the run-on ceiling (MAX_SENTENCE_CHARS) bounds pathological output.
+# See docs/tool-context-style-decision.md.
 
 
 EXTRACT_SYSTEM_PROMPT = f"""You are an expert biomedical research-methods analyst. Given ONE publication's \
@@ -84,13 +82,14 @@ For EACH extracted mention emit:
 together if both appear, e.g. "single-cell RNA sequencing (scRNA-seq)").
   - tool_category_hint: your single best WEAK guess of the legacy category, one of {_HINT_TAGS}, \
 or null if unsure. This is only a hint; downstream classification re-decides.
-  - context: the COMPLETE sentence from the abstract that shows how the tool/method was used — copied \
-VERBATIM and contiguous (start at the sentence's first word, end at its period), ≤ {CONTEXT_MAX_CHARS} \
-chars. It MUST read correctly on its OWN: do NOT begin mid-clause (no "were compared measuring …", no \
-"involving …") and do NOT leave a dangling "this"/"these"/"the latter" with no referent in the snippet. \
-This both grounds the later use-context routing (e.g. drug administered vs probe) AND is surfaced \
-standalone to readers, so a broken fragment is unusable. If the relevant sentence exceeds the limit, copy \
-the longest leading self-contained clause of it. Never invent or summarise; quote the abstract only.
+  - context: the SINGLE COMPLETE sentence from the abstract in which THIS tool is named/used — copied \
+VERBATIM and IN FULL (the whole sentence, first word to terminal punctuation). It MUST name or clearly \
+refer to the tool, read correctly on its OWN (do NOT begin mid-clause, no dangling "this"/"these"), and be \
+ONE sentence (do NOT merge two; if the abstract runs sentences together, return only the one naming the \
+tool). Do NOT shorten, clip, or truncate it — return the whole sentence however long it is. This both \
+grounds the later use-context routing (e.g. drug administered vs probe) AND is surfaced standalone to \
+readers. Never invent, paraphrase, or summarise; quote the abstract exactly. If no sentence names the \
+tool, use "".
   - confidence: "high" if clearly a named research tool/method; "low" if it might be the studied subject, \
 a commodity item, or ambiguous (a low-confidence mention is still emitted — it routes to review).
 

@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import re
 import threading
 from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -38,27 +37,27 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from pipeline_tools.cost_guard import CostCeiling, CostCeilingExceeded
-from pipeline_tools.extract import _truncate
-from prompts.tool_extract import CONTEXT_MAX_CHARS
+from pipeline_tools.context_quality import accept_snippet
 
 logger = logging.getLogger(__name__)
 
 CallLLM = Callable[[str, str], "object"]
 
-REBUILD_SYSTEM_PROMPT = f"""You align research-tool usage snippets to complete sentences. \
+REBUILD_SYSTEM_PROMPT = """You align research-tool usage snippets to complete sentences. \
 Given ONE publication's ABSTRACT and a numbered list of tools/methods it used, return, for EACH tool, \
-the COMPLETE sentence from the abstract in which that tool is used — copied VERBATIM and contiguous \
-(start at the sentence's first word, end at its terminal punctuation) so it reads correctly on its own.
+the SINGLE COMPLETE sentence from the abstract in which that tool is used — copied VERBATIM and IN FULL: \
+the entire sentence, from its first word to its terminal punctuation, so it reads correctly on its own.
 
 RULES:
 - Copy EXACTLY from the abstract. Never paraphrase, summarise, or invent — the returned text must appear \
 verbatim in the abstract.
-- The sentence must read standalone: do NOT begin mid-clause and do NOT leave a dangling pronoun.
-- If the tool's sentence exceeds {CONTEXT_MAX_CHARS} characters, copy the longest leading self-contained \
-clause of it (still verbatim).
+- The sentence MUST mention or clearly refer to that specific tool. Pick the sentence where the tool is \
+actually named/used, not a nearby sentence about something else.
+- Return ONE WHOLE sentence. Do NOT shorten, truncate, or clip it; do NOT begin mid-clause; do NOT merge \
+two sentences (if the abstract runs two together, return only the one that names the tool).
 - If a tool is NOT mentioned in the abstract, return null for it (do not guess).
 
-Respond with VALID JSON ONLY, keyed by the tool's number: {{"1": "<verbatim sentence or null>", "2": "..."}}.
+Respond with VALID JSON ONLY, keyed by the tool's number: {"1": "<verbatim sentence or null>", "2": "..."}.
 """
 
 
@@ -87,27 +86,6 @@ def group_by_pmid(records: list[dict]) -> dict[str, list[tuple[str, str]]]:
     for pmid in by_pmid:
         by_pmid[pmid].sort()
     return by_pmid
-
-
-def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", (s or "")).strip().casefold()
-
-
-def verbatim_sentence(candidate: str | None, abstract: str) -> str | None:
-    """Return the cleaned candidate if it is a genuine span of the abstract, else None.
-
-    The guard that keeps the field EXTRACTED, not generated: the model's sentence
-    must appear (whitespace/case-insensitively) in the abstract. Then clamp to the
-    budget at a clause/word boundary (a prefix of a substring is still verbatim).
-    """
-    if not candidate or not isinstance(candidate, str):
-        return None
-    cand = candidate.strip().strip('"').strip()
-    if len(cand) < 12:
-        return None
-    if _norm(cand) not in _norm(abstract):
-        return None
-    return _truncate(cand) or None
 
 
 def apply_regen(
@@ -173,9 +151,12 @@ def parse_regen_response(text: str, names: list[str], cids: list[str], abstract:
         return {}
     out: dict[str, str] = {}
     for i, cid in enumerate(cids):
-        got = verbatim_sentence(parsed.get(str(i + 1)), abstract)
-        if got:
-            out[cid] = got
+        cand = parsed.get(str(i + 1))
+        cand = cand.strip().strip('"').strip() if isinstance(cand, str) else None
+        # accept only a verbatim, single, tool-naming sentence; else the caller
+        # keeps the existing snippet (never an off-topic or run-on upgrade).
+        if cand and accept_snippet(cand, abstract, names[i]):
+            out[cid] = cand
     return out
 
 

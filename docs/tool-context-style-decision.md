@@ -1,7 +1,7 @@
 # Tool-usage `context` — content-style decision (quote vs. gloss)
 
-**Status:** **DECIDED (2026-06-18)** — `context` stays **extracted verbatim, sentence-aligned** (PR #239). The gloss direction was explored and **rejected** on the SPS consumer's own contract. The only refinement: align the producer length budget to SPS's 240-char display cap.
-**Refs:** #238, PR #239, #193, SPS #1119 / #1122 / #879 D-19, `docs/tool-context-sidecar.md`, `docs/tools-a2-architecture.md §3.7`
+**Status:** **DECIDED (2026-06-18)** — `context` stays **extracted verbatim**: one COMPLETE sentence that names the tool, copied in full, **never clamped**. The gloss direction was explored and **rejected** on the SPS consumer's own contract. Quality is enforced by shared guards, not a character budget.
+**Refs:** #238, PR #239, #193, SPS #1119 / #1122 / #879 D-19, `pipeline_tools/context_quality.py`, `cli/rebuild_tool_context.py`, `docs/tool-context-sidecar.md`, `docs/tools-a2-architecture.md §3.7`
 
 ---
 
@@ -74,18 +74,26 @@ SPS deliberately bars generated glosses from LLM grounding and admits only extra
 | **Classifier routing** | Lossless | Flattens fine distinctions (therapy vs. stain) |
 | **Provenance / receipt** | Traceable to the paper (pmid kept) | A paraphrase is not a receipt |
 
-The earlier premise — "verbatim isn't useful downstream" — is simply false for this consumer: SPS displays it verbatim, grounds an LLM on it with no abstract, and **explicitly chose extracted-not-gloss**. #239 is not superseded; it is the answer. **#238 recharacterizes to: ship #239 (sentence-align) + the §6 budget alignment. The gloss path is closed (this doc is the record of why).**
+The earlier premise — "verbatim isn't useful downstream" — is simply false for this consumer: SPS displays it verbatim, grounds an LLM on it with no abstract, and **explicitly chose extracted-not-gloss**. #239 is not superseded; it is the answer. **#238 recharacterizes to: ship #239 (sentence-align) + the §6 quality contract, and backfill the live artifact (`cli.rebuild_tool_context`). The gloss path is closed (this doc is the record of why).**
 
 ### Axis "definitional vs. usage" — moot
 There is no gloss to author, so the voice question dissolves. (Had a gloss been needed, the right spec was *identity-anchored usage* — tool identity as subject, usage as modifier clause — not a definitional/usage XOR. Recorded for the record only.)
 
 ---
 
-## 6. The one refinement #239 needs
+## 6. The quality contract: complete sentence, no clamp, guarded
 
-SPS display-clamps to **`MAX_SNIPPET_LEN = 240`** at a word boundary + ellipsis (`etl/tools/tool-context.ts:32`). #239 currently budgets `CONTEXT_MAX_CHARS = 300`, so a 241–300-char sentence gets **SPS-clipped mid-tail — re-creating a fragment on the very surface #238 set out to fix.**
+The snippet is **one complete sentence, copied in full, never truncated.** An early version pinned the producer budget to SPS's display clamp (`MAX_SNIPPET_LEN = 240`, `etl/tools/tool-context.ts`) so "stored == displayed" — but that re-introduced the #238 fragment at the *tail*: a 241+-char sentence got cut mid-clause. Clamping anywhere just relocates the fragment. So there is **no character budget**; SPS applies its own 240 display clamp (with an ellipsis) on its side, which is its concern, while the artifact and the bio-grounding carry the complete, faithful sentence.
 
-**Fix:** set `CONTEXT_MAX_CHARS = 240` so stored == displayed (no double-truncation). The #239 prompt already instructs "copy the longest leading self-contained clause if the sentence exceeds the budget," so only the number changes. Grounding/classifier lose nothing — 240 chars is ample fidelity.
+Quality is enforced by **shared guards** (`pipeline_tools/context_quality.py`), used identically by the live backfill and the extraction path so "now" and "going forward" never diverge. A snippet is accepted only if it is:
+
+1. **verbatim** — a contiguous span of the abstract (extracted, not generated);
+2. **tool-naming** — references the specific tool (shares a salient name token or its acronym), so it is about *X* and not a neighbouring sentence;
+3. **one sentence** — not two merged into a run-on (whether the merge has a stray internal period or a missing one).
+
+A snippet that fails is **dropped, never clamped**: the backfill keeps the prior snippet; extraction emits no snippet for that mention (SPS selects another). A run-on ceiling (`MAX_SENTENCE_CHARS = 600`) bounds pathological whole-abstract returns. Live calibration of these guards: ~1.7% relevance rejects, ~0.1% run-on rejects, all spot-checked as justified.
+
+**Now:** `cli/rebuild_tool_context.py` regenerated the live sidecar (6,981 papers, context-only, tool set frozen): mid-clause starts 36% → ~5%, end-clean ~79% → 100%. **Going forward:** `prompts/tool_extract.py` + `pipeline_tools/extract.py` apply the same prompt + guards at extraction, so the next cold run produces conforming snippets at source.
 
 ---
 

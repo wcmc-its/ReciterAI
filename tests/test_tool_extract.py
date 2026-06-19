@@ -13,12 +13,10 @@ from decimal import Decimal
 from pipeline_tools.checkpoint import ExtractionCheckpoint
 from pipeline_tools.cost_guard import CostCeiling
 from pipeline_tools.extract import (
-    _truncate,
     extract_mentions,
     normalize_mention,
     run_extraction,
 )
-from prompts.tool_extract import CONTEXT_MAX_CHARS
 from utils.bedrock_client import HAIKU_MODEL
 
 
@@ -69,11 +67,13 @@ def test_normalize_nulls_out_of_vocab_hint_but_keeps_valid():
     assert bad["tool_category"] is None   # weak prior nulled, mention kept
 
 
-def test_normalize_truncates_context_and_tags_author_fields():
-    long_ctx = "x" * 500
-    row = _row("42", cwid="abc2001", author_role="lead", authors=[{"cwid": "abc2001", "author_role": "lead"}])
-    m = normalize_mention({"raw_name": "patch-clamp", "context": long_ctx, "confidence": "LOW"}, row)
-    assert len(m["context"]) <= CONTEXT_MAX_CHARS
+def test_normalize_keeps_verbatim_context_and_tags_author_fields():
+    abstract = "We used patch-clamp recording on CA1 pyramidal neurons in acute slices."
+    row = _row("42", cwid="abc2001", author_role="lead",
+               authors=[{"cwid": "abc2001", "author_role": "lead"}], abstractVarchar=abstract)
+    m = normalize_mention(
+        {"raw_name": "patch-clamp", "context": abstract, "confidence": "LOW"}, row)
+    assert m["context"] == abstract       # verbatim, names the tool, one sentence -> kept in full
     assert m["pmid"] == "42"
     assert m["cwid"] == "abc2001"
     assert m["author_role"] == "lead"
@@ -81,24 +81,12 @@ def test_normalize_truncates_context_and_tags_author_fields():
     assert m["confidence"] == "low"
 
 
-def test_truncate_prefers_sentence_terminator_on_overflow():
-    # Two sentences; the second pushes past the limit -> keep the first, ending at its period.
-    head = "We used patch-clamp to record currents from CA1 pyramidal neurons."
-    text = head + " " + "A second sentence that should be dropped because it overflows the budget by a lot." * 4
-    out = _truncate(text, limit=len(head) + 30)
-    assert out == head
-    assert out.endswith(".")
-
-
-def test_truncate_backs_off_to_word_boundary_never_mid_word():
-    # One long sentence, no internal terminator -> back off to a space, not mid-word.
-    text = "magnetic resonance imaging acquired diffusion weighted volumes across the whole cohort longitudinally"
-    out = _truncate(text, limit=40)
-    assert out == "magnetic resonance imaging acquired"  # clean word boundary, no split token
-
-
-def test_truncate_hard_cuts_unbroken_token_as_last_resort():
-    assert _truncate("x" * 100, limit=20) == "x" * 20
+def test_normalize_drops_non_verbatim_context_keeps_mention():
+    # A paraphrased context (not a span of the abstract) is dropped to None, not kept.
+    row = _row("7", abstractVarchar="We used patch-clamp recording on CA1 neurons.")
+    m = normalize_mention({"raw_name": "patch-clamp", "context": "we did some electrophysiology"}, row)
+    assert m is not None and m["raw_name"] == "patch-clamp"
+    assert m["context"] is None
 
 
 def test_normalize_source_kind_defaults_publication_and_honors_grant():

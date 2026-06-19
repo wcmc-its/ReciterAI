@@ -1,7 +1,8 @@
 """Unit tests for cli.rebuild_tool_context (#238 context-only sidecar rebuild).
 
-Pure logic + a stubbed LLM seam — no AWS/DB. Verifies the verbatim guard, the
-upgrade-only apply, the sidecar build, and a small end-to-end run.
+Pure logic + a stubbed LLM seam — no AWS/DB. Verifies grouping, the guarded
+parse, the upgrade-only apply, the sidecar build, and a small end-to-end run.
+(The snippet guards themselves live in tests/test_context_quality.py.)
 """
 from __future__ import annotations
 
@@ -17,9 +18,7 @@ from cli.rebuild_tool_context import (
     group_by_pmid,
     parse_regen_response,
     run_rebuild,
-    verbatim_sentence,
 )
-from prompts.tool_extract import CONTEXT_MAX_CHARS
 
 
 @dataclass
@@ -50,22 +49,6 @@ def test_group_by_pmid_collects_pairs_sorted():
     g = group_by_pmid(_records())
     assert set(g) == {"100"}
     assert g["100"] == [("t1", "Bipartite network algorithm"), ("t2", "Magnetic resonance imaging (MRI)")]
-
-
-def test_verbatim_guard_accepts_real_span_rejects_invented():
-    # A real contiguous span passes; a paraphrase that isn't in the abstract is rejected.
-    assert verbatim_sentence("We applied a bipartite network algorithm to identify subtypes", ABSTRACT)
-    assert verbatim_sentence("This study used a fancy clustering method on patients", ABSTRACT) is None
-    assert verbatim_sentence(None, ABSTRACT) is None
-    assert verbatim_sentence("tiny", ABSTRACT) is None
-
-
-def test_verbatim_guard_clamps_to_budget_at_boundary():
-    long_abs = "Alpha " + "word " * 100 + "end."
-    span = "Alpha " + "word " * 100  # > CONTEXT_MAX_CHARS, no terminal punct
-    out = verbatim_sentence(span, long_abs)
-    assert out is not None and len(out) <= CONTEXT_MAX_CHARS
-    assert not out.endswith("wor")  # backed off to a word boundary, no mid-word cut
 
 
 def test_parse_regen_maps_index_to_cid_with_guard():
