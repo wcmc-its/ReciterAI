@@ -197,9 +197,17 @@ recomputable.
 
 ### 3.7 The `context` field is load-bearing and under-surfaced
 
-Every mention carries a ≤200-char grounding snippet. It drives use-context
-routing (§6.1 reagent-as-therapeutic vs probe) and is retained as
-`context_evidence` on each canonical tool in `tools.json`.
+Every mention carries a grounding snippet — one **complete sentence** quoted
+verbatim from the abstract that **names the tool**, copied in full and **never
+clamped** (#238; a clamp just relocates the fragment to the tail). It drives
+use-context routing (§6.1 reagent-as-therapeutic vs probe), is retained as
+`context_evidence` on each canonical tool in `tools.json`, and is consumed by SPS
+both as the standalone "How X is used" snippet **and** as the bio generator's
+grounding (no abstract fallback) — which is why a self-contained, faithful
+(extracted, not glossed) sentence matters downstream. Quality is enforced by the
+shared guards in `pipeline_tools/context_quality.py` (verbatim / names-the-tool /
+single-sentence); a snippet that fails is dropped, never truncated. See
+`docs/tool-context-style-decision.md`.
 
 The flat `context_evidence` list lost the link from a snippet back to the
 publication (and therefore the scholar) it describes. **#193 restores that link

@@ -35,8 +35,14 @@ from pipeline_tools import vocab
 # extractor's hint vocabulary tracks the classifier's, not a hand-copied list.
 _HINT_TAGS = sorted(vocab.LEGACY_CATEGORY_PRIOR.keys())
 
-# A short max so the grounding snippet is a quote, not a re-summary of the abstract.
-CONTEXT_MAX_CHARS = 200
+# The `context` is ONE complete sentence quoted verbatim from the abstract — no
+# character budget and NO truncation. It is surfaced standalone by SPS ("How X is
+# used") AND grounds the bio generator (no abstract fallback), so it must read as a
+# whole, faithful, tool-naming sentence (#238). A clamp would just relocate the
+# fragment to the tail; instead pipeline_tools.context_quality.accept_snippet drops
+# any snippet that is not verbatim / does not name the tool / is a two-sentence
+# run-on, and the run-on ceiling (MAX_SENTENCE_CHARS) bounds pathological output.
+# See docs/tool-context-style-decision.md.
 
 
 EXTRACT_SYSTEM_PROMPT = f"""You are an expert biomedical research-methods analyst. Given ONE publication's \
@@ -76,15 +82,20 @@ For EACH extracted mention emit:
 together if both appear, e.g. "single-cell RNA sequencing (scRNA-seq)").
   - tool_category_hint: your single best WEAK guess of the legacy category, one of {_HINT_TAGS}, \
 or null if unsure. This is only a hint; downstream classification re-decides.
-  - context: a SHORT verbatim-ish snippet (≤ {CONTEXT_MAX_CHARS} chars) from the abstract showing how \
-the tool was used — this grounds the later use-context routing (e.g. drug administered vs probe). Never \
-invent; quote/paraphrase from the abstract only.
+  - context: the SINGLE COMPLETE sentence from the abstract in which THIS tool is named/used — copied \
+VERBATIM and IN FULL (the whole sentence, first word to terminal punctuation). It MUST name or clearly \
+refer to the tool, read correctly on its OWN (do NOT begin mid-clause, no dangling "this"/"these"), and be \
+ONE sentence (do NOT merge two; if the abstract runs sentences together, return only the one naming the \
+tool). Do NOT shorten, clip, or truncate it — return the whole sentence however long it is. This both \
+grounds the later use-context routing (e.g. drug administered vs probe) AND is surfaced standalone to \
+readers. Never invent, paraphrase, or summarise; quote the abstract exactly. If no sentence names the \
+tool, use "".
   - confidence: "high" if clearly a named research tool/method; "low" if it might be the studied subject, \
 a commodity item, or ambiguous (a low-confidence mention is still emitted — it routes to review).
 
 Respond with VALID JSON ONLY, no markdown:
-{{"mentions": [{{"raw_name": "<verbatim>", "tool_category_hint": "...|null", "context": "<short snippet>", \
-"confidence": "high|low"}}]}}
+{{"mentions": [{{"raw_name": "<verbatim>", "tool_category_hint": "...|null", \
+"context": "<complete sentence, verbatim from the abstract>", "confidence": "high|low"}}]}}
 If the abstract names no distinctive tool or method, return {{"mentions": []}}.
 """
 

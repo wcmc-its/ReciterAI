@@ -14,8 +14,11 @@ s3://wcmc-reciterai-artifacts/tools/latest/tool_context.json
 (and locally at `out/.../tools.json`'s review bundle). For every canonical tool
 that has one, it records the per-publication **usage snippet** — *how* a tool was
 used in a given paper ("for stochastic simulation of photon transport"). Each
-snippet is the ≤200-char grounding `context` the extractor already emits per
-mention; the sidecar restores the `(tool, pmid) → snippet` link that the flat
+snippet is the grounding `context` the extractor emits per mention — one complete
+sentence quoted verbatim from the abstract that names the tool, copied in full and
+never clamped (#238; quality enforced by `pipeline_tools/context_quality.py`); the
+sidecar restores the
+`(tool, pmid) → snippet` link that the flat
 `context_evidence` list on `tools.json` had dropped. See
 `docs/tools-a2-architecture.md §3.7` and issue #193.
 
