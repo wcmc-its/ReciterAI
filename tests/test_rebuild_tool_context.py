@@ -6,8 +6,11 @@ parse, the upgrade-only apply, the sidecar build, and a small end-to-end run.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from decimal import Decimal
+
+import pytest
 
 from pipeline_tools.cost_guard import CostCeiling
 from utils.bedrock_client import HAIKU_MODEL
@@ -17,6 +20,7 @@ from cli.rebuild_tool_context import (
     fragment_metrics,
     group_by_pmid,
     parse_regen_response,
+    republish_sidecar,
     run_rebuild,
 )
 
@@ -104,3 +108,38 @@ def test_run_rebuild_end_to_end_with_stub():
     apply_regen(recs, res.regen)
     after = fragment_metrics(build_sidecar(recs))
     assert after["start_lowercase_pct"] == 0.0  # both upgraded to full sentences
+
+
+# ---------------------------------------------------------------------------
+# republish (gated)
+# ---------------------------------------------------------------------------
+
+def _payload_and_files(tmp_path, *, context):
+    payload = {
+        "schema_version": "tools-a2-v2", "provenance": {"run": "x"},
+        "tools": [], "families": [], "hierarchy": {}, "faculty": [], "tool_context": context,
+    }
+    bundle = {k: v for k, v in payload.items() if k != "tool_context"}
+    live_tools = tmp_path / "live_tools.json"
+    live_tools.write_text(json.dumps(bundle))
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text(json.dumps(context))
+    return live_tools, sidecar
+
+
+def test_republish_dry_run_emits_full_set_without_upload(tmp_path):
+    live_tools, sidecar = _payload_and_files(tmp_path, context={"t1": {"100": "A full sentence."}})
+    out = republish_sidecar(str(sidecar), str(live_tools), publish=False)
+    assert out["published"] is False
+    keys = {r["key"].rsplit("/", 1)[-1] for r in out["report"]}
+    assert {"tools.json", "families.json", "faculty.json", "tool_context.json", "manifest.json"} <= keys
+    assert all(r["uploaded"] is False for r in out["report"])  # dry-run: nothing written
+
+
+def test_republish_aborts_if_a_frozen_artifact_would_change(tmp_path):
+    live_tools, sidecar = _payload_and_files(tmp_path, context={"t1": {"100": "A full sentence."}})
+    # A manifest claiming a DIFFERENT tools.json sha => the freeze guard must abort.
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"objects": {"tools.json": {"sha256": "deadbeef"}}}))
+    with pytest.raises(SystemExit):
+        republish_sidecar(str(sidecar), str(live_tools), live_manifest_path=str(manifest), publish=False)

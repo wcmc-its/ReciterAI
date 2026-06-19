@@ -275,6 +275,51 @@ def _fetch_abstracts(pmids: list[str]) -> dict[str, str]:
     return out
 
 
+def republish_sidecar(
+    sidecar_path: str,
+    live_tools_path: str,
+    *,
+    live_manifest_path: str | None = None,
+    publish: bool = False,
+) -> dict:
+    """Republish the rebuilt sidecar via the real publish path; tool set frozen.
+
+    The live ``tools.json`` bundle IS the publish payload minus ``tool_context``
+    (``publish._split_artifacts``), so the payload is simply that bundle with the
+    rebuilt context swapped in. ``publish_artifacts`` then re-emits the full set +
+    manifest. SAFETY: the would-write ``tools.json`` / ``families.json`` /
+    ``faculty.json`` bytes must be byte-identical to live (only ``tool_context.json``
+    changes); we assert their sha256 against the live manifest before any upload.
+    Default is a dry run — no S3 write.
+    """
+    import hashlib
+    from pipeline_tools.publish import _build_manifest, _split_artifacts, publish_artifacts, S3_PREFIX
+
+    bundle = json.load(open(live_tools_path))
+    bundle.pop("tool_context", None)
+    payload = dict(bundle)
+    payload["tool_context"] = json.load(open(sidecar_path))
+
+    items = _split_artifacts(payload, prefix=S3_PREFIX)
+    shas = {it.key.rsplit("/", 1)[-1]: hashlib.sha256(it.body).hexdigest()
+            for it in items if it.key.startswith(f"{S3_PREFIX}latest/")}
+    frozen = {"tools.json", "families.json", "faculty.json"}
+    if live_manifest_path:
+        live = json.load(open(live_manifest_path)).get("objects", {})
+        drift = [n for n in frozen if n in live and live[n]["sha256"] != shas.get(n)]
+        if drift:
+            raise SystemExit(f"ABORT: {drift} would change — republish must touch ONLY tool_context.json")
+        logger.info("safety check: tools/families/faculty byte-identical to live ✓ (only tool_context.json changes)")
+    manifest = _build_manifest(items, payload, prefix=S3_PREFIX)
+    report = publish_artifacts(payload, dry_run=not publish)
+    logger.info("%s: %d objects; tool_context.json sha=%s bytes=%s; manifest counts.tool_context=%d",
+                "PUBLISHED" if publish else "DRY-RUN (no upload)",
+                len(report), shas["tool_context.json"][:12],
+                next(it.size for it in items if it.key.endswith("latest/tool_context.json")),
+                manifest["counts"]["tool_context"])
+    return {"report": report, "manifest": manifest, "published": publish}
+
+
 def _make_call_llm(max_tokens: int = 1024) -> CallLLM:
     from pipeline_enrichment.llm_call import call_with_fallback
     from utils.bedrock_client import HAIKU_MODEL
@@ -295,8 +340,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None, help="probe: only the newest N pmids")
     ap.add_argument("--max-usd", type=float, default=30.0)
     ap.add_argument("--workers", type=int, default=8)
+    # Republish mode (skips regeneration): swap the rebuilt sidecar into the live
+    # payload and re-emit via the real publish path. Dry-run unless --publish.
+    ap.add_argument("--republish", action="store_true", help="publish the rebuilt sidecar (dry-run unless --publish)")
+    ap.add_argument("--live-tools", help="path to the live tools.json bundle (payload base)")
+    ap.add_argument("--live-manifest", help="path to the live latest/manifest.json (freeze safety check)")
+    ap.add_argument("--publish", action="store_true", help="ACTUALLY upload to S3 (default: dry-run)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    if args.republish:
+        if not args.live_tools:
+            ap.error("--republish requires --live-tools <live tools.json>")
+        republish_sidecar(args.out, args.live_tools,
+                          live_manifest_path=args.live_manifest, publish=args.publish)
+        return 0
 
     registry = json.load(open(args.registry))
     records = registry["tools"]
