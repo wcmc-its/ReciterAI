@@ -53,3 +53,35 @@ def put_grants(client, items: list, table_name: str = TABLE_NAME) -> int:
     if items:
         batch_write(client, table_name, items)
     return len(items)
+
+
+import hashlib
+import json as _json
+
+from utils.iso_clock import now_iso
+from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
+
+_ARTIFACT_PREFIX = "grants"
+
+
+def publish_opportunities_artifact(opportunities: list, *, s3=None, version: str = None) -> dict:
+    """Publish opportunities.json + manifest (version-pinned + latest pointer). Returns the manifest."""
+    s3 = s3 or S3HierarchyClient(bucket=ARTIFACTS_BUCKET)
+    generated_at = now_iso()
+    version = version or f"v{generated_at[:10]}"
+    body = _json.dumps(opportunities, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    manifest = {
+        "schema_version": "1.0.0",
+        "artifact": "opportunities",
+        "version": version,
+        "generated_at": generated_at,
+        "sha256": hashlib.sha256(body).hexdigest(),
+        "artifact_bytes": len(body),
+        "count": len(opportunities),
+    }
+    manifest_body = _json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    s3.put_object(f"{_ARTIFACT_PREFIX}/{version}/opportunities.json", body)
+    s3.put_object(f"{_ARTIFACT_PREFIX}/{version}/manifest.json", manifest_body)
+    s3.put_object(f"{_ARTIFACT_PREFIX}/latest/manifest.json", manifest_body,
+                  cache_control="max-age=60, must-revalidate")
+    return manifest
