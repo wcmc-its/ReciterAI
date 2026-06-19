@@ -71,14 +71,25 @@ step); when it lands it adds one rule here, like the others.
 
 ### One-time deploy
 1. **IAM role** `reciterai-cold-task` with `cold_run_task_iam_policy.json` attached
-   (a NEW role — the enrichment task role has no S3 grant and cannot be reused).
-   The execution role (`ecsTaskExecutionRole`) is reused; extend its inline
-   Secrets grant to `reciterai/bedrock-api-key` if it is not already there.
-2. **Register the task def:** substitute the `{…}` placeholders in
-   `cold_run_task_definition.json` (use the SAME ECR image as the enrichment task —
-   built from the commit whose `config/thresholds.json` carries the intended flag
-   state, since the flags are baked into the image) and
-   `aws ecs register-task-definition --cli-input-json file://…`.
+   (a NEW role — the enrichment task role has no S3 grant and cannot be reused;
+   strip the `$schema_note` key before `aws iam put-role-policy`). The execution role
+   (`ecsTaskExecutionRole`) is reused; extend its inline Secrets grant to
+   `reciterai/bedrock-api-key` if it is not already there.
+2. **Pre-create the log group** — `aws logs create-log-group --log-group-name /ecs/reciterai-cold`.
+   `ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, so the task def omits
+   `awslogs-create-group` and the group must exist first (otherwise the task fails at
+   startup with `ResourceInitializationError … CreateLogGroup … AccessDenied`).
+3. **Build + push the image** from the commit carrying the intended flag state (config
+   is image-baked — see #204), **for `linux/amd64`** (the task is X86_64; a Mac defaults
+   to arm64, which won't run on Fargate):
+   ```bash
+   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {ACCT}.dkr.ecr.us-east-1.amazonaws.com
+   docker build --platform linux/amd64 -t {ACCT}.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:{TAG} .
+   docker push {ACCT}.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:{TAG}
+   ```
+4. **Register the task def:** substitute the `{…}` placeholders in
+   `cold_run_task_definition.json` (strip `$schema_note` + `deploy_notes` — ECS rejects
+   unknown keys) and `aws ecs register-task-definition --cli-input-json file://…`.
 
 ### Launch (use `scripts/run_cold_run.sh`)
 ```bash
