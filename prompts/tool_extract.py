@@ -36,12 +36,15 @@ from pipeline_tools import vocab
 _HINT_TAGS = sorted(vocab.LEGACY_CATEGORY_PRIOR.keys())
 
 # Budget for ONE complete sentence quoted from the abstract (not a re-summary).
-# Sized for a typical biomedical sentence: the snippet is surfaced standalone by
-# SPS ("How X is used"), so it must read as a self-contained clause, and a hard
-# char cut mid-sentence is the very fragment problem this budget exists to avoid
-# (#238). 300 holds the large majority of enclosing sentences; longer ones fall
-# back to a clause boundary in extract._truncate, never a mid-word cut.
-CONTEXT_MAX_CHARS = 300
+# The snippet is surfaced standalone by SPS ("How X is used") AND is the bio
+# generator's grounding (SPS grounds on it with no abstract fallback), so it must
+# read as a self-contained clause — a hard char cut mid-sentence is the very
+# fragment problem this budget exists to avoid (#238). Pinned to SPS's display
+# clamp (MAX_SNIPPET_LEN = 240, etl/tools/tool-context.ts): emit ≤ the consumer's
+# cap so stored == displayed and SPS never re-clips a sentence mid-tail. Longer
+# enclosing sentences fall back to the longest leading clause in extract._truncate,
+# never a mid-word cut. See docs/tool-context-style-decision.md.
+CONTEXT_MAX_CHARS = 240
 
 
 EXTRACT_SYSTEM_PROMPT = f"""You are an expert biomedical research-methods analyst. Given ONE publication's \
