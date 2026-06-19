@@ -47,8 +47,7 @@ def run(rows: int, keyword: str) -> dict:
             "due_date": opp.due_date, "primary_topic_id": (items[-1]["primary_topic_id"]["S"]),
         })
 
-    put_grants(dynamo, items)
-    persisted = len(items)
+    persisted = put_grants(dynamo, items)
     manifest = publish_opportunities_artifact(artifact)
     summary = {"fetched": len(hits), "kept": kept, "persisted": persisted,
                "artifact_version": manifest.get("version")}

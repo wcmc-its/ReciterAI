@@ -24,7 +24,10 @@ def test_run_ingest_filters_and_persists(monkeypatch):
 
     captured = {}
     monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
-    monkeypatch.setattr(ingest, "put_grants", lambda client, items, **kw: captured.setdefault("items", items) or len(items))
+    def _fake_put(client, items, **kw):
+        captured["items"] = items
+        return len(items)
+    monkeypatch.setattr(ingest, "put_grants", _fake_put)
     monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
 
     summary = ingest.run(rows=10, keyword="")
