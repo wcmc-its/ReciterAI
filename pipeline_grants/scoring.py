@@ -26,7 +26,7 @@ def load_taxonomy() -> dict:
         return json.load(f)
 
 
-def build_index(taxonomy: dict):
+def build_index(taxonomy: dict) -> "tuple[dict, dict]":
     return sp.build_topic_index(taxonomy)
 
 

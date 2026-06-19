@@ -42,3 +42,13 @@ def test_noop_client_absorbs_any_write():
     c = scoring._NoOpDynamoClient()
     assert c.put_item(TableName="reciterai", Item={}) == {}
     assert c.update_item(Key={}) == {}
+
+
+def test_load_taxonomy_and_build_index_real():
+    tax = scoring.load_taxonomy()
+    assert tax.get("taxonomy_version")
+    assert isinstance(tax.get("topics"), list) and len(tax["topics"]) > 0
+    int_to_id, id_to_int = scoring.build_index(tax)
+    assert isinstance(int_to_id, dict) and isinstance(id_to_int, dict)
+    any_id = next(iter(id_to_int))
+    assert int_to_id[id_to_int[any_id]] == any_id
