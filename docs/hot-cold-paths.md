@@ -102,6 +102,10 @@ The top row is the latest tick; `status == complete` confirms success.
 
 ## Cold path — `pipeline_cold.run`
 
+> To run the cold path **on AWS Fargate** (the #240 launch path), follow the
+> operator runbook: [`docs/cold-run-fargate-runbook.md`](cold-run-fargate-runbook.md).
+> The notes below describe the pipeline itself (stages, flags, local invocation).
+
 **Cadence**: on demand. Triggered manually by an operator when:
 
 - A drift alert recommends it (`cold_run_recommended: true` in the

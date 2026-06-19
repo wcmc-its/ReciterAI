@@ -64,6 +64,8 @@ publishes (spotlight → `wcmc-reciterai-artifacts`, hierarchy →
 `wcmc-reciterai-hierarchy`). Until #240 it had **no AWS launch path** — it had
 only ever run from an operator workstation. This is the Fargate home for it.
 
+**Operator runbook (run it top-to-bottom): [`docs/cold-run-fargate-runbook.md`](../docs/cold-run-fargate-runbook.md).** The section below is the file-level deploy reference; the runbook is the end-to-end procedure (flag state → build → register → dry-run → run → validate → merge #242).
+
 It is **on-demand and operator-gated** — there is deliberately **no EventBridge
 schedule** (the cold-run is annual/infrequent and ~$210 in Bedrock per run). The
 schedule is future infra (see #191 rollout `0011`, the "Brick F EventBridge"
