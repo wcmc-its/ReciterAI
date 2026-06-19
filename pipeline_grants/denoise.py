@@ -1,8 +1,9 @@
-"""Two-stage denoise: Stage A = deterministic regex/rules gate (this file, regex_gate).
-Stage B (LLM judge) is added in a later task."""
+"""Two-stage denoise: Stage A = deterministic regex/rules gate (regex_gate);
+Stage B = LLM relevance + career-stage appeal judge (judge_opportunity)."""
 import re
 
 from pipeline_grants.models import Opportunity
+from utils.bedrock_client import HAIKU_MODEL
 from utils.iso_clock import now_iso
 
 # Non-research opportunity types we never surface (matched against title).
@@ -24,8 +25,6 @@ def regex_gate(opp: Opportunity):
             return False, "expired deadline"
     return True, ""
 
-
-from utils.bedrock_client import HAIKU_MODEL
 
 _STAGES = ("grad", "postdoc", "early", "mid", "senior")
 

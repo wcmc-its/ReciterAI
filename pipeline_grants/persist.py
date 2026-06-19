@@ -1,5 +1,10 @@
 """Persist scored opportunities: GRANT# DynamoDB rows + a versioned S3 artifact."""
+import hashlib
+import json as _json
+
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
+from utils.iso_clock import now_iso
+from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
 
 
 def _n(value) -> dict:
@@ -54,12 +59,6 @@ def put_grants(client, items: list, table_name: str = TABLE_NAME) -> int:
         batch_write(client, table_name, items)
     return len(items)
 
-
-import hashlib
-import json as _json
-
-from utils.iso_clock import now_iso
-from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
 
 _ARTIFACT_PREFIX = "grants"
 

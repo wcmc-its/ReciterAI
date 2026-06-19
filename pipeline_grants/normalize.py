@@ -20,8 +20,10 @@ def _strip_html(text: str) -> str:
 def _to_int(value):
     if value is None:
         return None
-    digits = re.sub(r"[^\d]", "", str(value))
-    return int(digits) if digits else None
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", str(value))
+    if not m:
+        return None
+    return int(float(m.group(0).replace(",", "")))
 
 
 def _parse_detail_date(text: str) -> str:

@@ -37,3 +37,13 @@ def test_normalize_eligibility_and_status():
     opp = normalize_grantsgov(_load())
     assert "Higher education" in opp.eligibility_raw
     assert opp.status == "posted"  # forecast is null
+
+
+def test_to_int_handles_currency_commas_and_decimals():
+    from pipeline_grants.normalize import _to_int
+    assert _to_int("600000") == 600000
+    assert _to_int("$50,000.00") == 50000
+    assert _to_int("$2,600,000") == 2600000
+    assert _to_int("") is None
+    assert _to_int(None) is None
+    assert _to_int("TBD") is None
