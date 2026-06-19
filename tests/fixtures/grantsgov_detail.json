@@ -1,0 +1,28 @@
+{
+  "errorcode": 0,
+  "msg": "Webservice Succeeds",
+  "data": {
+    "id": "359855",
+    "opportunityNumber": "RFA-CA-27-020",
+    "opportunityTitle": "Advanced Development of Informatics Technologies for Cancer Research",
+    "docType": "synopsis",
+    "agencyDetails": {"agencyName": "National Institutes of Health"},
+    "topAgencyDetails": {"agencyName": "Department of Health and Human Services"},
+    "cfdas": [{"id": 430000, "opportunityId": 359855, "cfdaNumber": "93.393", "programTitle": "Cancer Cause and Prevention Research"}],
+    "forecast": null,
+    "synopsis": {
+      "opportunityId": "359855",
+      "synopsisDesc": "<p>This Notice of Funding Opportunity (NOFO) invites applications for advanced development of informatics technologies for cancer research.</p>",
+      "awardCeiling": "600000",
+      "awardFloor": "50000",
+      "estimatedFunding": "2600000",
+      "numberOfAwards": "3",
+      "costSharing": false,
+      "responseDate": "Oct 19, 2026 12:00:00 AM EDT",
+      "postingDate": "May 21, 2026 12:00:00 AM EDT",
+      "applicantTypes": [{"id": "25", "description": "Others"}],
+      "applicantEligibilityDesc": "Higher education institutions and nonprofits may apply.",
+      "agencyName": "National Institutes of Health"
+    }
+  }
+}

@@ -30,6 +30,7 @@ cwid_topic_counts.csv
 cwid_topics_subtopics.json
 scoring_results.json
 synopses_cache.json
+spike_review.md
 
 # Pipeline output staging
 out/
