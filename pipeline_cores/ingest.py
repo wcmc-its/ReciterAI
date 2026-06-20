@@ -38,3 +38,26 @@ def fetch_publications(engine, pmids: list = None, limit: int = None) -> list:
         {"pmid": str(r["pmid"]), "title": r["title"] or "", "abstract": r["abstract"] or ""}
         for r in rows
     ]
+
+
+def fetch_author_bylines(engine, pmids: list) -> dict:
+    """Map pmid -> [resolved WCM-author CWIDs], from analysis_summary_author.
+
+    Feeds the author-affinity signal (repeat-user prior): a confirmed (cwid, core)
+    lights up every other pub that cwid authored. Only resolved authors
+    (personIdentifier NOT NULL) are returned. Matched on personIdentifier, never
+    on name.
+    """
+    from sqlalchemy import bindparam, text  # lazy
+
+    if not pmids:
+        return {}
+    stmt = text(
+        "SELECT pmid, personIdentifier FROM analysis_summary_author "
+        "WHERE personIdentifier IS NOT NULL AND personIdentifier <> '' AND pmid IN :pmids"
+    ).bindparams(bindparam("pmids", expanding=True))
+    out: dict = {}
+    with engine.connect() as conn:
+        for row in conn.execute(stmt, {"pmids": [int(p) for p in pmids]}):
+            out.setdefault(str(row.pmid), []).append(row.personIdentifier)
+    return out

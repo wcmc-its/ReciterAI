@@ -15,10 +15,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from collections import defaultdict
+
 from pipeline_cores import combine as _combine
 from pipeline_cores import ingest, signals
 from pipeline_cores.dictionary import load_core, load_cores
-from pipeline_cores.models import SignalResult
+from pipeline_cores.models import STATUS_CONFIRMED
 
 
 def _make_fulltext_loader(enabled: bool):
@@ -34,23 +36,40 @@ def _make_fulltext_loader(enabled: bool):
     return PmcFullTextClient().get
 
 
-def load_confirmed_pairs(core_id: str) -> dict:
-    """cwid -> {core_id: affinity} from prior confirmed runs + SPS claims.
+def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool) -> dict:
+    """cwid -> {core_id: n_confirmed_papers} from prior confirmed/claimed records.
 
-    TODO(affinity): read back confirmed/claimed (pub, core) records and aggregate
-    to author level (the repeat-user prior). Empty until wired -> affinity 0.
+    Scans DynamoDB for prior confirmed/claimed (pub, core) rows and attributes
+    each to its byline authors (the cross-run repeat-user prior). `bylines` maps
+    pmid -> [cwid]; a prior pmid outside this run's byline set contributes nothing
+    (its authors aren't in scope this run). Empty when disabled or on first run.
     """
-    return {}
+    counts: dict = defaultdict(lambda: defaultdict(int))
+    if not enabled:
+        return counts
+    from pipeline_cores.persist import scan_prior_core_usage  # lazy
+    for rec in scan_prior_core_usage(core_id):
+        for cwid in bylines.get(rec["pmid"], []):
+            counts[cwid][rec["core_id"]] += 1
+    return counts
 
 
-def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at, engine):
+def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
+             engine, prior_user_counts=None):
+    """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
+
+    Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
+    aggregates this run's confirmations (+ prior_user_counts) to author level and
+    re-scores the not-yet-confirmed records with the affinity prior. Confirmed
+    records are untouched (already at ceiling)."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
-    confirmed = load_confirmed_pairs(core.core_id)
+    bylines = ingest.fetch_author_bylines(engine, pmids)
     llm_scores = signals.llm_triage(bedrock, core, pubs) if bedrock else {}
 
-    records = []
+    # Phase 1 — deterministic + LLM signals.
+    sigs, records = {}, []
     for pub in pubs:
         pmid = pub["pmid"]
         sig = signals.acknowledgement_signal(full_text(pmid), core)
@@ -59,11 +78,30 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at, 
         if tri:
             sig.llm_score = tri["score"]
             sig.llm_rationale = tri.get("rationale", "")
-        # byline CWIDs for affinity would come from the author mapping; reuse the
-        # staff hits as a stand-in until the full byline read is wired.
-        sig.author_affinity = signals.author_affinity(confirmed, sig.coauthor_cwids, core.core_id)
+        sigs[pmid] = sig
         records.append(_combine.combine(pmid, core.core_id, sig, scored_at=scored_at, triage_threshold=threshold))
-    return records
+
+    # Phase 2 — repeat-user affinity. Count confirmed papers per author (this run
+    # + prior), build the affinity index, and re-score non-confirmed records.
+    counts = defaultdict(lambda: defaultdict(int))
+    for cwid, by_core in (prior_user_counts or {}).items():
+        for cid, n in by_core.items():
+            counts[cwid][cid] += n
+    for rec in records:
+        if rec.status == STATUS_CONFIRMED:
+            for cwid in bylines.get(rec.pmid, []):
+                counts[cwid][core.core_id] += 1
+    affinity_index = signals.build_affinity_index(counts)
+
+    out = []
+    for rec in records:
+        if rec.status == STATUS_CONFIRMED:
+            out.append(rec)
+            continue
+        sig = sigs[rec.pmid]
+        sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []), core.core_id)
+        out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at, triage_threshold=threshold))
+    return out
 
 
 def main(argv=None):
@@ -72,6 +110,8 @@ def main(argv=None):
     ap.add_argument("--test", type=int, help="limit to N publications")
     ap.add_argument("--with-llm", action="store_true", help="enable Bedrock triage (signal 4)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
+    ap.add_argument("--with-affinity", action="store_true",
+                    help="seed the repeat-user prior from prior DynamoDB confirmations (signal 1 cross-run)")
     ap.add_argument("--dry-run", action="store_true", help="do not write to DynamoDB")
     ap.add_argument("--threshold", type=float, default=_combine.DEFAULT_TRIAGE_THRESHOLD)
     args = ap.parse_args(argv)
@@ -89,10 +129,14 @@ def main(argv=None):
 
     full_text = _make_fulltext_loader(args.with_fulltext)
     scored_at = now_iso()
+    # Bylines once per run (shared across cores) to attribute prior confirmations.
+    bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
     all_records = []
     for core in cores:
+        prior_counts = load_prior_user_counts(core.core_id, bylines, enabled=args.with_affinity)
         recs = run_core(core, pubs, bedrock=bedrock, full_text=full_text,
-                        threshold=args.threshold, scored_at=scored_at, engine=engine)
+                        threshold=args.threshold, scored_at=scored_at, engine=engine,
+                        prior_user_counts=prior_counts)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")

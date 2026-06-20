@@ -54,3 +54,51 @@ def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) 
     if items:
         batch_write(client, table_name, items)
     return len(items)
+
+
+# Statuses that establish a (pub, core) usage for the affinity prior. 'claimed'
+# (human-confirmed in SPS) and engine 'confirmed' both count; candidates do not.
+_USER_STATUSES = {"confirmed", "claimed"}
+
+
+def scan_prior_core_usage(core_id: str = None, *, client=None, table_name: str = TABLE_NAME) -> list:
+    """Return prior [{pmid, core_id, status}] for confirmed/claimed CORE# rows.
+
+    Full-table paginated Scan with a server-side FilterExpression (same pattern as
+    scan_invalid_pmids). Used to seed the cross-run repeat-user affinity prior.
+    Returns [] on any error (e.g. table absent on first run) so the pipeline still
+    runs on this run's own confirmations.
+    """
+    client = client or get_dynamo_client()
+    statuses = list(_USER_STATUSES)
+    eav = {":sk": {"S": "CORE#"}}
+    filt = "begins_with(SK, :sk) AND (" + " OR ".join(f"#st = :s{i}" for i in range(len(statuses))) + ")"
+    for i, s in enumerate(statuses):
+        eav[f":s{i}"] = {"S": s}
+    if core_id is not None:
+        filt += " AND core_id = :cid"
+        eav[":cid"] = {"S": str(core_id)}
+    kwargs = {
+        "TableName": table_name,
+        "ProjectionExpression": "pmid, core_id, #st",
+        "FilterExpression": filt,
+        "ExpressionAttributeNames": {"#st": "status"},
+        "ExpressionAttributeValues": eav,
+    }
+    out: list = []
+    try:
+        while True:
+            resp = client.scan(**kwargs)
+            for it in resp.get("Items", []):
+                out.append({
+                    "pmid": it.get("pmid", {}).get("S", ""),
+                    "core_id": it.get("core_id", {}).get("S", ""),
+                    "status": it.get("status", {}).get("S", ""),
+                })
+            lek = resp.get("LastEvaluatedKey")
+            if not lek:
+                break
+            kwargs["ExclusiveStartKey"] = lek
+    except Exception:
+        return []
+    return out

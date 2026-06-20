@@ -16,6 +16,9 @@ from pipeline_cores.models import (
 from pipeline_cores.signals import (
     SCREEN_CUTOFF,
     acknowledgement_signal,
+    affinity_strength,
+    author_affinity,
+    build_affinity_index,
     llm_triage,
 )
 
@@ -112,6 +115,23 @@ def test_fulltext_negative_cache(tmp_path):
     assert client.get("888") == ""                    # cached "no PMC" -> empty, no HTTP
 
 
+# --- author affinity (signal 1, repeat-user prior) -------------------------
+def test_affinity_strength_scales_with_confirmed_count_and_caps():
+    assert affinity_strength(0) == 0.0
+    assert affinity_strength(1) == 0.45
+    assert affinity_strength(2) == 0.60
+    assert affinity_strength(99) == 0.85          # capped
+
+
+def test_build_affinity_index_and_lookup():
+    idx = build_affinity_index({"djb2001": {"2": 3}, "abc1001": {"5": 1}})
+    assert author_affinity(idx, ["djb2001"], "2") == affinity_strength(3)
+    assert author_affinity(idx, ["abc1001"], "2") == 0.0      # different core
+    assert author_affinity(idx, ["nobody"], "2") == 0.0       # unknown author
+    # max across the byline
+    assert author_affinity(idx, ["nobody", "djb2001"], "2") == affinity_strength(3)
+
+
 # --- LLM triage two-pass logic (fake Bedrock, no network) ------------------
 class _FakeBedrock:
     """Records calls; returns a screen int from .call and a dense dict from .call_json."""
@@ -144,6 +164,30 @@ def test_triage_screened_in_runs_dense_and_keeps_rationale():
     assert fb.call_json_count == 1
     assert out["5"]["score"] == 8 and out["5"]["screen"] == SCREEN_CUTOFF
     assert out["5"]["rationale"] == "used 3T MRI at the core"
+
+
+# --- two-phase affinity recompute in run_core (monkeypatched DB reads) ------
+def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
+    """A co-author-confirmed paper makes the same author's other (weak) paper a
+    candidate via the repeat-user prior — the compounding behavior."""
+    from pipeline_cores import ingest, run, signals
+
+    core = load_core("2")
+    pubs = [
+        {"pmid": "100", "title": "MRI paper by core staff", "abstract": ""},
+        {"pmid": "200", "title": "Weak paper, same author", "abstract": ""},
+    ]
+    # 100 is co-authored by core staff djb2001 -> auto-confirmed.
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {"100": ["djb2001"]})
+    # Both papers share author djb2001 on the byline.
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["djb2001"], "200": ["djb2001"]})
+
+    recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                            scored_at="t", engine=None)}
+    assert recs["100"].status == STATUS_CONFIRMED
+    # 200 had no direct signal, but inherits djb2001's confirmed affinity (0.45 >= 0.30).
+    assert recs["200"].status == STATUS_CANDIDATE
+    assert recs["200"].likelihood >= 0.45
 
 
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):

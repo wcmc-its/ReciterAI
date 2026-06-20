@@ -29,6 +29,13 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 `combine.combine()` auto-**confirms** on signals 2 or 3; otherwise noisy-ORs the
 LLM score and affinity into a **candidate** likelihood for the claim queue.
 
+**Repeat-user prior (signal 1):** core users are overwhelmingly repeat users, so
+`run_core` runs two phases — deterministic+LLM first, then it attributes every
+confirmed/claimed paper (this run + prior runs via DynamoDB) to its byline
+authors and re-scores the rest. One confirmation thus lifts all of that author's
+other papers. `affinity_strength(n)` scales 0.45→0.85 with the author's confirmed
+count for the core.
+
 ## Data flow
 ```
 ReciterDB (read-only)            config/core_dictionary.yaml
@@ -48,12 +55,14 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
   loader** (`fulltext.py`, cached; signal 3 confirmed end-to-end on real CBIC
   papers); co-authorship SQL (`utils.db`; fires on real pilot PMIDs);
   **two-pass LLM triage** (`signals.llm_triage`, Haiku screen → Sonnet dense,
-  calibrated on the pilot — see below); combiner.
+  calibrated on the pilot — see below); **author-affinity repeat-user prior**
+  (`run.run_core` two-phase + `persist.scan_prior_core_usage` cross-run
+  read-back; verified live: a staff-confirmed paper lifts its non-staff
+  co-authors' sibling papers to candidate); combiner.
 - **Wired to real utils, not yet run end-to-end:** DynamoDB persist
   (`utils.dynamodb_helpers`).
-- **TODO:** affinity read-back (`run.load_confirmed_pairs`) + full-byline author
-  read; one-Haiku-call-screens-all-cores optimization; S3-backed full-text cache
-  for the whole corpus.
+- **TODO:** one-Haiku-call-screens-all-cores optimization; S3-backed full-text
+  cache for the whole corpus; per-author time decay / noisy-OR in affinity.
 
 ### LLM-triage calibration (237-paper pilot, Bedrock Haiku 4.5 + Sonnet 4.6)
 - Haiku screen at `SCREEN_CUTOFF=2` → **100% recall** (no true positives lost before dense scoring).

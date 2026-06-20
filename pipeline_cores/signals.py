@@ -82,21 +82,44 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None) -> dict
 # ---------------------------------------------------------------------------
 # Signal 1 — author x core affinity (repeat-user prior; compounding)
 # ---------------------------------------------------------------------------
-def author_affinity(confirmed_pairs: dict, byline_cwids: list, core_id: str) -> float:
-    """Prior that THIS paper used the core, from its authors' history.
+# Affinity strength as a function of how many confirmed/claimed papers an author
+# has for a core. Core users are overwhelmingly repeat users, so even one prior
+# confirmed paper is a meaningful prior; more confirmed papers -> stronger, with
+# a cap below the deterministic-confirmer likelihoods.
+_AFFINITY_BASE = 0.45      # one confirmed paper by this author for this core
+_AFFINITY_STEP = 0.15      # per additional confirmed paper
+_AFFINITY_CAP = 0.85
 
-    Core users are overwhelmingly repeat users: once a CWID is confirmed (claim /
-    acknowledgement / staff-coauthorship) for a core, all of that author's other
-    papers inherit a prior. `confirmed_pairs` maps cwid -> {core_id: strength}
-    accumulated from prior runs + SPS claims. Returns the max affinity across the
-    paper's byline (noisy-OR across authors could replace `max` once calibrated).
 
-    TODO(calibration): add light time decay and weight by how many confirmed
-    papers the author has for the core.
+def affinity_strength(confirmed_count: int) -> float:
+    if confirmed_count <= 0:
+        return 0.0
+    return min(_AFFINITY_CAP, _AFFINITY_BASE + _AFFINITY_STEP * (confirmed_count - 1))
+
+
+def build_affinity_index(user_paper_counts: dict) -> dict:
+    """cwid -> {core_id: strength} from per-(cwid, core) confirmed-paper counts.
+
+    `user_paper_counts` maps cwid -> {core_id: n_confirmed_papers}, aggregated
+    from this run's confirmations plus prior confirmed/claimed records.
+    """
+    index: dict = {}
+    for cwid, by_core in user_paper_counts.items():
+        index[cwid] = {core_id: affinity_strength(n) for core_id, n in by_core.items()}
+    return index
+
+
+def author_affinity(affinity_index: dict, byline_cwids: list, core_id: str) -> float:
+    """Prior that THIS paper used the core, from its authors' confirmed history.
+
+    Returns the max affinity across the paper's byline. `affinity_index` is the
+    output of build_affinity_index (cwid -> {core_id: strength}).
+
+    TODO(calibration): light time decay; noisy-OR across authors instead of max.
     """
     best = 0.0
     for cwid in byline_cwids:
-        best = max(best, confirmed_pairs.get(cwid, {}).get(core_id, 0.0))
+        best = max(best, affinity_index.get(cwid, {}).get(core_id, 0.0))
     return best
 
 
