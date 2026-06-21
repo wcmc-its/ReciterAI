@@ -58,7 +58,7 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool) -> dic
 
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
-             engine, prior_user_counts=None):
+             engine, prior_user_counts=None, screen_map=None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -69,7 +69,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
     bylines = ingest.fetch_author_bylines(engine, pmids)
-    llm_scores = signals.llm_triage(bedrock, core, pubs) if bedrock else {}
+    llm_scores = signals.llm_triage(bedrock, core, pubs, screen_map=screen_map) if bedrock else {}
 
     # Phase 1 — deterministic + LLM signals.
     sigs, records = {}, []
@@ -136,12 +136,15 @@ def main(argv=None):
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
+    # One Haiku screen per pub covers ALL cores (≈13x fewer screen calls); the
+    # per-core dense Sonnet pass still runs inside each run_core.
+    screen_map = signals.screen_all_cores(bedrock, cores, pubs) if bedrock else None
     all_records = []
     for core in cores:
         prior_counts = load_prior_user_counts(core.core_id, bylines, enabled=args.with_affinity)
         recs = run_core(core, pubs, bedrock=bedrock, full_text=full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
-                        prior_user_counts=prior_counts)
+                        prior_user_counts=prior_counts, screen_map=screen_map)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")

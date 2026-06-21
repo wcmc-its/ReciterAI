@@ -61,13 +61,24 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
   co-authors' sibling papers to candidate); combiner.
 - **Wired to real utils, not yet run end-to-end:** DynamoDB persist
   (`utils.dynamodb_helpers`).
-- **TODO:** one-Haiku-call-screens-all-cores optimization; per-author time decay
-  / noisy-OR in affinity.
-- **Done (was TODO):** S3-backed full-text cache — `fulltext.py` now reads/writes
-  through `s3://wcmc-reciterai-artifacts/cores/fulltext/{pmid}.xml` (best-effort,
-  negatives cached durably). Warm it out of band before a full run with
-  `python3 -m pipeline_cores.prefetch_fulltext` so the corpus is fetched from NCBI
-  once, not on every cold host.
+- **TODO:** per-author **time decay** in affinity — weight each confirmation by
+  recency. Deferred: needs the publication year carried into
+  `persist.scan_prior_core_usage` and a half-life calibrated on
+  `analysis/labeled_set.csv` (don't guess the decay blind).
+- **Done (was TODO):**
+  - **S3-backed full-text cache** — `fulltext.py` reads/writes through
+    `s3://wcmc-reciterai-artifacts/cores/fulltext/{pmid}.xml` (best-effort,
+    negatives cached durably). Warm it out of band before a full run with
+    `python3 -m pipeline_cores.prefetch_fulltext` so the corpus is fetched from
+    NCBI once, not on every cold host.
+  - **one-Haiku-screens-all-cores** — `signals.screen_all_cores` does ONE Haiku
+    screen per pub covering every core (≈13x fewer screen calls); `run.py` computes
+    it once and threads it into each core's `llm_triage` (per-core dense Sonnet pass
+    unchanged). Validate screen→cutoff parity on `analysis/calibrate_llm_triage.py`
+    before the full run.
+  - **noisy-OR author affinity** — `signals.author_affinity` combines a paper's
+    repeat-user co-authors with 1−Π(1−sᵢ) (was: max), clamped below the
+    deterministic-confirmer ceiling.
 
 ### LLM-triage calibration (237-paper pilot, Bedrock Haiku 4.5 + Sonnet 4.6)
 - Haiku screen at `SCREEN_CUTOFF=2` → **100% recall** (no true positives lost before dense scoring).

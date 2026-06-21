@@ -112,15 +112,26 @@ def build_affinity_index(user_paper_counts: dict) -> dict:
 def author_affinity(affinity_index: dict, byline_cwids: list, core_id: str) -> float:
     """Prior that THIS paper used the core, from its authors' confirmed history.
 
-    Returns the max affinity across the paper's byline. `affinity_index` is the
-    output of build_affinity_index (cwid -> {core_id: strength}).
+    Noisy-OR across the byline's per-author strengths — two repeat users of the
+    core on one paper are stronger combined evidence than either alone:
+    1 - Π(1 - strength_i). Clamped to _AFFINITY_CAP so the prior never reaches the
+    deterministic-confirmer ceiling (a real acknowledgement/staff-coauthor must
+    still outrank any stack of priors). `affinity_index` is the output of
+    build_affinity_index (cwid -> {core_id: strength}).
 
-    TODO(calibration): light time decay; noisy-OR across authors instead of max.
+    TODO(calibration): per-author time decay — weight each confirmation by recency
+    so a 2014 paper counts less than a 2024 one. Deferred: needs the publication
+    year carried into persist.scan_prior_core_usage and a half-life tuned on
+    analysis/labeled_set.csv before it can be trusted.
     """
-    best = 0.0
+    complement = 1.0
     for cwid in byline_cwids:
-        best = max(best, affinity_index.get(cwid, {}).get(core_id, 0.0))
-    return best
+        strength = affinity_index.get(cwid, {}).get(core_id, 0.0)
+        if strength > 0.0:
+            complement *= (1.0 - strength)
+    if complement >= 1.0:                       # no author contributed any affinity
+        return 0.0
+    return min(_AFFINITY_CAP, 1.0 - complement)
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +156,54 @@ def _screen_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
     )
 
 
+def _screen_all_prompt(cores: list, title: str, abstract: str) -> str:
+    catalog = "\n".join(f'  "{c.core_id}": {c.name} — {c.llm_description}' for c in cores)
+    return (
+        "Quickly screen which WCM institutional core facilities were plausibly "
+        "USED to produce this research, judging from title+abstract only.\n\n"
+        f"Cores (id: name — what it does):\n{catalog}\n\n"
+        f"Title: {title}\nAbstract: {abstract or '(none)'}\n\n"
+        "For EACH core id give an integer 1 (clearly unrelated) to 10 (clearly used "
+        "the core). When unsure, lean higher. Return ONLY a JSON object mapping every "
+        'core id to its integer, e.g. {"2": 7, "5": 1}. Include every core id.'
+    )
+
+
+def _parse_core_scores(raw, cores: list) -> dict:
+    """Coerce a model JSON reply into {core_id: int 1-10}; missing id -> 1."""
+    raw = raw or {}
+    return {c.core_id: _parse_int(raw.get(c.core_id, raw.get(str(c.core_id), 1))) for c in cores}
+
+
+def screen_all_cores(bedrock, cores: list, pubs: list) -> dict:
+    """One Haiku call per pub screens it against ALL cores at once.
+
+    Returns {pmid: {core_id: screen_int}}. This is the production cost lever:
+    ~13x fewer Haiku screen calls than screening each core separately (one call
+    per pub instead of one per pub*core). A pub the safety filter drops, or whose
+    reply omits a core, defaults that core to 1 (screened out) — dense scoring is
+    where anything at/above SCREEN_CUTOFF is re-judged per core.
+
+    NB (calibration): validate on analysis/calibrate_llm_triage.py that the
+    all-cores screen retains 100% of true positives at SCREEN_CUTOFF (parity with
+    the per-core screen) before trusting it for a full run.
+    """
+    from utils.bedrock_client import HAIKU_MODEL, BedrockEmptyContentError  # lazy
+
+    out: dict = {}
+    for pub in pubs:
+        pmid, title, abstract = str(pub["pmid"]), pub.get("title", ""), pub.get("abstract", "")
+        try:
+            raw = bedrock.call_json(
+                model=HAIKU_MODEL,
+                messages=[{"role": "user", "content": _screen_all_prompt(cores, title, abstract)}],
+            )
+            out[pmid] = _parse_core_scores(raw, cores)
+        except BedrockEmptyContentError:
+            out[pmid] = {c.core_id: 1 for c in cores}  # safety filter -> screen all out
+    return out
+
+
 def _dense_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
     return (
         "Score whether a specific WCM core facility was USED to produce this "
@@ -157,7 +216,7 @@ def _dense_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
     )
 
 
-def llm_triage(bedrock, core: CoreDefinition, pubs: list) -> dict:
+def llm_triage(bedrock, core: CoreDefinition, pubs: list, screen_map: dict = None) -> dict:
     """Map pmid -> {"screen", "score", "rationale"} from title+abstract.
 
     Two-pass, mirroring score_publications.py: Pass 1 Haiku screen (recall-first,
@@ -166,19 +225,25 @@ def llm_triage(bedrock, core: CoreDefinition, pubs: list) -> dict:
     Conservative in validation (4% FP on clear negatives) — used to RANK the claim
     queue, never to auto-label.
 
-    Production optimization (TODO): screen ALL cores in one Haiku call per pub
-    (as score_publications screens all topics at once) instead of once per core.
+    `screen_map` is the precomputed all-cores screen ({pmid: {core_id: int}} from
+    screen_all_cores): when supplied, Pass 1 reads the shared screen for THIS core
+    instead of a per-core Haiku call — collapsing ~13x screen calls into one per
+    pub. Omit it to keep the legacy per-core Haiku screen (still used by direct
+    callers / tests).
     """
     from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL, BedrockEmptyContentError  # lazy
 
     out: dict = {}
     for pub in pubs:
         pmid, title, abstract = str(pub["pmid"]), pub.get("title", ""), pub.get("abstract", "")
-        try:
-            screen = _parse_int(bedrock.call(model=HAIKU_MODEL,
-                                             messages=[{"role": "user", "content": _screen_prompt(core, title, abstract)}]))
-        except BedrockEmptyContentError:
-            screen = 1  # safety-filter on a biomedical abstract -> treat as screened out
+        if screen_map is not None:
+            screen = screen_map.get(pmid, {}).get(core.core_id, 1)  # shared all-cores screen
+        else:
+            try:
+                screen = _parse_int(bedrock.call(model=HAIKU_MODEL,
+                                                 messages=[{"role": "user", "content": _screen_prompt(core, title, abstract)}]))
+            except BedrockEmptyContentError:
+                screen = 1  # safety-filter on a biomedical abstract -> treat as screened out
         rec = {"screen": screen, "score": screen, "rationale": ""}
         if screen >= SCREEN_CUTOFF:
             try:
