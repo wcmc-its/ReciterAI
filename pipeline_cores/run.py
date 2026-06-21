@@ -117,6 +117,10 @@ def main(argv=None):
                     help="back the full-text cache with the shared S3 cache (warm with -m pipeline_cores.prefetch_fulltext)")
     ap.add_argument("--with-affinity", action="store_true",
                     help="seed the repeat-user prior from prior DynamoDB confirmations (signal 1 cross-run)")
+    ap.add_argument("--all-cores-screen", action="store_true",
+                    help="EXPERIMENTAL: one Haiku call per pub screens all cores at once (13x fewer "
+                         "screen calls) but lost screen recall on the 237-pilot (TP regressions collapse "
+                         "to score 1) — OFF by default until re-calibrated to per-core parity")
     ap.add_argument("--dry-run", action="store_true", help="do not write to DynamoDB")
     ap.add_argument("--threshold", type=float, default=_combine.DEFAULT_TRIAGE_THRESHOLD)
     args = ap.parse_args(argv)
@@ -136,9 +140,12 @@ def main(argv=None):
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
-    # One Haiku screen per pub covers ALL cores (≈13x fewer screen calls); the
-    # per-core dense Sonnet pass still runs inside each run_core.
-    screen_map = signals.screen_all_cores(bedrock, cores, pubs) if bedrock else None
+    # Default: the per-core Haiku screen inside each run_core (calibration-validated
+    # 100% recall@SCREEN_CUTOFF on the 237-pilot). The all-cores screen (one call per
+    # pub) cuts screen calls ~13x but lost 7-11% screen recall on that pilot — its
+    # borderline true positives collapse to score 1 — so it is opt-in (--all-cores-screen)
+    # until re-calibrated to parity. See pipeline_cores/README.md.
+    screen_map = signals.screen_all_cores(bedrock, cores, pubs) if (bedrock and args.all_cores_screen) else None
     all_records = []
     for core in cores:
         prior_counts = load_prior_user_counts(core.core_id, bylines, enabled=args.with_affinity)

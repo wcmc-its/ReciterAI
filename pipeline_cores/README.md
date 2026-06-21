@@ -72,10 +72,13 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
     `python3 -m pipeline_cores.prefetch_fulltext` so the corpus is fetched from
     NCBI once, not on every cold host.
   - **one-Haiku-screens-all-cores** — `signals.screen_all_cores` does ONE Haiku
-    screen per pub covering every core (≈13x fewer screen calls); `run.py` computes
-    it once and threads it into each core's `llm_triage` (per-core dense Sonnet pass
-    unchanged). Validate screen→cutoff parity on `analysis/calibrate_llm_triage.py`
-    before the full run.
+    screen per pub covering every core (≈13x fewer screen calls); wired into
+    `run.py` behind `--all-cores-screen`. **OPT-IN, not default:** calibration on the
+    237-pilot (`analysis/calibrate_all_cores_screen.py`) showed it loses screen recall
+    — 89.1% vs the per-core screen's 100% (a recall-first prompt floor only reached
+    93.4%, while ~doubling dense fan-out). The screen must be recall-first, so the
+    **per-core screen carries the full run** until the all-cores path re-calibrates to
+    parity. Re-run that script before flipping it on.
   - **noisy-OR author affinity** — `signals.author_affinity` combines a paper's
     repeat-user co-authors with 1−Π(1−sᵢ) (was: max), clamped below the
     deterministic-confirmer ceiling.
