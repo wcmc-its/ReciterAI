@@ -31,3 +31,260 @@ cores:
     llm_description: >
       multimodal imaging research; advanced MRI/MRS, PET/CT, MicroPET/SPECT/CT,
       optical imaging, ultrasound, cyclotron, radiochemistry for radiotracer synthesis
+
+  # ---------------------------------------------------------------------------
+  # The remaining 12 cores, resolved 2026-06-21 against reciterdb.identity (prod)
+  # + reciterdb.analysis_summary_author (the table signal 2 queries).
+  #   tracked: true  = CWID has resolved-authorship rows in analysis_summary_author
+  #                    (signal 2 will fire). tracked: false = in identity but no
+  #                    resolved-author rows (upstream ReCiter target gap), OR a
+  #                    founder/PI whose large independent lab would over-confirm.
+  # Some service cores (Flow, Biorepository, Metabolic Phenotyping, Microbiome,
+  #   Human Immune Monitoring, Proteomics) have NO firing staff: their hands-on
+  #   core staff are not ReCiter target persons. Those lean on signal-3 aliases
+  #   until the staff are added to the ReCiter target feed (upstream fix).
+  # Aliases deliberately omit collision-prone bare acronyms (ABC/FACS/IBC/MPC/NMR).
+  # ---------------------------------------------------------------------------
+
+  - core_id: "1"
+    name: Applied Bioinformatics
+    facility: Applied Bioinformatics Core
+    owner_cwid: null
+    aliases:
+      - "Applied Bioinformatics Core"
+      - "Applied Bioinformatics Core Facility"
+      - "Applied Bioinformatics Core (ABC)"
+      - "Applied Bioinformatics Core at Weill Cornell Medicine"
+    staff:
+      - { cwid: dob2014, name: "Doron Betel",     dept: Medicine, tracked: true }
+      - { cwid: paz2005, name: "Paul Zumbo",      dept: "Systems and Computational Biomedicine", tracked: true }
+      - { cwid: las2017, name: "Lucy Skrabanek",  dept: "Systems and Computational Biomedicine", tracked: true }
+      - { cwid: pim2001, name: "Piali Mukherjee", dept: Medicine, tracked: true }
+    grant_ids: []
+    llm_description: >
+      bioinformatics service core: data management and analysis for high-throughput
+      genomic assays — bulk/single-cell/spatial transcriptomics, epigenetics
+      (ChIP-seq, ATAC-seq, bisulfite), variant calling, functional/pathway analysis,
+      and standardized computational pipelines with QC and detailed reporting
+
+  - core_id: "3"
+    name: Epigenomics
+    facility: Epigenomics Core
+    owner_cwid: null
+    aliases:
+      - "Epigenomics Core"
+      - "Epigenomics Core Facility"
+      - "Weill Cornell Medicine Epigenomics Core"
+      - "Epigenomics Core of Weill Cornell Medicine"
+    staff:
+      - { cwid: dob2014, name: "Doron Betel",      dept: Medicine, tracked: true }
+      - { cwid: kab3004, name: "Kalpita Banerjee", dept: Ophthalmology, tracked: true }
+      # ala2035 = sole "Alicia Alonso" in identity (dept Medicine, 150 pubs); identity
+      # match to the Epigenomics director is UNCERTAIN + own-research over-confirm risk.
+      - { cwid: ala2035, name: "Alicia Alonso",    dept: Medicine, tracked: false }
+    grant_ids: []
+    llm_description: >
+      epigenomics + bioinformatics core: DNA methylation (RRBS/WGBS/EMSeq),
+      ATAC-seq, single-cell and spatial transcriptomics (Visium HD, CosMx, Xenium),
+      immune profiling; Illumina NovaSeq 6000 / MiSeq plus downstream analysis
+
+  - core_id: "4"
+    name: Flow Cytometry
+    facility: Flow Cytometry Core Facility
+    owner_cwid: null
+    aliases:
+      - "Flow Cytometry Core Facility"
+      - "Flow Cytometry Core Facility, Weill Cornell Medicine"
+      - "Weill Cornell Medicine Flow Cytometry Core"
+      - "Flow Cytometry Core"
+    # Managers McCormick/Baumgartner + staff Byrne/Romero are NOT ReCiter target
+    # persons -> no signal-2 coverage. Aliases-only until added to the target feed.
+    staff: []
+    grant_ids: []
+    llm_description: >
+      operator-assisted fluorescence-activated cell sorting plus self-service
+      BD Fortessa and FACSCelesta analyzers (24/7), with FCS Express and FlowJo
+
+  - core_id: "5"
+    name: Genomics Resources
+    facility: Genomics Resources Core Facility
+    owner_cwid: null
+    aliases:
+      - "Genomics Resources Core Facility"
+      - "Genomics Resources Core Facility at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Genomics Resources Core Facility"
+      - "GRCF"
+    staff:
+      - { cwid: jzx2002, name: "Jenny Xiang",         dept: "Microbiology and Immunology", tracked: true }
+      - { cwid: taz2008, name: "Tuo Zhang",           dept: "", tracked: true }
+      # In identity but no resolved-author rows (upstream gap) -> tracked: false.
+      - { cwid: chp2020, name: "Chendong Pan",        dept: "Microbiology and Immunology", tracked: false }
+      - { cwid: yit2001, name: "Adrian Ying-Cai Tan", dept: "", tracked: false }
+      - { cwid: ail2004, name: "Aihong Liu",          dept: "", tracked: false }
+    grant_ids: []
+    llm_description: >
+      Illumina NGS core (RNA-Seq, ChIP-Seq, WGS/WES, panel-seq) plus single-cell
+      library prep/sequencing (scRNA/scATAC/scTCR-BCR, Multiome), with QC, library
+      construction, sequencing, and bioinformatics support
+
+  - core_id: "6"
+    name: Institutional Biorepository Core
+    facility: Institutional Biorepository Core
+    owner_cwid: null
+    aliases:
+      - "Institutional Biorepository Core"
+      - "Weill Cornell Institutional Biorepository Core"
+      - "Institutional Biorepository Core (IBC)"
+      - "WCM Institutional Biorepository Core"
+    # Director Salpietro + technicians are not ReCiter target persons. This core is
+    # typically ACKNOWLEDGED by name (e.g. PMC8564891), so signal-3 alias text-match
+    # is the operative signal; co-authorship (signal 2) is unavailable.
+    staff: []
+    grant_ids: []
+    llm_description: >
+      institutional biospecimen shared resource: acquisition/processing of solid
+      tissue from ORs and procedure suites, biofluid fractionation (plasma, serum,
+      buffy coat, cryopreserved PBMC), and regulated multi-temperature storage
+
+  - core_id: "7"
+    name: Metabolic Phenotyping Center
+    facility: Metabolic Phenotyping Center
+    owner_cwid: null
+    aliases:
+      - "Metabolic Phenotyping Center"
+      - "Metabolic Phenotyping Center (MPC)"
+      - "Weill Cornell Metabolic Phenotyping Center"
+      - "WCM Metabolic Phenotyping Center"
+      - "Metabolic Phenotyping Core"
+    # Core Manager Debarba + Technician Lama are not ReCiter target persons; the
+    # five faculty are an ADVISORY BOARD (own labs) and are excluded to protect
+    # precision. Aliases-only until core staff are added to the target feed.
+    staff: []
+    grant_ids: []
+    llm_description: >
+      comprehensive mouse metabolic phenotyping: Promethion metabolic cages,
+      EchoMRI body composition, FLIR thermography, bomb calorimetry,
+      glucose/insulin/pyruvate tolerance tests, Seahorse cellular bioenergetics
+
+  - core_id: "8"
+    name: Microbiome Sequencing
+    facility: Microbiome Core
+    owner_cwid: null
+    aliases:
+      - "Microbiome Core"
+      - "Weill Cornell Medicine Microbiome Core"
+      - "Weill Cornell Microbiome Core"
+      - "WCM Microbiome Core"
+      - "Microbiome Sequencing Core"
+    # Operational staff (manager Gandara, bioinformatician Grier) are not ReCiter
+    # target persons. The co-founders below ARE tracked but run large independent
+    # labs -> tracked: false to avoid over-confirming their non-core papers.
+    staff:
+      - { cwid: ili2001, name: "Iliyan Iliev",  dept: Medicine, tracked: false }
+      - { cwid: daa2028, name: "David Artis",   dept: Medicine, tracked: false }
+      - { cwid: ral2006, name: "Randy Longman", dept: Medicine, tracked: false }
+    grant_ids: []
+    llm_description: >
+      microbiome sequencing core: 16S rRNA amplicon, shotgun metagenomic, and
+      Oxford Nanopore long-read sequencing plus bioinformatics analysis
+
+  - core_id: "9"
+    name: Advanced Biomolecular Analysis Core
+    facility: Advanced Biomolecular Analysis Core
+    owner_cwid: null
+    aliases:
+      - "Advanced Biomolecular Analysis Core"
+      - "Advanced Biomolecular Analysis Core (ABAC)"
+      - "ABAC"
+      - "WCM Advanced Biomolecular Analysis Core"
+    staff:
+      - { cwid: qic2005, name: "Qiuying Chen",  dept: Pharmacology, tracked: true }
+      # Director; no resolved-author rows (0 pubs in analysis_summary_author) and may
+      # have departed WCM -> tracked: false. Distinct from #13 (do not merge).
+      - { cwid: nod2007, name: "Noah Dephoure", dept: Biochemistry, tracked: false }
+    grant_ids: []
+    llm_description: >
+      mass-spectrometry core: custom proteomics (PTM, AP-MS / proximity-labeling
+      interactions, multiplexed abundance), MALDI imaging of tissue
+      lipids/peptides/metabolites, and targeted quantitative LC-MS
+
+  - core_id: "10"
+    name: Human Immune Monitoring
+    facility: Human Immune Monitoring Core
+    owner_cwid: null
+    aliases:
+      - "Human Immune Monitoring Core"
+      - "Human Immune Monitoring Core (HIMC)"
+      - "Ellen and Gary Davis Immune Monitoring Core"
+      - "Davis Cancer Immune Monitoring Core"
+    # hir4001 = mass-cytometry specialist but no resolved-author rows (upstream gap);
+    # nia9069 = possible faculty director with a large own lab (over-confirm risk).
+    # Both tracked: false -> this core is aliases-only for now.
+    staff:
+      - { cwid: hir4001, name: "Hiranmayi Ravichandran",   dept: "Systems and Computational Biomedicine", tracked: false }
+      - { cwid: nia9069, name: "Niroshana Anandasabapathy", dept: Dermatology, tracked: false }
+    grant_ids: []
+    llm_description: >
+      high-parameter immune profiling: spectral flow cytometry (Cytek Aurora),
+      CyTOF mass cytometry (Helios), and imaging mass cytometry (Hyperion) for
+      single-cell, in-situ, and multiomic analysis
+
+  - core_id: "11"
+    name: Microscopy and Image Analysis
+    facility: Microscopy and Image Analysis Core
+    owner_cwid: null
+    aliases:
+      - "Microscopy and Image Analysis Core"
+      - "Microscopy and Image Analysis Core Facility"
+      - "Weill Cornell Medicine Microscopy and Image Analysis Core Facility"
+      - "Optical Microscopy Core"
+    staff:
+      - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics", tracked: true }
+      - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry, tracked: true }
+      # Senior director "Lee" = Leona Cohen-Gould in identity; no resolved-author rows.
+      - { cwid: lcgould,  name: "Leona Cohen-Gould",  dept: "Cell and Developmental Biology", tracked: false }
+    grant_ids: []
+    llm_description: >
+      optical (widefield/confocal/multiphoton), light-sheet, high-content/automated,
+      and electron microscopy plus histology and image analysis; Incucyte SX5,
+      Zeiss AxioObserver 7 / AxioScan 7, Ultramicroscope II, Leica Stellaris 8,
+      Acquifer HIVE; MetaMorph/MetaXpress, Imaris, Fiji/ImageJ
+
+  - core_id: "12"
+    name: Nuclear Magnetic Resonance
+    facility: Nuclear Magnetic Resonance (NMR) Core Facility
+    owner_cwid: null
+    aliases:
+      - "Nuclear Magnetic Resonance (NMR) Core Facility"
+      - "Nuclear Magnetic Resonance Core Facility"
+      - "NMR Core Facility"
+      - "NMR Core"
+    staff:
+      # "W. Clay Bracken" = William Bracken in identity; sole director of this core.
+      - { cwid: wcb2001, name: "William Bracken", dept: "", tracked: true }
+    grant_ids: []
+    llm_description: >
+      solution NMR spectroscopy for biological and chemical analysis: sample prep,
+      data collection, and structural/dynamic/ligand-binding interpretation
+      (1D/2D/multidimensional) on Bruker Avance III HD and Agilent/Varian Inova
+
+  - core_id: "13"
+    name: Proteomics and Metabolomics
+    facility: Proteomics & Metabolomics Core Facility
+    owner_cwid: null
+    aliases:
+      - "Proteomics & Metabolomics Core Facility"
+      - "Proteomics and Metabolomics Core Facility"
+      - "Meyer Cancer Center Proteomics and Metabolomics Core Facility"
+      - "Proteomics & Metabolomics Core"
+      - "Weill Cornell Proteomics & Metabolomics Core Facility"
+    # Director Guoan Zhang + scientists Zhu/Yang/Lei are NOT in ReCiter identity;
+    # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
+    # Aliases-only for now. Distinct from #9 ABAC (do not merge).
+    staff:
+      - { cwid: zhl4007, name: "Zhucui Li", dept: "Biochemistry and Biophysics", tracked: false }
+    grant_ids: []
+    llm_description: >
+      MS-based proteomics and metabolomics: protein ID, label-free / SILAC / TMT
+      quantitation, PTM analysis (phospho, ubiquitin, acetyl), immunopeptidomics,
+      and targeted/untargeted metabolite profiling with 13C stable-isotope tracing
