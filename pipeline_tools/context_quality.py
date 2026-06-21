@@ -141,3 +141,108 @@ def accept_snippet(span: str | None, abstract: str, tool_name: str) -> bool:
     if not (MIN_SNIPPET_CHARS <= len(s) <= MAX_SENTENCE_CHARS):
         return False
     return is_verbatim(s, abstract) and names_tool(s, tool_name) and is_single_sentence(s)
+
+
+# ---------------------------------------------------------------------------
+# Entity-grain helpers (#1166, the specific-cell-line Surface B data stage).
+#
+# These power the per-(publication x entity) provenance the Methods Surface-B
+# strip/directory render. They are the producer-side source of truth for two
+# fields the SPS rail/snippet were built to consume but nothing populated yet
+# (see SPS components/method/{provenance-rail,highlight-snippet}.tsx):
+#
+#   - ``matched_span`` — exact char offsets of the entity term within the
+#     usage sentence, so the SPS ``<mark>`` is reliable instead of a fragile
+#     client-side substring re-match (spec §7 "highlight needs offsets").
+#   - ``centrality_score`` — how central the entity is in the sentence; this is
+#     the port of the SPS-side ``nameFirstFraction`` heuristic
+#     (``etl/tools/tool-context.ts``) UP to the producer (spec Q-5), so SPS reads
+#     it instead of re-deriving, and the rail eyebrow ("How it was used" vs
+#     "Where it appears", D5) is driven from one place.
+#
+# Naming forms are derived from the entity's display name + registry aliases, so
+# a casing/synonym variant in the sentence still resolves a span (the
+# normalization already done by the tool registry's alias set).
+# ---------------------------------------------------------------------------
+
+_PAREN_INNER = re.compile(r"\(([^)]{2,})\)")
+
+
+def salient_name_forms(display_name: str, aliases: list[str] | None = None) -> list[str]:
+    """Lowercase forms of an entity name used to locate it in a sentence.
+
+    The full name, any parenthetical short form (``"(scRNA-seq)" -> "scrna-seq"``),
+    the name with parentheticals stripped, and every registry alias. Longest first,
+    so :func:`compute_matched_span` prefers the most specific occurrence (e.g.
+    ``"3T3-L1 adipocytes"`` over the bare ``"3T3-L1"``). Faithful port of the SPS
+    ``salientNameForms`` plus alias coverage. De-duplicated, order-stable.
+    """
+    forms: list[str] = []
+    seen: set[str] = set()
+
+    def _add(value: str | None) -> None:
+        v = (value or "").strip().lower()
+        if len(v) >= 2 and v not in seen:
+            seen.add(v)
+            forms.append(v)
+
+    name = (display_name or "").strip()
+    lower = name.lower()
+    if len(lower) >= 3:
+        _add(lower)
+    for m in _PAREN_INNER.finditer(name):
+        _add(m.group(1))
+    no_parens = re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", " ", lower)).strip()
+    if len(no_parens) >= 3 and no_parens != lower:
+        _add(no_parens)
+    for alias in aliases or []:
+        _add(alias)
+    # Longest first so a span match prefers the most specific (longest) form.
+    forms.sort(key=len, reverse=True)
+    return forms
+
+
+def name_first_fraction(snippet: str, forms: list[str]) -> float:
+    """Earliest position (fraction of length) at which the snippet names the entity.
+
+    Returns 1.0 when no form occurs. Lower => the entity is the subject (named
+    early); high => a late/incidental mention. Faithful port of the SPS
+    ``nameFirstFraction``.
+    """
+    if not forms:
+        return 1.0
+    s = (snippet or "").lower()
+    first = -1
+    for f in forms:
+        i = s.find(f)
+        if i >= 0 and (first < 0 or i < first):
+            first = i
+    return 1.0 if first < 0 else first / max(1, len(snippet or ""))
+
+
+def centrality_score(snippet: str, forms: list[str]) -> float:
+    """1 - name_first_fraction, rounded to 4dp; high => entity named early (central)."""
+    return round(1.0 - name_first_fraction(snippet, forms), 4)
+
+
+def compute_matched_span(snippet: str, forms: list[str]) -> tuple[int, int] | None:
+    """Char offsets ``(start, end)`` of the entity term in ``snippet``, or None.
+
+    Prefers the EARLIEST occurrence of the LONGEST matching form (``forms`` is
+    longest-first), so the most specific span is marked. Offsets index the
+    ORIGINAL (not lowercased) snippet; the match is case-insensitive. None when
+    no form occurs verbatim — SPS then falls back to its term-match highlighter.
+    """
+    if not snippet or not forms:
+        return None
+    low = snippet.lower()
+    best: tuple[int, int] | None = None
+    for f in forms:
+        i = low.find(f)
+        if i < 0:
+            continue
+        cand = (i, i + len(f))
+        # Earliest start wins; longer span breaks an exact-start tie.
+        if best is None or cand[0] < best[0] or (cand[0] == best[0] and cand[1] > best[1]):
+            best = cand
+    return best

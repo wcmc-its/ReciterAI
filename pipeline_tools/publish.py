@@ -32,17 +32,26 @@ from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
-# v2 over v1 (all additive — v1 consumers ignore the new fields / see fewer families):
+# v4 over v3 (all additive — v3 consumers ignore the new objects / fields):
+#   - two NEW sidecar objects for the Methods Surface-B specific-entity layer (#1166):
+#     `entities.json` (the per-family specific-entity DIMENSION — normalized id,
+#     parent nesting + descriptor, usage_count) and `entity_context.json` (the
+#     per-(publication x entity) FACTS — usage sentence, matched_span, centrality).
+#     Both are split OUT of the tools.json bundle like tool_context.json.
+# v3 over v2 / v2 over v1 (all additive):
 #   - faculty rollup tool/family rows carry `pmids` (the distinct set `pub_count`
 #     counts; len(pmids) == pub_count) — #175.
 #   - families carry a `display` tier ∈ {feature, standard, suppressed}.
 #   - the family set is the 820 consolidation (within-supercategory merges + relabels).
-PUBLISH_SCHEMA_VERSION = "tools-a2-v3"
+PUBLISH_SCHEMA_VERSION = "tools-a2-v4"
 S3_PREFIX = "tools/"
 # #193 sidecar provenance stamp — names WHAT the snippets are (per-publication
 # tool-usage context), so a consumer never mistakes them for a definitional gloss
 # or the (separate) context_evidence list. Mirrors membership.json's membership_kind.
 TOOL_CONTEXT_KIND = "tool_usage_snippet"
+# #1166 entity-facts provenance stamp — names WHAT the per-(pub x entity) snippets
+# are, distinct from the per-tool tool_context. Mirrors TOOL_CONTEXT_KIND.
+ENTITY_CONTEXT_KIND = "entity_usage_snippet"
 # Latest/manifest gets a short cache so SPS picks up a republish quickly; the
 # immutable versioned copies (if any) can be cached long. Mirrors the hierarchy
 # publisher's CacheControl posture.
@@ -99,6 +108,13 @@ def build_publish_payload(result, *, provenance: dict | None = None) -> dict:
         # payload so it reaches the publisher + local review, but split OUT of the
         # SPS-facing tools.json bundle by ``_split_artifacts`` into its own sidecar.
         "tool_context": getattr(result, "tool_context", {}) or {},
+        # #1166 specific-entity layer (Methods Surface B). The DIMENSION (one record
+        # per specific cell line, with parent nesting + usage_count) and the per-(pub
+        # x entity) FACTS (usage sentence + matched_span + centrality). Both are split
+        # out of the tools.json bundle into their own sidecars. Empty until the entity
+        # stage runs (pre-#1166 runs publish a v4 manifest with empty entity objects).
+        "entities": getattr(result, "entities", []) or [],
+        "entity_context": getattr(result, "entity_context", {}) or {},
     }
     return payload
 
@@ -136,9 +152,14 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
 
     # The per-publication context map (#193) ships as its own sidecar — keep it OUT
     # of the tools.json bundle (the Methods lens loads that; a {pmid: snippet} map
-    # over ~18k tools would bloat it). The bundle is byte-identical to before.
+    # over ~18k tools would bloat it). The #1166 entity objects are likewise split
+    # out (Surface B loads them per-family). The bundle is byte-identical to v3 when
+    # the entity objects are absent/empty.
+    _SPLIT_OUT = ("tool_context", "entities", "entity_context")
     tool_context = payload.get("tool_context", {})
-    tools_body = _bytes({k: v for k, v in payload.items() if k != "tool_context"})
+    entities = payload.get("entities", []) or []
+    entity_context = payload.get("entity_context", {}) or {}
+    tools_body = _bytes({k: v for k, v in payload.items() if k not in _SPLIT_OUT})
     families_body = _bytes({
         "schema_version": payload["schema_version"],
         "provenance": payload["provenance"],
@@ -162,12 +183,33 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
         },
         ensure_ascii=False, separators=(",", ":"), sort_keys=True,
     ).encode("utf-8")
+    # #1166 entity DIMENSION (entities.json) — the entity list is already sorted
+    # deterministically by build_entity_layer; emit compactly (a stable list does
+    # not need sort_keys). FACTS (entity_context.json) use sort_keys so the nested
+    # {entity_id: {pmid: [...]}} map is byte-stable across content-identical reruns
+    # (the tool_context.json / membership.json discipline).
+    entities_body = _bytes({
+        "schema_version": payload["schema_version"],
+        "provenance": payload["provenance"],
+        "entities": entities,
+    })
+    entity_context_body = json.dumps(
+        {
+            "schema_version": payload["schema_version"],
+            "provenance": payload["provenance"],
+            "entity_context_kind": ENTITY_CONTEXT_KIND,
+            "entity_context": entity_context,
+        },
+        ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8")
 
     items: list[PublishItem] = []
     for name, body in (("tools.json", tools_body),
                        ("families.json", families_body),
                        ("faculty.json", faculty_body),
-                       ("tool_context.json", tool_context_body)):
+                       ("tool_context.json", tool_context_body),
+                       ("entities.json", entities_body),
+                       ("entity_context.json", entity_context_body)):
         # Flat keys: preserve the existing posture exactly — tools.json carried
         # LATEST_CACHE_CONTROL, families/faculty carried none. Do not change the
         # flat contract while it is still the published surface.
@@ -213,6 +255,8 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
             "families": len(payload["families"]),
             "faculty": len(payload["faculty"]),
             "tool_context": len(payload.get("tool_context", {})),
+            "entities": len(payload.get("entities", []) or []),
+            "entity_context": len(payload.get("entity_context", {}) or {}),
         },
     }
 

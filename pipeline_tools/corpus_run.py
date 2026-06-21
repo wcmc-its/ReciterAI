@@ -99,6 +99,9 @@ class CorpusResult:
     faculty_rollup: dict = field(default_factory=dict)       # Step F: cwid -> {tools, families}
     grant_signal: dict = field(default_factory=dict)         # cid -> {appl_ids, investigator_cwids}
     tool_context: dict = field(default_factory=dict)         # #193 sidecar source: cid -> {pmid: snippet}
+    entities: list[dict] = field(default_factory=list)       # #1166 entity DIMENSION (entities.json)
+    entity_context: dict = field(default_factory=dict)       # #1166 (pub x entity) FACTS (entity_context.json)
+    entity_define_deltas: list[dict] = field(default_factory=list)  # #1166 render-only parent descriptors
     relabel_deltas: list[dict] = field(default_factory=list)
     merge_deltas: list[dict] = field(default_factory=list)
     override_deltas: list[dict] = field(default_factory=list)  # D-07 fix batch (v6→v7)
@@ -593,6 +596,28 @@ def run_corpus(
         for r in tool_registry.records()
         if (cbp := r.get("context_by_pub"))
     }
+    # #1166 — specific-entity (cell-line) layer for Methods Surface B. A pure
+    # projection over the assembled tool records + tool_context (the entity grain
+    # == the tool grain for cell lines; see pipeline_tools.entities). The
+    # render-only parent DESCRIPTOR is filled by an LLM define-pass (gated on
+    # `define`, like the #879 family definitions), partial-failure tolerant.
+    from pipeline_tools.entities import (
+        apply_parent_descriptors,
+        build_entity_layer,
+        define_entity_parents,
+    )
+    result.entities, result.entity_context, _entity_parents = build_entity_layer(
+        result.records, family_registry.records(), result.tool_context,
+    )
+    if define and result.entities and _entity_parents:
+        _descriptors = define_entity_parents(
+            _entity_parents, call_json=call_json, batch_size=define_batch_size,
+        )
+        apply_parent_descriptors(result.entities, _descriptors)
+        result.entity_define_deltas = [
+            {"parent_entity_id": pid, "descriptor": d} for pid, d in sorted(_descriptors.items())
+        ]
+
     result.hierarchy = _build_hierarchy(tool_registry, family_registry)
     result.exceptions = exceptions
     result.faculty_rollup = faculty_rollup
