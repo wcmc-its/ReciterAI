@@ -236,11 +236,23 @@ def test_affinity_strength_scales_with_confirmed_count_and_caps():
 
 def test_build_affinity_index_and_lookup():
     idx = build_affinity_index({"djb2001": {"2": 3}, "abc1001": {"5": 1}})
-    assert author_affinity(idx, ["djb2001"], "2") == affinity_strength(3)
+    assert author_affinity(idx, ["djb2001"], "2") == affinity_strength(3)   # single author: noisy-OR == strength
     assert author_affinity(idx, ["abc1001"], "2") == 0.0      # different core
     assert author_affinity(idx, ["nobody"], "2") == 0.0       # unknown author
-    # max across the byline
+    # one contributing author across the byline (the rest are zero) == that strength
     assert author_affinity(idx, ["nobody", "djb2001"], "2") == affinity_strength(3)
+
+
+def test_author_affinity_noisy_or_combines_repeat_users():
+    idx = build_affinity_index({"a": {"2": 1}, "b": {"2": 1}})    # each affinity_strength(1) = 0.45
+    val = author_affinity(idx, ["a", "b"], "2")
+    assert abs(val - (1 - 0.55 * 0.55)) < 1e-9                    # noisy-OR(0.45, 0.45) = 0.6975
+    assert val > affinity_strength(1)                            # two repeat users beat either alone
+
+
+def test_author_affinity_noisy_or_clamped_below_confirmer_ceiling():
+    idx = build_affinity_index({"a": {"2": 9}, "b": {"2": 9}, "c": {"2": 9}})  # each capped at 0.85
+    assert author_affinity(idx, ["a", "b", "c"], "2") == 0.85     # clamped to _AFFINITY_CAP, never >= 0.95
 
 
 # --- LLM triage two-pass logic (fake Bedrock, no network) ------------------
@@ -275,6 +287,77 @@ def test_triage_screened_in_runs_dense_and_keeps_rationale():
     assert fb.call_json_count == 1
     assert out["5"]["score"] == 8 and out["5"]["screen"] == SCREEN_CUTOFF
     assert out["5"]["rationale"] == "used 3T MRI at the core"
+
+
+# --- one-Haiku-screens-all-cores (the 13x cost lever) ----------------------
+class _FakeAllCoresBedrock:
+    """call_json returns a core-keyed screen for Haiku, a dense dict for Sonnet."""
+    def __init__(self, screen_scores, dense_score=8):
+        self.screen_scores = screen_scores
+        self.dense_score = dense_score
+        self.haiku_calls = self.sonnet_calls = 0
+
+    def call(self, model, messages, **kw):
+        raise AssertionError("all-cores path must not use the per-core .call screen")
+
+    def call_json(self, model, messages, **kw):
+        if "haiku" in model.lower():
+            self.haiku_calls += 1
+            return dict(self.screen_scores)
+        self.sonnet_calls += 1
+        return {"score": self.dense_score, "rationale": "dense via shared screen"}
+
+
+_CORES_2 = [_CORE, CoreDefinition(core_id="5", name="Genomics Resources", aliases=["GRCF"])]
+_PUB2 = [{"pmid": "42", "title": "MRI + RNA-seq study", "abstract": "3T MRI and sequencing."}]
+
+
+def test_screen_all_cores_one_haiku_call_covers_every_core():
+    from pipeline_cores.signals import screen_all_cores
+    fb = _FakeAllCoresBedrock({"2": 7, "5": 1})
+    out = screen_all_cores(fb, _CORES_2, _PUB2)
+    assert fb.haiku_calls == 1                       # ONE call for the pub, not one per core
+    assert out["42"] == {"2": 7, "5": 1}
+
+
+def test_screen_all_cores_missing_core_defaults_to_screened_out():
+    from pipeline_cores.signals import screen_all_cores
+    fb = _FakeAllCoresBedrock({"2": 9})              # reply omits core 5
+    out = screen_all_cores(fb, _CORES_2, _PUB2)
+    assert out["42"] == {"2": 9, "5": 1}
+
+
+def test_screen_all_cores_safety_filter_defaults_all_to_1():
+    from pipeline_cores.signals import screen_all_cores
+    from utils.bedrock_client import BedrockEmptyContentError
+
+    class _Empty:
+        def call_json(self, model, messages, **kw):
+            raise BedrockEmptyContentError(stop_reason="content_filtered", model=model)
+
+    out = screen_all_cores(_Empty(), _CORES_2, _PUB2)
+    assert out["42"] == {"2": 1, "5": 1}
+
+
+def test_llm_triage_with_screen_map_skips_haiku_and_below_cutoff_skips_dense():
+    fb = _FakeAllCoresBedrock({}, dense_score=8)
+    out = llm_triage(fb, _CORE, _PUB2, screen_map={"42": {"2": 1}})
+    assert out["42"]["screen"] == 1 and out["42"]["score"] == 1
+    assert fb.haiku_calls == 0 and fb.sonnet_calls == 0   # no screen call; below cutoff -> no dense
+
+
+def test_llm_triage_with_screen_map_runs_dense_at_cutoff():
+    fb = _FakeAllCoresBedrock({}, dense_score=8)
+    out = llm_triage(fb, _CORE, _PUB2, screen_map={"42": {"2": SCREEN_CUTOFF}})
+    assert fb.haiku_calls == 0 and fb.sonnet_calls == 1
+    assert out["42"]["screen"] == SCREEN_CUTOFF and out["42"]["score"] == 8
+    assert out["42"]["rationale"] == "dense via shared screen"
+
+
+def test_llm_triage_screen_map_missing_pmid_defaults_to_screened_out():
+    fb = _FakeAllCoresBedrock({}, dense_score=8)
+    out = llm_triage(fb, _CORE, _PUB2, screen_map={})    # no entry for pmid 42
+    assert out["42"]["score"] == 1 and fb.sonnet_calls == 0
 
 
 # --- two-phase affinity recompute in run_core (monkeypatched DB reads) ------
