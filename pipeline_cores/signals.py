@@ -163,9 +163,12 @@ def _screen_all_prompt(cores: list, title: str, abstract: str) -> str:
         "USED to produce this research, judging from title+abstract only.\n\n"
         f"Cores (id: name — what it does):\n{catalog}\n\n"
         f"Title: {title}\nAbstract: {abstract or '(none)'}\n\n"
-        "For EACH core id give an integer 1 (clearly unrelated) to 10 (clearly used "
-        "the core). When unsure, lean higher. Return ONLY a JSON object mapping every "
-        'core id to its integer, e.g. {"2": 7, "5": 1}. Include every core id.'
+        "For EACH core id give an integer 1-10 for how plausibly that core was USED to "
+        "produce this work. Be recall-first: give at least 2 to any core whose involvement "
+        "is even slightly plausible from the methods the title/abstract imply, and reserve 1 "
+        "only for cores clearly unrelated to the work. When unsure, lean higher. "
+        'Return ONLY a JSON object mapping every core id to its integer, e.g. {"2": 7, "5": 1}. '
+        "Include every core id."
     )
 
 
@@ -184,9 +187,14 @@ def screen_all_cores(bedrock, cores: list, pubs: list) -> dict:
     reply omits a core, defaults that core to 1 (screened out) — dense scoring is
     where anything at/above SCREEN_CUTOFF is re-judged per core.
 
-    NB (calibration): validate on analysis/calibrate_llm_triage.py that the
-    all-cores screen retains 100% of true positives at SCREEN_CUTOFF (parity with
-    the per-core screen) before trusting it for a full run.
+    CALIBRATION (237-paper pilot, 2026-06-21, analysis/calibrate_all_cores_screen.py):
+    this lost screen recall vs the per-core screen — 89.1% (vs 100%), 15 TP
+    regressions that collapse to score 1 (judging 13 cores at once makes Haiku too
+    decisive, erasing the recall-first "unsure -> 2" band). A recall-first prompt
+    floor recovered it only to 93.4% (9 regressions) while ~doubling dense fan-out
+    (2.93 -> 4.85 cores/pub). So this path is OPT-IN (run.py --all-cores-screen) and
+    NOT the default until it reaches per-core parity; the per-core screen carries the
+    full run. Re-run the calibration before flipping it on.
     """
     from utils.bedrock_client import HAIKU_MODEL, BedrockEmptyContentError  # lazy
 
