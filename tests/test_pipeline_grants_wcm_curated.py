@@ -103,32 +103,46 @@ def test_fallback_synopsis_uses_field_and_sponsor(tmp_path):
 
 
 # --- enrichment ---------------------------------------------------------------
-def test_enrich_rows_summarizes_then_falls_back(tmp_path):
+def test_enrich_rows_page_then_metadata_summary(tmp_path):
     rows = wc.read_curated_csv(_write(tmp_path))
     bedrock = MagicMock()
     bedrock.call_json.return_value = {"synopsis": "Targets oncology research."}
 
-    # Row 0 has a fetchable page; row 1 returns no page -> fallback.
+    # Row 0 has a fetchable page; row 1 has no page -> metadata-only summary.
     def fetcher(url):
         return "Lots of page text about cancer." if url.endswith("/wolf") else ""
 
     out = enrich.enrich_rows(rows, bedrock, fetcher=fetcher, sleep_s=0)
-    assert out[0]["synopsis"] == "Targets oncology research."
-    assert out[0]["enrich_status"] == "summarized"
+    assert out[0]["enrich_status"] == "summarized"            # from the page
+    assert out[1]["enrich_status"] == "summarized_from_name"  # no page -> from name
+    assert out[0]["synopsis"] == out[1]["synopsis"] == "Targets oncology research."
+
+
+def test_enrich_rows_bare_fallback_when_model_fails(tmp_path):
+    rows = wc.read_curated_csv(_write(tmp_path))
+    bedrock = MagicMock()
+    bedrock.call_json.side_effect = RuntimeError("bedrock down")
+    out = enrich.enrich_rows(rows, bedrock, fetcher=lambda u: "", sleep_s=0)
     assert out[1]["enrich_status"] == "fallback_no_page"
     assert "Young Investigator Award" in out[1]["synopsis"]   # field-based fallback
 
 
-def test_enrich_rows_resumes_from_existing(tmp_path):
+def test_enrich_rows_resumes_good_but_reattempts_fallback(tmp_path):
     rows = wc.read_curated_csv(_write(tmp_path))
     sid0 = wc.make_source_id(rows[0][wc.H_NAME], rows[0][wc.H_SPONSOR])
     existing = {sid0: {"synopsis": "cached text", "enrich_status": "summarized"}}
     bedrock = MagicMock()
-    bedrock.call_json.return_value = {"synopsis": "should not be used for row 0"}
+    bedrock.call_json.return_value = {"synopsis": "fresh from name"}
     out = enrich.enrich_rows(rows, bedrock, fetcher=lambda u: "", existing=existing, sleep_s=0)
-    assert out[0]["synopsis"] == "cached text"
-    # Row 0 was cached -> only row 1 should have triggered a (failed) fetch path.
-    assert out[1]["enrich_status"] == "fallback_no_page"
+    assert out[0]["synopsis"] == "cached text"               # row 0 cached (good), skipped
+    assert out[1]["enrich_status"] == "summarized_from_name"  # row 1 re-processed
+
+
+def test_is_enriched_predicate():
+    assert enrich._is_enriched({"enrich_status": "summarized", "synopsis": "x"})
+    assert enrich._is_enriched({"enrich_status": "summarized_from_name", "synopsis": "x"})
+    assert not enrich._is_enriched({"enrich_status": "fallback_no_page", "synopsis": "x"})
+    assert not enrich._is_enriched({"enrich_status": "summarized", "synopsis": ""})
 
 
 # --- curated ingest (bypasses denoise; synthesizes verdict) -------------------

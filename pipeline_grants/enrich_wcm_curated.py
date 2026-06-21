@@ -41,7 +41,27 @@ _SUMMARY_SYSTEM = (
     'Respond ONLY with JSON: {"synopsis": str}.'
 )
 
+# Used when the website can't be fetched: summarize from name + field + sponsor
+# alone (the model knows most of these named awards). Conservative to avoid
+# inventing specifics.
+_META_SUMMARY_SYSTEM = (
+    "You write a concise research-focused synopsis of a funding award/prize from "
+    "its name, field, and sponsor alone (its website was unavailable). In 2-3 "
+    "sentences, describe the research areas, disciplines, or diseases it targets, "
+    "for matching to researchers. Infer conservatively from the name and field; do "
+    "not invent eligibility, amounts, or deadlines. "
+    'Respond ONLY with JSON: {"synopsis": str}.'
+)
+
+# Statuses that count as a real synopsis (vs. the coarse field fallback) — drives
+# resume: fallbacks are re-attempted on a re-run, good rows are skipped.
+_GOOD_STATUSES = {"summarized", "summarized_from_name"}
+
 _OUT_FIELDS_EXTRA = ["synopsis", "enrich_status"]
+
+
+def _is_enriched(row: dict) -> bool:
+    return row.get("enrich_status") in _GOOD_STATUSES and bool((row.get("synopsis") or "").strip())
 
 
 def strip_html(raw: str) -> str:
@@ -81,6 +101,17 @@ def summarize(bedrock, *, name: str, field: str, sponsor: str, page_text: str) -
     return (raw.get("synopsis") or "").strip()
 
 
+def summarize_from_metadata(bedrock, *, name: str, field: str, sponsor: str) -> str:
+    """Synopsis from award metadata alone (no page) — for unfetchable sites."""
+    user = f"Award name: {name}\nField: {field}\nSponsor: {sponsor}"
+    raw = bedrock.call_json(
+        model=HAIKU_MODEL,
+        messages=[{"role": "user", "content": user}],
+        system=_META_SUMMARY_SYSTEM,
+    )
+    return (raw.get("synopsis") or "").strip()
+
+
 def _load_existing(out_path: str) -> dict:
     """Map source_id → enriched row from a prior run (for resume). {} if absent."""
     try:
@@ -90,7 +121,7 @@ def _load_existing(out_path: str) -> dict:
     done = {}
     for r in rows:
         sid = wc.make_source_id(r.get(wc.H_NAME, ""), r.get(wc.H_SPONSOR, ""))
-        if (r.get("synopsis") or "").strip():
+        if _is_enriched(r):  # only good rows are cached; fallbacks get re-attempted
             done[sid] = r
     return done
 
@@ -113,15 +144,18 @@ def enrich_rows(rows: list, bedrock, *, fetcher=fetch_page_text, existing=None,
         sponsor = (row.get(wc.H_SPONSOR) or "").strip()
         text = fetcher(row.get(wc.H_WEBSITE, ""))
         synopsis, status = "", ""
-        if text:
-            try:
+        try:
+            if text:
                 synopsis = summarize(bedrock, name=name, field=field, sponsor=sponsor, page_text=text)
                 status = "summarized" if synopsis else "fallback_empty_summary"
-            except Exception as exc:  # noqa: BLE001 - model errors fall back, never abort the batch
-                log.info("summarize failed %s: %s", name, exc)
-                status = "fallback_summary_error"
-        else:
-            status = "fallback_no_page"
+            else:
+                # Site unfetchable — summarize from name+field+sponsor before the
+                # bare field fallback (the model knows most named awards).
+                synopsis = summarize_from_metadata(bedrock, name=name, field=field, sponsor=sponsor)
+                status = "summarized_from_name" if synopsis else "fallback_no_page"
+        except Exception as exc:  # noqa: BLE001 - model errors fall back, never abort the batch
+            log.info("summarize failed %s: %s", name, exc)
+            status = "fallback_summary_error" if text else "fallback_no_page"
         if not synopsis:
             synopsis = wc.fallback_synopsis(row)
         merged = dict(row)
