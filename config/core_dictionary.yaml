@@ -1,0 +1,33 @@
+# Core dictionary — the project's real IP.
+# One entry per WCM core facility: aliases (signal 3), staff CWIDs (signal 2),
+# owner, and an LLM description (signal 4). Resolve staff to CWIDs against
+# ReciterDB `identity` (match on resolved personIdentifier downstream, NEVER on
+# surname — e.g. 511 resolved "Voss" rows are the oncologist mhv9001, not CBIC's
+# hev2006). grant_ids stays empty: validation found no shared core grant.
+#
+# Starting list = the 13 cores in
+# "Projects/Inferring Cores and Services/Core inference prompt 0.txt".
+# Only Biomedical Imaging is resolved so far.
+
+cores:
+  - core_id: "2"
+    name: Biomedical Imaging
+    facility: Citigroup Biomedical Imaging Center
+    owner_cwid: null            # TBD — designate via SPS Superuser grant
+    aliases:
+      - "Citigroup Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Core Facility"
+      - "Biomedical Imaging Core Facility"
+      - "CBIC"                  # acronym — matched on word boundary only
+    staff:
+      - { cwid: djb2001, name: "Douglas J. Ballon",  dept: Radiology, tracked: true }
+      - { cwid: jpd2001, name: "Jonathan P. Dyke",   dept: Radiology, tracked: true }
+      - { cwid: dcs7001, name: "Dikoma C. Shungu",   dept: Radiology, tracked: true }
+      - { cwid: bih2006, name: "Bin He",             dept: Radiology, tracked: true }
+      - { cwid: hev2006, name: "Henning U. Voss",    dept: Radiology, tracked: false }
+      - { cwid: job2060, name: "John W. Babich",     dept: Radiology, tracked: false }
+      - { cwid: cof2003, name: "Conor P. Foley",     dept: "",        tracked: false }
+    grant_ids: []
+    llm_description: >
+      multimodal imaging research; advanced MRI/MRS, PET/CT, MicroPET/SPECT/CT,
+      optical imaging, ultrasound, cyclotron, radiochemistry for radiotracer synthesis
