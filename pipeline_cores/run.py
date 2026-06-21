@@ -23,17 +23,20 @@ from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import STATUS_CONFIRMED
 
 
-def _make_fulltext_loader(enabled: bool):
+def _make_fulltext_loader(enabled: bool, *, use_s3: bool = False):
     """Return a pmid -> plain-text body callable.
 
-    With --with-fulltext, backs onto the cached PMC client (signal 3 live).
-    Otherwise returns "" for every pmid, leaving the acknowledgement signal
-    silent while the rest of the pipeline runs.
+    With --with-fulltext, backs onto the cached PMC client (signal 3 live);
+    --fulltext-s3 additionally consults/fills the shared S3 cache so the run
+    rides a warm cache instead of re-fetching from NCBI. Otherwise returns ""
+    for every pmid, leaving the acknowledgement signal silent while the rest of
+    the pipeline runs.
     """
     if not enabled:
         return lambda _pmid: ""
     from pipeline_cores.fulltext import PmcFullTextClient  # lazy
-    return PmcFullTextClient().get
+    client = PmcFullTextClient.with_s3() if use_s3 else PmcFullTextClient()
+    return client.get
 
 
 def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool) -> dict:
@@ -110,6 +113,8 @@ def main(argv=None):
     ap.add_argument("--test", type=int, help="limit to N publications")
     ap.add_argument("--with-llm", action="store_true", help="enable Bedrock triage (signal 4)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
+    ap.add_argument("--fulltext-s3", action="store_true",
+                    help="back the full-text cache with the shared S3 cache (warm with -m pipeline_cores.prefetch_fulltext)")
     ap.add_argument("--with-affinity", action="store_true",
                     help="seed the repeat-user prior from prior DynamoDB confirmations (signal 1 cross-run)")
     ap.add_argument("--dry-run", action="store_true", help="do not write to DynamoDB")
@@ -127,7 +132,7 @@ def main(argv=None):
         from utils.bedrock_client import BedrockClient  # lazy
         bedrock = BedrockClient()
 
-    full_text = _make_fulltext_loader(args.with_fulltext)
+    full_text = _make_fulltext_loader(args.with_fulltext, use_s3=args.fulltext_s3)
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
