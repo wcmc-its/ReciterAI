@@ -13,11 +13,13 @@ import hashlib
 from pipeline_tools import salience as sal
 from pipeline_tools.publish import build_publish_payload, publish_artifacts
 
-# The full published key set: 4 flat (transition) + 4 latest/ + the latest/ manifest.
-_FLAT_KEYS = {"tools/tools.json", "tools/families.json", "tools/faculty.json",
-              "tools/tool_context.json"}
-_LATEST_KEYS = {"tools/latest/tools.json", "tools/latest/families.json",
-                "tools/latest/faculty.json", "tools/latest/tool_context.json"}
+# The full published key set: 6 flat (transition) + 6 latest/ + the latest/ manifest.
+# (#1166 added entities.json + entity_context.json — empty here, since _result() has
+# no entity layer, so a pre-#1166 run still publishes a valid v4 manifest.)
+_SIDE_NAMES = ("tools.json", "families.json", "faculty.json", "tool_context.json",
+               "entities.json", "entity_context.json")
+_FLAT_KEYS = {f"tools/{n}" for n in _SIDE_NAMES}
+_LATEST_KEYS = {f"tools/latest/{n}" for n in _SIDE_NAMES}
 _MANIFEST_KEY = {"tools/latest/manifest.json"}
 _ALL_KEYS = _FLAT_KEYS | _LATEST_KEYS | _MANIFEST_KEY
 
@@ -50,7 +52,7 @@ def _result():
 
 def test_payload_structure_and_thresholds():
     p = build_publish_payload(_result(), provenance={"raw_mentions": 10})
-    assert p["schema_version"] == "tools-a2-v3"
+    assert p["schema_version"] == "tools-a2-v4"
     assert p["provenance"]["raw_mentions"] == 10
     assert p["salience_thresholds"]["s_spread_min"] == 4
     assert p["tools"][0]["canonical_tool_id"] == "tool_000001"
@@ -102,6 +104,8 @@ def test_publish_real_uploads_each_object():
     assert cc["tools/families.json"] is None
     assert cc["tools/faculty.json"] is None
     assert cc["tools/tool_context.json"] is None  # flat sidecar keeps the no-cache posture
+    assert cc["tools/entities.json"] is None      # #1166 sidecars: same no-cache flat posture
+    assert cc["tools/entity_context.json"] is None
 
 
 def test_publish_manifest_integrity_and_latest_mirror():
@@ -116,14 +120,17 @@ def test_publish_manifest_integrity_and_latest_mirror():
     publish_artifacts(p, s3_client=_CapS3(), dry_run=False)
 
     # latest/ copies are byte-identical to the flat copies.
-    for name in ("tools.json", "families.json", "faculty.json", "tool_context.json"):
+    for name in _SIDE_NAMES:
         assert bodies[f"tools/latest/{name}"] == bodies[f"tools/{name}"], name
 
     manifest = json.loads(bodies["tools/latest/manifest.json"])
-    assert manifest["schema_version"] == "tools-a2-v3"
+    assert manifest["schema_version"] == "tools-a2-v4"
     assert "taxonomy_version" not in manifest  # deliberately omitted
+    # #1166: a pre-entity-stage run still publishes valid (empty) entity objects.
+    assert manifest["counts"]["entities"] == 0
+    assert manifest["counts"]["entity_context"] == 0
     # objects{} integrity: sha256 + bytes match the exact uploaded latest/ bytes.
-    for name in ("tools.json", "families.json", "faculty.json", "tool_context.json"):
+    for name in _SIDE_NAMES:
         body = bodies[f"tools/latest/{name}"]
         obj = manifest["objects"][name]
         assert obj["key"] == f"tools/latest/{name}"
@@ -133,7 +140,8 @@ def test_publish_manifest_integrity_and_latest_mirror():
     tools_body = bodies["tools/latest/tools.json"]
     assert manifest["sha256"] == hashlib.sha256(tools_body).hexdigest()
     assert manifest["artifact_bytes"] == len(tools_body)
-    assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1, "tool_context": 1}
+    assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1, "tool_context": 1,
+                                  "entities": 0, "entity_context": 0}
 
     # #193 sidecar contract: the bundle stays lean (no context map inlined); the
     # sidecar carries the cid→{pmid: snippet} join data + its provenance stamp.
