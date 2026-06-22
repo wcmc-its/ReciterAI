@@ -1,0 +1,31 @@
+{
+  "_meta": "#252 curated surface-form alias map (forward prevention). Each `merges` entry collapses exact surface-form variants of ONE specific entity onto a single canonical record at registry match-time, so re-extraction never re-forks them (e.g. the three HMC-1 forms -> one). Keyed on the EXACT normalized variant string (zero fuzzy risk); the operator extends the list as new variants appear. `class` is an opaque equivalence-class token (synthetic key `cl::<class>`, cannot collide with a real name); `canonical` is the preferred display the merged record shows; `variants` are the exact surface forms to fold in. `keep_separate` is the never-merge guard: an embedding nearest-neighbour that would fold either side into the other is blocked (recorded, never silent) — these are biologically distinct lines that share a designator (parent vs knockout/derivative, or HEK293 vs HEK293T which carries SV40 large-T antigen). Seeded from the 2026-06-22 live-artifact fork probe over entities.json (235 cell-line entities); only the clean, unambiguous merges are listed. Loaded by ToolRegistry; absent file -> no merges, no guards (fail-open). A keep_separate pair that is also merged is a curation error and fails loud at load.",
+  "merges": [
+    {
+      "class": "hmc-1",
+      "canonical": "HMC-1 cells",
+      "variants": ["HMC-1 cells", "human mast cell line HMC-1", "cultured human mast cells (HMC-1)"]
+    },
+    {
+      "class": "sh-sy5y",
+      "canonical": "SH-SY5Y cells",
+      "variants": ["SH-SY5Y cell line", "SH-SY5Y neuroblastoma cell line"]
+    },
+    {
+      "class": "mcf-7",
+      "canonical": "MCF-7 cells",
+      "variants": ["MCF-7", "MCF-7 cell line"]
+    },
+    {
+      "class": "mda-mb-231",
+      "canonical": "MDA-MB-231 cells",
+      "variants": ["MDA-MB-231 breast cancer cell line", "MDA-MB-231 TNBC cells"]
+    }
+  ],
+  "keep_separate": [
+    ["HEK293", "HEK293T"],
+    ["HepG2 cells", "ATF4-deficient HepG2"],
+    ["HEK293T cells", "stably transfected HEK293T reporter cell line"],
+    ["NIH 3T3 cells", "H-Ras transformed 3T3 cells"]
+  ]
+}
