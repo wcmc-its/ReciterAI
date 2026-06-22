@@ -360,6 +360,62 @@ def test_llm_triage_screen_map_missing_pmid_defaults_to_screened_out():
     assert out["42"]["score"] == 1 and fb.sonnet_calls == 0
 
 
+# --- threaded triage (scale fix: serial loop hung the full run) -------------
+def test_llm_triage_threads_all_pubs_one_screen_each():
+    import threading
+
+    class _Counting:
+        def __init__(self):
+            self.calls = 0
+            self._lock = threading.Lock()
+
+        def call(self, model, messages, **kw):
+            with self._lock:
+                self.calls += 1
+            return "1"                                   # below cutoff -> no dense pass
+
+        def call_json(self, model, messages, **kw):
+            return {"score": 5, "rationale": ""}
+
+    pubs = [{"pmid": str(i), "title": "t", "abstract": "a"} for i in range(10)]
+    fb = _Counting()
+    out = llm_triage(fb, _CORE, pubs, max_workers=4)
+    assert set(out) == {str(i) for i in range(10)}       # every pub scored concurrently
+    assert fb.calls == 10                                # exactly one screen per pub
+
+
+def test_llm_triage_resilient_to_call_errors_screens_out_and_keeps_going():
+    class _Boom:
+        def call(self, model, messages, **kw):
+            raise RuntimeError("simulated read timeout")
+
+        def call_json(self, model, messages, **kw):
+            return {"score": 9, "rationale": "x"}
+
+    pubs = [{"pmid": str(i), "title": "t", "abstract": "a"} for i in range(5)]
+    out = llm_triage(_Boom(), _CORE, pubs, max_workers=4)
+    assert set(out) == {str(i) for i in range(5)}        # one bad call must not kill the batch
+    assert all(out[p]["score"] == 1 for p in out)        # errored screen -> screened out
+
+
+def test_llm_triage_serial_when_max_workers_1():
+    class _Counting:
+        def __init__(self):
+            self.calls = 0
+
+        def call(self, model, messages, **kw):
+            self.calls += 1
+            return "1"
+
+        def call_json(self, model, messages, **kw):
+            return {"score": 5, "rationale": ""}
+
+    pubs = [{"pmid": "a", "title": "t", "abstract": ""}, {"pmid": "b", "title": "t", "abstract": ""}]
+    fb = _Counting()
+    out = llm_triage(fb, _CORE, pubs, max_workers=1)
+    assert set(out) == {"a", "b"} and fb.calls == 2
+
+
 # --- two-phase affinity recompute in run_core (monkeypatched DB reads) ------
 def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     """A co-author-confirmed paper makes the same author's other (weak) paper a

@@ -164,18 +164,24 @@ class BedrockClient:
         "ServiceUnavailableException",
     })
 
-    def __init__(self, region: str = None):
+    def __init__(self, region: str = None, read_timeout: int = 900):
         """
         Initialize the BedrockClient.
 
         Args:
             region: AWS region. If None, reads AWS_DEFAULT_REGION env var,
                     defaults to 'us-east-1'.
+            read_timeout: per-call socket read timeout in seconds (default 900,
+                    suited to long generations like overviews/biosketches). Set a
+                    smaller value for many small calls (e.g. cores triage) so a
+                    single hung connection can't block for the full 900s — a
+                    serial caller stalls on the worst-case timeout.
 
         Note: Does NOT create the boto3 client here. Client is created lazily
         on the first API call to avoid import-time side effects.
         """
         self.region = region or os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+        self.read_timeout = read_timeout
         self._client = None  # Lazy init — set on first call to _get_client()
 
     def _get_client(self):
@@ -189,7 +195,7 @@ class BedrockClient:
             self._client = boto3.client(
                 'bedrock-runtime',
                 region_name=self.region,
-                config=Config(read_timeout=900, retries={'max_attempts': 0}),
+                config=Config(read_timeout=self.read_timeout, retries={'max_attempts': 0}),
             )
         return self._client
 
