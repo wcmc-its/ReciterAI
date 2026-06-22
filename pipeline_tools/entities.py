@@ -300,6 +300,11 @@ def build_entity_layer(
                 "canonical_tool_id": eid,
                 "supercategory": supercategory,
                 "family_label": family_label,
+                # #260: the family's dominant_kind (the frozen `kind` enum, copied
+                # straight from the source family — no new computation) so SPS picks
+                # the per-family rail noun (Instruments / Reagents / Methods / …)
+                # instead of a hard-coded "Cell lines". null when the family lacks one.
+                "dominant_kind": fam.get("dominant_kind"),
                 "parent_entity_id": parent_id_by_member.get(eid),
                 "parent_label": parent_label_by_member.get(eid),  # the line core, e.g. "3T3-L1"
                 "parent_descriptor": None,  # filled by define_entity_parents

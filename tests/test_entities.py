@@ -227,6 +227,29 @@ def test_build_entity_layer_is_generic_defaults_false_without_terms():
     assert ents and all(e["is_generic"] is False for e in ents)
 
 
+# --------------------------------------------------------------------------- #
+# #260 — dominant_kind carried onto entities.json for the SPS rail noun
+# --------------------------------------------------------------------------- #
+
+def test_build_entity_layer_stamps_dominant_kind_from_family():
+    # _artifact()'s cell-line family has dominant_kind "organism_or_cells"; it is
+    # copied verbatim onto every entity the family projects.
+    ents, _, _ = build_entity_layer(*_artifact())
+    assert ents and all(e["dominant_kind"] == "organism_or_cells" for e in ents)
+
+
+def test_build_entity_layer_dominant_kind_null_when_family_lacks_it():
+    # Under a broadened scope, a family with no dominant_kind yields null (SPS then
+    # falls back to a supercategory->noun map).
+    tools = [{"canonical_tool_id": "tool_1", "display_name": "Foo Analyzer",
+              "method_family_id": "fam_x", "pub_count": 3, "aliases": []}]
+    families = [{"family_id": "fam_x", "label": "Some methods",
+                 "supercategory": "computational_statistical", "dominant_kind": None,
+                 "status": "active", "member_tool_ids": ["tool_1"]}]
+    ents, _, _ = build_entity_layer(tools, families, {}, scope=lambda f: True)
+    assert ents[0]["dominant_kind"] is None
+
+
 def test_build_entity_layer_evidenced_flag():
     ents, _, _ = build_entity_layer(*_artifact())
     by_id = {e["normalized_entity_id"]: e for e in ents}
