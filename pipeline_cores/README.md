@@ -55,7 +55,9 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
   loader** (`fulltext.py`, two-tier cache **disk → S3 → NCBI**; signal 3 confirmed
   end-to-end on real CBIC papers); co-authorship SQL (`utils.db`; fires on real pilot PMIDs);
   **two-pass LLM triage** (`signals.llm_triage`, Haiku screen → Sonnet dense,
-  calibrated on the pilot — see below); **author-affinity repeat-user prior**
+  calibrated on the pilot — see below; **threaded** `--llm-workers` and resilient —
+  a slow/hung Bedrock call is bounded by a short read-timeout and screened out
+  rather than stalling the corpus); **author-affinity repeat-user prior**
   (`run.run_core` two-phase + `persist.scan_prior_core_usage` cross-run
   read-back; verified live: a staff-confirmed paper lifts its non-staff
   co-authors' sibling papers to candidate); combiner.
@@ -97,5 +99,11 @@ python3 -m pipeline_cores.prefetch_fulltext --no-s3            # disk only (no A
 
 python3 -m pipeline_cores.run --core 2 --test 200 --dry-run   # no AWS needed
 python3 -m pipeline_cores.run --core 2 --with-llm             # Bedrock + DynamoDB
-python3 -m pipeline_cores.run --with-llm --with-fulltext --fulltext-s3   # full run on the warm S3 cache
+
+# full corpus, all cores, on the warm S3 cache. Triage is threaded (--llm-workers,
+# default 8) so the run finishes in reasonable wall-clock; lower it if Bedrock throttles.
+python3 -m pipeline_cores.run --with-llm --with-fulltext --fulltext-s3 --with-affinity
 ```
+Run deterministic-only (no `--with-llm`) for a fast, AWS-cheap pass: co-authorship
+confirms staff papers and the repeat-user affinity prior surfaces their siblings as
+candidates — no Bedrock involved.

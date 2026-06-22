@@ -8,9 +8,12 @@ only the stdlib + PyYAML (keeps unit tests dependency-light).
 """
 from __future__ import annotations
 
+import logging
 import re
 
 from pipeline_cores.models import CoreDefinition, SignalResult
+
+logger = logging.getLogger(__name__)
 
 # Acronym-style aliases (<=5 uppercase chars) must match on a word boundary to
 # avoid spurious substring hits; longer names match case-insensitively.
@@ -224,7 +227,33 @@ def _dense_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
     )
 
 
-def llm_triage(bedrock, core: CoreDefinition, pubs: list, screen_map: dict = None) -> dict:
+def _triage_one(bedrock, core: CoreDefinition, pub: dict, screen_map: dict):
+    """Score a single pub: Haiku screen (or shared screen) then Sonnet dense pass."""
+    from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL, BedrockEmptyContentError  # lazy
+
+    pmid, title, abstract = str(pub["pmid"]), pub.get("title", ""), pub.get("abstract", "")
+    if screen_map is not None:
+        screen = screen_map.get(pmid, {}).get(core.core_id, 1)  # shared all-cores screen
+    else:
+        try:
+            screen = _parse_int(bedrock.call(model=HAIKU_MODEL,
+                                             messages=[{"role": "user", "content": _screen_prompt(core, title, abstract)}]))
+        except BedrockEmptyContentError:
+            screen = 1  # safety-filter on a biomedical abstract -> treat as screened out
+    rec = {"screen": screen, "score": screen, "rationale": ""}
+    if screen >= SCREEN_CUTOFF:
+        try:
+            dense = bedrock.call_json(model=SONNET_MODEL,
+                                      messages=[{"role": "user", "content": _dense_prompt(core, title, abstract)}])
+            rec["score"] = _parse_int(dense.get("score"))
+            rec["rationale"] = str(dense.get("rationale", ""))[:80]
+        except BedrockEmptyContentError:
+            pass  # keep the screen score; no rationale
+    return pmid, rec
+
+
+def llm_triage(bedrock, core: CoreDefinition, pubs: list, screen_map: dict = None,
+               max_workers: int = 8) -> dict:
     """Map pmid -> {"screen", "score", "rationale"} from title+abstract.
 
     Two-pass, mirroring score_publications.py: Pass 1 Haiku screen (recall-first,
@@ -235,33 +264,54 @@ def llm_triage(bedrock, core: CoreDefinition, pubs: list, screen_map: dict = Non
 
     `screen_map` is the precomputed all-cores screen ({pmid: {core_id: int}} from
     screen_all_cores): when supplied, Pass 1 reads the shared screen for THIS core
-    instead of a per-core Haiku call — collapsing ~13x screen calls into one per
-    pub. Omit it to keep the legacy per-core Haiku screen (still used by direct
-    callers / tests).
+    instead of a per-core Haiku call. Omit it for the per-core Haiku screen (the
+    calibration-validated default).
+
+    THREADED: pubs are scored concurrently with `max_workers` threads (Bedrock
+    calls are I/O-bound). A serial loop over a full corpus is both slow and
+    fragile — one slow/hung Converse call would block every subsequent pub up to
+    the client read_timeout — so per-pub scoring is fanned out and any pub that
+    errors (timeout/throttle/etc.) is logged and screened out (score 1) rather
+    than killing the batch. Pair with a short-read_timeout BedrockClient (run.py
+    builds one) so a hung call fails fast instead of stalling a worker. Use
+    max_workers<=1 for deterministic serial scoring.
     """
-    from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL, BedrockEmptyContentError  # lazy
+    if not pubs:
+        return {}
 
     out: dict = {}
-    for pub in pubs:
-        pmid, title, abstract = str(pub["pmid"]), pub.get("title", ""), pub.get("abstract", "")
-        if screen_map is not None:
-            screen = screen_map.get(pmid, {}).get(core.core_id, 1)  # shared all-cores screen
-        else:
+    failures = 0
+
+    def _safe(pub):
+        return _triage_one(bedrock, core, pub, screen_map)
+
+    if max_workers and max_workers > 1 and len(pubs) > 1:
+        from concurrent.futures import ThreadPoolExecutor, as_completed  # lazy
+
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = {ex.submit(_safe, p): str(p["pmid"]) for p in pubs}
+            for fut in as_completed(futs):
+                pmid = futs[fut]
+                try:
+                    pmid, rec = fut.result()
+                except Exception as exc:  # noqa: BLE001 — resilience: never let one pub kill the batch
+                    failures += 1
+                    logger.warning("triage failed for pmid %s (%s) -> screened out", pmid, type(exc).__name__)
+                    rec = {"screen": 1, "score": 1, "rationale": ""}
+                out[pmid] = rec
+    else:
+        for pub in pubs:
+            pmid = str(pub["pmid"])
             try:
-                screen = _parse_int(bedrock.call(model=HAIKU_MODEL,
-                                                 messages=[{"role": "user", "content": _screen_prompt(core, title, abstract)}]))
-            except BedrockEmptyContentError:
-                screen = 1  # safety-filter on a biomedical abstract -> treat as screened out
-        rec = {"screen": screen, "score": screen, "rationale": ""}
-        if screen >= SCREEN_CUTOFF:
-            try:
-                dense = bedrock.call_json(model=SONNET_MODEL,
-                                          messages=[{"role": "user", "content": _dense_prompt(core, title, abstract)}])
-                rec["score"] = _parse_int(dense.get("score"))
-                rec["rationale"] = str(dense.get("rationale", ""))[:80]
-            except BedrockEmptyContentError:
-                pass  # keep the screen score; no rationale
-        out[pmid] = rec
+                pmid, rec = _safe(pub)
+            except Exception as exc:  # noqa: BLE001
+                failures += 1
+                logger.warning("triage failed for pmid %s (%s) -> screened out", pmid, type(exc).__name__)
+                rec = {"screen": 1, "score": 1, "rationale": ""}
+            out[pmid] = rec
+
+    if failures:
+        logger.warning("llm_triage: %d/%d pubs failed scoring and were screened out", failures, len(pubs))
     return out
 
 
