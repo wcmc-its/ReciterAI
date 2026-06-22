@@ -164,6 +164,22 @@ def test_build_entity_layer_marks_sentence_complete():
     assert ectx["tool_1"]["222"][0]["sentence_complete"] is False
 
 
+def test_build_entity_layer_emits_informativeness_and_mention_class():
+    tools = [{"canonical_tool_id": "tool_1", "display_name": "HEK293T cells",
+              "method_family_id": "fam_cl", "pub_count": 5, "aliases": []}]
+    families = [{"family_id": "fam_cl", "label": "Immortalized cell lines",
+                 "supercategory": "animal_cell_models", "dominant_kind": "organism_or_cells",
+                 "status": "active", "member_tool_ids": ["tool_1"]}]
+    tool_context = {"tool_1": {
+        "111": "Nav1.3 was heterologously expressed in HEK293T cells.",            # specific use
+        "222": "HEK293T cells are widely used in good manufacturing practice facilities.",  # background
+    }}
+    _, ectx, _ = build_entity_layer(tools, families, tool_context)
+    f1, f2 = ectx["tool_1"]["111"][0], ectx["tool_1"]["222"][0]
+    assert f1["mention_class"] == "usage" and f2["mention_class"] == "mention"
+    assert f1["informativeness_score"] > f2["informativeness_score"]
+
+
 def test_build_entity_layer_evidenced_flag():
     ents, _, _ = build_entity_layer(*_artifact())
     by_id = {e["normalized_entity_id"]: e for e in ents}
