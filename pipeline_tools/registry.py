@@ -40,10 +40,32 @@ DEFAULT_FAMILY_MATCH_COSINE = 0.80
 # supercategory error to the exceptions queue instead of silently forking.
 DEFAULT_FAMILY_CROSS_GUARD_COSINE = 0.88
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+# #252 curated surface-form alias map (forward prevention). See the file's _meta.
+DEFAULT_ALIAS_MAP_PATH = _REPO_ROOT / "config" / "method_alias_map.json"
+
 
 def norm_name(name: str) -> str:
     """Normalize a raw/alias name for exact matching (case/space/punct-insensitive)."""
     return re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+
+
+def load_method_alias_map(path: Path = DEFAULT_ALIAS_MAP_PATH) -> tuple[list[dict], list[list[str]]]:
+    """The #252 ``(merges, keep_separate)`` from config (fail-open: missing -> empty, empty)."""
+    if not path.exists():
+        logger.warning("method alias map not found at %s; no surface-form merges/guards.", path)
+        return [], []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return list(data.get("merges", [])), list(data.get("keep_separate", []))
+
+
+def _term_in_name(term_norm: str, name: str) -> bool:
+    """True if a keep-separate term occurs as a WHOLE WORD in ``name`` (normalized).
+
+    Whole-word so ``"hek293"`` matches ``"HEK293 cells"`` but NOT ``"HEK293T cells"``
+    (``hek293t`` is one token) — the exact distinction the guard must preserve.
+    """
+    return bool(term_norm) and f" {term_norm} " in f" {norm_name(name)} "
 
 
 # Trailing descriptor words that WRAP an identity without changing it. Stripped as
@@ -142,9 +164,45 @@ class ToolRegistry:
         records: list[dict] | None = None,
         denylist: list[str] | None = None,
         *,
+        alias_merges: list[dict] | None = None,
+        keep_separate: list[list[str]] | None = None,
         cache: EmbeddingCache | None = None,
         match_cosine: float = DEFAULT_TOOL_MATCH_COSINE,
     ):
+        # #252 curated surface-form alias map. Each merge maps the EXACT normalized
+        # variant string -> an opaque equivalence-class key (``cl::<class>``, which
+        # cannot collide with a real norm_name). Injected into the name index at both
+        # index and match time, so all variants of one entity attach to whichever is
+        # seen first — order-independent forward prevention.
+        self._alias_class: dict[str, str] = {}
+        self._class_canonical: dict[str, str] = {}
+        for m in alias_merges or []:
+            ckey = ("cl::" + norm_name(m.get("class") or "")).strip()
+            if ckey == "cl::":
+                continue
+            for v in m.get("variants", []):
+                nv = norm_name(v)
+                if nv:
+                    self._alias_class[nv] = ckey
+            canon = (m.get("canonical") or "").strip()
+            if canon:
+                self._class_canonical[ckey] = canon
+        # Never-merge guard pairs (normalized). Fail loud on a curation error: a
+        # keep_separate pair must never also be merged into one alias class.
+        self._keep_separate: list[tuple[str, str]] = [
+            (norm_name(a), norm_name(b))
+            for a, b in (keep_separate or [])
+            if norm_name(a) and norm_name(b)
+        ]
+        for na, nb in self._keep_separate:
+            ca, cb = self._alias_class.get(na), self._alias_class.get(nb)
+            if ca is not None and ca == cb:
+                raise ValueError(
+                    f"method_alias_map: keep_separate pair ({na!r}, {nb!r}) is also "
+                    f"merged into class {ca!r} — contradictory curation."
+                )
+        self._blocked_merges: list[dict] = []  # audit trail of guarded non-merges
+
         self._records: dict[str, dict] = {}
         self._name_index: dict[str, str] = {}  # norm_name(form) -> canonical_tool_id
         for rec in records or []:
@@ -164,6 +222,7 @@ class ToolRegistry:
         registry_path: Path,
         denylist_path: Path | None = None,
         *,
+        alias_map_path: Path | None = DEFAULT_ALIAS_MAP_PATH,
         cache: EmbeddingCache | None = None,
         match_cosine: float = DEFAULT_TOOL_MATCH_COSINE,
     ) -> "ToolRegistry":
@@ -175,7 +234,12 @@ class ToolRegistry:
         if denylist_path and denylist_path.exists():
             d = json.loads(denylist_path.read_text(encoding="utf-8"))
             denylist = d.get("aliases", d) if isinstance(d, dict) else d
-        return cls(records, denylist, cache=cache, match_cosine=match_cosine)
+        # #252: the curated surface-form alias map + keep-separate guards (default
+        # config; pass alias_map_path=None to disable). This is the cold-run merge
+        # point — re-extracted variants fold onto one canonical here.
+        merges, keep_separate = load_method_alias_map(alias_map_path) if alias_map_path else ([], [])
+        return cls(records, denylist, alias_merges=merges, keep_separate=keep_separate,
+                   cache=cache, match_cosine=match_cosine)
 
     def save(self, registry_path: Path, denylist_path: Path | None = None) -> None:
         payload = {"tools": [self._serialize(r) for r in self.records()]}
@@ -202,6 +266,11 @@ class ToolRegistry:
     def denylist(self) -> list[str]:
         return list(self._denylist)
 
+    @property
+    def blocked_merges(self) -> list[dict]:
+        """#252 audit trail: merges the keep-separate guard refused (never silent)."""
+        return list(self._blocked_merges)
+
     # --- denylist (§8 — excluded) ------------------------------------------
 
     def is_denied(self, raw_name: str) -> bool:
@@ -224,17 +293,25 @@ class ToolRegistry:
         Else embedding NN over every record's display_name + aliases at/above
         ``match_cosine``.
         """
-        for key in sorted(surface_keys(raw_name)):
+        for key in sorted(surface_keys(raw_name) | self._alias_keys(raw_name)):
             cid = self._name_index.get(key)
-            if cid is not None:
-                return Match(key=cid, score=1.0, matched_text=raw_name)
+            if cid is None:
+                continue
+            if self._blocks_merge(raw_name, self._records[cid]):
+                self._note_block(raw_name, cid, "surface")  # guarded non-merge -> keep looking / mint
+                continue
+            return Match(key=cid, score=1.0, matched_text=raw_name)
         candidates = {
             cid: [rec["display_name"], *rec.get("aliases", [])]
             for cid, rec in self._records.items()
         }
         if not candidates:
             return None
-        return nearest_match(raw_name, candidates, threshold=self._match_cosine, cache=self._cache)
+        hit = nearest_match(raw_name, candidates, threshold=self._match_cosine, cache=self._cache)
+        if hit is not None and self._blocks_merge(raw_name, self._records[hit.key]):
+            self._note_block(raw_name, hit.key, f"embedding@{round(hit.score, 3)}")
+            return None  # #252 keep-separate: never silently fold -> mint a distinct record
+        return hit
 
     # --- mint / attach -----------------------------------------------------
 
@@ -384,7 +461,9 @@ class ToolRegistry:
             )
             return rec, "attached"
         rec = self.mint(
-            display_name=display_name or raw_name,
+            # #252: a curated variant mints under its class's canonical display so
+            # the merged record shows the clean name; the raw variant becomes an alias.
+            display_name=self._canonical_display(raw_name, display_name),
             raw_name=raw_name,
             disposition=disposition,
             pub_ids=pub_ids,
@@ -396,12 +475,42 @@ class ToolRegistry:
 
     # --- internals ---------------------------------------------------------
 
+    def _alias_keys(self, name: str) -> set[str]:
+        """#252: the synthetic equivalence-class key for ``name`` (empty if not a curated variant)."""
+        ckey = self._alias_class.get(norm_name(name))
+        return {ckey} if ckey else set()
+
+    def _canonical_display(self, raw_name: str, display_name: str | None) -> str:
+        """The class's canonical display when raw_name is a curated variant, else the given/raw name."""
+        base = display_name or raw_name
+        ckey = self._alias_class.get(norm_name(raw_name))
+        return self._class_canonical.get(ckey, base) if ckey else base
+
+    def _blocks_merge(self, raw_name: str, record: dict) -> bool:
+        """True if folding ``raw_name`` into ``record`` would cross a keep_separate pair."""
+        if not self._keep_separate:
+            return False
+        rec_forms = [record.get("display_name", ""), *record.get("aliases", [])]
+        for na, nb in self._keep_separate:
+            raw_a, raw_b = _term_in_name(na, raw_name), _term_in_name(nb, raw_name)
+            rec_a = any(_term_in_name(na, f) for f in rec_forms)
+            rec_b = any(_term_in_name(nb, f) for f in rec_forms)
+            if (raw_a and rec_b) or (raw_b and rec_a):
+                return True
+        return False
+
+    def _note_block(self, raw_name: str, cid: str, via: str) -> None:
+        self._blocked_merges.append({"raw_name": raw_name, "canonical_tool_id": cid, "via": via})
+        logger.info("keep-separate guard blocked merge of %r into %s (%s)", raw_name, cid, via)
+
     def _reindex(self, canonical_tool_id: str) -> None:
         rec = self._records[canonical_tool_id]
         # First-wins: the earliest (most prominent — minted first in pub_count
-        # order) record keeps a shared surface key, so variants attach to it.
+        # order) record keeps a shared surface key, so variants attach to it. The
+        # #252 alias-class keys are indexed alongside, so curated surface-form
+        # variants share one class key and attach to whichever is seen first.
         for form in [rec["display_name"], *rec.get("aliases", [])]:
-            for key in surface_keys(form):
+            for key in surface_keys(form) | self._alias_keys(form):
                 self._name_index.setdefault(key, canonical_tool_id)
 
     @staticmethod

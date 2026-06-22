@@ -38,6 +38,7 @@ from pipeline_tools.registry import (
     DEFAULT_TOOL_MATCH_COSINE,
     FamilyRegistry,
     ToolRegistry,
+    load_method_alias_map,
     norm_name,
 )
 
@@ -79,7 +80,11 @@ def run_seed(
     """Run the full seed pipeline and return the registries + §9 outputs + telemetry."""
     force_c_terms = force_c_terms if force_c_terms is not None else salience_mod.load_force_c_terms()
     cache = EmbeddingCache(embed=embed)
-    tools = ToolRegistry(cache=cache, match_cosine=tool_match_cosine)
+    # #252: apply the curated surface-form alias map + keep-separate guards at the
+    # seed too (the cold-run re-applies them at ToolRegistry.load); fail-open if absent.
+    _alias_merges, _keep_separate = load_method_alias_map()
+    tools = ToolRegistry(cache=cache, match_cosine=tool_match_cosine,
+                         alias_merges=_alias_merges, keep_separate=_keep_separate)
     families = FamilyRegistry(cache=cache, match_cosine=family_match_cosine)
 
     meta_by_name = {norm_name(m.get("raw_name", "")): m for m in mentions if m.get("raw_name")}
