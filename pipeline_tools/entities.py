@@ -1,4 +1,4 @@
-"""#1166 — specific-entity (cell-line) resolution stage for Methods Surface B.
+"""#1166 — specific-entity resolution stage for Methods Surface B.
 
 Surface B on the SPS Method-family page (``/methods/[supercategory]/[family]``)
 discovers the SPECIFIC named entities a method family resolves to — e.g. the
@@ -7,6 +7,14 @@ discovers the SPECIFIC named entities a method family resolves to — e.g. the
 each matching paper and a parent-nested directory ("the two 3T3-L1 forms under
 one parent"). None of that grain exists in the tools artifact today; this stage
 derives it.
+
+The default scope (:func:`is_projectable_family`) spans every specific-entity
+``kind`` — datasets (named cohorts), software, instruments, reagents, organisms,
+models — and EXCLUDES the generic-dominated ``method``/``assay`` kinds (see
+:data:`PROJECTED_KINDS`). The parent-nesting below is gated to cell-line families
+(its digit-token core is a cell-line designator); every other kind projects FLAT
+(no parent), which is correct for v1. Pass ``scope=is_cell_line_family`` for the
+original cell-line-only projection.
 
 Key real-data finding that shapes this stage (the collapse-hazard probe, plan §1):
 the tool registry already mints each specific cell line as its OWN canonical tool
@@ -63,6 +71,7 @@ from pipeline_tools.context_quality import (
     salient_name_forms,
 )
 from pipeline_tools.registry import norm_name
+from pipeline_tools.vocab import KIND_SET
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +80,26 @@ logger = logging.getLogger(__name__)
 # and passed into build_entity_layer; absent file or unset param -> nothing flagged.
 DEFAULT_GENERICS_PATH = Path(__file__).resolve().parent.parent / "config" / "method_generics_blocklist.json"
 
-# The families this stage projects. Surface B v1 is cell lines; the predicate is
-# kept narrow + explicit so the entity layer never silently spans unrelated axes,
-# but it keys on the FROZEN ``dominant_kind`` (not a brittle label match) plus a
-# "cell line" label guard, so new cell-line families are picked up automatically.
+# The families this stage projects. The DEFAULT scope is now ``is_projectable_family``
+# (all specific-entity kinds — see PROJECTED_KINDS below); ``is_cell_line_family`` is the
+# original cell-line-only predicate, kept as the explicit opt-in for reproducible
+# cell-line runs (pass ``scope=is_cell_line_family``). Both key on the FROZEN
+# ``dominant_kind`` enum, never a brittle label match — except the cell-line predicate
+# adds a "cell line" label guard so it stays inside the cell-line axis.
 CELL_KIND = "organism_or_cells"
 _CELL_LINE_LABEL = re.compile(r"cell line", re.IGNORECASE)
+
+# Kinds whose families resolve to SPECIFIC named entities, projected into the entity
+# layer by default. We deliberately EXCLUDE ``method`` and ``assay``: those families are
+# dominated by generic procedure / study-design / statistics names ("logistic regression",
+# "PCR", "ELISA") that the curated generics blocklist cannot yet suppress at scale (the
+# #252 WS-B vocabulary work), so projecting them would flood the SPS rail with non-specific
+# clickable rows. The remaining kinds resolve to specific entities: datasets -> named
+# cohorts (SEER/NCDB), software -> REDCap/R, instruments -> named platforms, reagents ->
+# specific antibodies/plasmids, organisms -> strains, models -> named artifacts. An
+# allowlist (NOT ``not in {method, assay}``) so any unvetted future kind fails closed.
+_EXCLUDED_KINDS = frozenset({"method", "assay"})
+PROJECTED_KINDS = KIND_SET - _EXCLUDED_KINDS
 
 # A parent group needs at least this many child forms to be worth nesting (a lone
 # entity stays top-level — nesting a single row is just noise, spec §5.6).
@@ -115,8 +138,21 @@ def matches_generic(display_name: str, terms: list[str]) -> bool:
     return any((needle := norm_name(t)) and f" {needle} " in hay for t in terms)
 
 
+def is_projectable_family(family: dict) -> bool:
+    """The default scope: an active family whose ``dominant_kind`` resolves to specific
+    named entities (every kind except the generic-dominated method/assay — see
+    :data:`PROJECTED_KINDS`).
+
+    Supersedes :func:`is_cell_line_family` as the default; pass
+    ``scope=is_cell_line_family`` to reproduce the original cell-line-only projection.
+    """
+    if family.get("status") not in (None, "active"):
+        return False
+    return family.get("dominant_kind") in PROJECTED_KINDS
+
+
 def is_cell_line_family(family: dict) -> bool:
-    """The default scope predicate: an active cell-line family."""
+    """The original cell-line-only scope predicate (opt-in via ``scope=``)."""
     if family.get("status") not in (None, "active"):
         return False
     if family.get("dominant_kind") != CELL_KIND:
@@ -184,7 +220,7 @@ def build_entity_layer(
     families: list[dict],
     tool_context: dict,
     *,
-    scope=is_cell_line_family,
+    scope=is_projectable_family,
     generic_terms: list[str] | None = None,
 ) -> tuple[list[dict], dict, list[dict]]:
     """Project the assembled tools artifact into the entity dimension + facts.
@@ -225,33 +261,36 @@ def build_entity_layer(
             continue
 
         # --- parent grouping (deterministic; the one net-new structure) ---
-        core_by_member: dict[str, str | None] = {}
-        core_members: dict[str, list[dict]] = {}
-        for t in members:
-            core = parent_core(t.get("display_name") or "")
-            core_by_member[t["canonical_tool_id"]] = core
-            if core is not None:
-                core_members.setdefault(core.lower(), []).append(t)
-
+        # CELL-LINE-ONLY: parent_core's digit-token heuristic is a cell-line designator
+        # ("3T3-L1") and is meaningless for other kinds — it would mis-nest "AAV9 vector"
+        # + "AAV9 capsid" under "AAV9", and feed those groups to the cell-line-specific
+        # define-pass (define_entity_parents). So non-cell-line families project FLAT (no
+        # parent), gated on the same predicate as the original cell-line scope.
         parent_id_by_member: dict[str, str] = {}
         parent_label_by_member: dict[str, str] = {}
-        for core_key, grp in core_members.items():
-            if len(grp) < MIN_PARENT_FORMS:
-                continue
-            # Parent label = the core in its original casing (from the first member).
-            label_tokens = parent_core(grp[0]["display_name"]) or grp[0]["display_name"]
-            pid = _parent_id(supercategory, family_label, core_key)
-            for t in grp:
-                parent_id_by_member[t["canonical_tool_id"]] = pid
-                parent_label_by_member[t["canonical_tool_id"]] = label_tokens
-            parents.append({
-                "parent_entity_id": pid,
-                "parent_label": label_tokens,
-                "supercategory": supercategory,
-                "family_label": family_label,
-                "member_display_names": [t.get("display_name") for t in grp],
-                "form_count": len(grp),
-            })
+        if is_cell_line_family(fam):
+            core_members: dict[str, list[dict]] = {}
+            for t in members:
+                core = parent_core(t.get("display_name") or "")
+                if core is not None:
+                    core_members.setdefault(core.lower(), []).append(t)
+            for core_key, grp in core_members.items():
+                if len(grp) < MIN_PARENT_FORMS:
+                    continue
+                # Parent label = the core in its original casing (from the first member).
+                label_tokens = parent_core(grp[0]["display_name"]) or grp[0]["display_name"]
+                pid = _parent_id(supercategory, family_label, core_key)
+                for t in grp:
+                    parent_id_by_member[t["canonical_tool_id"]] = pid
+                    parent_label_by_member[t["canonical_tool_id"]] = label_tokens
+                parents.append({
+                    "parent_entity_id": pid,
+                    "parent_label": label_tokens,
+                    "supercategory": supercategory,
+                    "family_label": family_label,
+                    "member_display_names": [t.get("display_name") for t in grp],
+                    "form_count": len(grp),
+                })
 
         # --- entity dimension + per-(pub x entity) facts ---
         for t in members:

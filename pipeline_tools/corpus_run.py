@@ -596,11 +596,12 @@ def run_corpus(
         for r in tool_registry.records()
         if (cbp := r.get("context_by_pub"))
     }
-    # #1166 — specific-entity (cell-line) layer for Methods Surface B. A pure
-    # projection over the assembled tool records + tool_context (the entity grain
-    # == the tool grain for cell lines; see pipeline_tools.entities). The
-    # render-only parent DESCRIPTOR is filled by an LLM define-pass (gated on
-    # `define`, like the #879 family definitions), partial-failure tolerant.
+    # #1166 — specific-entity layer for Methods Surface B. A pure projection over the
+    # assembled tool records + tool_context (the entity grain == the tool grain; see
+    # pipeline_tools.entities). The default scope spans all projectable kinds (every
+    # kind except method/assay); the render-only parent DESCRIPTOR is filled by an LLM
+    # define-pass (gated on `define`) that only runs on cell-line parent groups (other
+    # kinds project flat), partial-failure tolerant.
     from pipeline_tools.entities import (
         apply_parent_descriptors,
         build_entity_layer,

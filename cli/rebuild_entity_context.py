@@ -20,8 +20,12 @@ Safety postures copied verbatim from `rebuild_tool_context.republish_sidecar`:
   - **Byte-freeze of the siblings** — the would-write `tools.json` / `families.json`
     / `faculty.json` / `tool_context.json` bytes are asserted sha-identical to the
     live manifest before any upload; ONLY `entities.json` / `entity_context.json`
-    may change. (entities.json normally stays identical too — only its `evidenced`
-    flags can shift if alignment turned a prior fragment into a usable sentence.)
+    may change. (Historically entities.json stayed nearly identical on a rebuild —
+    only `evidenced` flags shifting when alignment turned a fragment into a usable
+    sentence. NOTE: now that the default scope is broadened beyond cell lines
+    (`is_projectable_family`), the FIRST rebuild over a cell-line-only live artifact
+    re-projects the full projectable entity set, so entities.json grows substantially
+    — that is expected, not a freeze-check failure.)
   - Parent DESCRIPTORS are preserved from the live `entities.json` (their ids are
     content-derived and stable across runs) so the re-projection needs no LLM
     define-pass.
