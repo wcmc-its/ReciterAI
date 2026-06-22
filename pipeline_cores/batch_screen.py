@@ -13,10 +13,11 @@ generates the CANDIDATE queue for everything not deterministically confirmed:
    -> bands: high=candidate, mid=curator (both written status=candidate), low=drop (skipped)
    -> idempotent, never-downgrade conditional writes to the `reciterai` DynamoDB table.
 
-SHIPS DARK: writes are opt-in (`--write`); without it the run is a dry-run. The band
-thresholds below are PLACEHOLDERS until the Option-3 Sonnet calibration (237-pilot +
-held-out recall on the deterministic-confirmed set) sets them — see
-analysis/HANDOFF-cores-2026-06-21.md and FINDINGS-cores-mesh-subheadings-2026-06-21.md.
+Writes are opt-in (`--write`); without it the run is a dry-run. The band thresholds were set
+by the Option-3 Sonnet calibration (analysis/calibrate_batch_screen.py + RESULTS doc); the
+production full-corpus `--write` run is the next gated step. Pre-filter dropping stays OFF
+(`--drop-threshold` 0.0) — the calibration confirmed the cheap signals can't gate without
+losing recall (MeSH-tree covers ~21%/1% of confirmed imaging/genomics pubs; author is circular).
 """
 from __future__ import annotations
 
@@ -34,11 +35,19 @@ from pipeline_cores.dictionary import load_core, load_cores
 SCREEN_VERSION = "batch_screen-v1-sonnet-title"
 PREFILTER_VERSION = "prefilter-v1-author+mesh-etree"
 
-# --- PLACEHOLDER bands (confidence 1-10). Set by the Option-3 calibration; until then
-#     keep --dry-run. high >= CANDIDATE_BAND_MIN; mid in [CURATOR_BAND_MIN, CANDIDATE_BAND_MIN);
-#     low < CURATOR_BAND_MIN -> drop (not written). ------------------------------------
-CANDIDATE_BAND_MIN = 7
-CURATOR_BAND_MIN = 4
+# --- Bands (confidence 1-10), CALIBRATED 2026-06-21 by the Option-3 Sonnet pass
+#     (analysis/calibrate_batch_screen.py): the 237-paper core-2 pilot + held-out recall on
+#     the deterministic-confirmed set across cores. high >= CANDIDATE_BAND_MIN (auto-surface);
+#     mid in [CURATOR_BAND_MIN, CANDIDATE_BAND_MIN) (curator review); low < CURATOR_BAND_MIN
+#     -> drop (not written).
+#   * curator-min = 2 is the recall-safe DROP FLOOR: held-out recall at >=2 is 91-100% across
+#     the well-powered cores (limited by core 2 at 91% — confirmed imaging pubs whose TITLE
+#     doesn't reveal imaging; an intrinsic screen limit, not threshold-tunable). >=3 drops to
+#     85%, >=4 to 72% — too lossy.
+#   * candidate-min = 5 auto-surfaces at ~91% pilot precision (>=6 reaches 95% but costs recall).
+#     This is the tunable precision/volume knob (raise for fewer, cleaner auto-candidates).
+CANDIDATE_BAND_MIN = 5
+CURATOR_BAND_MIN = 2
 
 # Triage read-timeout: batched screen generations are small JSON, so bound a hung call
 # well below the BedrockClient 900s default (same rationale as pipeline_cores.run).

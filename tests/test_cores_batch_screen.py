@@ -19,11 +19,11 @@ _PUBS = [{"pmid": str(i), "title": f"paper {i}", "abstract": ""} for i in range(
 
 # --- bands (confidence 1-10 -> candidate/curator/drop) ---------------------
 def test_band_boundaries():
+    # calibrated defaults: candidate-min=5, curator-min=2 (drop floor)
     assert band_for(10) == "candidate"
-    assert band_for(7) == "candidate"      # CANDIDATE_BAND_MIN
-    assert band_for(6) == "curator"
-    assert band_for(4) == "curator"        # CURATOR_BAND_MIN
-    assert band_for(3) == "drop"
+    assert band_for(5) == "candidate"      # CANDIDATE_BAND_MIN
+    assert band_for(4) == "curator"
+    assert band_for(2) == "curator"        # CURATOR_BAND_MIN
     assert band_for(1) == "drop"
 
 
@@ -118,6 +118,7 @@ def test_screen_core_excludes_confirmed_and_bands_correctly():
         _CORE, _PUBS, bedrock=fb,
         mesh_pmids={"1"}, author_pmids={"4"},
         confirmed_pmids={"5"},                 # excluded from the pool
+        candidate_min=7, curator_min=4,        # explicit -> decoupled from calibrated defaults
         drop_threshold=0.0, max_workers=1,
     )
     by = {r["pmid"]: r for r in results}

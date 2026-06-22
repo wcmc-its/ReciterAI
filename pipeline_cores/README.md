@@ -115,9 +115,11 @@ pool = corpus pubs (minus this core's already-confirmed pubs)
   lag. The bare-descriptor E-tree signal is reciterdb-native (no out-of-band fetch) and
   fires on ~21% of confirmed imaging pubs (concentrated in the imaging/equipment families;
   genomics relies on author-affinity + the screen).
-- **Ships dark.** Writes are opt-in (`--write`); the band thresholds are PLACEHOLDERS until
-  the Option-3 Sonnet calibration (237-pilot + held-out recall on the confirmed set) sets
-  them. Candidate writes (`put_candidate`) **never downgrade** a `confirmed`/`claimed`/`rejected`
+- **Calibrated bands.** The Option-3 Sonnet pass (`analysis/calibrate_batch_screen.py`) set
+  `curator-min=2` (recall-safe drop floor — held-out recall 91–100% at ≥2 across the
+  well-powered cores) and `candidate-min=5` (auto-surface at ~91% pilot precision). Writes are
+  opt-in (`--write`); the full-corpus run is the next gated step. Candidate writes
+  (`put_candidate`) **never downgrade** a `confirmed`/`claimed`/`rejected`
   row and are idempotent for their decision attributes. (Caveat: a pair that bands `candidate`
   -> `drop` on a later run keeps its stale candidate row — a demote/reconcile pass is a
   follow-up before the calibration flip.)
