@@ -65,12 +65,18 @@ def _sha(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def gather_entity_bodies(reuse: bool) -> tuple[bytes, bytes, dict]:
+def gather_entity_bodies(reuse: bool, live_descriptors: dict | None = None) -> tuple[bytes, bytes, dict]:
     """Return the exact (entities.json, entity_context.json) bytes the full publisher
     would emit, plus {entities, entity_context} counts.
 
     With ``reuse`` and a persisted _sidecar dir present, read them back (no corpus
     re-run). Otherwise re-run the cache-warm corpus and persist for the publish step.
+
+    The corpus re-run is done with ``define=False`` (no Bedrock parent-descriptor pass):
+    this is a publish tool, not a build tool, and an un-timed Bedrock call in the define
+    pass can wedge the entire publish on a stalled socket. Parent descriptors are
+    render-only + content-keyed (stable ids), so ``live_descriptors`` (read from the live
+    entities.json) is re-attached instead — mirroring cli/rebuild_entity_context.
     """
     ent_p = SIDECAR_DIR / "entities.json"
     ctx_p = SIDECAR_DIR / "entity_context.json"
@@ -101,10 +107,16 @@ def gather_entity_bodies(reuse: bool) -> tuple[bytes, bytes, dict]:
         tool_registry=tool_registry, family_registry=family_registry,
         force_c_terms=load_force_c_terms(),
         batch_size=50, relabel_batch_size=40,
-        relabel=True, apply_family_overrides=True,
+        relabel=True, define=False, apply_family_overrides=True,
         apply_consolidation=True, apply_adhoc_dedup=True,
         checkpoint_dir=DEFAULT_OUT_DIR / "_checkpoint",
     )
+    # define=False above -> parent_descriptor is None on every entity; re-attach the
+    # render-only descriptors from the live artifact (stable, content-keyed parent ids).
+    if live_descriptors:
+        from pipeline_tools.entities import apply_parent_descriptors
+        apply_parent_descriptors(result.entities, live_descriptors)
+        log.info("preserved %d live parent descriptor(s) (Bedrock define pass skipped)", len(live_descriptors))
     provenance = {
         "run_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "input": str(DEFAULT_INPUT),
@@ -136,6 +148,23 @@ def gather_entity_bodies(reuse: bool) -> tuple[bytes, bytes, dict]:
 def fetch_live_manifest(s3) -> dict:
     obj = s3.get_object(Bucket=BUCKET, Key=f"{S3_PREFIX}latest/manifest.json")
     return json.loads(obj["Body"].read())
+
+
+def fetch_live_parent_descriptors(s3) -> dict:
+    """``{parent_entity_id: descriptor}`` from the live entities.json so the sidecar can
+    preserve render-only parent prose without re-running the Bedrock define pass.
+    Best-effort: a missing/unreadable live entities.json -> empty map (descriptors stay None)."""
+    try:
+        obj = s3.get_object(Bucket=BUCKET, Key=f"{S3_PREFIX}latest/entities.json")
+        live_entities = json.loads(obj["Body"].read())
+    except Exception as exc:  # noqa: BLE001 — preservation is best-effort
+        log.warning("could not read live entities.json for descriptor preservation (%s); descriptors stay None", exc)
+        return {}
+    return {
+        e["parent_entity_id"]: e["parent_descriptor"]
+        for e in live_entities
+        if e.get("parent_entity_id") and e.get("parent_descriptor")
+    }
 
 
 def build_v4_manifest(entities_body: bytes, ctx_body: bytes, counts: dict, live: dict) -> dict:
@@ -192,11 +221,16 @@ def main(argv: list[str] | None = None) -> int:
                     help="reuse persisted out/tools/a2/_sidecar bodies (skip the corpus re-run)")
     args = ap.parse_args(argv)
 
-    entities_body, ctx_body, counts = gather_entity_bodies(reuse=args.reuse_bodies)
     s3 = boto3.client("s3", region_name=REGION)
     live = fetch_live_manifest(s3)
     log.info("live manifest: schema=%s version=%s tools.json sha=%s…",
              live.get("schema_version"), live.get("version"), live.get("sha256", "")[:12])
+    # Preserve render-only parent descriptors from live (only needed on a fresh build;
+    # reused bodies already carry them). Keeps the corpus re-run Bedrock-define-free.
+    live_descriptors = {} if args.reuse_bodies else fetch_live_parent_descriptors(s3)
+    entities_body, ctx_body, counts = gather_entity_bodies(
+        reuse=args.reuse_bodies, live_descriptors=live_descriptors,
+    )
     manifest = build_v4_manifest(entities_body, ctx_body, counts, live)
     manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
 
