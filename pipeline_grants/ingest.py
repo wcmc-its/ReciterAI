@@ -19,7 +19,10 @@ def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
     taxonomy = scoring.load_taxonomy()
     taxonomy_version = taxonomy.get("taxonomy_version", "taxonomy_v2")
     int_to_id, id_to_int = scoring.build_index(taxonomy)
-    bedrock = BedrockClient()
+    # Short read timeout: the default 900s lets one hung Bedrock socket read stall this
+    # serial loop for up to ~45min (3 retry attempts). 90s is ~18x a normal call; a truly
+    # hung item times out fast and is skipped by the per-item guard below.
+    bedrock = BedrockClient(read_timeout=90)
     dynamo = get_dynamo_client()
 
     data = grants_gov.search_opportunities(keyword=keyword, statuses="posted", rows=rows, start=0)
