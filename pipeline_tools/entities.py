@@ -54,6 +54,7 @@ from pipeline_tools.context_quality import (
     MIN_SNIPPET_CHARS,
     centrality_score,
     compute_matched_span,
+    is_sentence_complete,
     is_single_sentence,
     salient_name_forms,
 )
@@ -234,6 +235,12 @@ def build_entity_layer(
                     "usage_sentence": sentence.strip(),
                     "span": [span[0], span[1]] if span else None,
                     "centrality_score": centrality_score(sentence, forms),
+                    # #254: does this snippet read as a whole sentence vs a mid-clause
+                    # fragment? Additive hint so SPS shows its leading/trailing ellipsis
+                    # only on the residual fragments; the durable text fix is the
+                    # re-projection backfill (cli/rebuild_entity_context) over the
+                    # #239 sentence-aligned tool_context this snippet is sourced from.
+                    "sentence_complete": is_sentence_complete(sentence),
                     "role": None,  # #1166-B
                 }]
             if usages:

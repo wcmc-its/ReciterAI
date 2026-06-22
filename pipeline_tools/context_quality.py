@@ -133,6 +133,46 @@ def is_single_sentence(span: str) -> bool:
     return _STARTER_MERGE.search(s) is None
 
 
+# Terminal punctuation that ends a complete sentence. Trailing closing quotes /
+# parens / brackets are stripped before the check so `...HEK293 cells)."` and
+# `...expressed."` still read as complete.
+_SENTENCE_TERMINATORS = (".", "!", "?")
+_TRAILING_CLOSERS = "\"')]”’»"
+
+
+def is_sentence_complete(span: str) -> bool:
+    """A snippet reads as a WHOLE sentence, not a mid-clause fragment (#254).
+
+    This is the boundary the #239 tool_context aligner already enforces on the
+    tool grain; here it is named so the entity grain (and any future method grain)
+    can mark/guard the same property. Two cheap, asymmetric-by-design checks:
+
+      (a) it does NOT start mid-clause — a fragment's tell is a leading LOWERCASE
+          LETTER (the live #254 example: ``"they both dimerize in the plasma
+          membrane of HEK293 cells ..."``). A real sentence opens with a capital,
+          a digit (``"3T3-L1 adipocytes were treated ..."``), or a symbol — so the
+          test is "first char is a lowercase letter", NOT "first char is uppercase"
+          (the latter would wrongly flag every cell-line-initial sentence).
+      (b) it ends on terminal punctuation (``. ! ?``), tolerating a trailing
+          closing quote/paren/bracket.
+
+    Deliberately a HINT, not a hard gate: a false "incomplete" only costs SPS a
+    spurious leading/trailing ellipsis (cosmetic, reversible), whereas a false
+    "complete" would let a genuine broken fragment render unmarked. When unsure we
+    return False. It never truncates — callers mark the field, the durable text fix
+    is upstream sentence alignment, never a mid-clause clamp ([[feedback_no_arbitrary_truncation]]).
+    """
+    s = (span or "").strip()
+    if not s:
+        return False
+    if s[0].islower():  # opens mid-clause with a lowercase word -> fragment
+        return False
+    tail = s.rstrip()
+    while tail and tail[-1] in _TRAILING_CLOSERS:
+        tail = tail[:-1]
+    return bool(tail) and tail[-1] in _SENTENCE_TERMINATORS
+
+
 def accept_snippet(span: str | None, abstract: str, tool_name: str) -> bool:
     """True iff the span is verbatim, in-length, names the tool, and is one sentence."""
     if not span or not isinstance(span, str):
