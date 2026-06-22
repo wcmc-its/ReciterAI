@@ -17,6 +17,7 @@ from pipeline_tools.entities import (
     build_entity_layer,
     define_entity_parents,
     is_cell_line_family,
+    is_projectable_family,
     load_generic_terms,
     matches_generic,
     parent_core,
@@ -199,7 +200,27 @@ def test_matches_generic_whole_word_and_digit_guard():
 def test_load_generic_terms_real_config_and_missing(tmp_path):
     terms = load_generic_terms()  # the real config/method_generics_blocklist.json
     assert "macrophage cell line" in terms and "fibroblast cells" in terms
+    # The broadened scope's top-up: generic category names across the new kinds.
+    for t in ("mouse model", "electronic health records", "monoclonal antibodies",
+              "ct scanner", "large language models"):
+        assert t in terms, t
+    # Deliberately OMITTED to protect specific entities (see config _note) — a regression
+    # guard so these are never re-added: they would flag specific lines / strains / entities.
+    for t in ("cell line", "cell lines", "cancer cell lines", "mouse", "mice",
+              "induced pluripotent stem cells", "comorbidity index",
+              "in vivo", "in vitro", "state inpatient databases"):
+        assert t not in terms, t
     assert load_generic_terms(tmp_path / "nope.json") == []  # fail-open on missing file
+
+
+def test_real_blocklist_does_not_flag_specific_mouse_strains():
+    # Regression for the review finding: bare 'mice'/'mouse' are omitted so specific named
+    # strains stay clickable, while the qualified generic forms still flag.
+    terms = load_generic_terms()
+    for strain in ("NSG mice", "Balb/c mice", "db/db mice", "SCID mice"):
+        assert matches_generic(strain, terms) is False, strain
+    assert matches_generic("knockout mice", terms) is True       # qualified generic flags
+    assert matches_generic("in vivo imaging", terms) is False    # condition modifier dropped
 
 
 def test_build_entity_layer_flags_is_generic_and_suppresses_zero_count():
@@ -267,6 +288,85 @@ def test_is_cell_line_family_predicate():
     assert is_cell_line_family({"label": "Cancer cell lines", "dominant_kind": "organism_or_cells", "status": "active"})
     assert not is_cell_line_family({"label": "Gene editing", "dominant_kind": "method", "status": "active"})
     assert not is_cell_line_family({"label": "Retired lines", "dominant_kind": "organism_or_cells", "status": "merged"})
+
+
+# --------------------------------------------------------------------------- #
+# is_projectable_family — the broadened DEFAULT scope (all kinds except method/assay)
+# --------------------------------------------------------------------------- #
+
+def test_is_projectable_family_predicate():
+    # Every specific-entity kind projects; the generic-dominated method/assay do not.
+    for kind in ("organism_or_cells", "dataset", "reagent", "instrument", "software", "model"):
+        assert is_projectable_family({"dominant_kind": kind, "status": "active"}), kind
+    assert not is_projectable_family({"dominant_kind": "method", "status": "active"})
+    assert not is_projectable_family({"dominant_kind": "assay", "status": "active"})
+    assert not is_projectable_family({"dominant_kind": "dataset", "status": "merged"})  # status gate
+    assert not is_projectable_family({"dominant_kind": None, "status": "active"})       # unknown kind fails closed
+    # No "cell line" label is required any more (unlike is_cell_line_family).
+    assert is_projectable_family({"label": "REGARDS cohort", "dominant_kind": "dataset", "status": "active"})
+
+
+def test_default_scope_projects_non_cell_line_families():
+    # The behaviour change: a dataset + a reagent family now project under the DEFAULT
+    # scope (where the old cell-line-only default dropped them); a method family stays out.
+    tools = [
+        {"canonical_tool_id": "ds_1", "display_name": "SEER database",
+         "method_family_id": "fam_ds", "pub_count": 7, "aliases": []},
+        {"canonical_tool_id": "rx_1", "display_name": "anti-CD3 antibody",
+         "method_family_id": "fam_rx", "pub_count": 4, "aliases": []},
+        {"canonical_tool_id": "m_1", "display_name": "logistic regression",
+         "method_family_id": "fam_m", "pub_count": 99, "aliases": []},
+    ]
+    families = [
+        {"family_id": "fam_ds", "label": "Cancer registries", "supercategory": "datasets_cohorts",
+         "dominant_kind": "dataset", "status": "active", "member_tool_ids": ["ds_1"]},
+        {"family_id": "fam_rx", "label": "Antibodies", "supercategory": "molecular_biochem_reagents",
+         "dominant_kind": "reagent", "status": "active", "member_tool_ids": ["rx_1"]},
+        {"family_id": "fam_m", "label": "Regression methods", "supercategory": "computational_statistical",
+         "dominant_kind": "method", "status": "active", "member_tool_ids": ["m_1"]},
+    ]
+    got = {e["normalized_entity_id"]: e for e in build_entity_layer(tools, families, {})[0]}
+    assert set(got) == {"ds_1", "rx_1"}                  # dataset + reagent project
+    assert "m_1" not in got                              # method family excluded by default
+    assert got["ds_1"]["dominant_kind"] == "dataset"     # rail-noun source (#260) now varies by kind
+    assert got["rx_1"]["dominant_kind"] == "reagent"
+    # The cell-line-only opt-in still reproduces the narrow set (both families dropped).
+    assert build_entity_layer(tools, families, {}, scope=is_cell_line_family)[0] == []
+
+
+def test_non_cell_line_family_projects_flat_no_nesting():
+    # Parent grouping is GATED to cell-line families. A reagent family whose names share a
+    # digit-token core ("AAV9 vector"/"AAV9 capsid") must NOT nest — that would mis-apply
+    # cell-line semantics and feed the cell-line-specific define-pass. It projects flat.
+    tools = [
+        {"canonical_tool_id": "rx_1", "display_name": "AAV9 vector",
+         "method_family_id": "fam_rx", "pub_count": 4, "aliases": []},
+        {"canonical_tool_id": "rx_2", "display_name": "AAV9 capsid",
+         "method_family_id": "fam_rx", "pub_count": 3, "aliases": []},
+    ]
+    families = [{"family_id": "fam_rx", "label": "Viral vectors", "supercategory": "molecular_biochem_reagents",
+                 "dominant_kind": "reagent", "status": "active", "member_tool_ids": ["rx_1", "rx_2"]}]
+    ents, _, parents = build_entity_layer(tools, families, {})
+    assert parents == []                                          # no parent groups off the cell-line axis
+    assert all(e["parent_entity_id"] is None for e in ents)
+    assert all(e["parent_label"] is None for e in ents)
+
+
+def test_is_generic_flags_non_cell_line_category_name():
+    # The flag is kind-agnostic: a generic reagent category name flags, while a specific
+    # digit-coded reagent in the same family is protected by the no-digit guard.
+    tools = [
+        {"canonical_tool_id": "rx_1", "display_name": "monoclonal antibody",
+         "method_family_id": "fam_rx", "pub_count": 5, "aliases": []},
+        {"canonical_tool_id": "rx_2", "display_name": "anti-PD-1 antibody",
+         "method_family_id": "fam_rx", "pub_count": 3, "aliases": []},
+    ]
+    families = [{"family_id": "fam_rx", "label": "Antibodies", "supercategory": "molecular_biochem_reagents",
+                 "dominant_kind": "reagent", "status": "active", "member_tool_ids": ["rx_1", "rx_2"]}]
+    by_id = {e["normalized_entity_id"]: e
+             for e in build_entity_layer(tools, families, {}, generic_terms=["monoclonal antibody"])[0]}
+    assert by_id["rx_1"]["is_generic"] is True    # generic reagent category, no digit
+    assert by_id["rx_2"]["is_generic"] is False   # PD-1 carries a digit -> specific, protected
 
 
 # --------------------------------------------------------------------------- #
