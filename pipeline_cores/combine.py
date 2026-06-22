@@ -25,6 +25,19 @@ _STAFF_COAUTHOR_LIKELIHOOD = 0.95
 DEFAULT_TRIAGE_THRESHOLD = 0.30
 
 
+def noisy_or(*probabilities: float) -> float:
+    """1 - Π(1 - p): the probability that at least one independent signal fires.
+
+    The shared primitive behind this combiner, the author-affinity prior, the
+    prefilter prior, and the batch_screen likelihood — kept in one place so a future
+    tuning can't drift across copies. noisy_or() with no args returns 0.0.
+    """
+    complement = 1.0
+    for p in probabilities:
+        complement *= (1.0 - p)
+    return 1.0 - complement
+
+
 def combine(
     pmid: str,
     core_id: str,
@@ -40,6 +53,6 @@ def combine(
 
     llm_norm = (signals.llm_score / 10.0) if signals.llm_score else 0.0
     affinity = max(0.0, min(1.0, signals.author_affinity))
-    likelihood = 1.0 - (1.0 - llm_norm) * (1.0 - affinity)  # noisy-OR
+    likelihood = noisy_or(llm_norm, affinity)
     status = STATUS_CANDIDATE if likelihood >= triage_threshold else STATUS_BELOW
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)
