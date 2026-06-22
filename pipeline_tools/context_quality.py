@@ -286,3 +286,89 @@ def compute_matched_span(snippet: str, forms: list[str]) -> tuple[int, int] | No
         if best is None or cand[0] < best[0] or (cand[0] == best[0] and cand[1] > best[1]):
             best = cand
     return best
+
+
+# ---------------------------------------------------------------------------
+# Informativeness scoring (#253) — does a usage sentence describe a SPECIFIC
+# experimental use of the tool/entity, or a GENERIC background mention?
+#
+#   SPECIFIC (high)  "Nav1.3 was heterologously expressed in HEK293T cells."
+#   GENERIC  (low)   "HEK293T cells are widely used in good manufacturing
+#                     practice facilities, producing higher yield of AAV vectors."
+#
+# Deterministic + curated (D-INFORM heuristic-first): a per-(pub x tool) LLM score
+# over ~18k tools is cost-prohibitive (the #239 Haiku-per-pmid backfill shows the
+# shape), and the in-sentence signal is strongly separable. An LLM is reserved for
+# OFFLINE calibration of these lists + threshold, never the runtime path. The score
+# drives (a) which sentence to surface (informativeness, then centrality) and (b) a
+# usage-vs-mention class so SPS can label "How it was used" vs "Where it appears".
+# ---------------------------------------------------------------------------
+
+# Verbs (and close inflections) that signal the tool/cell line was actually USED in
+# an experiment here, not named in passing. Deliberately excludes bare "used" — the
+# background phrases below ("widely used") are the discriminator, not "used" itself.
+_USAGE_VERBS = frozenset(
+    "expressed expressing transfected transfection transduced transduction cultured "
+    "culturing treated incubated stained immunostained overexpressed knockdown knocked "
+    "silenced seeded plated infected electroporated injected differentiated cotransfected "
+    "transformed grown maintained passaged engineered immortalized lysed harvested "
+    "exposed administered perfused".split()
+)
+
+# Multi-word phrases that mark a GENERIC/background mention (a fact ABOUT the tool,
+# not a specific experiment with it). Substring-matched on the lowercased sentence.
+_BACKGROUND_PHRASES = (
+    "widely used", "commonly used", "routinely used", "frequently used", "are used",
+    "is used", "well established", "well-established", "gold standard", "is a popular",
+    "are a popular", "good manufacturing practice", "is a model", "are a model",
+    "model system", "is a common", "are common", "is one of the most",
+    "are one of the most", "is a widely", "are widely",
+)
+
+# A co-mentioned construct/gene/protein token (mixed alpha+digit like "Nav1.3" /
+# "F220C", or an all-caps symbol like "AAV" / "UHRF1") near the entity is weak
+# evidence of a specific experiment. A token that is part of an entity form does
+# not count (it would just be the entity naming itself).
+_CONSTRUCT_TOKEN = re.compile(r"\b(?:[A-Za-z]+\d[A-Za-z0-9.\-]*|[A-Z]{2,}\d*)\b")
+
+_INFORM_USAGE_THRESHOLD = 0.5
+
+
+def _has_construct_token(snippet: str, forms: list[str]) -> bool:
+    form_words = {w for f in forms for w in f.split()}
+    for m in _CONSTRUCT_TOKEN.finditer(snippet or ""):
+        if m.group(0).lower() not in form_words:
+            return True
+    return False
+
+
+def informativeness_score(snippet: str, forms: list[str]) -> float:
+    """[0,1]: high => specific experimental use, low => generic background mention (#253).
+
+    A curated blend, NOT an LLM call: a usage verb (+), a co-mentioned construct (+),
+    the entity named early/centrally (+), a generic-background phrase (−). Rounded to
+    4dp. Calibrate the lists/threshold offline against a labeled sample (D-INFORM).
+    """
+    s = (snippet or "").strip()
+    if not s:
+        return 0.0
+    low = s.lower()
+    score = 0.4  # neutral base
+    if any(re.search(rf"\b{re.escape(v)}\b", low) for v in _USAGE_VERBS):
+        score += 0.35
+    if _has_construct_token(s, forms):
+        score += 0.15
+    score += 0.10 * centrality_score(s, forms)  # named early => more likely the subject
+    if any(ph in low for ph in _BACKGROUND_PHRASES):
+        score -= 0.40
+    return round(max(0.0, min(1.0, score)), 4)
+
+
+def mention_class(snippet: str, forms: list[str]) -> str:
+    """``"usage"`` (specific experimental use) vs ``"mention"`` (generic background).
+
+    Drives the SPS per-snippet badge ("How it was used" vs "Where it appears").
+    Thresholds :func:`informativeness_score`; an empty snippet defaults to "mention"
+    (no evidence of specific use).
+    """
+    return "usage" if informativeness_score(snippet, forms) >= _INFORM_USAGE_THRESHOLD else "mention"

@@ -13,11 +13,12 @@ import hashlib
 from pipeline_tools import salience as sal
 from pipeline_tools.publish import build_publish_payload, publish_artifacts
 
-# The full published key set: 6 flat (transition) + 6 latest/ + the latest/ manifest.
+# The full published key set: 7 flat (transition) + 7 latest/ + the latest/ manifest.
 # (#1166 added entities.json + entity_context.json — empty here, since _result() has
-# no entity layer, so a pre-#1166 run still publishes a valid v4 manifest.)
+# no entity layer. #253 added tool_context_meta.json — the per-(tool, pmid) usage
+# signal sibling. All additive: a pre-entity run still publishes a valid v4 manifest.)
 _SIDE_NAMES = ("tools.json", "families.json", "faculty.json", "tool_context.json",
-               "entities.json", "entity_context.json")
+               "tool_context_meta.json", "entities.json", "entity_context.json")
 _FLAT_KEYS = {f"tools/{n}" for n in _SIDE_NAMES}
 _LATEST_KEYS = {f"tools/latest/{n}" for n in _SIDE_NAMES}
 _MANIFEST_KEY = {"tools/latest/manifest.json"}
@@ -104,6 +105,7 @@ def test_publish_real_uploads_each_object():
     assert cc["tools/families.json"] is None
     assert cc["tools/faculty.json"] is None
     assert cc["tools/tool_context.json"] is None  # flat sidecar keeps the no-cache posture
+    assert cc["tools/tool_context_meta.json"] is None  # #253 signal sibling: same flat posture
     assert cc["tools/entities.json"] is None      # #1166 sidecars: same no-cache flat posture
     assert cc["tools/entity_context.json"] is None
 
@@ -141,7 +143,7 @@ def test_publish_manifest_integrity_and_latest_mirror():
     assert manifest["sha256"] == hashlib.sha256(tools_body).hexdigest()
     assert manifest["artifact_bytes"] == len(tools_body)
     assert manifest["counts"] == {"tools": 1, "families": 1, "faculty": 1, "tool_context": 1,
-                                  "entities": 0, "entity_context": 0}
+                                  "tool_context_meta": 1, "entities": 0, "entity_context": 0}
 
     # #193 sidecar contract: the bundle stays lean (no context map inlined); the
     # sidecar carries the cid→{pmid: snippet} join data + its provenance stamp.
@@ -149,3 +151,11 @@ def test_publish_manifest_integrity_and_latest_mirror():
     sidecar = json.loads(bodies["tools/latest/tool_context.json"])
     assert sidecar["tool_context_kind"] == "tool_usage_snippet"
     assert sidecar["tool_context"]["tool_000001"]["39000001"].startswith("for stochastic")
+    # #253 sibling: same cid→{pmid: ...} join key, but a usage SIGNAL not the string.
+    # The flat tool_context.json value stays a string (the overview generator's contract).
+    assert isinstance(sidecar["tool_context"]["tool_000001"]["39000001"], str)
+    meta = json.loads(bodies["tools/latest/tool_context_meta.json"])
+    assert meta["tool_context_meta_kind"] == "tool_usage_signal"
+    entry = meta["tool_context_meta"]["tool_000001"]["39000001"]
+    assert set(entry) == {"informativeness_score", "mention_class"}
+    assert entry["mention_class"] in ("usage", "mention")
