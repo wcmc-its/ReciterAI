@@ -177,7 +177,7 @@ def _screen_all_prompt(cores: list, title: str, abstract: str) -> str:
 
 def _parse_core_scores(raw, cores: list) -> dict:
     """Coerce a model JSON reply into {core_id: int 1-10}; missing id -> 1."""
-    raw = raw or {}
+    raw = raw if isinstance(raw, dict) else {}    # a valid-but-non-dict reply (array/int) -> screen out
     return {c.core_id: _parse_int(raw.get(c.core_id, raw.get(str(c.core_id), 1))) for c in cores}
 
 
@@ -213,6 +213,81 @@ def screen_all_cores(bedrock, cores: list, pubs: list) -> dict:
         except BedrockEmptyContentError:
             out[pmid] = {c.core_id: 1 for c in cores}  # safety filter -> screen all out
     return out
+
+
+# ---------------------------------------------------------------------------
+# Batched one-core screen (the batch_screen run-mode) — Sonnet, title-only
+# ---------------------------------------------------------------------------
+# Validated mechanism (analysis/prototype_one_core_synopsis.py + the cores-subheadings
+# FINDINGS): ONE core per call, ~40 papers/batch, TITLE input recovers 95-100% recall
+# where the all-cores batch capped at 88% — focus is the lever (Sonnet ~= Opus). Returns
+# a graded confidence 1-10 per pmid that feeds the candidate/curator/drop bands. Title
+# keeps it affordable (the ~$30-280 frontier); abstract buys precision, not recall.
+
+def _batch_screen_prompt(core: CoreDefinition, papers: list) -> str:
+    body = "\n\n".join(f"PMID {p['pmid']}\nTitle: {p.get('title', '')}" for p in papers)
+    return (
+        "You screen WCM publications for use of ONE specific institutional core "
+        f"facility.\n\nCORE: {core.name} — {core.llm_description}\n\n"
+        f"PAPERS:\n{body}\n\n"
+        "For EACH paper, judge from its title whether it plausibly USED this core's "
+        "instruments/services. Be recall-first (include if plausibly used). Reply ONLY "
+        "with JSON mapping each PMID (string) to a confidence integer 1-10 "
+        '(10=clearly used, 1=clearly not), e.g. {"12345678": 8, "23456789": 1}. '
+        "Include every PMID."
+    )
+
+
+def batched_one_core_screen(bedrock, core: CoreDefinition, pubs: list, *,
+                            batch_size: int = 40, max_workers: int = 4) -> dict:
+    """Map pmid -> confidence 1-10 for ONE core, batching ~`batch_size` pubs per Sonnet call.
+
+    Title-only. Threaded across batches (Bedrock is I/O-bound); a batch that errors or a
+    pmid the reply omits defaults to 1 (screened low) rather than killing the run. Returns
+    {} for empty input. Pair with a short-read_timeout BedrockClient so a hung call fails
+    fast. Use max_workers<=1 for deterministic serial scoring (tests).
+    """
+    from utils.bedrock_client import SONNET_MODEL  # lazy
+
+    if not pubs:
+        return {}
+    if bedrock is None:                            # dry-run / no --with-llm: screen everything low
+        return {str(p["pmid"]): 1 for p in pubs}
+    batches = [pubs[i:i + batch_size] for i in range(0, len(pubs), batch_size)]
+
+    def _run(batch):
+        try:
+            raw = bedrock.call_json(
+                model=SONNET_MODEL,
+                messages=[{"role": "user", "content": _batch_screen_prompt(core, batch)}],
+                max_tokens=4096,
+            )
+        except Exception as exc:  # noqa: BLE001 — one bad batch must not kill the run
+            logger.warning("batch screen failed for core %s (%s) -> %d pmids screened low",
+                           core.core_id, type(exc).__name__, len(batch))
+            raw = {}
+        if not isinstance(raw, dict):              # a valid-but-non-dict reply (array/int) must not crash the run
+            logger.warning("batch screen for core %s returned non-dict %s -> %d pmids screened low",
+                           core.core_id, type(raw).__name__, len(batch))
+            raw = {}
+        result = {str(p["pmid"]): _parse_int(raw.get(str(p["pmid"]), 1)) for p in batch}
+        omitted = sum(1 for p in batch if str(p["pmid"]) not in raw)
+        if raw and omitted:                        # genuine omission (e.g. max_tokens truncation), not a failed batch
+            logger.warning("batch screen for core %s omitted %d/%d pmids -> screened low",
+                           core.core_id, omitted, len(batch))
+        return result
+
+    scores: dict = {}
+    if max_workers and max_workers > 1 and len(batches) > 1:
+        from concurrent.futures import ThreadPoolExecutor, as_completed  # lazy
+
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for fut in as_completed([ex.submit(_run, b) for b in batches]):
+                scores.update(fut.result())
+    else:
+        for b in batches:
+            scores.update(_run(b))
+    return scores
 
 
 def _dense_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
