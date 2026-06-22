@@ -156,7 +156,10 @@ def fetch_live_parent_descriptors(s3) -> dict:
     Best-effort: a missing/unreadable live entities.json -> empty map (descriptors stay None)."""
     try:
         obj = s3.get_object(Bucket=BUCKET, Key=f"{S3_PREFIX}latest/entities.json")
-        live_entities = json.loads(obj["Body"].read())
+        payload = json.loads(obj["Body"].read())
+        # The published entities.json is wrapped {schema_version, provenance, entities:[...]}
+        # (see cli/rebuild_entity_context); unwrap to the list (tolerate a bare list too).
+        live_entities = payload.get("entities", []) if isinstance(payload, dict) else payload
     except Exception as exc:  # noqa: BLE001 — preservation is best-effort
         log.warning("could not read live entities.json for descriptor preservation (%s); descriptors stay None", exc)
         return {}
