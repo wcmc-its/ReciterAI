@@ -605,9 +605,11 @@ def run_corpus(
         apply_parent_descriptors,
         build_entity_layer,
         define_entity_parents,
+        load_generic_terms,
     )
     result.entities, result.entity_context, _entity_parents = build_entity_layer(
         result.records, family_registry.records(), result.tool_context,
+        generic_terms=load_generic_terms(),
     )
     if define and result.entities and _entity_parents:
         _descriptors = define_entity_parents(

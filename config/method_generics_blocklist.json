@@ -1,0 +1,18 @@
+{
+  "_note": "#252 generics blocklist: generic CATEGORY names that are not a specific entity (e.g. 'macrophage cell line', 'murine cell line', 'fibroblast cells'), as opposed to a named line (3T3-L1, HEK293T, HMC-1, MDCK). Matched whole-word against the entity display_name AND only when the name carries no distinctive digit-bearing line designator — so a specific digit-coded line is never flagged even if its name contains a generic head noun ('3T3 fibroblast cells' stays specific). Producer emits this as the additive entities.json `is_generic` flag (SPS family_entity.is_generic); it is a FLAG, never a drop — SPS owns the display decision. Operator-curated/extendable, fail-open (missing file -> none flagged). Note: digit-free specific lines (MDCK, HeLa) are protected simply by not appearing here, since match is whole-word against this list.",
+  "generic_terms": [
+    "macrophage cell line",
+    "macrophage cell lines",
+    "murine cell line",
+    "murine cell lines",
+    "immortalized cell cultures",
+    "immortalized cell line",
+    "immortalized cells",
+    "fibroblast cells",
+    "fibroblast cell line",
+    "epithelial cell line",
+    "endothelial cell line",
+    "primary cell culture",
+    "primary cells"
+  ]
+}

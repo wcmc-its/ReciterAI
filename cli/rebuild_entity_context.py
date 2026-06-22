@@ -37,7 +37,7 @@ import json
 import logging
 import os
 
-from pipeline_tools.entities import apply_parent_descriptors, build_entity_layer
+from pipeline_tools.entities import apply_parent_descriptors, build_entity_layer, load_generic_terms
 
 logger = logging.getLogger(__name__)
 
@@ -79,14 +79,18 @@ def reproject_entity_context(
     tool_context: dict,
     *,
     live_entities: list[dict] | None = None,
+    generic_terms: list[str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Re-run build_entity_layer over the (aligned) tool_context; preserve descriptors.
 
     Returns ``(entities, entity_context)`` with clean snippets + recomputed
-    span/centrality/sentence_complete. Descriptors from ``live_entities`` are
-    re-attached by their content-stable ``parent_entity_id`` (no LLM call).
+    span/centrality/sentence_complete, the #252 is_generic flag + 0-count
+    suppression re-applied. Descriptors from ``live_entities`` are re-attached by
+    their content-stable ``parent_entity_id`` (no LLM call).
     """
-    entities, entity_context, _parents = build_entity_layer(tools, families, tool_context)
+    entities, entity_context, _parents = build_entity_layer(
+        tools, families, tool_context, generic_terms=generic_terms,
+    )
     if live_entities:
         descriptors = {
             e["parent_entity_id"]: e["parent_descriptor"]
@@ -141,7 +145,8 @@ def republish_entity_context(
         logger.info("BEFORE (live entity_context): %s", before)
 
     entities, entity_context = reproject_entity_context(
-        bundle["tools"], bundle["families"], tool_context, live_entities=live_entities,
+        bundle["tools"], bundle["families"], tool_context,
+        live_entities=live_entities, generic_terms=load_generic_terms(),
     )
     after = entity_fragment_metrics(entity_context)
     logger.info("AFTER  (re-projected)        : %s", after)

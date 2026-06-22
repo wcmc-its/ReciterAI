@@ -46,8 +46,10 @@ dimension by ``usage_count``; the filtered article snippets join the facts):
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
+from pathlib import Path
 
 from pipeline_tools.context_quality import (
     MAX_SENTENCE_CHARS,
@@ -60,8 +62,14 @@ from pipeline_tools.context_quality import (
     mention_class,
     salient_name_forms,
 )
+from pipeline_tools.registry import norm_name
 
 logger = logging.getLogger(__name__)
+
+# #252 generics blocklist — curated generic CATEGORY names ("macrophage cell line")
+# that are not a specific entity. Loaded by the caller (corpus_run / the backfill)
+# and passed into build_entity_layer; absent file or unset param -> nothing flagged.
+DEFAULT_GENERICS_PATH = Path(__file__).resolve().parent.parent / "config" / "method_generics_blocklist.json"
 
 # The families this stage projects. Surface B v1 is cell lines; the predicate is
 # kept narrow + explicit so the entity layer never silently spans unrelated axes,
@@ -80,6 +88,31 @@ MIN_PARENT_FORMS = 2
 # the differentiation/form. Pure-alpha names (e.g. "human hepatocyte cell line")
 # have no digit token -> no core -> never grouped (conservative; v1 keeps them flat).
 _HAS_DIGIT = re.compile(r"\d")
+
+
+def load_generic_terms(path: Path = DEFAULT_GENERICS_PATH) -> list[str]:
+    """The #252 generics blocklist (fail-open: missing file -> none). Mirrors salience.load_force_c_terms."""
+    if not path.exists():
+        logger.warning("generics blocklist not found at %s; flagging none is_generic.", path)
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return list(data.get("generic_terms", []))
+
+
+def matches_generic(display_name: str, terms: list[str]) -> bool:
+    """True if the entity NAME is a generic category, not a specific entity (#252).
+
+    A curated generic phrase ("macrophage cell line", "fibroblast cells") appears as
+    a whole word AND the name carries no distinctive line designator (a digit-bearing
+    token like 3T3 / HEK293 / HMC-1), so a SPECIFIC digit-coded line is never flagged
+    even when its name contains a generic head noun ("3T3 fibroblast cells" stays
+    specific). Whole-word match on norm_name, mirroring salience.matches_force_c. This
+    is a FLAG, never a drop — SPS owns the display decision via family_entity.is_generic.
+    """
+    if not terms or _HAS_DIGIT.search(display_name or ""):
+        return False
+    hay = f" {norm_name(display_name)} "
+    return any((needle := norm_name(t)) and f" {needle} " in hay for t in terms)
 
 
 def is_cell_line_family(family: dict) -> bool:
@@ -152,6 +185,7 @@ def build_entity_layer(
     tool_context: dict,
     *,
     scope=is_cell_line_family,
+    generic_terms: list[str] | None = None,
 ) -> tuple[list[dict], dict, list[dict]]:
     """Project the assembled tools artifact into the entity dimension + facts.
 
@@ -181,6 +215,12 @@ def build_entity_layer(
             for mid in (fam.get("member_tool_ids") or [])
             if mid in tools_by_id and (tools_by_id[mid].get("display_name") or "").strip()
         ]
+        # #252 0-count suppression: never emit a phantom whose in-scope usage_count
+        # (institution-wide pub_count) is 0 — the registry minted it but no in-corpus
+        # publication uses it (MDCK/MEF/NIH-3T3 phantoms). Dropped BEFORE parent
+        # grouping so a phantom never inflates a parent's form_count either. Pure +
+        # deterministic; lowers manifest.counts.entities (content, not schema).
+        members = [t for t in members if int(t.get("pub_count") or 0) > 0]
         if not members:
             continue
 
@@ -268,6 +308,9 @@ def build_entity_layer(
                 # len(usages) — sentences are only kept where a usable snippet exists.
                 "usage_count": int(t.get("pub_count") or 0),
                 "evidenced": bool(usages),  # spec §7 is_evidenced -> clickable affordance
+                # #252: a generic CATEGORY name, not a specific entity (SPS reads it
+                # as family_entity.is_generic). Additive flag, never a drop.
+                "is_generic": matches_generic(display, generic_terms or []),
             })
 
     # Sort entities for a stable artifact: family, then usage_count desc, then id.
