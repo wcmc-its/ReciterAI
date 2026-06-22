@@ -17,6 +17,8 @@ from pipeline_tools.entities import (
     build_entity_layer,
     define_entity_parents,
     is_cell_line_family,
+    load_generic_terms,
+    matches_generic,
     parent_core,
 )
 
@@ -178,6 +180,51 @@ def test_build_entity_layer_emits_informativeness_and_mention_class():
     f1, f2 = ectx["tool_1"]["111"][0], ectx["tool_1"]["222"][0]
     assert f1["mention_class"] == "usage" and f2["mention_class"] == "mention"
     assert f1["informativeness_score"] > f2["informativeness_score"]
+
+
+# --------------------------------------------------------------------------- #
+# #252 — generics flag + 0-count phantom suppression (safe subset)
+# --------------------------------------------------------------------------- #
+
+def test_matches_generic_whole_word_and_digit_guard():
+    terms = ["macrophage cell line", "fibroblast cells"]
+    assert matches_generic("macrophage cell line", terms) is True
+    assert matches_generic("Macrophage Cell Line", terms) is True       # case-insensitive
+    assert matches_generic("primary fibroblast cells", terms) is True   # no digit, contains phrase
+    assert matches_generic("3T3 fibroblast cells", terms) is False      # digit designator -> specific
+    assert matches_generic("HeLa cells", terms) is False                # not in the list
+    assert matches_generic("macrophage cell line", []) is False         # empty list -> nothing flagged
+
+
+def test_load_generic_terms_real_config_and_missing(tmp_path):
+    terms = load_generic_terms()  # the real config/method_generics_blocklist.json
+    assert "macrophage cell line" in terms and "fibroblast cells" in terms
+    assert load_generic_terms(tmp_path / "nope.json") == []  # fail-open on missing file
+
+
+def test_build_entity_layer_flags_is_generic_and_suppresses_zero_count():
+    tools = [
+        {"canonical_tool_id": "tool_1", "display_name": "HEK293T cells",
+         "method_family_id": "fam_cl", "pub_count": 5, "aliases": []},
+        {"canonical_tool_id": "tool_2", "display_name": "macrophage cell line",
+         "method_family_id": "fam_cl", "pub_count": 3, "aliases": []},
+        {"canonical_tool_id": "tool_3", "display_name": "MDCK cells",  # phantom: pub_count 0
+         "method_family_id": "fam_cl", "pub_count": 0, "aliases": []},
+    ]
+    families = [{"family_id": "fam_cl", "label": "Immortalized cell lines",
+                 "supercategory": "animal_cell_models", "dominant_kind": "organism_or_cells",
+                 "status": "active", "member_tool_ids": ["tool_1", "tool_2", "tool_3"]}]
+    ents, _, _ = build_entity_layer(tools, families, {}, generic_terms=["macrophage cell line"])
+    by_id = {e["normalized_entity_id"]: e for e in ents}
+    assert "tool_3" not in by_id                     # #252: 0-count phantom suppressed
+    assert by_id["tool_1"]["is_generic"] is False    # specific digit-coded line
+    assert by_id["tool_2"]["is_generic"] is True     # generic category name
+
+
+def test_build_entity_layer_is_generic_defaults_false_without_terms():
+    # No generic_terms passed: every entity carries is_generic=False (additive, safe default).
+    ents, _, _ = build_entity_layer(*_artifact())
+    assert ents and all(e["is_generic"] is False for e in ents)
 
 
 def test_build_entity_layer_evidenced_flag():
