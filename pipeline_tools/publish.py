@@ -52,6 +52,11 @@ TOOL_CONTEXT_KIND = "tool_usage_snippet"
 # #1166 entity-facts provenance stamp — names WHAT the per-(pub x entity) snippets
 # are, distinct from the per-tool tool_context. Mirrors TOOL_CONTEXT_KIND.
 ENTITY_CONTEXT_KIND = "entity_usage_snippet"
+# #253 per-(tool, pmid) usage SIGNAL sidecar — informativeness_score + mention_class
+# for each tool_context snippet. Kept OUT of tool_context.json so that file's value
+# stays a flat string (the overview generator / scholar-tool-mapper / #239 rebuild
+# freeze-check all depend on the string shape); SPS joins this map by (cid, pmid).
+TOOL_CONTEXT_META_KIND = "tool_usage_signal"
 # Latest/manifest gets a short cache so SPS picks up a republish quickly; the
 # immutable versioned copies (if any) can be cached long. Mirrors the hierarchy
 # publisher's CacheControl posture.
@@ -130,6 +135,44 @@ class PublishItem:
         return len(self.body)
 
 
+def _build_tool_context_meta(tool_context: dict, tools: list[dict]) -> dict:
+    """Derive the #253 per-(tool, pmid) usage signal from the tool_context snippets.
+
+    ``{canonical_tool_id: {pmid: {informativeness_score, mention_class}}}``. Forms are
+    the tool's display name + aliases (so the score's centrality term resolves the same
+    span SPS marks). Pure + deterministic, computed HERE so every publish path — the
+    forward corpus run and the #239 / #254 backfills, which all call this function —
+    emits a meta map consistent with the tool_context it ships. Never mutates the flat
+    ``tool_context.json`` string values (the overview generator depends on that shape).
+    """
+    from pipeline_tools.context_quality import (
+        _INFORM_USAGE_THRESHOLD,
+        informativeness_score,
+        salient_name_forms,
+    )
+
+    forms_by_cid: dict[str, list[str]] = {
+        cid: salient_name_forms(t.get("display_name") or "", list(t.get("aliases") or []))
+        for t in tools
+        if (cid := t.get("canonical_tool_id"))
+    }
+    out: dict[str, dict] = {}
+    for cid, by_pmid in (tool_context or {}).items():
+        forms = forms_by_cid.get(cid, [])
+        row = {}
+        for pmid, snippet in (by_pmid or {}).items():
+            if not snippet:
+                continue
+            score = informativeness_score(snippet, forms)
+            row[str(pmid)] = {
+                "informativeness_score": score,
+                "mention_class": "usage" if score >= _INFORM_USAGE_THRESHOLD else "mention",
+            }
+        if row:
+            out[cid] = row
+    return out
+
+
 def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
     """The objects to publish: the consolidated tools.json + split faculty/families/context.
 
@@ -159,6 +202,7 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
     tool_context = payload.get("tool_context", {})
     entities = payload.get("entities", []) or []
     entity_context = payload.get("entity_context", {}) or {}
+    tool_context_meta = _build_tool_context_meta(tool_context, payload.get("tools", []))
     tools_body = _bytes({k: v for k, v in payload.items() if k not in _SPLIT_OUT})
     families_body = _bytes({
         "schema_version": payload["schema_version"],
@@ -180,6 +224,18 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
             "provenance": payload["provenance"],
             "tool_context_kind": TOOL_CONTEXT_KIND,
             "tool_context": tool_context,
+        },
+        ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8")
+    # #253 per-(tool, pmid) usage signal sidecar (informativeness_score + mention_class).
+    # sort_keys for byte-stability, exactly like tool_context.json. Empty {} when the
+    # payload has no tool_context (the file is still emitted, byte-stable).
+    tool_context_meta_body = json.dumps(
+        {
+            "schema_version": payload["schema_version"],
+            "provenance": payload["provenance"],
+            "tool_context_meta_kind": TOOL_CONTEXT_META_KIND,
+            "tool_context_meta": tool_context_meta,
         },
         ensure_ascii=False, separators=(",", ":"), sort_keys=True,
     ).encode("utf-8")
@@ -208,6 +264,7 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
                        ("families.json", families_body),
                        ("faculty.json", faculty_body),
                        ("tool_context.json", tool_context_body),
+                       ("tool_context_meta.json", tool_context_meta_body),
                        ("entities.json", entities_body),
                        ("entity_context.json", entity_context_body)):
         # Flat keys: preserve the existing posture exactly — tools.json carried
@@ -255,6 +312,9 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
             "families": len(payload["families"]),
             "faculty": len(payload["faculty"]),
             "tool_context": len(payload.get("tool_context", {})),
+            # #253 sibling signal map — one entry per tool that has any snippet
+            # (same cid cardinality as tool_context); integrity rides `objects`.
+            "tool_context_meta": len(payload.get("tool_context", {})),
             "entities": len(payload.get("entities", []) or []),
             "entity_context": len(payload.get("entity_context", {}) or {}),
         },

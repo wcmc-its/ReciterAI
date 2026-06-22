@@ -8,10 +8,13 @@ from __future__ import annotations
 from pipeline_tools.context_quality import (
     MAX_SENTENCE_CHARS,
     accept_snippet,
+    informativeness_score,
     is_sentence_complete,
     is_single_sentence,
     is_verbatim,
+    mention_class,
     names_tool,
+    salient_name_forms,
 )
 
 ABSTRACT = (
@@ -105,6 +108,32 @@ def test_sentence_complete_rejects_each_failure_mode_independently():
     assert not is_sentence_complete("HEK293T cells are widely used in GMP facilities")  # no terminal punct
     assert not is_sentence_complete("")
     assert not is_sentence_complete("   ")
+
+
+# --- informativeness / usage-vs-mention (#253) -----------------------------
+
+def test_informativeness_separates_specific_use_from_background():
+    forms = salient_name_forms("HEK293T cells", ["HEK293T"])
+    # The two sentences from the issue, both under HEK293T.
+    specific = "Nav1.3 was heterologously expressed in HEK293T cells."
+    generic = ("HEK293T cells are widely used in good manufacturing practice facilities, "
+               "producing higher yield of AAV vectors.")
+    assert informativeness_score(specific, forms) > informativeness_score(generic, forms)
+    assert mention_class(specific, forms) == "usage"       # "How it was used"
+    assert mention_class(generic, forms) == "mention"      # "Where it appears"
+
+
+def test_informativeness_usage_verb_and_construct_drive_score():
+    forms = salient_name_forms("HeLa cells")
+    assert mention_class("HeLa cells were transfected with the F220C construct.", forms) == "usage"
+    assert mention_class("HeLa cells are commonly used as a model system.", forms) == "mention"
+
+
+def test_informativeness_edge_cases():
+    forms = salient_name_forms("HeLa cells")
+    assert informativeness_score("", forms) == 0.0
+    assert mention_class("", forms) == "mention"           # no evidence => mention
+    assert 0.0 <= informativeness_score("a plain neutral sentence about cells.", forms) <= 1.0
 
 
 # --- composite + length ---------------------------------------------------
