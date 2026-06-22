@@ -146,6 +146,22 @@ def test_build_entity_layer_facts_have_span_and_centrality():
     assert s[fact["span"][0]:fact["span"][1]].lower().startswith("3t3-l1")
     assert 0.0 <= fact["centrality_score"] <= 1.0
     assert fact["role"] is None  # #1166-B
+    assert "sentence_complete" in fact  # #254 additive field present
+
+
+def test_build_entity_layer_marks_sentence_complete():
+    tools = [{"canonical_tool_id": "tool_1", "display_name": "HEK293 cells",
+              "method_family_id": "fam_cl", "pub_count": 5, "aliases": []}]
+    families = [{"family_id": "fam_cl", "label": "Immortalized cell lines",
+                 "supercategory": "animal_cell_models", "dominant_kind": "organism_or_cells",
+                 "status": "active", "member_tool_ids": ["tool_1"]}]
+    tool_context = {"tool_1": {
+        "111": "The F220C opsin was expressed in HEK293 cells.",                # complete sentence
+        "222": "they both dimerize in the plasma membrane of HEK293 cells",     # #254 fragment
+    }}
+    _, ectx, _ = build_entity_layer(tools, families, tool_context)
+    assert ectx["tool_1"]["111"][0]["sentence_complete"] is True
+    assert ectx["tool_1"]["222"][0]["sentence_complete"] is False
 
 
 def test_build_entity_layer_evidenced_flag():

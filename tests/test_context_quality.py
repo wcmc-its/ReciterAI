@@ -8,6 +8,7 @@ from __future__ import annotations
 from pipeline_tools.context_quality import (
     MAX_SENTENCE_CHARS,
     accept_snippet,
+    is_sentence_complete,
     is_single_sentence,
     is_verbatim,
     names_tool,
@@ -78,6 +79,32 @@ def test_single_sentence_false_positives_stay_accepted():
     assert is_single_sentence(
         "A phase II, open-label trial (no. NCT04445987) was conducted in 30 patients with SD."
     )
+
+
+# --- sentence-complete (#254) ---------------------------------------------
+
+def test_sentence_complete_accepts_whole_sentences():
+    assert is_sentence_complete("Nav1.3 was heterologously expressed in HEK293T cells.")
+    assert is_sentence_complete("HEK293T cells are widely used in manufacturing facilities!")
+    # opens with a digit (a cell-line name) — must NOT be flagged a fragment.
+    assert is_sentence_complete("3T3-L1 adipocytes were treated with metformin for 8 days.")
+    # tolerates a trailing closing paren / quote after the terminator.
+    assert is_sentence_complete("The construct was expressed in HEK293 cells (Clontech).")
+    assert is_sentence_complete('It was described as "a robust line."')
+
+
+def test_sentence_complete_rejects_the_live_254_fragment():
+    # The exact SPS-staging defect: starts lowercase mid-clause, no terminal punctuation.
+    frag = ("they both dimerize in the plasma membrane of HEK293 cells and FRET experiments "
+            "with SNAP-tagged wild-type and F220C opsin expressed in HEK293 cells")
+    assert not is_sentence_complete(frag)
+
+
+def test_sentence_complete_rejects_each_failure_mode_independently():
+    assert not is_sentence_complete("they both dimerize in the plasma membrane.")  # lowercase start
+    assert not is_sentence_complete("HEK293T cells are widely used in GMP facilities")  # no terminal punct
+    assert not is_sentence_complete("")
+    assert not is_sentence_complete("   ")
 
 
 # --- composite + length ---------------------------------------------------
