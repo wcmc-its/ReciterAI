@@ -21,6 +21,7 @@ import argparse
 import logging
 
 from pipeline_grants import scoring, wcm_curated
+from pipeline_grants.exclusions import load_excluded_ids
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
 from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_dynamo_client
@@ -37,8 +38,9 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None):
     ingested_at = ingested_at or now_iso()
 
     rows = wcm_curated.read_curated_csv(csv_path)
+    excluded = load_excluded_ids()
     items, artifact = [], []
-    seen, dup = set(), 0
+    seen, dup, skipped = set(), 0, 0
     for row in rows:
         synopsis = (row.get("synopsis") or "").strip() or wcm_curated.fallback_synopsis(row)
         opp = wcm_curated.make_curated_opportunity(row, synopsis=synopsis, ingested_at=ingested_at)
@@ -48,6 +50,10 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None):
             dup += 1
             continue
         seen.add(opp.opportunity_id)
+        # Held out of reverse-matching (non-topical awards) — skip-persist, no Bedrock spend.
+        if opp.opportunity_id in excluded:
+            skipped += 1
+            continue
         dense = scoring.score_grant_text(
             title=opp.title, synopsis=opp.synopsis, opportunity_id=opp.opportunity_id,
             bedrock=bedrock, taxonomy=taxonomy, int_to_id=int_to_id, id_to_int=id_to_int,
@@ -66,6 +72,8 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None):
         })
     if dup:
         log.info("dropped %d duplicate curated row(s) (same name+sponsor)", dup)
+    if skipped:
+        log.info("held out %d excluded curated award(s) (see config/excluded_opportunities.json)", skipped)
     return items, artifact
 
 

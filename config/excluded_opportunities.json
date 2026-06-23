@@ -1,0 +1,150 @@
+{
+  "_comment": "Opportunities held out of GrantRecs reverse-matching (skip-persist: not written to the GRANT# table, so SPS never indexes or matches them). Seeded 2026-06-22 from the curated awards whose primary topic is the research_infrastructure_workforce catch-all and score >= 0.3 (they clear the match gate but are non-topical service/career/award prizes -> surface the wrong people). Reversible: delete an entry and re-ingest to bring it back. Source-agnostic by opportunity_id; add grants_gov ids here too if needed. Never edits the underlying curated CSV.",
+  "excluded_opportunities": [
+    {
+      "opportunity_id": "wcm_curated:asci-postbac-program-the-american-society-for-clinical-investigation-c6baad",
+      "title": "ASCI Postbac Program",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:builders-of-science-award-research-america-88f93a",
+      "title": "Builders of Science Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:henry-grass-md-rising-stars-in-neuroscience-award-the-grass-foundation-142b9f",
+      "title": "Henry Grass, MD Rising Stars in Neuroscience Award",
+      "reason": "topical award mis-bucketed to research_infrastructure_workforce; re-topic candidate, not a permanent exclude"
+    },
+    {
+      "opportunity_id": "wcm_curated:sharona-gordon-award-society-of-general-physiologists-dabfe2",
+      "title": "Sharona Gordon Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:excelsior-award-society-of-general-physiologists-745229",
+      "title": "Excelsior Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aacr-daniel-d-von-hoff-award-for-outstanding-contributions-to-education-4a573d",
+      "title": "AACR-Daniel D. Von Hoff Award for Outstanding Contributions to Education and Training in Cancer Research",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:herbert-pardes-family-award-for-national-leadership-in-advocacy-for-rese-2cf584",
+      "title": "Herbert Pardes Family Award for National Leadership in Advocacy for Research",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:asbmb-leadership-award-emerging-leadership-award-and-sustained-leadershi-d9a01f",
+      "title": "ASBMB Leadership Award (Emerging Leadership Award and Sustained Leadership Award)",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:adam-yarmolinsky-medal-national-academy-of-medicine-204c37",
+      "title": "Adam Yarmolinsky Medal",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:gordon-and-llura-gund-leadership-award-research-america-520fcd",
+      "title": "Gordon and Llura Gund Leadership Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:isadore-rosenfeld-award-for-impact-on-public-opinion-research-america-aa6739",
+      "title": "Isadore Rosenfeld Award for Impact on Public Opinion",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:bernice-grafstein-award-for-outstanding-accomplishments-in-mentoring-soc-3dd33c",
+      "title": "Bernice Grafstein Award for Outstanding Accomplishments in Mentoring",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:inspiring-women-in-science-science-outreach-category-nature-awards-and-t-d702f0",
+      "title": "Inspiring Women in Science - Science Outreach Category",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:paul-g-rogers-distinguished-organization-advocacy-award-research-america-29af1b",
+      "title": "Paul G. Rogers Distinguished Organization Advocacy\u00a0Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:louise-hanson-marshall-special-recognition-award-society-for-neuroscienc-c9390c",
+      "title": "Louise Hanson Marshall Special Recognition Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:william-c-rose-award-american-society-for-biochemistry-and-molecular-bio-fce68c",
+      "title": "William C. Rose Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:icis-mentorship-award-international-cytokine-interferon-society-icis-8c0e0c",
+      "title": "ICIS Mentorship Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aaas-early-career-award-for-public-engagement-with-science-aaas-ab1a8b",
+      "title": "AAAS Early Career Award for Public Engagement with Science",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:inspiring-women-in-science-scientific-achievement-category-nature-awards-c221f7",
+      "title": "Inspiring Women in Science - Scientific Achievement Category",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aaas-nomis-science-young-explorer-award-aaas-and-nomis-foundation-e673d4",
+      "title": "AAAS NOMIS & Science Young Explorer Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aaas-subaru-sb-f-prize-for-excellence-in-science-books-american-associat-20beed",
+      "title": "AAAS/Subaru SB&F Prize for Excellence in Science Books",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:nsb-science-and-society-award-national-science-board-u-s-national-scienc-833a80",
+      "title": "NSB Science and Society Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:national-medal-of-science-u-s-national-science-foundation-on-behalf-of-t-dff7d5",
+      "title": "National Medal of Science",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aaas-mani-l-bhaumik-award-for-public-engagement-with-science-american-as-4a99c7",
+      "title": "AAAS Mani L. Bhaumik Award for Public Engagement with Science",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:richard-lounsbery-award-national-academy-of-sciences-and-the-french-acad-97e1e9",
+      "title": "Richard Lounsbery Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:vannevar-bush-award-national-science-board-u-s-national-science-foundati-14a503",
+      "title": "Vannevar Bush Award",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:vilcek-prizes-for-creative-promise-in-biomedical-science-the-vilcek-foun-5dfef3",
+      "title": "Vilcek Prizes for Creative Promise in Biomedical Science",
+      "reason": "topical award mis-bucketed to research_infrastructure_workforce; re-topic candidate, not a permanent exclude"
+    },
+    {
+      "opportunity_id": "wcm_curated:aacr-margaret-foti-award-for-leadership-and-extraordinary-achievements-i-5fbd88",
+      "title": "AACR Margaret Foti Award for Leadership and Extraordinary Achievements in Cancer Research",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    },
+    {
+      "opportunity_id": "wcm_curated:aaas-kavli-science-journalism-awards-american-association-for-the-advanc-7cc7f6",
+      "title": "AAAS Kavli Science Journalism Awards",
+      "reason": "non-topical award (service/leadership/advocacy/public-engagement/general-excellence); topic-matching surfaces loose/wrong people"
+    }
+  ]
+}

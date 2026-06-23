@@ -7,6 +7,7 @@ import logging
 
 from pipeline_grants import grants_gov, scoring
 from pipeline_grants.denoise import judge_opportunity, regex_gate
+from pipeline_grants.exclusions import load_excluded_ids
 from pipeline_grants.normalize import normalize_grantsgov
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
 from utils.bedrock_client import BedrockClient
@@ -27,6 +28,7 @@ def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
 
     data = grants_gov.search_opportunities(keyword=keyword, statuses="posted", rows=rows, start=0)
     hits = data.get("oppHits", [])
+    excluded = load_excluded_ids()
     pending, artifact = [], []
     kept = failed = persisted = 0
     for hit in hits:
@@ -35,6 +37,9 @@ def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
         # non-JSON Bedrock reply, which otherwise raised and lost every prior item).
         try:
             opp = normalize_grantsgov({"data": grants_gov.fetch_opportunity(hit["id"])})
+            if opp.opportunity_id in excluded:
+                log.info("excluded %s (held out of matching)", opp.opportunity_id)
+                continue
             ok, reason = regex_gate(opp)
             if not ok:
                 log.info("regex-drop %s: %s", opp.opportunity_id, reason)
