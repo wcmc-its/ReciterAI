@@ -215,6 +215,43 @@ def _usable_sentence(text: str) -> bool:
     return is_single_sentence(s)
 
 
+# #1166-B — max usage sentences kept per (entity, pmid). The live top-1 snippet
+# (from tool_context) plus any augmentation candidates (cli/extract_entity_augment)
+# are deduped, ranked by informativeness then centrality, and capped here. A
+# default-empty augment ⇒ the list stays length 1 ⇒ byte-identical to the original
+# single-sentence projection (so the no-augment re-projection / unit tests are
+# unaffected).
+MAX_USAGE_PER_PAIR = 3
+
+
+def _norm_sentence(s: str) -> str:
+    """Whitespace/case-fold key for de-duping near-identical usage sentences."""
+    return " ".join((s or "").lower().split())
+
+
+def _usage_fact(sentence: str, forms) -> dict:
+    """One entity_context usage fact from a sentence + the entity's name forms.
+
+    Scores are computed on the sentence as-passed and the text stored ``.strip()``-ed
+    — byte-identical to the original inline construction, so the live top-1 snippet
+    projects unchanged.
+    """
+    span = compute_matched_span(sentence, forms)
+    return {
+        "usage_sentence": sentence.strip(),
+        "span": [span[0], span[1]] if span else None,
+        "centrality_score": centrality_score(sentence, forms),
+        # #253: specific experimental use vs generic background mention.
+        # informativeness_score drives sentence selection (then centrality);
+        # mention_class drives the SPS badge ("How it was used" vs "Where it appears").
+        "informativeness_score": informativeness_score(sentence, forms),
+        "mention_class": mention_class(sentence, forms),
+        # #254: whole sentence vs mid-clause fragment (SPS ellipsis hint).
+        "sentence_complete": is_sentence_complete(sentence),
+        "role": None,  # #1166-B (entity_role / form variant — deferred)
+    }
+
+
 def build_entity_layer(
     tools: list[dict],
     families: list[dict],
@@ -222,6 +259,8 @@ def build_entity_layer(
     *,
     scope=is_projectable_family,
     generic_terms: list[str] | None = None,
+    context_augment: dict[str, list[str]] | None = None,
+    max_per_pair: int = MAX_USAGE_PER_PAIR,
 ) -> tuple[list[dict], dict, list[dict]]:
     """Project the assembled tools artifact into the entity dimension + facts.
 
@@ -232,6 +271,18 @@ def build_entity_layer(
       * ``parents``        — ``[{parent_entity_id, parent_label, supercategory,
                              family_label, member_display_names, form_count}]`` for the
                              descriptor define-pass (:func:`define_entity_parents`).
+
+    ``max_per_pair`` caps the kept sentences per (entity, pmid) — defaults to
+    ``MAX_USAGE_PER_PAIR``. Pass 1 to publish the single best sentence while the SPS
+    UI still renders one per pair (raise once a multi-snippet feed lands).
+
+    ``context_augment`` (#1166-B) is an optional ``{pmid: [extra sentence, …]}`` map
+    of additional verbatim tool-naming sentences (from a multi-sentence re-extraction,
+    cli/extract_entity_augment). For each existing (entity, pmid) pair, augmentation
+    sentences that NAME this entity (a resolvable span) are merged with the live top-1
+    snippet, deduped, ranked by informativeness then centrality, and capped at
+    ``MAX_USAGE_PER_PAIR``. It NEVER adds new (entity, pmid) pairs (depth, not coverage)
+    and is purely additive: omit it and the projection is byte-identical to before.
 
     Pure + deterministic (no I/O, no LLM, no clock/RNG) so it runs standalone over a
     published ``tools.json`` and is unit-testable byte-for-byte.
@@ -306,30 +357,37 @@ def build_entity_layer(
                 extra_forms.append(core)
             forms = salient_name_forms(display, extra_forms)
             ctx = tool_context.get(eid) or {}
+            aug = context_augment or {}
 
             usages: dict[str, list[dict]] = {}
             for pmid, sentence in ctx.items():
                 if not _usable_sentence(sentence):
                     continue
-                span = compute_matched_span(sentence, forms)
-                usages[str(pmid)] = [{
-                    "usage_sentence": sentence.strip(),
-                    "span": [span[0], span[1]] if span else None,
-                    "centrality_score": centrality_score(sentence, forms),
-                    # #253: specific experimental use vs generic background mention.
-                    # informativeness_score drives sentence selection (then centrality);
-                    # mention_class drives the SPS badge ("How it was used" vs
-                    # "Where it appears"). Heuristic + offline-calibrated (D-INFORM).
-                    "informativeness_score": informativeness_score(sentence, forms),
-                    "mention_class": mention_class(sentence, forms),
-                    # #254: does this snippet read as a whole sentence vs a mid-clause
-                    # fragment? Additive hint so SPS shows its leading/trailing ellipsis
-                    # only on the residual fragments; the durable text fix is the
-                    # re-projection backfill (cli/rebuild_entity_context) over the
-                    # #239 sentence-aligned tool_context this snippet is sourced from.
-                    "sentence_complete": is_sentence_complete(sentence),
-                    "role": None,  # #1166-B (entity_role / form variant — deferred)
-                }]
+                # Candidate sentences for this (entity, pmid): the live top-1 snippet
+                # plus any augmentation sentence (#1166-B) for the SAME pmid that NAMES
+                # this entity (a resolvable span ⇒ the entity's form appears) and is not
+                # a near-duplicate. Ranked by informativeness then centrality, capped at
+                # MAX_USAGE_PER_PAIR. Empty augment ⇒ a single fact, byte-identical to before.
+                seen = {_norm_sentence(sentence)}
+                facts = [_usage_fact(sentence, forms)]
+                for extra in aug.get(str(pmid), ()):
+                    if not _usable_sentence(extra):
+                        continue
+                    key = _norm_sentence(extra)
+                    if key in seen:
+                        continue
+                    if compute_matched_span(extra, forms) is None:
+                        continue  # entity not named in this augmentation sentence
+                    seen.add(key)
+                    facts.append(_usage_fact(extra, forms))
+                if len(facts) > 1:
+                    facts.sort(
+                        key=lambda f: (
+                            -(f["informativeness_score"] or 0.0),
+                            -(f["centrality_score"] or 0.0),
+                        )
+                    )
+                usages[str(pmid)] = facts[:max_per_pair]
             if usages:
                 entity_context[eid] = {pmid: usages[pmid] for pmid in sorted(usages)}
 
