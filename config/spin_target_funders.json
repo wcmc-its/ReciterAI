@@ -1,7 +1,7 @@
 {
-  "_note": "SPIN target funders resolved against the authoritative SponsorList directory (16,131 sponsors): accepted when ALL distinctive proper-noun tokens of the funder appear in the sponsor name, tiebroken to the most canonical entry, deduped by spon_code. spon_code = SPIN sponsor id (use for exact program pulls). Seeded from the AI funder xlsx (non-federal, non-NIH-IC, relevance>=8). relevance=AI score 1-10.",
+  "_note": "SPIN target funders resolved against the live SponsorList directory (16,131 sponsors). 2026-06-26 human pass (live-verified): corrected 2 wrong-org matches (ALS Assn, Glaucoma Research Fdn), removed 7 wrong-org matches with no US canonical, added 16 residual funders resolved to verified canonical entries (incl. American Cancer Society, JDRF->Breakthrough T1D). spon_code is informational; pulls use the exact spin_name. relevance=AI score 1-10.",
   "min_relevance": 8,
-  "matched_count": 113,
+  "matched_count": 122,
   "target_funders": [
     {
       "funder": "The Leona M. and Harry B. Helmsley Charitable Trust",
@@ -19,8 +19,8 @@
     },
     {
       "funder": "ALS Association",
-      "spin_name": "ALS Canada",
-      "spon_code": "05423",
+      "spin_name": "Amyotrophic Lateral Sclerosis (ALS) Association",
+      "spon_code": "05420",
       "relevance": 9,
       "type": "Disease-specific Foundation"
     },
@@ -75,8 +75,8 @@
     },
     {
       "funder": "Glaucoma Research Foundation",
-      "spin_name": "Glaucoma Foundation",
-      "spon_code": "52869",
+      "spin_name": "Glaucoma Research Foundation",
+      "spon_code": "54973",
       "relevance": 9,
       "type": "Disease-specific Foundation"
     },
@@ -389,20 +389,6 @@
       "type": "Biotech/Pharma Company"
     },
     {
-      "funder": "Cancer Grand Challenges",
-      "spin_name": "Grand Challenges",
-      "spon_code": "05011",
-      "relevance": 8,
-      "type": "Disease-specific Foundation"
-    },
-    {
-      "funder": "American Brain Foundation",
-      "spin_name": "Guarantors of Brain",
-      "spon_code": "01008",
-      "relevance": 8,
-      "type": "Disease-specific Foundation"
-    },
-    {
       "funder": "Harrington Discovery Institute, The",
       "spin_name": "Harrington Discovery Institute",
       "spon_code": "04427",
@@ -508,13 +494,6 @@
       "type": "Disease-specific Foundation"
     },
     {
-      "funder": "Leukemia & Lymphoma Society",
-      "spin_name": "Leukemia and Lymphoma Society of Canada",
-      "spon_code": "55281",
-      "relevance": 8,
-      "type": "Disease-specific Foundation"
-    },
-    {
       "funder": "Ludwig Institute for Cancer Research",
       "spin_name": "Ludwig Institute for Cancer Research",
       "spon_code": "03683",
@@ -560,13 +539,6 @@
       "funder": "The G. Harold and Leila Y. Mathers Foundation",
       "spin_name": "Mathers (G.Harold and Leila Y.) Foundation",
       "spon_code": "00715",
-      "relevance": 8,
-      "type": "Foundation"
-    },
-    {
-      "funder": "Mayo Foundation",
-      "spin_name": "Mayo Graduate School",
-      "spon_code": "54829",
       "relevance": 8,
       "type": "Foundation"
     },
@@ -634,13 +606,6 @@
       "type": "Foundation"
     },
     {
-      "funder": "New York State Health Foundation",
-      "spin_name": "New York State Assembly",
-      "spon_code": "50829",
-      "relevance": 8,
-      "type": "Foundation"
-    },
-    {
       "funder": "New York Stem Cell Foundation Inc.",
       "spin_name": "New York Stem Cell Foundation",
       "spon_code": "01716",
@@ -653,13 +618,6 @@
       "spon_code": "57855",
       "relevance": 8,
       "type": "Disease-specific Foundation"
-    },
-    {
-      "funder": "Gray Foundation",
-      "spin_name": "Orbis (Allan Gray) Foundation",
-      "spon_code": "03418",
-      "relevance": 8,
-      "type": "Foundation"
     },
     {
       "funder": "Ovarian Cancer Research Alliance",
@@ -774,13 +732,6 @@
       "type": "Biotech/Pharma Company"
     },
     {
-      "funder": "Tuberous Sclerosis Alliance",
-      "spin_name": "Tuberous Sclerosis Association",
-      "spon_code": "52404",
-      "relevance": 8,
-      "type": "Disease-specific Foundation"
-    },
-    {
       "funder": "Wings for Life Spinal Cord Research Foundation",
       "spin_name": "Wings for Life Spinal Cord Research Foundation",
       "spon_code": "56372",
@@ -793,312 +744,149 @@
       "spon_code": "04866",
       "relevance": 8,
       "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Cancer Society",
+      "spin_name": "American Cancer Society, Inc.",
+      "spon_code": "50001",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Cancer Research Institute",
+      "spin_name": "Cancer Research Institute, Inc.",
+      "spon_code": "50133",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Institute for Cancer Research",
+      "spin_name": "American Institute for Cancer Research",
+      "spon_code": "50083",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "National Foundation for Cancer Research",
+      "spin_name": "National Foundation for Cancer Research",
+      "spon_code": "55820",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Children's Cancer Research Fund",
+      "spin_name": "Children's Cancer Research Fund",
+      "spon_code": "02708",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "A-T Children's Project",
+      "spin_name": "A-T Children's Project",
+      "spon_code": "51991",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Arnold & Mabel Beckman Foundation",
+      "spin_name": "Beckman (Arnold and Mable) Foundation",
+      "spon_code": "52534",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Boehringer Ingelheim Pharmaceuticals, Inc.",
+      "spin_name": "Boehringer Ingelheim Pharmaceuticals, Inc. (BIPI)",
+      "spon_code": "07259",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Conquer Cancer Foundation of ASCO",
+      "spin_name": "Conquer Cancer Foundation of ASCO",
+      "spon_code": "02910",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Neuroendocrine Tumor Research Foundation",
+      "spin_name": "Neuroendocrine Tumor (NET) Research Foundation",
+      "spon_code": "06503",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Simons Foundation Autism Research Initiative",
+      "spin_name": "Simons Foundation",
+      "spon_code": "56576",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Pershing Square Sohn Cancer Research Alliance",
+      "spin_name": "Pershing Square Foundation",
+      "spon_code": "05581",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Thoracic Surgery Foundation",
+      "spin_name": "Thoracic Surgery Foundation",
+      "spon_code": "56582",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Marsha Rivkin Center for Ovarian Cancer Research",
+      "spin_name": "Rivkin Center for Ovarian Cancer",
+      "spon_code": "05691",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Novo Nordisk Pharmaceuticals, Inc.",
+      "spin_name": "Novo Nordisk USA",
+      "spon_code": "04073",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "JDRF (Breakthrough T1D)",
+      "spin_name": "Breakthrough T1D",
+      "spon_code": "50267",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
     }
   ],
   "pull_method": "[SOLR]spon_name:\"<exact spin_name>\"  (verified: returns only that sponsor's programs)",
   "sponsor_directory_endpoint": "https://spin.infoedglobal.com/Service/SponsorList (16,131 sponsors; spon_code + spon_name + spon_abbr + ror_id)",
-  "_residual_for_human_pass": [
-    {
-      "funder": "A-T Childrens Project",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "51991",
-          "spin_name": "A-T Children's Project"
-        },
-        {
-          "spon_code": "08084",
-          "spin_name": "Advanced Research Projects Agency for Health/NIH/DHHS"
-        }
-      ]
-    },
-    {
-      "funder": "American Cancer Society",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "American Institute for Cancer Research",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Arnold & Mabel Beckman Foundation",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "06541",
-          "spin_name": "Arnold Ventures"
-        },
-        {
-          "spon_code": "52534",
-          "spin_name": "Beckman (Arnold and Mable) Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "Bayer, A.G. (Germany)",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "51603",
-          "spin_name": "Bayer AG"
-        },
-        {
-          "spon_code": "55026",
-          "spin_name": "Bayer Biological Products"
-        }
-      ]
-    },
-    {
-      "funder": "Boehringer Ingelheim Pharmaceuticals, Inc. (Germany)",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "51590",
-          "spin_name": "Boehringer Ingelheim Fonds"
-        },
-        {
-          "spon_code": "07259",
-          "spin_name": "Boehringer Ingelheim Pharmaceuticals, Inc. (BIPI)"
-        }
-      ]
-    },
-    {
-      "funder": "Cancer Research Institute",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Chan Zuckerberg Biohub, Inc.",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "02848",
-          "spin_name": "African Climate Change Fellowship Program"
-        },
-        {
-          "spon_code": "04466",
-          "spin_name": "Alabama Agricultural and Mechanical University"
-        }
-      ]
-    },
-    {
-      "funder": "Childrens Cancer Research Fund",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Conquer Cancer Foundation of the American Society of Clinical Oncology",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "02910",
-          "spin_name": "Conquer Cancer Foundation of ASCO"
-        },
-        {
-          "spon_code": "05261",
-          "spin_name": "Conquer Paralysis Now"
-        }
-      ]
-    },
-    {
-      "funder": "HIV And Aging Research Consortium",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "09200",
-          "spin_name": "Administration on Aging/DHHS"
-        },
-        {
-          "spon_code": "05688",
-          "spin_name": "Aging Biology Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "HIV Vaccine Trials Network",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "02759",
-          "spin_name": "European Vaccine Initiative"
-        },
-        {
-          "spon_code": "08511",
-          "spin_name": "Gavi: The Vaccine Alliance"
-        }
-      ]
-    },
-    {
-      "funder": "Hartwell Foundation",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Juvenile Diabetes Foundation International",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "02455",
-          "spin_name": "Juvenile Bipolar Research Foundation"
-        },
-        {
-          "spon_code": "12300",
-          "spin_name": "Office of Juvenile Justice and Delinquency Prevention/Department of Justice"
-        }
-      ]
-    },
-    {
-      "funder": "Marsha Rivkin Center for Ovarian Cancer Research",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "01850",
-          "spin_name": "Austrian Marshall Plan Foundation"
-        },
-        {
-          "spon_code": "50216",
-          "spin_name": "German Marshall Fund of the United States"
-        }
-      ]
-    },
-    {
-      "funder": "National Foundation for Cancer Research",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Neuroendocrine Tumor Research Foundation (formerly the Caring for Carcinoid Foundation)",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "05808",
-          "spin_name": "European Neuroendocrine Tumor Society (ENETS)"
-        },
-        {
-          "spon_code": "06503",
-          "spin_name": "Neuroendocrine Tumor (NET) Research Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "Novartis Pharmaceuticals Corporation",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "51476",
-          "spin_name": "Novartis Foundation"
-        },
-        {
-          "spon_code": "56229",
-          "spin_name": "Novartis Pharma AG"
-        }
-      ]
-    },
-    {
-      "funder": "Novo Nordisk Pharmaceuticals, Inc.",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "56380",
-          "spin_name": "Novo Nordisk Australasia"
-        },
-        {
-          "spon_code": "57097",
-          "spin_name": "Novo Nordisk Canada Inc."
-        }
-      ]
-    },
-    {
-      "funder": "Parker Institute for Cancer Immunotherapy",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "52769",
-          "spin_name": "Hutton Parker Foundation"
-        },
-        {
-          "spon_code": "06465",
-          "spin_name": "Parker (Irma J. and Orville) Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "Pershing Square Sohn Cancer Research Alliance, The",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "05581",
-          "spin_name": "Pershing Square Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "Russell Berrie Foundation NYC Fellow in Diabetes Research Program",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "53528",
-          "spin_name": "Russell Family Foundation"
-        },
-        {
-          "spon_code": "50388",
-          "spin_name": "Sage (Russell) Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "Simons Foundation Autism Research Initiative",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "06851",
-          "spin_name": "Heising-Simons Foundation"
-        },
-        {
-          "spon_code": "56576",
-          "spin_name": "Simons Foundation"
-        }
-      ]
-    },
-    {
-      "funder": "The Hartwell Foundation",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Thoracic Surgery Foundation for Research and Education",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "53292",
-          "spin_name": "American Association for Thoracic Surgery"
-        },
-        {
-          "spon_code": "57322",
-          "spin_name": "American Thoracic Society"
-        }
-      ]
-    },
-    {
-      "funder": "V Foundation",
-      "status": "likely_true_gap",
-      "directory_candidates": []
-    },
-    {
-      "funder": "Wellcome Leap, Inc.",
-      "status": "present_unmatched",
-      "directory_candidates": [
-        {
-          "spon_code": "50128",
-          "spin_name": "Burroughs Wellcome Fund"
-        },
-        {
-          "spon_code": "52800",
-          "spin_name": "Glaxo Wellcome Foundation"
-        }
-      ]
-    }
-  ]
+  "_residual_unresolved": {
+    "_note": "Funders with NO suitable US canonical in the directory after the live pass. Genuine gaps (request a SPIN sponsor add) or ambiguous-foreign (owner decision).",
+    "true_gaps_absent": [
+      "V Foundation",
+      "Hartwell Foundation",
+      "Parker Institute for Cancer Immunotherapy",
+      "Wellcome Leap, Inc.",
+      "Chan Zuckerberg Biohub, Inc. (parent CZI already targeted)",
+      "Russell Berrie Foundation",
+      "HIV And Aging Research Consortium",
+      "HIV Vaccine Trials Network"
+    ],
+    "ambiguous_foreign_pharma_owner_decision": [
+      {
+        "funder": "Bayer, A.G. (Germany)",
+        "candidates": [
+          "51603 Bayer AG",
+          "55026 Bayer Biological Products"
+        ]
+      },
+      {
+        "funder": "Novartis Pharmaceuticals Corporation",
+        "candidates": [
+          "51476 Novartis Foundation",
+          "56229 Novartis Pharma AG"
+        ]
+      }
+    ]
+  }
 }
