@@ -67,7 +67,9 @@ def normalize_grantsgov(detail_resp: dict) -> Opportunity:
         title=data.get("opportunityTitle", "") or "",
         synopsis=_strip_html(syn.get("synopsisDesc", "")),
         program_type=data.get("docType", "") or "",
-        mechanism=_activity_code(data.get("opportunityNumber", "")),
+        # NIH FOA numbers (PAR-23-065) rarely carry the activity code; the title
+        # ("... (R01 Clinical Trial Not Allowed)") does ~58% of the time. Fall back to it.
+        mechanism=_activity_code(data.get("opportunityNumber", "")) or _activity_code(data.get("opportunityTitle", "")),
         award_ceiling=_to_int(syn.get("awardCeiling")),
         award_floor=_to_int(syn.get("awardFloor")),
         estimated_funding=_to_int(syn.get("estimatedFunding")),

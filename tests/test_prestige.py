@@ -20,7 +20,8 @@ def test_mechanism_tier():
     assert t("U01") == 1.0 and t("P30") == 1.0
     assert t("R21") == 0.4 and t("R03") == 0.4   # pilot/exploratory
     assert t("F31") == 0.5 and t("T32") == 0.5
-    assert t("") == 0.3 and t("Z99") == 0.3      # curated/unknown -> neutral-low
+    assert t("") is None                         # no code -> abstain (non-NIH funders)
+    assert t("Z99") == 0.3                        # present-but-untiered NIH code -> neutral-low
 
 
 def test_size_bucket_fixed_anchor_and_no_signal():
@@ -65,16 +66,42 @@ def test_is_honorific():
     assert not h(_opp(title="JEM Early Career Travel Award"))
 
 
+def test_sponsor_tier_matches_curated_funders():
+    s = prestige.sponsor_tier
+    assert s(_opp(sponsor="U.S. National Science Foundation")) == 0.7
+    assert s(_opp(sponsor="American Association for Cancer Research")) == 0.8
+    assert s(_opp(sponsor="National Academies of Sciences, Engineering, and Medicine")) == 0.8
+    assert s(_opp(sponsor="National Institutes of Health")) is None   # NIH abstains; mechanism covers it
+    assert s(_opp(sponsor="Jane Q Grantor")) is None                  # person-name feed noise -> abstain
+
+
+def test_non_nih_scores_on_sponsor_and_size_not_the_old_floor():
+    # NSF $500k: pre-fix the 0.3 mechanism constant compressed this to ~0.5; now sponsor+size drive it
+    nsf = prestige.compute_prestige(_opp(sponsor="National Science Foundation", award_ceiling=500_000))
+    assert nsf["mechanism_tier"] is None and nsf["sponsor_tier"] == 0.7
+    assert nsf["score"] > 0.6 and nsf["label"] in ("Major", "Flagship")
+    # untiered funder rests on size alone -> real spread, ranked below the NSF grant
+    small = prestige.compute_prestige(_opp(sponsor="Bureau of Land Management", award_ceiling=30_000))
+    assert small["sponsor_tier"] is None and small["score"] < nsf["score"]
+
+
+def test_no_signal_falls_to_floor_not_crash():
+    # untiered funder, no code, no amount -> floor, and no ZeroDivision on empty blend
+    bare = prestige.compute_prestige(_opp(title="Some Prize", sponsor="Tiny Local Foundation"))
+    assert bare["score"] == 0.3 and bare["label"] == "Standard"
+
+
 def test_prestige_item_attrs_ddb_shape():
     attrs = prestige.prestige_item_attrs(_opp(title="The Wolf Prize", estimated_funding=100_000))
     assert attrs["is_honorific"] == {"BOOL": True}
     m = attrs["prestige"]["M"]
-    assert "N" in m["score"] and "N" in m["mechanism_tier"]
+    assert "N" in m["score"]
+    assert m["mechanism_tier"] == {"NULL": True}        # no activity code -> abstains
     assert m["sponsor_tier"] == {"NULL": True} and m["selectivity"] == {"NULL": True}
-    assert "N" in m["size_bucket"]                      # present here (estimated_funding given)
-    # unknown size -> NULL attr, not a fabricated number
-    none_size = prestige.prestige_item_attrs(_opp(title="X", mechanism="R01"))
-    assert none_size["prestige"]["M"]["size_bucket"] == {"NULL": True}
+    assert "N" in m["size_bucket"]                       # present here (estimated_funding given)
+    # an NIH code present -> mechanism_tier is a number; unknown size -> NULL, not fabricated
+    nih = prestige.prestige_item_attrs(_opp(title="X", mechanism="R01"))["prestige"]["M"]
+    assert "N" in nih["mechanism_tier"] and nih["size_bucket"] == {"NULL": True}
 
 
 def test_activity_code_parses_two_letter_prefix():

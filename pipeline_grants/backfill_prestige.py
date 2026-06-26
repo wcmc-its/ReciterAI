@@ -19,6 +19,7 @@ import argparse
 import logging
 
 from pipeline_grants.models import Opportunity
+from pipeline_grants.normalize import _activity_code
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, get_dynamo_client
 
@@ -42,6 +43,10 @@ def opp_from_item(item: dict) -> Opportunity:
     Only the fields prestige reads (title, sponsor, mechanism, ceilings) are
     load-bearing; the rest default. program_type isn't stored on the item, so
     rationale loses its "award" fallback — cosmetic only.
+
+    Items ingested before #275 never stored `mechanism`; recover it from the
+    title (same fallback the producer now uses) so prestige isn't floored to
+    Standard for every legacy opp.
     """
     return Opportunity(
         opportunity_id=_s(item, "opportunity_id"),
@@ -51,7 +56,7 @@ def opp_from_item(item: dict) -> Opportunity:
         sponsor=_s(item, "sponsor"),
         title=_s(item, "title"),
         synopsis=_s(item, "synopsis"),
-        mechanism=_s(item, "mechanism"),
+        mechanism=_s(item, "mechanism") or _activity_code(_s(item, "title")),
         award_ceiling=_int(item, "award_ceiling"),
         estimated_funding=_int(item, "estimated_funding"),
         award_floor=_int(item, "award_floor"),

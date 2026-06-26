@@ -25,6 +25,14 @@ def test_opp_from_item_round_trips_prestige_fields():
     assert "N" in attrs["prestige"]["M"]["score"] and attrs["is_honorific"]["BOOL"] is True
 
 
+def test_opp_from_item_recovers_mechanism_from_title_when_unstored():
+    # legacy items (pre-#275) have no `mechanism` attr -> recover it from the title
+    opp = bf.opp_from_item(_item("GRANT#g2", title="Pilot Proteins (R01 Clinical Trial Not Allowed)"))
+    assert opp.mechanism == "R01"
+    # a curated prize has no code -> stays empty (correctly Standard, gated by is_honorific)
+    assert bf.opp_from_item(_item("GRANT#g3", title="The Wolf Prize")).mechanism == ""
+
+
 def _client_with(items):
     c = MagicMock()
     c.scan.return_value = {"Items": items}  # no LastEvaluatedKey -> single page

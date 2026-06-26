@@ -20,11 +20,14 @@ _R_FLAGSHIP = {"01", "35", "37", "61"}   # R01/R35/R37/R61 — major independent
 _R_SMALL = {"21", "03", "34", "36", "56"}  # exploratory / pilot / small
 
 
-def mechanism_tier(mechanism: str) -> float:
-    """Map an activity code to [0,1]. Unknown/curated ('' ) -> 0.3 (neutral-low)."""
+def mechanism_tier(mechanism: str) -> float | None:
+    """Map an activity code to [0,1]. No code at all (NSF/foundation/curated) -> None,
+    so it ABSTAINS from the blend (renormalized away) instead of injecting a 0.3
+    constant that compresses every non-NIH score into a flat low band. A present-
+    but-untiered NIH code (Z99/X01) still returns 0.3 — it IS a real mechanism, just niche."""
     m = (mechanism or "").upper().strip()
     if not m:
-        return 0.3
+        return None
     if m[:2] in _PROGRAM_PREFIXES:        # DP2 New Innovator, UM1 …  — flagship/center
         return 1.0
     c = m[0]
@@ -88,8 +91,46 @@ def is_honorific(opp) -> bool:
     return False
 
 
+# --- sponsor tier (§3.3) ---------------------------------------------------
+# Curated funder-prestige map — the signal mechanism_tier CAN'T see (it's NIH
+# activity-code only). Covers the non-NIH federal agencies + recurring prize/
+# foundation bodies actually in the corpus. NIH is intentionally ABSENT: its
+# prestige is already carried by mechanism_tier, so listing it here would
+# double-count (spec §3.3/§7). Unknown funder -> None (abstain), so the long tail
+# of one-off agencies and person-name noise in the grants_gov feed falls back to
+# size. ponytail: ~dozen substring keys cover the corpus; tiers are provisional —
+# tune them HERE (producer), never in the consumer. Extend as new funders recur.
+# Values are a per-funder BASELINE, deliberately kept in the Major band (0.55–0.8)
+# so sponsor-alone (no award size) reads as "Major", and size lifts the larger
+# grants into Flagship — sponsor_tier is a constant per funder, so size is what
+# must differentiate WITHIN a funder (unlike NIH, where mechanism already varies
+# per grant). Above-0.8 baselines would flood Flagship.
+_SPONSOR_TIER = {
+    "national science foundation": 0.7,        # NSF (incl. "U.S. National Science Foundation")
+    "darpa": 0.75,
+    "aeronautics and space": 0.7,              # NASA
+    "national academ": 0.8,                    # NAS / NAM / National Academies (elite; mostly honorific-gated)
+    "association for cancer research": 0.8,    # AACR
+    "advancement of science": 0.75,            # AAAS
+    "society for neuroscience": 0.7,
+    "brain & behavior research": 0.65,
+    "centers for disease control": 0.6,
+    "health resources and services": 0.55,
+    "institute of food and agriculture": 0.55,  # USDA NIFA
+}
+
+
+def sponsor_tier(opp) -> float | None:
+    s = (opp.sponsor or "").lower()
+    for key, tier in _SPONSOR_TIER.items():
+        if key in s:
+            return tier
+    return None
+
+
 # --- composite (§3) --------------------------------------------------------
-_W_MECH, _W_SIZE = 0.4, 0.2   # sponsor_tier/selectivity deferred -> excluded from blend
+_W_MECH, _W_SIZE, _W_SPONSOR = 0.4, 0.2, 0.4  # renormalized over PRESENT signals only
+_NO_SIGNAL = 0.3   # score when nothing is known (untiered funder, no code, no amount)
 _FLAGSHIP, _MAJOR = 0.8, 0.55  # label thresholds (§3.5; open decision §7 — provisional)
 
 
@@ -125,20 +166,24 @@ def _rationale(opp, amt) -> str:
 
 
 def compute_prestige(opp) -> dict:
-    """Per-opportunity prestige block. Renormalizes over present signals (§3)."""
+    """Per-opportunity prestige block. Renormalizes over whichever signals are
+    PRESENT (§3) — a missing input abstains, never injects a constant. NIH opps
+    score on mechanism+size; non-NIH on sponsor_tier+size; nothing known -> floor."""
     mech = mechanism_tier(opp.mechanism)
     size = size_bucket(opp)
-    parts = [(_W_MECH, mech)]
-    if size is not None:
-        parts.append((_W_SIZE, size))
-    wsum = sum(w for w, _ in parts)
-    score = max(0.0, min(1.0, sum(w * v for w, v in parts) / wsum))
+    spon = sponsor_tier(opp)
+    parts = [(w, v) for w, v in ((_W_MECH, mech), (_W_SIZE, size), (_W_SPONSOR, spon)) if v is not None]
+    if parts:
+        wsum = sum(w for w, _ in parts)
+        score = max(0.0, min(1.0, sum(w * v for w, v in parts) / wsum))
+    else:
+        score = _NO_SIGNAL
     amt = opp.award_ceiling or opp.estimated_funding
     return {
         "score": round(score, 4),
-        "mechanism_tier": round(mech, 4),
+        "mechanism_tier": round(mech, 4) if mech is not None else None,
         "size_bucket": round(size, 4) if size is not None else None,
-        "sponsor_tier": None,   # deferred (no curated table in v1)
+        "sponsor_tier": round(spon, 4) if spon is not None else None,
         "selectivity": None,    # deferred (no award-rate source)
         "label": label_for(score),
         "rationale": _rationale(opp, amt),
@@ -152,11 +197,12 @@ def _n(value) -> dict:
 def prestige_item_attrs(opp) -> dict:
     """DynamoDB attribute-format additions for build_grant_item: prestige (M) + is_honorific."""
     p = compute_prestige(opp)
+    _opt = lambda v: _n(v) if v is not None else {"NULL": True}
     m = {
         "score": _n(p["score"]),
-        "mechanism_tier": _n(p["mechanism_tier"]),
-        "size_bucket": _n(p["size_bucket"]) if p["size_bucket"] is not None else {"NULL": True},
-        "sponsor_tier": {"NULL": True},
+        "mechanism_tier": _opt(p["mechanism_tier"]),
+        "size_bucket": _opt(p["size_bucket"]),
+        "sponsor_tier": _opt(p["sponsor_tier"]),
         "selectivity": {"NULL": True},
         "label": {"S": p["label"]},
         "rationale": {"S": p["rationale"]},
