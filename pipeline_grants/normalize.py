@@ -8,7 +8,7 @@ from utils.iso_clock import now_iso
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _DETAIL_DATE_RE = re.compile(r"([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})")
-_ACTIVITY_RE = re.compile(r"\b([A-Z]\d{2})\b")  # best-effort: R01/K23/F31 if present
+_ACTIVITY_RE = re.compile(r"\b([A-Z]\d{2}|[A-Z]{2}\d)\b")  # best-effort: R01/K23/F31 + DP2/UM1 if present
 _MONTHS = {m: i for i, m in enumerate(
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], start=1)}
 

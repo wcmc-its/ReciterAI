@@ -2,6 +2,7 @@
 import hashlib
 import json as _json
 
+from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
 from utils.iso_clock import now_iso
 from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
@@ -50,6 +51,7 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
             item[field_name] = _n(value)
     if opp.mechanism:
         item["mechanism"] = {"S": opp.mechanism}
+    item.update(prestige_item_attrs(opp))   # prestige (M) + is_honorific (BOOL)
     return item
 
 

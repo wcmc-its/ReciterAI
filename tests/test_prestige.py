@@ -1,0 +1,83 @@
+"""Prestige producer: tiering, size scaling, renormalization, honorific flag."""
+from pipeline_grants.models import Opportunity
+from pipeline_grants.normalize import _activity_code
+from pipeline_grants import prestige
+
+
+def _opp(title="X", mechanism="", award_ceiling=None, estimated_funding=None,
+         sponsor="NIH", program_type=""):
+    return Opportunity(
+        opportunity_id="t:1", source="grants_gov", source_id="1", source_url="",
+        sponsor=sponsor, title=title, synopsis="s", program_type=program_type,
+        mechanism=mechanism, award_ceiling=award_ceiling, estimated_funding=estimated_funding)
+
+
+def test_mechanism_tier():
+    t = prestige.mechanism_tier
+    assert t("R01") == 0.85 and t("R35") == 0.85
+    assert t("K23") == 0.7
+    assert t("DP1") == 1.0 and t("DP2") == 1.0   # 2-letter flagship prefix
+    assert t("U01") == 1.0 and t("P30") == 1.0
+    assert t("R21") == 0.4 and t("R03") == 0.4   # pilot/exploratory
+    assert t("F31") == 0.5 and t("T32") == 0.5
+    assert t("") == 0.3 and t("Z99") == 0.3      # curated/unknown -> neutral-low
+
+
+def test_size_bucket_fixed_anchor_and_no_signal():
+    assert prestige.size_bucket(_opp(award_ceiling=10_000)) == 0.0   # LO anchor
+    assert prestige.size_bucket(_opp(award_ceiling=10_000_000)) == 1.0  # HI anchor
+    mid = prestige.size_bucket(_opp(award_ceiling=500_000))
+    assert 0.0 < mid < 1.0
+    assert prestige.size_bucket(_opp()) is None                      # unknown -> no-signal, NOT 0
+    # curated rows carry estimated_funding, not ceiling
+    assert prestige.size_bucket(_opp(estimated_funding=100_000)) is not None
+
+
+def test_compute_prestige_renormalizes_and_orders():
+    big = prestige.compute_prestige(_opp(mechanism="R01", award_ceiling=500_000))
+    pilot = prestige.compute_prestige(_opp(mechanism="R03", award_ceiling=50_000))
+    assert big["score"] > pilot["score"]                # R01 outranks pilot R03 (§3.6)
+    # a mid-ceiling ($500k -> size 0.57) blends R01's 0.85 down to ~0.76 (Major); pilot -> Standard
+    assert big["label"] == "Major" and pilot["label"] == "Standard"
+    # Flagship needs BOTH a top mechanism AND a large ceiling
+    flagship = prestige.compute_prestige(_opp(mechanism="P30", award_ceiling=5_000_000))
+    assert flagship["label"] == "Flagship"
+    # missing size -> score is exactly mechanism_tier (renormalized over the one present signal)
+    no_size = prestige.compute_prestige(_opp(mechanism="K23"))
+    assert no_size["score"] == 0.7 and no_size["label"] == "Major"
+    # deferred inputs are honest-null, not fabricated
+    assert no_size["sponsor_tier"] is None and no_size["selectivity"] is None
+    assert no_size["size_bucket"] is None
+
+
+def test_is_honorific():
+    h = prestige.is_honorific
+    assert h(_opp(title="The Wolf Prize"))                      # prize
+    assert h(_opp(title="NAS Public Welfare Medal"))           # medal
+    assert h(_opp(title="AACR-Women in Cancer Research Lectureship"))
+    assert h(_opp(title="Vannevar Bush Award"))                # recognition award, no mechanism
+    # applyable NIH awards carry an activity code -> NOT honorific
+    assert not h(_opp(title="Outstanding Investigator Award", mechanism="R35"))
+    assert not h(_opp(title="NIH Director New Innovator Award", mechanism="DP2"))
+    assert not h(_opp(title="Cancer Research Project Grant", mechanism="R01"))
+    # applyable funding types spared even with no mechanism
+    assert not h(_opp(title="ASCI PSSF Fellowship"))
+    assert not h(_opp(title="JEM Early Career Travel Award"))
+
+
+def test_prestige_item_attrs_ddb_shape():
+    attrs = prestige.prestige_item_attrs(_opp(title="The Wolf Prize", estimated_funding=100_000))
+    assert attrs["is_honorific"] == {"BOOL": True}
+    m = attrs["prestige"]["M"]
+    assert "N" in m["score"] and "N" in m["mechanism_tier"]
+    assert m["sponsor_tier"] == {"NULL": True} and m["selectivity"] == {"NULL": True}
+    assert "N" in m["size_bucket"]                      # present here (estimated_funding given)
+    # unknown size -> NULL attr, not a fabricated number
+    none_size = prestige.prestige_item_attrs(_opp(title="X", mechanism="R01"))
+    assert none_size["prestige"]["M"]["size_bucket"] == {"NULL": True}
+
+
+def test_activity_code_parses_two_letter_prefix():
+    assert _activity_code("RFA-CA-24-001") == ""        # no embedded activity code
+    assert _activity_code("PAR DP2 program") == "DP2"   # 2-letter prefix now captured
+    assert _activity_code("see R01 here") == "R01"
