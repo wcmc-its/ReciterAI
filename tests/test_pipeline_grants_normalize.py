@@ -39,6 +39,17 @@ def test_normalize_eligibility_and_status():
     assert opp.status == "posted"  # forecast is null
 
 
+def test_mechanism_falls_back_to_title_activity_code():
+    # opportunityNumber carries no code (typical NIH FOA) -> recover R01 from the title
+    opp = normalize_grantsgov({"data": {
+        "opportunityNumber": "PAR-23-065", "opportunityTitle": "Cancer Research (R01 Clinical Trial Required)"}})
+    assert opp.mechanism == "R01"
+    # opportunityNumber wins when it has one
+    opp2 = normalize_grantsgov({"data": {
+        "opportunityNumber": "DP2-OD-99", "opportunityTitle": "Some R03 thing"}})
+    assert opp2.mechanism == "DP2"
+
+
 def test_to_int_handles_currency_commas_and_decimals():
     from pipeline_grants.normalize import _to_int
     assert _to_int("600000") == 600000
