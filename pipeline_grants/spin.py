@@ -25,6 +25,7 @@ from pipeline_grants.models import Opportunity, make_opportunity_id
 from utils.iso_clock import now_iso
 
 _PROGRAM_URL = "https://spin.infoedglobal.com/Service/ProgramSearch"
+_SPONSOR_URL = "https://spin.infoedglobal.com/Service/SponsorList"
 _COLUMNS = [
     "id", "prog_title", "spon_name", "sponsor_type", "applicant_type", "geographic",
     "project_type", "project_location", "keyword", "objective", "synopsis",
@@ -60,6 +61,19 @@ def search_sponsor(spin_name: str, *, max_results: int = None, timeout: int = 30
         if page.get("PageNumber", 1) >= page.get("NumberOfPages", 1):
             return out
         page_no += 1
+
+
+def fetch_sponsor_list(*, timeout: int = 60) -> list:
+    """The authoritative SPIN sponsor directory (~16k entries). Each record has
+    ``spon_code`` (id), ``spon_name`` (canonical), ``spon_abbr``, ``ror_id``,
+    ``spon_state``. This is what ``config/spin_target_funders.json`` resolves funder
+    names against; pulls then use the exact ``spon_name``. Returns the whole list
+    (the endpoint ignores paging and returns all sponsors in one response)."""
+    params = {**_creds(), "responseFormat": "JSON", "isCrossDomain": "true", "callback": ""}
+    r = requests.get(_SPONSOR_URL, params=params, timeout=timeout)
+    if not r.ok:
+        raise RuntimeError(f"SPIN SponsorList HTTP {r.status_code}: {r.text[:200]}")
+    return json.loads(r.text.strip("()"))
 
 
 # --- normalize: SPIN program row -> Opportunity -----------------------------
