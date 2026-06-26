@@ -67,7 +67,11 @@ def normalize_grantsgov(detail_resp: dict) -> Opportunity:
         title=data.get("opportunityTitle", "") or "",
         synopsis=_strip_html(syn.get("synopsisDesc", "")),
         program_type=data.get("docType", "") or "",
-        mechanism=_activity_code(data.get("opportunityNumber", "")),
+        # The grants.gov FON (opportunityNumber) rarely embeds the NIH activity
+        # code; the title reliably does ("…(R01 Clinical Trial Optional)"). Fall
+        # back to the title so prestige.mechanism_tier can differentiate.
+        mechanism=_activity_code(data.get("opportunityNumber", ""))
+        or _activity_code(data.get("opportunityTitle", "") or ""),
         award_ceiling=_to_int(syn.get("awardCeiling")),
         award_floor=_to_int(syn.get("awardFloor")),
         estimated_funding=_to_int(syn.get("estimatedFunding")),

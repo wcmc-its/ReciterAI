@@ -47,3 +47,15 @@ def test_to_int_handles_currency_commas_and_decimals():
     assert _to_int("") is None
     assert _to_int(None) is None
     assert _to_int("TBD") is None
+
+
+def test_normalize_recovers_activity_code_from_title():
+    # FON has no embedded code; the title does → mechanism falls back to the title.
+    resp = {"data": {"id": "999", "opportunityNumber": "RFA-CA-24-001",
+                     "opportunityTitle": "Cancer Moonshot Research (R01 Clinical Trial Optional)",
+                     "synopsis": {}}}
+    assert normalize_grantsgov(resp).mechanism == "R01"
+    # FON code wins when present (title not consulted).
+    resp2 = {"data": {"id": "1", "opportunityNumber": "PAR DP2 program",
+                      "opportunityTitle": "Something (R01)", "synopsis": {}}}
+    assert normalize_grantsgov(resp2).mechanism == "DP2"

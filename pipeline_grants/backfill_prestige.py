@@ -19,6 +19,7 @@ import argparse
 import logging
 
 from pipeline_grants.models import Opportunity
+from pipeline_grants.normalize import _activity_code
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, get_dynamo_client
 
@@ -43,15 +44,24 @@ def opp_from_item(item: dict) -> Opportunity:
     load-bearing; the rest default. program_type isn't stored on the item, so
     rationale loses its "award" fallback — cosmetic only.
     """
+    source = _s(item, "source")
+    title = _s(item, "title")
+    mechanism = _s(item, "mechanism")
+    # Existing items predate title-based activity-code parsing — the grants.gov
+    # FON rarely embeds the code; the title does ("…(R01 Clinical Trial
+    # Optional)"). Recover it for research grants so prestige differentiates;
+    # leave curated awards mechanism-less (they're prizes, scored as honorific).
+    if not mechanism and source == "grants_gov":
+        mechanism = _activity_code(title)
     return Opportunity(
         opportunity_id=_s(item, "opportunity_id"),
-        source=_s(item, "source"),
+        source=source,
         source_id="",
         source_url=_s(item, "source_url"),
         sponsor=_s(item, "sponsor"),
-        title=_s(item, "title"),
+        title=title,
         synopsis=_s(item, "synopsis"),
-        mechanism=_s(item, "mechanism"),
+        mechanism=mechanism,
         award_ceiling=_int(item, "award_ceiling"),
         estimated_funding=_int(item, "estimated_funding"),
         award_floor=_int(item, "award_floor"),

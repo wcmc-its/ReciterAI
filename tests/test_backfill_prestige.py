@@ -56,3 +56,20 @@ def test_apply_writes_only_the_two_attrs():
 def test_limit_caps_scan():
     client = _client_with([_item(f"GRANT#{i}", mechanism="R01") for i in range(5)])
     assert bf.backfill(client, apply=False, limit=2)["scanned"] == 2
+
+
+def test_opp_from_item_recovers_mechanism_from_title_for_grants_gov():
+    # Existing grants.gov item: no stored mechanism, code embedded in the title.
+    opp = bf.opp_from_item(_item("GRANT#g2", title="Cancer Research (R01 Clinical Trial Optional)"))
+    assert opp.mechanism == "R01"
+    # A stored mechanism is preferred over title-derivation.
+    assert bf.opp_from_item(_item("GRANT#g3", title="X (R21)", mechanism="P50")).mechanism == "P50"
+
+
+def test_opp_from_item_does_not_derive_mechanism_for_curated_awards():
+    # Curated awards are prizes (no mechanism); title-derivation must NOT fire even
+    # if the prize name happens to contain an activity-code-like token.
+    cur = {"PK": {"S": "GRANT#c1"}, "SK": {"S": "META"}, "opportunity_id": {"S": "c1"},
+           "source": {"S": "wcm_curated"}, "source_url": {"S": "u"}, "sponsor": {"S": "X"},
+           "title": {"S": "The R01 Memorial Prize"}, "synopsis": {"S": "s"}}
+    assert bf.opp_from_item(cur).mechanism == ""
