@@ -81,32 +81,6 @@ def build_synopsis_user_content(*, title: str, journal: str | None,
 
 IMPACT_PROMPT_DEFAULT_VERSION = "v2"
 
-# Version metadata for tracking. Matches POC `pipeline_publications/prompts.py`.
-IMPACT_PROMPT_VERSIONS = {
-    "v1": {
-        "date": "pre-2025-12",
-        "description": "Original prompt with clinical research bias",
-        "bias_correlation": -0.342,
-        "gap": 8.2,
-        "notes": "~8 point gap between basic and clinical research",
-    },
-    "v2": {
-        "date": "2025-12-28",
-        "description": "Parity constraint + boosted clinical anchors + counterfactual check",
-        "bias_correlation": -0.306,
-        "gap": 6.3,
-        # Historical: the model v2 was *tuned against*. The runtime model is
-        # now per-row — Bedrock Sonnet 4.6 on the happy path, with a gpt-5.1
-        # content-filter fallback (#37 D3) — and is recorded on each row by
-        # `ImpactResult.model` / the MariaDB `model` column / the IMPACT# row.
-        "model": "gpt-5.1",
-        # Historical, GPT-5-specific: Bedrock Converse has no equivalent
-        # parameter and the runtime path is plain Converse (#37 PR 2).
-        "reasoning_effort": "medium",
-        "notes": "Gap now better than NIH iCite. Top 25% tier: +11.2 -> +4.3",
-    },
-}
-
 
 IMPACT_PROMPT_V1 = """You are an expert evaluator of biomedical and life-science research impact.
 

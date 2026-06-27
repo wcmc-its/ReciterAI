@@ -44,6 +44,7 @@ import statistics
 import sys
 import time
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -263,6 +264,7 @@ def _build_subtopic_metadata(hierarchy: dict) -> dict:
     return out
 
 
+@dataclass(slots=True)
 class _RichSubtopicMeta:
     """Adapter exposing slim SubtopicMeta fields plus D-19 UI fields.
 
@@ -274,30 +276,12 @@ class _RichSubtopicMeta:
     those names match the NamedTuple contract.
     """
 
-    __slots__ = (
-        "subtopic_id",
-        "label",
-        "description",
-        "parent_topic_label",
-        "display_name",
-        "short_description",
-    )
-
-    def __init__(
-        self,
-        subtopic_id: str,
-        label: str,
-        description: str,
-        parent_topic_label: str,
-        display_name: str,
-        short_description: str,
-    ) -> None:
-        self.subtopic_id = subtopic_id
-        self.label = label
-        self.description = description
-        self.parent_topic_label = parent_topic_label
-        self.display_name = display_name
-        self.short_description = short_description
+    subtopic_id: str
+    label: str
+    description: str
+    parent_topic_label: str
+    display_name: str
+    short_description: str
 
 
 def _resolve_publish_id(explicit: str | None) -> str:

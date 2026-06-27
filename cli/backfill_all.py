@@ -164,55 +164,10 @@ def _load_taxonomy_ids() -> list:
     return [t["id"] for t in data.get("topics", [])]
 
 
-def _count_qualifying_activities(topic_id: str) -> int:
-    """Count unique PMIDs in TOPIC#<id> at score >= SCORE_FLOOR.
-
-    Mirrors backfill_topic._count_qualifying_activities.
-    """
-    from boto3.dynamodb.conditions import Key
-
-    from utils.dynamodb_helpers import get_table, TABLE_NAME
-
-    table = get_table(TABLE_NAME)
-    pk = f"TOPIC#{topic_id}"
-
-    seen: set = set()
-    last_key = None
-    while True:
-        kwargs = {
-            "KeyConditionExpression": (
-                Key("PK").eq(pk) & Key("SK").begins_with("SCORE#")
-            ),
-            "Limit": 1000,
-            "ProjectionExpression": "SK, pmid",
-        }
-        if last_key:
-            kwargs["ExclusiveStartKey"] = last_key
-        resp = table.query(**kwargs)
-        for item in resp.get("Items", []):
-            sk = item.get("SK", "") or ""
-            parts = sk.split("#")
-            if len(parts) < 2 or not parts[1].isdigit():
-                continue
-            score = int(parts[1]) / 1000.0
-            if score < SCORE_FLOOR:
-                continue
-            pmid = None
-            if len(parts) >= 4 and parts[3].startswith("pmid_"):
-                pmid = parts[3][len("pmid_"):]
-            if not pmid:
-                pmid = str(item.get("pmid", "") or "")
-            if pmid:
-                seen.add(pmid)
-        last_key = resp.get("LastEvaluatedKey")
-        if not last_key:
-            break
-
-    return len(seen)
-
-
 def _compute_topic_ordering() -> list:
     """Return [(topic_id, activity_count), ...] sorted desc, pilot excluded."""
+    from cli.backfill_topic import _count_qualifying_activities
+
     ids = _load_taxonomy_ids()
     ordered = []
     for tid in ids:

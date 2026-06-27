@@ -15,3 +15,12 @@ from datetime import datetime, timezone
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def duration_ms(started_at: str) -> int:
+    """Milliseconds between an ISO `started_at` and now; 0 if unparseable."""
+    try:
+        start = datetime.fromisoformat(started_at)
+    except (ValueError, AttributeError):
+        return 0
+    return max(0, int((datetime.now(timezone.utc) - start).total_seconds() * 1000))
