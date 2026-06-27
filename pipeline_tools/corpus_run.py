@@ -656,14 +656,10 @@ def _telemetry(
     minted, attached = counts["minted"], counts["attached"]
 
     def _dist(field_name: str) -> dict:
-        d: dict[str, int] = {}
-        for r in tools.records():
-            d[r.get(field_name) or "∅"] = d.get(r.get(field_name) or "∅", 0) + 1
-        return dict(sorted(d.items(), key=lambda kv: (-kv[1], kv[0])))
+        c = Counter(r.get(field_name) or "∅" for r in tools.records())
+        return dict(sorted(c.items(), key=lambda kv: (-kv[1], kv[0])))
 
-    exc_by_type: dict[str, int] = {}
-    for e in exceptions:
-        exc_by_type[e["type"]] = exc_by_type.get(e["type"], 0) + 1
+    exc_by_type = dict(Counter(e["type"] for e in exceptions))
 
     grounded = [r for r in method_tools if signal_of(r)["has_a2_signal"]]
     spreads = sorted((signal_of(r)["spread"] for r in grounded), reverse=True)

@@ -60,6 +60,7 @@ import utils.secrets_loader  # noqa: F401
 from pipeline_enrichment import alerting
 from pipeline_onboarding import github_issues
 from utils.stage_records import STATUS_COMPLETE, compute_input_hash, write_failed
+from utils.iso_clock import duration_ms as _duration_ms
 
 logger = logging.getLogger(__name__)
 
@@ -128,23 +129,11 @@ _DIGEST_CLEARED_MARKER = "<!-- onboarding-detector:digest-cleared -->"
 
 
 def _parse_iso(value: str) -> datetime:
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
     return datetime.fromisoformat(value)
 
 
 def _iso(dt: datetime) -> str:
     return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def _duration_ms(started_at: str) -> int:
-    """Milliseconds between an ISO `started_at` and now; 0 if unparseable."""
-    try:
-        start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return 0
-    delta = datetime.now(timezone.utc) - start
-    return max(0, int(delta.total_seconds() * 1000))
 
 
 def _sort_pmids(pmids: Iterable[str]) -> list[str]:

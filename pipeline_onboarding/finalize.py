@@ -31,7 +31,6 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -49,7 +48,7 @@ from utils.dynamodb_helpers import (
     get_dynamo_client,
     get_processing_status,
 )
-from utils.iso_clock import now_iso
+from utils.iso_clock import now_iso, duration_ms as _duration_ms
 from utils.stage_records import STATUS_COMPLETE, STATUS_PARTIAL
 
 logger = logging.getLogger(__name__)
@@ -92,16 +91,6 @@ def _ddb_decimal(envelope: dict, key: str) -> Decimal:
         except Exception:  # noqa: BLE001 — malformed N degrades to zero
             return Decimal("0")
     return Decimal("0")
-
-
-def _duration_ms(started_at: str) -> int:
-    """Milliseconds between the workflow `started_at` and now."""
-    try:
-        start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return 0
-    delta = datetime.now(timezone.utc) - start
-    return max(0, int(delta.total_seconds() * 1000))
 
 
 # ---------------------------------------------------------------------------

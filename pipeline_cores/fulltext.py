@@ -186,7 +186,3 @@ class PmcFullTextClient:
         cache.write_text(content, encoding="utf-8")
         self._s3_write(pmid, content)
         return to_plain_text(xml)
-
-    def prefetch(self, pmids: list) -> int:
-        """Warm the cache for a batch; returns how many have full text."""
-        return sum(1 for p in pmids if self.get(p))

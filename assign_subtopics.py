@@ -1031,12 +1031,6 @@ def run(
     elapsed = time.time() - t0
     cost_usd = _estimate_cost(total_in_tokens, total_out_tokens)
 
-    # Median confidence of chosen primaries
-    primary_confidences = []
-    for s in stats_list:
-        if s.get("assigned") and s.get("primary"):
-            # approximate — not tracked separately; compute via re-inspection
-            pass
     # Coverage vs total_qualified
     coverage = (
         assigned_count / total if total > 0 else 0.0
