@@ -22,6 +22,7 @@ import logging
 
 from pipeline_grants import scoring, wcm_curated
 from pipeline_grants.exclusions import load_excluded_ids
+from pipeline_grants.match_compile import compile_match as _compile_match, load_vocab_or_disable
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
 from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_dynamo_client
@@ -30,12 +31,13 @@ from utils.iso_clock import now_iso
 log = logging.getLogger("pipeline_grants.ingest_curated")
 
 
-def build_items(csv_path: str, *, bedrock, ingested_at=None):
+def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool = False):
     """Read the enriched CSV and return (dynamodb_items, artifact_rows). No writes."""
     taxonomy = scoring.load_taxonomy()
     taxonomy_version = taxonomy.get("taxonomy_version", "taxonomy_v2")
     int_to_id, id_to_int = scoring.build_index(taxonomy)
     ingested_at = ingested_at or now_iso()
+    vocab = load_vocab_or_disable(log) if compile_match else []   # [] => compilation disabled for the run
 
     rows = wcm_curated.read_curated_csv(csv_path)
     excluded = load_excluded_ids()
@@ -64,7 +66,9 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None):
             "reason": "wcm_curated",
             "appeal_by_stage": wcm_curated.appeal_for_row(row),
         }
-        item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict)
+        m_dsl, m_query = _compile_match(opp.title, opp.synopsis, vocab, bedrock=bedrock) if vocab else (None, None)
+        item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict,
+                                match_dsl=m_dsl, match_query=m_query)
         items.append(item)
         artifact.append({
             "opportunity_id": opp.opportunity_id, "title": opp.title, "sponsor": opp.sponsor,
@@ -77,9 +81,9 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None):
     return items, artifact
 
 
-def run(csv_path: str, *, dry_run: bool = False) -> dict:
+def run(csv_path: str, *, dry_run: bool = False, compile_match: bool = False) -> dict:
     bedrock = BedrockClient()
-    items, artifact = build_items(csv_path, bedrock=bedrock)
+    items, artifact = build_items(csv_path, bedrock=bedrock, compile_match=compile_match)
     if dry_run:
         sample = [a["opportunity_id"] for a in artifact[:5]]
         summary = {"built": len(items), "persisted": 0, "dry_run": True, "sample_ids": sample}
@@ -98,8 +102,11 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="WCM-curated awards ingest")
     p.add_argument("--csv", default="pipeline_grants/data/wcm_curated_opportunities_enriched.csv")
     p.add_argument("--dry-run", action="store_true", help="build + report without writing to DynamoDB/S3")
+    p.add_argument("--compile-match", action="store_true",
+                   help="compile + cache the grant->researcher matcher DSL+query on each GRANT# "
+                        "(2 extra Sonnet calls/grant; off by default until the SPS consumer ships)")
     args = p.parse_args(argv)
-    run(args.csv, dry_run=args.dry_run)
+    run(args.csv, dry_run=args.dry_run, compile_match=args.compile_match)
     return 0
 
 

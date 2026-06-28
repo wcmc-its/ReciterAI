@@ -8,6 +8,7 @@ import logging
 from pipeline_grants import grants_gov, scoring
 from pipeline_grants.denoise import judge_opportunity, regex_gate
 from pipeline_grants.exclusions import load_excluded_ids
+from pipeline_grants.match_compile import compile_match as _compile_match, load_vocab_or_disable
 from pipeline_grants.normalize import normalize_grantsgov
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
 from utils.bedrock_client import BedrockClient
@@ -16,7 +17,7 @@ from utils.dynamodb_helpers import get_dynamo_client
 log = logging.getLogger("pipeline_grants.ingest")
 
 
-def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
+def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool = False) -> dict:
     taxonomy = scoring.load_taxonomy()
     taxonomy_version = taxonomy.get("taxonomy_version", "taxonomy_v2")
     int_to_id, id_to_int = scoring.build_index(taxonomy)
@@ -25,6 +26,10 @@ def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
     # hung item times out fast and is skipped by the per-item guard below.
     bedrock = BedrockClient(read_timeout=90)
     dynamo = get_dynamo_client()
+    # Off by default: compiling the matcher DSL+query is 2 extra Sonnet calls/grant for data
+    # nothing reads until the SPS consumer ships. An empty/failed vocab load leaves vocab=[],
+    # which disables compilation for the run (no abort, no wasted Bedrock call).
+    vocab = load_vocab_or_disable(log) if compile_match else []
 
     data = grants_gov.search_opportunities(keyword=keyword, statuses="posted", rows=rows, start=0)
     hits = data.get("oppHits", [])
@@ -52,7 +57,9 @@ def run(rows: int, keyword: str, *, flush_every: int = 25) -> dict:
                 title=opp.title, synopsis=opp.synopsis, opportunity_id=opp.opportunity_id,
                 bedrock=bedrock, taxonomy=taxonomy, int_to_id=int_to_id, id_to_int=id_to_int,
             )
-            item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict)
+            m_dsl, m_query = _compile_match(opp.title, opp.synopsis, vocab, bedrock=bedrock) if vocab else (None, None)
+            item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict,
+                                    match_dsl=m_dsl, match_query=m_query)
         except Exception as exc:  # noqa: BLE001 - skip-and-continue is the point
             failed += 1
             log.warning("skip %s: %s", hit.get("id"), exc)
@@ -83,8 +90,11 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Grants.gov opportunity ingest")
     p.add_argument("--rows", type=int, default=200)
     p.add_argument("--keyword", default="")
+    p.add_argument("--compile-match", action="store_true",
+                   help="compile + cache the grant->researcher matcher DSL+query on each GRANT# "
+                        "(2 extra Sonnet calls/grant; off by default until the SPS consumer ships)")
     args = p.parse_args(argv)
-    run(args.rows, args.keyword)
+    run(args.rows, args.keyword, compile_match=args.compile_match)
     return 0
 
 
