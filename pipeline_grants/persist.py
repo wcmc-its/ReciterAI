@@ -2,6 +2,7 @@
 import hashlib
 import json as _json
 
+from pipeline_grants.match_compile import match_attrs
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
 from utils.iso_clock import now_iso
@@ -12,8 +13,14 @@ def _n(value) -> dict:
     return {"N": str(to_decimal(value))}
 
 
-def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: dict) -> dict:
-    """Low-level attribute-format DynamoDB item for one opportunity (PK=GRANT#{id}, SK=META)."""
+def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: dict,
+                     match_dsl=None, match_query=None) -> dict:
+    """Low-level attribute-format DynamoDB item for one opportunity (PK=GRANT#{id}, SK=META).
+
+    ``match_dsl`` / ``match_query`` (the compiled grant->researcher matcher inputs) are persisted
+    as compact-JSON ``S`` blobs when present, and omitted entirely when compilation was off or
+    failed — the SPS matcher is fail-closed on missing fields. Default ``None`` keeps every
+    existing caller (incl. the SPIN path) byte-identical."""
     ranked = sorted(dense_scores.items(), key=lambda kv: kv[1].get("score", 0.0), reverse=True)
     topic_vector = [
         {"M": {"topic_id": {"S": tid},
@@ -52,6 +59,7 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
     if opp.mechanism:
         item["mechanism"] = {"S": opp.mechanism}
     item.update(prestige_item_attrs(opp))   # prestige (M) + is_honorific (BOOL)
+    item.update(match_attrs(match_dsl, match_query))   # match_dsl / match_query (S JSON) when compiled
     return item
 
 
