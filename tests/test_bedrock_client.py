@@ -283,3 +283,20 @@ def test_call_with_usage_retries_on_throttling_then_succeeds():
 
     assert result.text == '{"ok": 1}'
     assert fake_boto.converse.call_count == 2
+
+
+def test_translate_messages_appends_cachepoint_only_when_opted_in():
+    """cache_system=True adds a Bedrock cachePoint after the system text (so the
+    prefix is prompt-cached); default keeps the plain single-block system list."""
+    client = BedrockClient()
+    msgs = [{"role": "user", "content": "hello"}]
+
+    _, plain = client._translate_messages(msgs, system="SYS")
+    assert plain == [{"text": "SYS"}]   # no cachePoint by default
+
+    _, cached = client._translate_messages(msgs, system="SYS", cache_system=True)
+    assert cached == [{"text": "SYS"}, {"cachePoint": {"type": "default"}}]
+
+    # No system text -> nothing to cache, no stray cachePoint block.
+    _, none = client._translate_messages(msgs, system=None, cache_system=True)
+    assert none == []

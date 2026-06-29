@@ -107,11 +107,20 @@ def _parse_dsl(out: dict) -> dict:
 
 
 def compile_dsl(title: str, synopsis: str, subtopic_vocab: list, *, bedrock) -> dict:
-    """Compile the SET+gate DSL from the grant text + the subtopic-id menu. One Sonnet call."""
-    user = (f"GRANT TITLE: {title}\n\nGRANT: {synopsis}\n\n"
-            f"CANDIDATE SUBTOPIC IDS ({len(subtopic_vocab)}):\n" + "\n".join(subtopic_vocab))
-    out = bedrock.call_json(model=SONNET_MODEL, system=SYS,
-                            messages=[{"role": "user", "content": user}], max_tokens=2000, temperature=0.0)
+    """Compile the SET+gate DSL from the grant text + the subtopic-id menu. One Sonnet call.
+
+    The candidate menu (~18k tokens, identical across every grant) lives in the SYSTEM prefix
+    with ``cache_system=True`` so Bedrock prompt-caches it: the first grant writes the prefix,
+    every later grant reads it at ~0.1x. Only the per-grant title+synopsis (user turn) is billed
+    in full — this is what takes the corpus backfill from ~$72 to ~$18. The SYS prompt already
+    references "the list of ... subtopic ids", so co-locating the list with it in system reads
+    coherently; the grant text moves to the user turn as the actual task input.
+    """
+    system = SYS + f"\n\nCANDIDATE SUBTOPIC IDS ({len(subtopic_vocab)}):\n" + "\n".join(subtopic_vocab)
+    user = f"GRANT TITLE: {title}\n\nGRANT: {synopsis}"
+    out = bedrock.call_json(model=SONNET_MODEL, system=system,
+                            messages=[{"role": "user", "content": user}],
+                            max_tokens=2000, temperature=0.0, cache_system=True)
     return _parse_dsl(out)
 
 
