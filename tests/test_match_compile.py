@@ -6,7 +6,11 @@ from pipeline_grants.match_compile import (
     _parse_dsl,
     _parse_query,
     compile_match,
+    compile_rel,
     match_attrs,
+    norm_pool,
+    pool_pmids,
+    rel_attr,
 )
 
 
@@ -108,3 +112,50 @@ def test_match_attrs_encodes_compact_json_and_omits_when_none():
     assert match_attrs(None, None) == {}
     assert "match_query" not in match_attrs(dsl, None)
     assert "match_dsl" not in match_attrs(None, [{"q": "x", "w": 1.0}])
+
+
+# --- dense relevance (§3) -------------------------------------------------------------------
+
+def _fake_embed(texts):
+    """Canned 2-D vectors keyed by a marker in the text: 'ON' aligns with the grant, 'OFF' is
+    orthogonal. texts[0] is the grant (also 'ON'-aligned)."""
+    return [[0.0, 1.0] if "OFF" in t else [1.0, 0.0] for t in texts]
+
+
+def test_norm_pool_max_to_one_floors_negatives():
+    assert norm_pool([0.6, 0.3, -0.1, 0.0]) == [1.0, 0.5, 0.0, 0.0]  # max->1, neg floored, scaled
+    assert norm_pool([]) == []
+    assert norm_pool([0.0, 0.0]) == [0.0, 0.0]                       # no positive -> all 0, no div0
+    assert norm_pool([-0.4, -0.2]) == [0.0, 0.0]                     # all negative -> all 0
+
+
+def test_pool_pmids_substring_match_over_subtopic_ids():
+    idx = {"1": "machine_learning_imaging", "2": "clinical_epidemiology", "3": "deep_learning"}
+    assert set(pool_pmids(idx, ["learning"])) == {"1", "3"}
+    assert pool_pmids(idx, []) == []                  # no require -> empty pool (matcher fail-closed)
+    assert pool_pmids({"4": None}, ["x"]) == []       # null subtopic id skipped
+
+
+def test_compile_rel_pool_max_norm_and_floor():
+    # cos(grant,'ON')=1 -> normalized 1.0 (kept); cos(grant,'OFF')=0 -> floored out.
+    rel = compile_rel("grant text", {"11": "ON abstract", "22": "OFF abstract"}, embed=_fake_embed, floor=0.1)
+    assert rel == {"11": 1.0}
+
+
+def test_compile_rel_empty_pool_and_blank_abstracts_never_embed():
+    calls = []
+
+    def spy(texts):
+        calls.append(texts)
+        return [[1.0, 0.0]] * len(texts)
+
+    assert compile_rel("g", {}, embed=spy) == {}            # empty pool
+    assert compile_rel("g", {"1": "   "}, embed=spy) == {}  # only-blank pool -> dropped pre-embed
+    assert calls == []                                       # never reached the embedder
+
+
+def test_rel_attr_compact_json_and_omits_when_empty():
+    attrs = rel_attr({"123": 1.0, "456": 0.5})
+    assert json.loads(attrs["match_rel"]["S"]) == {"123": 1.0, "456": 0.5}
+    assert ", " not in attrs["match_rel"]["S"]               # compact separators
+    assert rel_attr({}) == {} and rel_attr(None) == {}       # nothing to write -> matcher BM25 fallback

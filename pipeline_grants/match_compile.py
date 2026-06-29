@@ -161,3 +161,67 @@ def match_attrs(match_dsl, match_query) -> dict:
     if match_query is not None:
         attrs["match_query"] = {"S": json.dumps(match_query, separators=(",", ":"))}
     return attrs
+
+
+# --- dense relevance (§3): a third, BACKFILL-ONLY compiled field ``match_rel``. -------------
+# The SPS matcher's relevance boost has one seam: a {pmid: rel∈[0,1]} map fed into
+# variantB × (1 + REL_BOOST·rel). Today that map is live-computed BM25 (relevanceScoresForQuery).
+# ``match_rel`` is a precomputed DENSE (Titan-cosine) alternative for the same seam — a strictly
+# better rel source (rescues lexically-distant on-target pubs, demotes shallow-lexical hits).
+# It is NOT compiled at ingest (it needs the corpus-wide subtopic→pmid index, cheap to build
+# once but absurd per-grant), so it lives only in ``backfill_rel.py``; ``build_grant_item`` is
+# untouched. The matcher falls back to BM25 when ``match_rel`` is absent.
+DENSE_REL_FLOOR = 0.1
+
+
+def norm_pool(cosvals: list) -> list:
+    """Floor negatives, scale so the most-similar pub = 1.0 (no positive → all 0, no div0).
+
+    Mirrors the BM25 provider's per-query-max normalization so the matcher's REL_BOOST stays
+    calibrated whichever rel source is used. Ported verbatim from the validated dense scratch
+    (``embed_rel.py``). ponytail: absolute-cosine calibration is the upgrade path if relevant-
+    but-low cosines ever need a higher floor."""
+    mx = max(cosvals) if cosvals else 0.0
+    mx = mx if mx > 0 else 1.0
+    return [round(max(0.0, c) / mx, 4) for c in cosvals]
+
+
+def pool_pmids(subtopic_index: dict, require: list) -> list:
+    """Candidate pmids for a grant: those whose ``primary_subtopic_id`` contains any ``require``
+    substring — the SAME substring match the DSL/matcher use. ``subtopic_index`` = {pmid: sid}.
+
+    A SUPERSET of the SPS pool (no author-position/FT-faculty filter): the matcher only looks up
+    its own kept pmids, so extra entries are harmless and any it misses just get no boost. Pure."""
+    if not require:
+        return []
+    return [pmid for pmid, sid in subtopic_index.items() if sid and any(r in sid for r in require)]
+
+
+def compile_rel(solicitation: str, pool_abstracts: dict, *, embed=None, floor: float = DENSE_REL_FLOOR) -> dict:
+    """Dense relevance map ``{pmid: cosine∈[0,1]}`` for one opportunity's candidate pool.
+
+    Embeds the grant text + each pool pub's title+abstract (Bedrock Titan v2), cosines each
+    against the grant, pool-max-normalizes, and keeps only entries ``>= floor``. Pool-max-norm
+    drives most cosines to ~0, so the floor keeps the map to the genuinely-close pubs — exactly
+    the pmids the SPS matcher boosts — and bounds the stored blob regardless of pool size.
+
+    ``embed`` is injectable (defaults to ``titan_embed``) so tests pass canned vectors and never
+    reach Bedrock (same seam as ``EmbeddingCache``). Blank-abstract pmids are dropped before
+    embedding (Titan rejects empty text). Pure given ``embed``; returns ``{}`` for an empty pool."""
+    items = [(p, t[:8000]) for p, t in ((p, (pool_abstracts.get(p) or "").strip()) for p in pool_abstracts) if t]
+    if not items:
+        return {}
+    from pipeline_tools.embeddings import cosine, titan_embed
+    embed = embed or titan_embed
+    pmids = [p for p, _ in items]
+    vecs = embed([solicitation] + [t for _, t in items])   # [0] = grant, [1:] = pool pubs, input order
+    grant_vec, pub_vecs = vecs[0], vecs[1:]
+    rel = dict(zip(pmids, norm_pool([cosine(grant_vec, pv) for pv in pub_vecs])))
+    return {p: v for p, v in rel.items() if v >= floor}
+
+
+def rel_attr(match_rel) -> dict:
+    """The ``match_rel`` GRANT# attribute (compact-JSON ``S`` blob the SPS matcher decodes), or an
+    empty dict when there's nothing to write (matcher stays on its BM25 fallback). Pure. Mirrors
+    ``match_attrs``; kept separate because dense rel is a backfill-only field."""
+    return {"match_rel": {"S": json.dumps(match_rel, separators=(",", ":"))}} if match_rel else {}
