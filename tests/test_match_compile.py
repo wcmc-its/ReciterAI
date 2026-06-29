@@ -16,12 +16,16 @@ class FakeBedrock:
     def __init__(self, *, dsl_out=None, query_out=None, raises=False):
         self.dsl_out, self.query_out, self.raises = dsl_out, query_out, raises
         self.calls = 0
+        self.dsl_call = None   # records the (system, user, cache_system) of the DSL call
 
-    def call_json(self, *, model, system, messages, max_tokens, temperature):
+    def call_json(self, *, model, system, messages, max_tokens, temperature, cache_system=False):
         self.calls += 1
         if self.raises:
             raise RuntimeError("bedrock boom")
-        return self.query_out if system == SYS_QUERY else self.dsl_out
+        if system != SYS_QUERY:
+            self.dsl_call = {"system": system, "user": messages[0]["content"], "cache_system": cache_system}
+            return self.dsl_out
+        return self.query_out
 
 
 def test_parse_query_weights_lowercase_and_drops_blanks():
@@ -58,6 +62,20 @@ def test_compile_match_happy_path():
     assert dsl["require"] == ["machine_learning"]
     assert query == [{"q": "deep learning", "w": 1.0}]
     assert fb.calls == 2   # one dsl call + one query call
+
+
+def test_compile_dsl_caches_vocab_in_system_prefix():
+    # The candidate vocab must live in the (cacheable) system prefix, not the per-grant
+    # user turn — that prefix reuse is what makes the corpus backfill ~4x cheaper.
+    fb = FakeBedrock(
+        dsl_out={"require": ["a"], "penalize": [], "pediatric_markers": [], "pediatric_required": False},
+        query_out={"queries": [{"q": "x", "w": "core"}]},
+    )
+    compile_match("Title", "Synopsis text", ["machine_learning", "epidemiology"], bedrock=fb)
+    assert fb.dsl_call["cache_system"] is True                      # opted into prompt caching
+    assert "machine_learning" in fb.dsl_call["system"]              # vocab is in the cached prefix
+    assert "machine_learning" not in fb.dsl_call["user"]            # NOT in the per-grant turn
+    assert "Synopsis text" in fb.dsl_call["user"]                   # grant text stays in the user turn
 
 
 def test_compile_match_fail_open_on_empty_require():

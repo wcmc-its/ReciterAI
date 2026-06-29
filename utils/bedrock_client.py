@@ -206,6 +206,7 @@ class BedrockClient:
         system: str = None,
         max_tokens: int = 4096,
         temperature: float | None = 0.0,
+        cache_system: bool = False,
     ) -> str:
         """
         Make a Bedrock Converse API call and return the response text.
@@ -231,7 +232,7 @@ class BedrockClient:
                 `stop_reason` to decide whether to retry or mark the unit
                 failed.
         """
-        messages_converse, system_list = self._translate_messages(messages, system)
+        messages_converse, system_list = self._translate_messages(messages, system, cache_system=cache_system)
         response = self._call_with_retry(
             model=model,
             messages_converse=messages_converse,
@@ -255,6 +256,7 @@ class BedrockClient:
         system: str = None,
         max_tokens: int = 4096,
         temperature: float = 0.0,
+        cache_system: bool = False,
     ) -> dict:
         """
         Make a Bedrock Converse API call and return parsed JSON.
@@ -282,6 +284,7 @@ class BedrockClient:
             system=system,
             max_tokens=max_tokens,
             temperature=temperature,
+            cache_system=cache_system,
         )
 
         # Strip markdown fences (ported from CViche JSON validation, lines 369-389)
@@ -304,6 +307,7 @@ class BedrockClient:
                 system=system,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                cache_system=cache_system,
             )
             retry_cleaned = re.sub(r'```json\n?|\n?```', '', retry_content).strip()
             return json.loads(retry_cleaned)
@@ -456,6 +460,7 @@ class BedrockClient:
         self,
         messages: list,
         system: str = None,
+        cache_system: bool = False,
     ) -> tuple:
         """
         Convert OpenAI-style messages to Bedrock Converse API format.
@@ -499,6 +504,12 @@ class BedrockClient:
         if system_texts:
             combined_system = '\n\n'.join(system_texts)
             system_list = [{'text': combined_system}]
+            if cache_system:
+                # Bedrock prompt caching: a cachePoint after the system text caches the
+                # whole prefix (system) so repeated calls sharing it bill the cached span
+                # at read rates (~0.1x). Worth it only when the system prefix is large and
+                # reused (e.g. a fixed candidate vocab); no-op for callers that don't opt in.
+                system_list.append({'cachePoint': {'type': 'default'}})
         else:
             system_list = []
 
