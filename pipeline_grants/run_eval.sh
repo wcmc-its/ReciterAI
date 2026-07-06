@@ -20,12 +20,15 @@ K="${K:-8}"
 
 cd "$(dirname "$0")/.."  # repo root, so `python3 -m pipeline_grants...` and `utils` resolve
 
-# 1. (Re)build the benchmark dumps. Swap THIS step for the ECS ranker's JSON emit once it
-#    lands -- everything downstream is unchanged. Today it reproduces the v8 dumps.
-python3 -m pipeline_grants.grant_eval_from_verification "$REPORT" "$DUMPS" \
-  --solicitations "$GRANT3/grant_solicitations.json" \
-  --extra-grants  "$GRANT3/extra_grants.json" \
-  --funding-db    "$FUNDING_DB"
+# 1. Build dumps from the verification markdown ONLY if asked (BUILD_FROM_MARKDOWN=1). This is the
+#    legacy top-8 bootstrap and would CLOBBER full-pool dumps produced by scratch-matching/dump_grant.sh.
+#    Normal loop: dumps already exist (ECS full-pool from dump_grant.sh) -> skip straight to scoring.
+if [[ "${BUILD_FROM_MARKDOWN:-}" ]]; then
+  python3 -m pipeline_grants.grant_eval_from_verification "$REPORT" "$DUMPS" \
+    --solicitations "$GRANT3/grant_solicitations.json" \
+    --extra-grants  "$GRANT3/extra_grants.json" \
+    --funding-db    "$FUNDING_DB"
+fi
 
 # 2. Score, then either diff vs baseline or freeze a new baseline.
 ARGS=("$DUMPS/*.json" -k "$K" --funding-db "$FUNDING_DB")
