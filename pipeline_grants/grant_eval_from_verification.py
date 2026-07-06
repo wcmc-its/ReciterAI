@@ -84,6 +84,37 @@ def parse(md: str) -> list[dict]:
     return grants
 
 
+def enrich_dump(g: dict, solic: dict, extra: dict, db: dict) -> dict:
+    """Add solicitation + solicitation_title + awardees to a {grant,gate,ranked} dump.
+
+    Shared by the markdown converter and the ECS full-pool dump path so both resolve a
+    grant's text and past winners the same way. solicitation text priority: dedicated
+    solicitations file > extra_grants desc > funding-db focus.
+    """
+    key = g["grant"]
+    text = ""
+    title = key
+    if key in solic:
+        v = solic[key]
+        text = v if isinstance(v, str) else v.get("desc") or v.get("text", "")
+        title = (v.get("title") if isinstance(v, dict) else "") or key
+    elif key in extra:
+        text, title = extra[key].get("desc", ""), extra[key].get("title", key)
+    awardees: set[str] = set()
+    for t, (focus, cwids) in db.items():
+        nk = _norm(title)
+        if nk and (nk in t or t in nk):
+            awardees |= cwids
+            if not text:
+                text = focus
+            break
+    g["solicitation"] = text or f"(grant: {title})"
+    g["solicitation_title"] = title
+    if awardees:
+        g["awardees"] = sorted(awardees)
+    return g
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("report")
@@ -99,31 +130,9 @@ def main() -> None:
 
     os.makedirs(args.outdir, exist_ok=True)
     for g in parse(open(args.report).read()):
-        key = g["grant"]
-        # solicitation text: dedicated file > extra_grants desc > funding-db focus
-        text = ""
-        title = key
-        if key in solic:
-            v = solic[key]
-            text = v if isinstance(v, str) else v.get("desc") or v.get("text", "")
-            title = (v.get("title") if isinstance(v, dict) else "") or key
-        elif key in extra:
-            text, title = extra[key].get("desc", ""), extra[key].get("title", key)
-        awardees: set[str] = set()
-        # funding-db join by title containment (gets solicitation fallback + awardees)
-        for t, (focus, cwids) in db.items():
-            nk = _norm(title)
-            if nk and (nk in t or t in nk):
-                awardees |= cwids
-                if not text:
-                    text = focus
-                break
-        g["solicitation"] = text or f"(grant: {title})"
-        g["solicitation_title"] = title
-        if awardees:
-            g["awardees"] = sorted(awardees)
-        json.dump(g, open(os.path.join(args.outdir, f"{key}.json"), "w"), indent=2)
-        print(f"{key:<16} ranked={len(g['ranked']):>2} awardees={len(awardees):>2} solic_chars={len(g['solicitation'])}")
+        enrich_dump(g, solic, extra, db)
+        json.dump(g, open(os.path.join(args.outdir, f"{g['grant']}.json"), "w"), indent=2)
+        print(f"{g['grant']:<16} ranked={len(g['ranked']):>2} awardees={len(g.get('awardees', [])):>2} solic_chars={len(g['solicitation'])}")
 
 
 if __name__ == "__main__":
