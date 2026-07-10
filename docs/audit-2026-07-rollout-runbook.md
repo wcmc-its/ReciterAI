@@ -51,6 +51,8 @@ docker run --rm --entrypoint python "$IMAGE_URI" -c "import numpy, requests; pri
 
 ## 2. Run the spotlight history fold (once, after deploy)
 
+> **DONE 2026-07-10.** All four deploy surfaces were live first, then ran the fold: 91 subtopics folded, 159 versioned source rows deleted, 38 repeat-features recovered, 0 malformed; verified idempotent (re-scan: rows 91, to_fold 0, already_folded 91). SPOT-03 decay now starts from real history. The `migrate_spotlight_history_pk.py` re-key below was NOT run — it belongs to the #191/#204 durable-ID rollout, not this audit.
+
 `scripts/fold_spotlight_history_versions.py` (#304) collapses the per-publish
 `SPOTLIGHT_HISTORY#{date}#{subtopic}` partitions onto the durable
 `SPOTLIGHT_HISTORY#{subtopic}` key so rotation decay starts from real history
