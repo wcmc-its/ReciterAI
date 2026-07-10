@@ -61,6 +61,48 @@ def test_apply_writes_only_the_two_attrs():
     assert kwargs["Key"]["PK"] == {"S": "GRANT#a"}
 
 
+# --- mechanism backfill (#288) -------------------------------------------------
+def test_apply_backfills_mechanism_recovered_from_title():
+    # legacy item: no stored mechanism, title carries the activity code -> SET it
+    client = _client_with([_item("GRANT#a", title="Pilot Proteins (R01 Clinical Trial Not Allowed)")])
+    summary = bf.backfill(client, apply=True)
+    assert summary["mechanism_backfilled"] == 1
+    _, kwargs = client.update_item.call_args
+    assert ", mechanism = :m" in kwargs["UpdateExpression"]
+    assert kwargs["ExpressionAttributeValues"][":m"] == {"S": "R01"}
+
+
+def test_apply_never_overwrites_stored_mechanism():
+    # stored K23 wins even though the title would recover R01
+    client = _client_with([_item("GRANT#a", title="Something (R01)", mechanism="K23")])
+    summary = bf.backfill(client, apply=True)
+    assert summary["mechanism_backfilled"] == 0
+    _, kwargs = client.update_item.call_args
+    assert "mechanism" not in kwargs["UpdateExpression"]
+    assert ":m" not in kwargs["ExpressionAttributeValues"]
+
+
+def test_apply_omits_mechanism_when_nothing_recovered():
+    # no stored mechanism AND no code in the title -> update stays prestige-only
+    client = _client_with([_item("GRANT#a", title="The Wolf Prize")])
+    summary = bf.backfill(client, apply=True)
+    assert summary["mechanism_backfilled"] == 0
+    _, kwargs = client.update_item.call_args
+    assert "mechanism" not in kwargs["UpdateExpression"]
+    assert set(kwargs["ExpressionAttributeValues"]) == {":p", ":h"}
+
+
+def test_dry_run_counts_recoverable_mechanisms_without_writing():
+    client = _client_with([
+        _item("GRANT#a", title="Pilot Proteins (R01 Clinical Trial Not Allowed)"),
+        _item("GRANT#b", title="Something (R01)", mechanism="K23"),
+        _item("GRANT#c", title="The Wolf Prize"),
+    ])
+    summary = bf.backfill(client, apply=False)
+    assert summary["mechanism_backfilled"] == 1
+    client.update_item.assert_not_called()
+
+
 def test_limit_caps_scan():
     client = _client_with([_item(f"GRANT#{i}", mechanism="R01") for i in range(5)])
     assert bf.backfill(client, apply=False, limit=2)["scanned"] == 2
