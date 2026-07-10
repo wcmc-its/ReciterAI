@@ -28,6 +28,7 @@ Scripts here are **one-shot by default**: they exist to be run a handful of time
 | `smoke_hot_path.sh` | Manual hot-path end-to-end smoke against live infra |
 | `smoke_onboarding.sh` | Manual onboarding end-to-end smoke against live infra |
 | `verify_98_topic_rows.sh` | One-shot — verify #98's hot-path `TOPIC#` materialization in prod; delete when #98 closes |
+| `eligibility_audit/` | Reproducible eligibility-capture audit (regex flags vs Sonnet reference, fixed seed) — see its README + `docs/grant-matching-measurements-runbook.md`. Long-lived measurement aid, exempt like `smoke_*.sh` |
 
 Anything else added here should justify itself against the lifecycle rule above.
 
