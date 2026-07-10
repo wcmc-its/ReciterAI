@@ -143,6 +143,9 @@ def test_fetch_records_returns_synopsis_and_provenance():
             "synopsis": "syn text",
             "synopsis_model": "claude-sonnet-4-6",
             "enriched_at": "2026-05-20T11:00:00Z",
+            # #212 Part A: the IMPACT# row carried no enriched impact yet.
+            "impact_score": None,
+            "impact_justification": "",
         },
     }
 
@@ -155,7 +158,15 @@ def test_fetch_records_missing_provenance_defaults_to_empty_strings():
         {"PK": {"S": f"{IMPACT_PK_PREFIX}300"}, "synopsis": {"S": "s"}},
     ])
     out = fetch_synopsis_records(client, ["300"])
-    assert out == {"300": {"synopsis": "s", "synopsis_model": "", "enriched_at": ""}}
+    assert out == {
+        "300": {
+            "synopsis": "s",
+            "synopsis_model": "",
+            "enriched_at": "",
+            "impact_score": None,
+            "impact_justification": "",
+        }
+    }
 
 
 def test_fetch_records_empty_list_skips_ddb():

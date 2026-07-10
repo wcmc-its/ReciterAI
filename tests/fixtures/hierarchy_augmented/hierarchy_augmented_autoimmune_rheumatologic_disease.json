@@ -1,0 +1,66 @@
+{
+  "topic_id": "autoimmune_rheumatologic_disease",
+  "topic_label": "Autoimmune & Rheumatologic Disease",
+  "subtopics": [
+    {
+      "id": "autoimmune_ms_imaging_biomarkers",
+      "label": "Multiple Sclerosis Imaging Biomarkers and Lesion Characterization",
+      "description": "Research on advanced MRI techniques (quantitative susceptibility mapping, phase imaging, central vein sign) and corneal confocal microscopy as biomarkers for lesion characterization, neurodegeneration, and disability in multiple sclerosis. Includes paramagnetic rim lesions, myelin water fraction, and structural disconnectivity.",
+      "seed_pmids": [
+        32579281,
+        34498432,
+        34664747
+      ],
+      "coverage_estimate": 0.09,
+      "display_name": "MS Imaging Biomarkers & Lesion Characterization",
+      "short_description": "Advanced MRI and corneal confocal techniques for lesion characterization, neurodegeneration, and disability tracking in multiple sclerosis.",
+      "total_weight": 9.51154,
+      "activity_count": 13
+    },
+    {
+      "id": "autoimmune_ms_corneal_neurodegeneration",
+      "label": "Corneal Confocal Microscopy as Biomarker in Multiple Sclerosis and Autoimmune Disease",
+      "description": "Studies using corneal confocal microscopy to quantify corneal nerve fiber loss, axonal degeneration, and immune cell infiltration as biomarkers of neurodegeneration and disease activity in multiple sclerosis, systemic lupus erythematosus, and rheumatoid arthritis.",
+      "seed_pmids": [
+        34737384,
+        36776530,
+        33384891
+      ],
+      "coverage_estimate": 0.065,
+      "display_name": "Corneal Confocal Microscopy & Neurodegeneration",
+      "short_description": "Corneal nerve fiber loss and immune cell infiltration as biomarkers of neurodegeneration in MS, lupus, and rheumatoid arthritis.",
+      "total_weight": 2.852076,
+      "activity_count": 8
+    },
+    {
+      "id": "autoimmune_ms_treatment_outcomes",
+      "label": "Multiple Sclerosis Treatment Outcomes and Disease-Modifying Therapies",
+      "description": "Clinical studies evaluating disease-modifying therapies for multiple sclerosis, particularly natalizumab and tofacitinib, including real-world effectiveness, cognitive outcomes, racial/ethnic disparities in treatment response, and CNS biomarkers of disease activity.",
+      "seed_pmids": [
+        34014549,
+        36966440,
+        36064841
+      ],
+      "coverage_estimate": 0.057,
+      "display_name": "MS Disease-Modifying Therapy Outcomes",
+      "short_description": "Real-world effectiveness, cognitive outcomes, and racial disparities in disease-modifying therapy response for multiple sclerosis.",
+      "total_weight": 1.282804,
+      "activity_count": 6
+    }
+  ],
+  "uncovered_pmids": [
+    "40878901",
+    "37040545"
+  ],
+  "total_activities": 123,
+  "coverage_pct": 0.9268,
+  "generated_at": "2026-04-14T22:04:31.076030Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "auto_approved",
+  "augmented_at": "2026-05-13T14:12:43Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI/.planning/phases/04-subtopic-system/total_weights_autoimmune_rheumatologic_disease.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}
