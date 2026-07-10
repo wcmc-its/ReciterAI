@@ -63,10 +63,55 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
     return item
 
 
+# Backfill-only / conditionally-compiled GRANT# attributes a plain re-ingest must not destroy.
+# batch_write PutRequests REPLACE the whole item, and these are the expensive Bedrock products
+# the ingest paths do NOT recompute: match_dsl/match_query are only built under --compile-match
+# (default OFF; backfill_match.py populates the corpus) and match_rel is backfill-ONLY
+# (backfill_rel.py — never compiled at ingest). Everything else on the item is recomputed from
+# fresh source data every ingest (incl. prestige/is_honorific), so new-wins is correct there.
+# Future backfill-only fields (e.g. structured eligibility, #290) ride this list.
+PRESERVED_ATTRS = ("match_dsl", "match_query", "match_rel")
+
+
+def fetch_preserved_attrs(client, keys: list, table_name: str = TABLE_NAME) -> dict:
+    """``{(PK, SK): {attr: value}}`` for existing items carrying any ``PRESERVED_ATTRS``.
+
+    BatchGetItem in 100-key chunks (the API max), re-queuing ``UnprocessedKeys`` — the same
+    pattern as ``utils.dynamodb_helpers.fetch_scored_provenance``. Keys with no existing item
+    (fresh ingests) or none of the preserved attrs are omitted."""
+    names = {f"#a{i}": attr for i, attr in enumerate(PRESERVED_ATTRS)}
+    projection = "PK, SK, " + ", ".join(names)
+    result: dict = {}
+    for i in range(0, len(keys), 100):
+        request = {table_name: {
+            "Keys": keys[i:i + 100],
+            "ProjectionExpression": projection,
+            "ExpressionAttributeNames": names,
+        }}
+        while request:
+            response = client.batch_get_item(RequestItems=request)
+            for item in response.get("Responses", {}).get(table_name, []):
+                preserved = {attr: item[attr] for attr in PRESERVED_ATTRS if attr in item}
+                if preserved:
+                    result[(item["PK"]["S"], item["SK"]["S"])] = preserved
+            request = response.get("UnprocessedKeys") or None
+    return result
+
+
 def put_grants(client, items: list, table_name: str = TABLE_NAME) -> int:
-    """Batch-write GRANT# items. Returns the count written."""
-    if items:
-        batch_write(client, table_name, items)
+    """Batch-write GRANT# items, preserving backfill-only attrs on re-put. Returns the count.
+
+    Before writing, existing values of ``PRESERVED_ATTRS`` are merged into any outgoing item
+    that lacks them (a whole-item PutRequest would otherwise silently un-match re-ingested
+    grants). An item that already carries its own value — compile_match ON — wins."""
+    if not items:
+        return 0
+    unique_keys = {(i["PK"]["S"], i["SK"]["S"]): {"PK": i["PK"], "SK": i["SK"]} for i in items}
+    existing = fetch_preserved_attrs(client, list(unique_keys.values()), table_name)
+    for item in items:
+        for attr, value in existing.get((item["PK"]["S"], item["SK"]["S"]), {}).items():
+            item.setdefault(attr, value)
+    batch_write(client, table_name, items)
     return len(items)
 
 
