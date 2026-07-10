@@ -72,6 +72,21 @@ def _stub_default_ddb_table():
         yield daily_fake
 
 
+# The daily loop now culls already-enriched PMIDs via check_enrichment_coverage
+# (#312), which hits DynamoDB. Default it to "nothing already enriched" so the
+# existing daily tests process the whole delta unchanged; the cull test and the
+# backfill tests re-patch it in-body (an in-body patch overrides this stub).
+@pytest.fixture(autouse=True)
+def _stub_enrichment_coverage():
+    with patch.object(
+        daily_job, "check_enrichment_coverage",
+        side_effect=lambda _client, pmids: {
+            "complete": [], "incomplete": [str(p) for p in pmids],
+        },
+    ):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # Fake Synopsis/Impact results — mirror the real dataclasses' relevant fields
 # ---------------------------------------------------------------------------
@@ -196,6 +211,27 @@ def test_three_pmids_all_succeed_advances_watermark(fake_engine, fake_watermark,
     fake_watermark["failed"].assert_not_called()
     complete_kwargs = fake_watermark["complete"].call_args.kwargs
     assert complete_kwargs["max_pmid"] == 1003
+
+
+def test_daily_cull_skips_already_enriched_pmids(fake_engine, fake_watermark, fake_writer):
+    """#312: a delta PMID whose IMPACT# row already carries synopsis+impact (a
+    re-included delta after a prior failed run) is skipped — no LLM re-spend —
+    while the watermark still advances past the whole delta."""
+    delta = _delta_rows([1001, 1002, 1003])
+    syn = MagicMock(wraps=_ok_synopsis)
+    imp = MagicMock(wraps=_ok_impact)
+    with patch.object(daily_job, "fetch_new_publications", return_value=delta), \
+         patch.object(daily_job, "check_enrichment_coverage",
+                      return_value={"complete": ["1001", "1002"], "incomplete": ["1003"]}):
+        result = run_daily_enrichment(
+            engine=fake_engine, generate_synopsis=syn, score_impact=imp,
+        )
+    assert result.status == STATUS_COMPLETE
+    # Only the not-yet-enriched PMID reached the LLM.
+    assert [c.kwargs["pmid"] for c in syn.call_args_list] == ["1003"]
+    assert result.successes == 1
+    # Watermark still advances to the delta's max pmid, not just the enriched one.
+    assert result.new_watermark_pmid == 1003
 
 
 def test_first_run_with_no_watermark_uses_zero_as_last_max(fake_engine, fake_watermark, fake_writer):
