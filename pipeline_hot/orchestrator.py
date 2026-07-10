@@ -57,7 +57,6 @@ from utils.stage_records import (
     compute_input_hash,
     write_skipped,
 )
-from pipeline_common import alert
 from pipeline_enrichment import alerting as teams_alerting
 from utils.iso_clock import now_iso
 
@@ -684,11 +683,15 @@ def handler(event: dict, context: Any = None) -> dict:
                 f"state_machine_arn={state_machine_arn}"
             )
             # D-11: WARN alert on lock collision so repeated collisions
-            # become visible. Single-collision noise is acceptable; the
-            # severity table marks this WARN (Slack-only, no GH issue).
-            alert.dispatch(
+            # become visible. Single-collision noise is acceptable. Routed
+            # to Teams (pipeline_enrichment.alerting) — the Slack transport
+            # is retired and provisioned nowhere (#309).
+            teams_alerting.alert(
                 "WARN",
                 "Hot path skipped — prior execution still RUNNING",
+                "A prior hot-path execution is still RUNNING, so this run was "
+                "skipped. Repeated collisions indicate a stuck execution that "
+                "needs review.",
                 {
                     "source": "pipeline_hot.orchestrator",
                     "skip_reason": SKIP_REASON_LOCKED,
@@ -777,9 +780,12 @@ def handler(event: dict, context: Any = None) -> dict:
             _alert_quarantined(sweep["quarantined_pmids"], started_at=started_at)
     except Exception as exc:  # noqa: BLE001 — sweep is non-critical recovery
         logger.exception("Retry sweep failed; proceeding with delta only.")
-        alert.dispatch(
+        teams_alerting.alert(
             "WARN",
-            "Hot path retry sweep failed — delta scoring proceeded",
+            "Hot path retry sweep failed",
+            "The state-based retry sweep raised; delta scoring proceeded "
+            "without it. Failed PMIDs are not recovered until the sweep runs "
+            "clean.",
             {
                 "source": "pipeline_hot.orchestrator",
                 "error": str(exc),
@@ -804,9 +810,12 @@ def handler(event: dict, context: Any = None) -> dict:
         )
     except Exception as exc:  # noqa: BLE001 — eligibility recovery is non-critical
         logger.exception("Eligibility sweep failed; proceeding without it.")
-        alert.dispatch(
+        teams_alerting.alert(
             "WARN",
-            "Hot path eligibility sweep failed — delta+retry scoring proceeded",
+            "Hot path eligibility sweep failed",
+            "The enriched-but-unscored recovery sweep raised; delta+retry "
+            "scoring proceeded without it. Eligible PMIDs stay unscored until "
+            "it runs clean.",
             {
                 "source": "pipeline_hot.orchestrator",
                 "error": str(exc),
@@ -828,9 +837,11 @@ def handler(event: dict, context: Any = None) -> dict:
         )
     except Exception as exc:  # noqa: BLE001 — drift recovery is non-critical
         logger.exception("Drift sweep failed; proceeding without it.")
-        alert.dispatch(
+        teams_alerting.alert(
             "WARN",
-            "Hot path drift sweep failed — delta+retry+eligibility scoring proceeded",
+            "Hot path drift sweep failed",
+            "The drift sweep raised; delta+retry+eligibility scoring proceeded "
+            "without it. Drifted checkpoints stay stale until it runs clean.",
             {
                 "source": "pipeline_hot.orchestrator",
                 "error": str(exc),
