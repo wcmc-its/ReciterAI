@@ -1103,6 +1103,7 @@ def run(
                 cost_observed_usd=ASSIGN_COST_USD,
                 records_written=total_rows_written,
                 model_ids_snapshot=STAGE_MODEL_IDS,
+                run_id=os.environ.get("RECITERAI_COLD_RUN_ID"),
             )
             if emit_envelope:
                 print(json.dumps(build_complete_record(**complete_kwargs), default=str))

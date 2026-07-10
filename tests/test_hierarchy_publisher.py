@@ -84,8 +84,22 @@ def test_reproducibility_same_pin_same_sha256(live_bundle):
 
 
 def test_default_version_derived_from_generated_at(live_bundle):
+    # Default version is v{date}-{sha256[:8]}: the content-hash suffix stops a
+    # same-day content-changed republish from overwriting the prior v{date}/ prefix.
     _, _, manifest = generate(hierarchy=live_bundle, generated_at="2026-12-31T23:59:59Z")
-    assert manifest["version"] == "v2026-12-31"
+    assert manifest["version"] == f"v2026-12-31-{manifest['sha256'][:8]}"
+
+
+def test_manifest_carries_subtopic_count(live_bundle):
+    """manifest.subtopic_count is the shrink guard's baseline — it must be stamped
+    and equal the number of subtopics in the published hierarchy."""
+    from pipeline_hierarchy.diff_stats import _index_subtopics
+
+    built = build_hierarchy(hierarchy=live_bundle, generated_at=PINNED_GENERATED_AT)
+    _, _, manifest = generate(hierarchy=live_bundle, generated_at=PINNED_GENERATED_AT, version="vtest")
+    expected = len(_index_subtopics(built))
+    assert expected > 0
+    assert manifest["subtopic_count"] == expected
 
 
 def test_topic_keys_match_bundler_output(live_bundle):
