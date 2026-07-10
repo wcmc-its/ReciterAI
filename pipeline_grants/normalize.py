@@ -52,11 +52,39 @@ def _activity_code(opp_number: str) -> str:
     return m.group(1) if m else ""
 
 
+# grants.gov `synopsis.agencyName` is sometimes a contact block — "<Person>\n<Role>"
+# ("Linton C Browning\nGrants Management Specialist") — instead of the agency (#294). The
+# structured `agencyDetails.agencyName` / `topAgencyDetails.agencyName` carry the real agency,
+# so skip a contact-shaped value and fall through to them. A newline is the reliable tell
+# (every observed case is two lines); a bare trailing grants-role title is the secondary one.
+_CONTACT_ROLE_RE = re.compile(
+    r"\b(grantor|grants?\s+(management\s+)?(specialist|manager|officer|analyst)|"
+    r"procurement\s+analyst|contracting\s+(specialist|officer)|program\s+(analyst|official))\b",
+    re.I)
+
+
+def _is_contact_blob(name: str) -> bool:
+    return "\n" in name or bool(_CONTACT_ROLE_RE.search(name))
+
+
+def _select_sponsor(data: dict, syn: dict) -> str:
+    """First clean agency across synopsis → agencyDetails → topAgencyDetails; else ''."""
+    for cand in (
+        syn.get("agencyName"),
+        (data.get("agencyDetails") or {}).get("agencyName"),
+        (data.get("topAgencyDetails") or {}).get("agencyName"),
+    ):
+        cand = (cand or "").strip()
+        if cand and not _is_contact_blob(cand):
+            return cand
+    return ""
+
+
 def normalize_grantsgov(detail_resp: dict) -> Opportunity:
     data = detail_resp.get("data", {})
     syn = data.get("synopsis") or {}
     source_id = str(data.get("id") or syn.get("opportunityId") or "")
-    sponsor = syn.get("agencyName") or (data.get("agencyDetails") or {}).get("agencyName", "") or ""
+    sponsor = _select_sponsor(data, syn)
     cfdas = [c.get("cfdaNumber") for c in (data.get("cfdas") or []) if c.get("cfdaNumber")]
     return Opportunity(
         opportunity_id=make_opportunity_id("grants_gov", source_id),
