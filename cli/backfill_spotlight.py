@@ -652,16 +652,10 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
     parent_lookup = _build_parent_lookup(hierarchy)
 
     # Stage 1+2: always run.
-    # Phase 11 D-04: fetch_history requires hierarchy_version to build the
-    # new PK shape (SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id}).
-    # backfill_spotlight uses publish_id == v{today} as hierarchy_version
-    # (same convention as publish.py OQ-2 resolution).
-    spotlight_hierarchy_version = f"v{date.today().isoformat()}"
     pool = rank_pool(parent_lookup=parent_lookup, author_resolver=resolve_authors)
     history = fetch_history(
         client=None,
         subtopic_ids=[e.subtopic_id for e in pool],
-        hierarchy_version=spotlight_hierarchy_version,
     )
 
     # #91: near-clone theme dedup. Embed the pool's short_descriptions and

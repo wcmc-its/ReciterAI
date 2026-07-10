@@ -88,7 +88,7 @@ def test_synopsis_and_title_omitted_when_absent():
     )
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
-        "rationale", "topic_scores_version", "pmid",
+        "rationale", "topic_scores_version", "pmid", "created_at",
     }
 
 
@@ -164,7 +164,7 @@ def test_build_topic_records_aggregates_pmid_rows():
     for row in records:
         assert set(row) == {
             "PK", "SK", "faculty_uid", "score",
-            "rationale", "topic_scores_version", "pmid",
+            "rationale", "topic_scores_version", "pmid", "created_at",
         }
 
 
@@ -243,7 +243,7 @@ def test_impact_keys_omitted_when_score_absent_preserves_historical_shape():
     assert "impact_justification" not in rows[0]
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
-        "rationale", "topic_scores_version", "pmid",
+        "rationale", "topic_scores_version", "pmid", "created_at",
     }
 
 

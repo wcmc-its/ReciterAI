@@ -218,6 +218,24 @@ def _evaluate_uncovered(
     return scored[0][1], scored[:3]
 
 
+class LLMResponseShapeError(ValueError):
+    """The model returned parseable JSON whose keys we could not map to topics.
+
+    call_json validates that a response *parses*, not that it has the shape we
+    asked for. A dict with unrecognized keys — a ``{"scores": {...}}`` wrapper,
+    topic labels instead of int ids, a changed envelope after a model upgrade —
+    used to drop every key at DEBUG and leave an empty score map, which is
+    indistinguishable from "this publication matched no topics".
+
+    It is not the same thing. A well-formed response always yields at least one
+    recognized topic: a genuinely irrelevant publication still scores every
+    topic, just below the floor. So an empty parsed map means the response was
+    malformed, and the PMID must fail (and be retried) rather than checkpoint
+    'complete' with no scores — which would also delete its existing TOPIC# rows
+    on a re-score.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Data class
 # ---------------------------------------------------------------------------
@@ -841,6 +859,12 @@ def score_one_publication(
             except (TypeError, ValueError):
                 logger.debug(f"Skipping malformed screening score for topic {int_id}: {score}")
 
+        if not screening_scores:
+            raise LLMResponseShapeError(
+                f"screening response for pmid={pmid} yielded no recognized topic "
+                f"ids (keys={sorted(map(str, raw_screening))[:10]})"
+            )
+
         result.screening_scores = screening_scores
 
         # Filter topics that passed 0.3 threshold
@@ -913,6 +937,15 @@ def score_one_publication(
                     }
             except (TypeError, ValueError):
                 logger.debug(f"Skipping malformed dense score for topic {topic_id}: {value}")
+
+        if not dense_scores:
+            # Raise BEFORE _materialize_topic_rows, whose delete-then-write would
+            # otherwise wipe this PMID's existing TOPIC# rows and replace them
+            # with nothing while the checkpoint claims 'complete'.
+            raise LLMResponseShapeError(
+                f"dense response for pmid={pmid} yielded no recognized topic "
+                f"ids (keys={sorted(map(str, raw_dense))[:10]})"
+            )
 
         result.dense_scores = dense_scores
 
