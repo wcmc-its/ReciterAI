@@ -28,6 +28,7 @@ from pipeline_hierarchy.generator import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_AUGMENTED_DIR = Path(__file__).parent / "fixtures" / "hierarchy_augmented"
 
 
 # ---------- fixture helpers (shared with test_hierarchy_bundler) ----------
@@ -123,9 +124,10 @@ def test_build_hierarchy_is_byte_stable_across_two_passes(tmp_path):
 
 def test_generate_is_byte_stable_with_pinned_generated_at():
     """D-14 / G-36: generate() with the same generated_at produces byte-identical
-    hierarchy bytes. Uses the live bundler output."""
+    hierarchy bytes. The invariant is input-independent, so the committed
+    fixture bundle exercises it on any clone."""
     pinned = "2026-06-01T00:00:00Z"
-    bundled = bundle()
+    bundled = bundle(augmented_dir=FIXTURE_AUGMENTED_DIR)
 
     h_bytes1, _, manifest1 = generate(hierarchy=bundled, generated_at=pinned, version="v2026-06-01")
     h_bytes2, _, manifest2 = generate(hierarchy=bundled, generated_at=pinned, version="v2026-06-01")

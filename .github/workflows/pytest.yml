@@ -1,0 +1,37 @@
+name: pytest
+
+# The mock-based unit suite runs in a few seconds and has no AWS/MariaDB
+# dependency (pytest.ini deselects the `aws` and `mariadb` markers by default),
+# so there is no reason for it not to gate every change. Before this existed,
+# whether the suite ran at all depended on the developer remembering to run it.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'  # matches the Dockerfile runtime
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        # No credentials in the environment: a test that reaches a real AWS or
+        # MariaDB endpoint should fail here rather than pass by picking up an
+        # ambient session.
+        run: pytest -q

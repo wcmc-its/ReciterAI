@@ -249,11 +249,19 @@ def test_write_bundle_raises_typeerror_if_generated_at_kwarg_passed(tmp_path):
 # ---------- live structural tests ----------
 
 
+@pytest.mark.skipif(
+    not any(DEFAULT_AUGMENTED_DIR.glob("hierarchy_augmented_*.json")),
+    reason="needs the live per-topic augmented corpus under gitignored .planning/",
+)
 def test_live_bundler_strict_mode_succeeds_after_relabel():
     """Post-2026-05-12 relabel pass: every augmented file has display_name +
     short_description populated, so strict-mode bundle succeeds. This is the
     flip of the prior `_fails_until_relabel_repopulates` test, which pinned
-    the pre-relabel failure mode."""
+    the pre-relabel failure mode.
+
+    Asserts against the real corpus (66 topics / 1541 subtopics), so it only
+    runs where that corpus exists. The publish contract itself is covered on
+    every clone by tests/test_hierarchy_publisher.py's committed fixtures."""
     rebuilt = bundle(
         augmented_dir=DEFAULT_AUGMENTED_DIR,
     )
