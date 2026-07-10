@@ -450,3 +450,40 @@ def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
     sig = acknowledgement_signal(client.get("777"), load_core("2"))
     rec = combine("777", "2", sig)
     assert rec.status == STATUS_CONFIRMED and sig.ack_alias == "Citigroup Biomedical Imaging Center"
+
+
+# --- #312 affinity prior: one scan for all cores, loud on failure -----------
+def test_main_scans_prior_usage_once_for_all_cores(monkeypatch):
+    """The cross-run affinity prior is scanned ONCE (grouped by core_id in
+    memory), not once per core — one full-table Scan instead of len(cores)."""
+    from unittest.mock import MagicMock
+    from pipeline_cores import ingest, run
+    import pipeline_cores.persist as persist
+    import utils.db as db
+
+    monkeypatch.setattr(db, "get_engine", lambda: MagicMock(name="engine"))
+    monkeypatch.setattr(ingest, "fetch_publications", lambda e, limit=None: [{"pmid": "1"}])
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
+    monkeypatch.setattr(run, "run_core", lambda *a, **k: [])
+    scan = MagicMock(return_value=[])
+    monkeypatch.setattr(persist, "scan_prior_core_usage", scan)
+
+    assert len(load_cores()) > 1  # otherwise the per-core/once distinction is moot
+    run.main(["--with-affinity", "--dry-run"])
+    assert scan.call_count == 1
+
+
+def test_scan_prior_core_usage_logs_loudly_on_error(caplog):
+    """A scan failure must not silently zero the affinity prior: it logs loudly
+    and still degrades to [] so the run continues on its own confirmations."""
+    import logging
+    from pipeline_cores import persist
+
+    class _BoomClient:
+        def scan(self, **kwargs):
+            raise RuntimeError("throttled")
+
+    with caplog.at_level(logging.ERROR):
+        out = persist.scan_prior_core_usage("2", client=_BoomClient())
+    assert out == []
+    assert "scan_prior_core_usage failed" in caplog.text
