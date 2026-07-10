@@ -163,6 +163,58 @@ def test_dynamodb_writes_target_reciterai_chatbot_table(asl):
             )
 
 
+# ---------------------------------------------------------------------------
+# #309 — putItem Retry/Catch so a DynamoDB throttle/500 can't silently lose a run
+# ---------------------------------------------------------------------------
+
+
+def _iter_states(states: dict):
+    """Yield (name, state) for every state, recursing into Map ItemProcessors."""
+    for name, state in states.items():
+        yield name, state
+        processor = state.get("ItemProcessor") or state.get("Iterator")
+        if processor:
+            yield from _iter_states(processor.get("States", {}))
+
+
+def test_every_putitem_retries_dynamodb_transients(asl):
+    """A single throttle or 500 from DynamoDB must be retried, not fail the
+    whole execution — worst case WriteHotRunComplete, whose failure loses the
+    completion signal silently (no failed STAGE# row, no Teams card)."""
+    put_states = [
+        (name, st) for name, st in _iter_states(asl["States"])
+        if st.get("Resource") == "arn:aws:states:::dynamodb:putItem"
+    ]
+    assert put_states, "no putItem states found"
+    for name, st in put_states:
+        retry = st.get("Retry") or []
+        assert retry, f"{name} putItem has no Retry"
+        assert "DynamoDB.ThrottlingException" in retry[0]["ErrorEquals"], (
+            f"{name} Retry does not cover DynamoDB throttles"
+        )
+        assert retry[0]["MaxAttempts"] >= 2
+
+
+def test_mid_pipeline_putitems_catch_to_write_hot_run_failed(asl):
+    """A main-path putItem that still fails after retries must route to
+    WriteHotRunFailed so the failed STAGE# row + Teams card fire. The terminal
+    failed-writer has no Catch; the Map-internal writers ride their Map's."""
+    states = asl["States"]
+    for name in ("WriteScoreStageRow", "WriteTopTopicStageRow", "WriteHotRunComplete"):
+        catch_targets = [c.get("Next") for c in states[name].get("Catch") or []]
+        assert catch_targets == ["WriteHotRunFailed"], (
+            f"{name} must Catch to WriteHotRunFailed, got {catch_targets}"
+        )
+
+
+def test_notify_error_retries_lambda_service_errors(asl):
+    """The terminal error notifier must survive a transient Lambda fault, else
+    a real failure reaches nobody."""
+    retry = asl["States"]["NotifyError"].get("Retry") or []
+    assert retry, "NotifyError has no Retry"
+    assert "Lambda.ServiceException" in retry[0]["ErrorEquals"]
+
+
 def test_check_lock_skip_branch_routes_to_end(asl):
     """Orchestrator may emit status=skipped on prior_run_in_progress."""
     choice = asl["States"]["CheckLockOrProceed"]
