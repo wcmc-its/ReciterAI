@@ -3,6 +3,7 @@ import hashlib
 import json as _json
 
 from pipeline_grants.match_compile import match_attrs
+from pipeline_grants.normalize import canonical_sponsor
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
 from utils.iso_clock import now_iso
@@ -35,7 +36,7 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
         "opportunity_id": {"S": opp.opportunity_id},
         "source": {"S": opp.source},
         "source_url": {"S": opp.source_url},
-        "sponsor": {"S": opp.sponsor},
+        "sponsor": {"S": canonical_sponsor(opp.sponsor)},
         "title": {"S": opp.title},
         "synopsis": {"S": opp.synopsis},
         "status": {"S": opp.status},

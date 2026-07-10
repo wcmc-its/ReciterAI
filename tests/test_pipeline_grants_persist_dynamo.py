@@ -25,6 +25,15 @@ def test_build_grant_item_keys_and_types():
     assert tv[0]["M"]["score"]["N"] == str(Decimal("0.95"))
 
 
+def test_build_grant_item_canonicalizes_sponsor():
+    # The persist choke point every source flows through (incl. spin/curated) applies the
+    # sponsor canonical map, so a fragmenting variant lands as one facet label. Refs #294 item 3.
+    opp = _opp()
+    opp.sponsor = "American Cancer Society, Inc."
+    item = build_grant_item(opp, {}, taxonomy_version="taxonomy_v2", judge={})
+    assert item["sponsor"] == {"S": "American Cancer Society"}
+
+
 def test_build_grant_item_handles_none_award():
     opp = _opp()
     opp.award_ceiling = None
