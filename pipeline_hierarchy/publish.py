@@ -176,29 +176,27 @@ def compute_publish_input_hash(
 
 
 def _scan_assign_rows_by_run_id(table: object, run_id: str) -> list[dict]:
-    """Fetch assign STAGE# rows and filter by run_id in Python.
+    """Fetch assign STAGE# complete rows for a cold-run and filter by run_id.
 
-    Phase 9 convention: Python-side filtering is acceptable at Phase 11 scale.
-    A GSI on run_id is deferred per Phase 9 plan (D-13 note).
-
-    Uses table.query on each known assign-subtopics PK prefix pattern, then
-    filters in Python by run_id. Alternatively, scans all STAGE# rows and
-    filters. Either way, run_id matching happens in Python.
-
-    For testability, this method calls table.query (consistent with the rest
-    of the stage_records pattern). The mock in tests sets query.return_value.
+    Assign writes one topic-scoped complete row per topic
+    (``STAGE#assign_subtopics#topic:{id}`` — assign_subtopics.py:_topic_scope);
+    there is no ``#GLOBAL`` partition to query. DynamoDB Query needs an exact PK,
+    so we scan the ``STAGE#assign_subtopics#topic:`` prefix and filter by run_id
+    in Python (D-13). Paginated; assign rows are bounded (~65 topics per run).
     """
-    # Query the table for all assign-subtopics rows.
-    # Since DynamoDB requires exact PK match in query, we scan and filter.
-    # In production, rows per cold run are bounded (one per topic ~65 rows).
-    resp = table.query(
-        KeyConditionExpression="#pk = :pk",
-        ExpressionAttributeNames={"#pk": "PK"},
-        ExpressionAttributeValues={":pk": "STAGE#assign_subtopics#GLOBAL"},
-    )
-    all_rows = resp.get("Items", [])
-    # Python-side filter by run_id (D-13)
-    return [row for row in all_rows if row.get("run_id") == run_id]
+    prefix = "STAGE#assign_subtopics#topic:"
+    rows: list[dict] = []
+    scan_kwargs: dict = {
+        "FilterExpression": "begins_with(PK, :pk)",
+        "ExpressionAttributeValues": {":pk": prefix},
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        rows.extend(resp.get("Items", []))
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    return [row for row in rows if row.get("run_id") == run_id]
 
 
 def _build_lineage_overlay(table: object) -> dict:
@@ -784,11 +782,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # Resolve prev_version from latest/manifest.json (W1: reuse get_object_bytes).
     prev_version: Optional[str] = None
+    prev_subtopic_count: Optional[int] = None
     try:
         from botocore.exceptions import ClientError
         prev_manifest_bytes = s3.get_object_bytes("latest/manifest.json")
         prev_manifest = json.loads(prev_manifest_bytes)
         prev_version = prev_manifest.get("version")
+        prev_subtopic_count = prev_manifest.get("subtopic_count")
     except Exception:
         prev_version = None  # first-ever-publish (O-01)
 
@@ -803,18 +803,32 @@ def main(argv: list[str] | None = None) -> int:
     diff_bytes = (json.dumps(diff, indent=2) + "\n").encode("utf-8")
 
     # 5c. #224 shrink guard — block a catastrophic subtopic shrink BEFORE the
-    #     latest/ overwrite. Reuses compute_diff's counts (no extra S3 GET):
-    #     prev = new - added + removed. Fail-open: prev_version None (first
-    #     publish) or a failed prev-fetch (empty added/removed) yields prev
-    #     None/equal-to-new, so only a real shrink blocks. Overridable with --force.
+    #     latest/ overwrite. The baseline is the prior artifact's own
+    #     `manifest.subtopic_count`, read off the same `latest/manifest.json` GET
+    #     that resolved prev_version. Deriving it from compute_diff's added/removed
+    #     instead fails OPEN exactly when it matters: an S3 blip on compute_diff's
+    #     separate prev-hierarchy GET (correlated with the degraded conditions that
+    #     produce a shrunken artifact) empties added/removed, so prev == new and a
+    #     truncated hierarchy sails through. Overridable with --force.
     _new_subs = len(_index_subtopics(hierarchy_dict))
-    _prev_subs = (
-        _new_subs
-        - len(diff.get("added_subtopics", []))
-        + len(diff.get("removed_subtopics", []))
-        if prev_version
-        else None
-    )
+    if not prev_version:
+        _prev_subs = None
+    elif prev_subtopic_count is not None:
+        _prev_subs = int(prev_subtopic_count)
+    else:
+        # Baseline manifest predates subtopic_count (pre-#312). Fall back to the
+        # diff-derived count for this one transition publish, but warn loudly —
+        # once a post-fix publish stamps subtopic_count the guard reads it directly.
+        logging.getLogger(__name__).warning(
+            "prev manifest for %s lacks subtopic_count; shrink guard falling back "
+            "to diff-derived baseline for this publish (S3-blip fail-open window)",
+            prev_version,
+        )
+        _prev_subs = (
+            _new_subs
+            - len(diff.get("added_subtopics", []))
+            + len(diff.get("removed_subtopics", []))
+        )
     shrink_result = shrink_guard_gate(
         prev_subtopic_count=_prev_subs, new_subtopic_count=_new_subs
     )

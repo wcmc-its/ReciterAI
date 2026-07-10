@@ -19,6 +19,8 @@ from typing import Any
 
 import jsonschema
 
+from pipeline_hierarchy.diff_stats import _index_subtopics
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = REPO_ROOT / "docs/hierarchy.schema.json"
 
@@ -108,7 +110,11 @@ def generate(
     sha256 = hashlib.sha256(hierarchy_bytes).hexdigest()
 
     if version is None:
-        version = f"v{resolved_generated_at[:10]}"
+        # Content-hash suffix so a same-day content-changed republish mints a NEW
+        # versioned prefix instead of overwriting v{date}/ under a manifest that
+        # (until latest/ is PUT last) still points at the old sha256. Idempotent:
+        # a content-identical rerun has the same sha256 → the same version.
+        version = f"v{resolved_generated_at[:10]}-{sha256[:8]}"
 
     manifest = {
         "schema_version": "1.0.0",
@@ -117,5 +123,6 @@ def generate(
         "generated_at": resolved_generated_at,  # D-14: manifest carries it; hierarchy does not
         "sha256": sha256,
         "artifact_bytes": len(hierarchy_bytes),
+        "subtopic_count": len(_index_subtopics(hierarchy)),
     }
     return hierarchy_bytes, schema_bytes, manifest

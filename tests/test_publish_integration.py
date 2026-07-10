@@ -345,6 +345,51 @@ def test_block_severity_gate_failure_writes_failed_row_and_skips_upload():
     assert puts[0]["error_code"].startswith("GATE_BLOCK_")
 
 
+def test_shrink_guard_blocks_when_prev_hierarchy_get_blips():
+    """#312 fail-open: an S3 blip on compute_diff's prev-hierarchy GET (correlated
+    with the degraded conditions that shrink an artifact) empties added/removed. The
+    guard must still block off the prior manifest's subtopic_count, not read
+    prev==new from the empty diff and let a truncated hierarchy overwrite latest/."""
+    from botocore.exceptions import ClientError
+
+    bundled = _minimal_bundled_dict()  # 1 subtopic
+
+    def _s3_get(key: str) -> bytes:
+        if key == "latest/manifest.json":
+            return json.dumps({
+                "schema_version": "1.0.0", "taxonomy_version": "taxonomy_v2",
+                "version": "v2026-05-01", "generated_at": "2026-05-01T00:00:00Z",
+                "sha256": "ab" * 32, "artifact_bytes": 999, "subtopic_count": 100,
+            }).encode("utf-8")
+        if key.endswith("hierarchy.schema.json"):
+            return (REPO_ROOT / "docs/hierarchy.schema.json").read_bytes()
+        if key.endswith("hierarchy.json"):
+            raise ClientError(
+                {"Error": {"Code": "InternalError", "Message": "blip"}}, "GetObject"
+            )
+        raise KeyError(key)
+
+    (
+        p_bundle, p_table, p_generate, p_upload, p_write_local, p_s3,
+        table, upload_mock, write_local_mock,
+    ) = _patch_io(bundled=bundled, s3_get_bytes=_s3_get)
+    table.query.return_value = {"Items": []}
+
+    cms = [p_bundle, p_table, p_generate, p_upload, p_write_local, p_s3]
+    _enter(cms)
+    try:
+        rc = publish.main([])
+    finally:
+        _exit(cms)
+
+    assert rc == publish.EXIT_GATE_BLOCKED
+    upload_mock.assert_not_called()
+    puts = [c.kwargs["Item"] for c in table.put_item.call_args_list]
+    assert len(puts) == 1
+    assert puts[0]["status"] == "failed"
+    assert puts[0]["error_code"] == "GATE_BLOCK_shrink_guard"
+
+
 def test_force_with_reason_overrides_gate_block():
     """--force --force-reason '...' allows publish despite gate failure;
     force_reason is recorded into the complete row."""

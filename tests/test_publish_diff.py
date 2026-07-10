@@ -58,8 +58,15 @@ def _make_mock_s3(prev_hierarchy: dict | None) -> MagicMock:
 
 
 def _make_mock_table(stage_rows: list[dict]) -> MagicMock:
-    """Mock DDB table — query returns provided stage rows."""
+    """Mock DDB table — scan returns provided assign STAGE# rows (single page).
+
+    The reassigned-count producer scans the ``STAGE#assign_subtopics#topic:``
+    prefix (there is no ``#GLOBAL`` partition), so ``scan`` — not ``query`` —
+    must yield the rows. Returning a plain dict with no ``LastEvaluatedKey``
+    terminates the producer's pagination loop.
+    """
     mock_table = MagicMock()
+    mock_table.scan.return_value = {"Items": stage_rows}
     mock_table.query.return_value = {"Items": stage_rows}
     return mock_table
 
@@ -197,6 +204,58 @@ def test_compute_diff_editorial_only_false_when_reassigned_nonzero():
 
     assert diff["editorial_only"] is False
     assert diff["reassigned_pmid_count"] == 5
+
+
+class _PrefixEnforcingTable:
+    """Fake DDB table that mirrors production: the assign complete rows live under
+    per-topic PKs (STAGE#assign_subtopics#topic:{id}), and the STAGE#...#GLOBAL
+    partition the old producer queried is empty. So a scan of the topic prefix
+    returns the rows; a query of the GLOBAL PK returns nothing."""
+
+    def __init__(self, topic_rows):
+        self._topic_rows = topic_rows
+
+    def query(self, **kwargs):
+        return {"Items": []}
+
+    def scan(self, **kwargs):
+        vals = kwargs.get("ExpressionAttributeValues", {})
+        if vals.get(":pk") == "STAGE#assign_subtopics#topic:":
+            return {"Items": self._topic_rows}
+        return {"Items": []}
+
+
+def test_reassigned_count_scans_topic_scoped_stage_rows():
+    """The reassigned-count producer must scan the topic-scoped assign STAGE# rows
+    filtered by run_id. The old code queried STAGE#assign_subtopics#GLOBAL — a
+    partition nothing writes — so reassigned_pmid_count was structurally always 0,
+    letting editorial_only be reported on a publish that reassigned thousands."""
+    from pipeline_hierarchy.publish import compute_diff
+
+    prev_h = _make_hierarchy("taxonomy_v2", [_make_subtopic("sub_1")])
+    new_h = _make_hierarchy("taxonomy_v2", [_make_subtopic("sub_1")])
+    mock_s3 = MagicMock()
+    mock_s3.get_object_bytes.return_value = json.dumps(prev_h).encode("utf-8")
+
+    rows = [
+        {"PK": "STAGE#assign_subtopics#topic:topic_a", "run_id": "cold1", "records_written": 42},
+        {"PK": "STAGE#assign_subtopics#topic:topic_b", "run_id": "cold1", "records_written": 8},
+        {"PK": "STAGE#assign_subtopics#topic:topic_c", "run_id": "other", "records_written": 999},
+    ]
+    table = _PrefixEnforcingTable(rows)
+
+    diff = compute_diff(
+        prev_version="v2026-05-06",
+        new_hierarchy=new_h,
+        to_version="v2026-06-01",
+        run_id="cold1",
+        table=table,
+        s3_client=mock_s3,
+    )
+
+    assert diff["reassigned_pmid_count"] == 50, (
+        "must sum records_written from topic-scoped rows for this run_id only"
+    )
 
 
 def test_compute_diff_run_id_filter():
