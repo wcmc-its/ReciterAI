@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = REPO_ROOT / "config" / "hierarchy_draft_coverage.json"
 DRAFT_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
@@ -41,6 +43,10 @@ def _manifest_topics() -> list[str]:
     return json.loads(MANIFEST_PATH.read_text())["draft_covered_topics"]
 
 
+@pytest.mark.skipif(
+    not any(DRAFT_DIR.glob(f"{_PREFIX}*{_SUFFIX}")),
+    reason="needs the approved hierarchy drafts under gitignored .planning/",
+)
 def test_manifest_matches_approved_drafts_on_disk():
     on_disk = _approved_drafts_on_disk()
     manifest = set(_manifest_topics())

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from pathlib import Path
 
 import pytest
 
@@ -24,11 +25,17 @@ from pipeline_hierarchy.generator import (
 
 PINNED_GENERATED_AT = "2026-05-11T00:00:00Z"
 
+# Two real per-topic augmented files, trimmed to 3 subtopics each. Committed so
+# the publish-contract tests run on any clone and in CI: bundle()'s default dir
+# lives under the gitignored .planning/ tree that only the operator's machine
+# has, and these are the tests guarding the SPS-facing hierarchy.json.
+FIXTURE_AUGMENTED_DIR = Path(__file__).parent / "fixtures" / "hierarchy_augmented"
+
 
 @pytest.fixture(scope="module")
 def live_bundle() -> dict:
-    """Bundle the live per-topic augmented files once per test module."""
-    return bundle()
+    """Bundle the fixture per-topic augmented files once per test module."""
+    return bundle(augmented_dir=FIXTURE_AUGMENTED_DIR)
 
 
 def test_build_hierarchy_pins_generated_at_and_sets_see_also(live_bundle):
