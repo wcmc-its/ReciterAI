@@ -167,9 +167,11 @@ def test_write_skipped_for_lock_carries_correct_skip_reason():
 
 
 def test_handler_lock_collision_dispatches_warn_alert(monkeypatch):
-    """D-11: lock collision must emit a WARN alert (Slack) in addition to
+    """D-11: lock collision must emit a WARN alert (Teams) in addition to
     writing the STAGE# skipped row. logger.warning alone is not enough —
-    the severity table promises a Slack notification on every collision.
+    the severity table promises an operator notification on every collision.
+    Routing through the retired Slack transport (pipeline_common.alert, no
+    webhook provisioned anywhere) would fire into the void (#309).
     """
     # Stub the boto3 SFN client so is_state_machine_running returns True.
     fake_sfn = MagicMock()
@@ -186,12 +188,12 @@ def test_handler_lock_collision_dispatches_warn_alert(monkeypatch):
     fake_table = MagicMock()
     monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
 
-    # Capture the dispatch call.
-    dispatch_calls: list = []
+    # Capture the Teams alert call.
+    alert_calls: list = []
     monkeypatch.setattr(
-        orch.alert,
-        "dispatch",
-        lambda *a, **kw: dispatch_calls.append((a, kw)) or {"slack": True, "issue": False},
+        orch.teams_alerting,
+        "alert",
+        lambda *a, **kw: alert_calls.append((a, kw)) or True,
     )
 
     result = orch.handler(
@@ -204,13 +206,54 @@ def test_handler_lock_collision_dispatches_warn_alert(monkeypatch):
 
     assert result["status"] == "skipped"
     assert result["skip_reason"] == orch.SKIP_REASON_LOCKED
-    assert len(dispatch_calls) == 1, "expected exactly one alert.dispatch call"
-    args, kwargs = dispatch_calls[0]
-    # Positional: severity, message, context
+    assert len(alert_calls) == 1, "expected exactly one Teams alert call"
+    args, kwargs = alert_calls[0]
+    # Positional: severity, title, message, context
     assert args[0] == "WARN"
     assert "prior execution" in args[1].lower() or "running" in args[1].lower()
-    ctx = args[2]
+    ctx = args[3]
     assert ctx["skip_reason"] == orch.SKIP_REASON_LOCKED
+
+
+def test_handler_retry_sweep_failure_alerts_via_teams(monkeypatch):
+    """A retry-sweep failure is the only signal that failed PMIDs stopped
+    being rescued. It must reach the operator via Teams — the retired Slack
+    transport (pipeline_common.alert, no webhook provisioned) fired into the
+    void, so a permanently-broken sweep accumulated unrecovered PMIDs forever
+    with no alert (#309)."""
+    fake_table = MagicMock()
+    fake_table.query.return_value = {"Items": []}
+    monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
+    monkeypatch.setattr(orch, "get_dynamo_client", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(orch, "resolve_delta_pmids", lambda *a, **k: ["5"])
+    monkeypatch.setattr(
+        orch, "resolve_retry_sweep",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("GSI gone")),
+    )
+    monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
+    import utils.sql_queries as sq
+    monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: [])
+
+    alert_calls: list = []
+    monkeypatch.setattr(
+        orch.teams_alerting, "alert",
+        lambda *a, **kw: alert_calls.append((a, kw)) or True,
+    )
+
+    result = orch.handler({
+        "run_id": "sched-2",
+        "sfn_input": {"initiated_by": "scheduled", "trigger": "eventbridge:..."},
+    })
+
+    # The sweep failure is non-fatal: delta scoring still proceeds.
+    assert result["status"] == "ready"
+    assert result["input"]["delta"]["pmids"] == ["5"]
+    # ...and the operator is alerted via Teams, not the retired Slack path.
+    assert len(alert_calls) == 1, "expected exactly one Teams alert call"
+    args, _ = alert_calls[0]
+    assert args[0] == "WARN"
+    assert "retry sweep" in args[1].lower()
 
 
 # ---------- build_state_machine_input ----------

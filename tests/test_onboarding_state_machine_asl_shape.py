@@ -354,6 +354,48 @@ def test_dynamodb_writes_target_reciterai_table(asl):
             )
 
 
+# ---------------------------------------------------------------------------
+# #309 — putItem Retry/Catch so a DynamoDB throttle/500 can't silently lose a run
+# ---------------------------------------------------------------------------
+
+
+def test_every_putitem_retries_dynamodb_transients(asl):
+    """Every DynamoDB:PutItem — including the Map's per-topic writer — retries
+    transient throttles/5xx so a single DynamoDB blip can't fail the run."""
+    put_states = [
+        (name, st) for name, st in _iter_states(asl["States"])
+        if st.get("Resource") == "arn:aws:states:::dynamodb:putItem"
+    ]
+    assert put_states, "no putItem states found"
+    for name, st in put_states:
+        retry = st.get("Retry") or []
+        assert retry, f"{name} putItem has no Retry"
+        assert "DynamoDB.ThrottlingException" in retry[0]["ErrorEquals"], (
+            f"{name} Retry does not cover DynamoDB throttles"
+        )
+        assert retry[0]["MaxAttempts"] >= 2
+
+
+def test_top_level_putitems_catch_to_write_onboarding_failed(asl):
+    """Every non-terminal putItem routes a post-retry failure to the terminal
+    failed-row writer so the run never dies silently. The failed writer has no
+    Catch; the Map-internal writer rides its Map's Catch."""
+    states = asl["States"]
+    for name in (
+        "WriteOnboardingSkipped",
+        "WriteOnboardingCostExceeded",
+        "WriteEnrichStageRow",
+        "WriteScoreStageRow",
+        "WriteTopTopicStageRow",
+        "WriteRollupStageRow",
+        "WriteOnboardingFinal",
+    ):
+        catch_targets = [c.get("Next") for c in states[name].get("Catch") or []]
+        assert catch_targets == ["WriteOnboardingFailed"], (
+            f"{name} must Catch to WriteOnboardingFailed, got {catch_targets}"
+        )
+
+
 def test_notify_tasks_invoke_notify_lambda(asl):
     for name, kind in (
         ("NotifyCostExceeded", "cost_exceeded"),
