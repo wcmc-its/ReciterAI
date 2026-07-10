@@ -14,9 +14,13 @@ used by:
   downstream Assign / TopTopic / Rollup stages have data to read (PR 4a;
   before it, only the manual cold loader ever wrote TOPIC# rows).
 
+Every row carries ``created_at``: the spotlight dirty gate filters on it
+to find activity that landed since the last publish, and a DynamoDB
+comparison against a missing attribute matches nothing.
+
 The optional ``synopsis`` / ``title`` attributes are written for
 onboarding — the Assign stage's subtopic classifier reads them. The
-cold loader omits both, preserving its historical 7-attribute row shape.
+cold loader omits both.
 
 The optional ``impact_score`` / ``impact_justification`` attributes are
 the #212 Part A build-time join: when the PMID's ``IMPACT#`` row already
@@ -31,6 +35,7 @@ back-propagation hook (#212 Part B) fills them when enrichment lands.
 from __future__ import annotations
 
 from utils.dynamodb_helpers import make_score_sk, to_decimal
+from utils.iso_clock import now_iso
 
 
 def build_topic_rows_for_pmid(
@@ -44,6 +49,7 @@ def build_topic_rows_for_pmid(
     title: str = "",
     impact_score: str | int | float | None = None,
     impact_justification: str = "",
+    created_at: str | None = None,
 ) -> list[dict]:
     """Build the ``TOPIC#`` DynamoDB items for a single PMID.
 
@@ -72,6 +78,12 @@ def build_topic_rows_for_pmid(
             ``impact_justification`` attribute only when both it and
             ``impact_score`` are present (mirrors the stopgap backfill, which
             sets the justification only when the IMPACT# row carries one).
+        created_at: ISO-8601 stamp for when this row landed; defaults to now.
+            The spotlight dirty gate
+            (``pipeline_spotlight.orchestrator.resolve_new_pmid_assignments``)
+            filters on it to find activity that landed since the last publish —
+            a DynamoDB comparison against a *missing* attribute matches nothing,
+            so rows without it are invisible to the gate.
 
     A PMID with no faculty authors yields no rows — ``TOPIC#`` rows are
     faculty-scoped (the ``FacultyIndex`` GSI keys on ``faculty_uid``).
@@ -79,6 +91,11 @@ def build_topic_rows_for_pmid(
     pmid = str(pmid)
     rows: list[dict] = []
     seen_keys: set = set()
+    # A re-score deletes then rewrites this PMID's rows, so created_at means
+    # "when this row landed", not "when the publication was first scored" — a
+    # re-scored pub reads as dirty to the gate, which is what we want since its
+    # subtopic assignment may have changed.
+    row_created_at = created_at or now_iso()
 
     # #212 Part A — resolve the impact attributes once; every row for this
     # PMID carries the same copy. A None / blank impact_score means the
@@ -113,6 +130,7 @@ def build_topic_rows_for_pmid(
                 "rationale": {"S": str(rationale or "")},
                 "topic_scores_version": {"S": taxonomy_version},
                 "pmid": {"S": pmid},
+                "created_at": {"S": row_created_at},
             }
             if synopsis:
                 item["synopsis"] = {"S": str(synopsis)}
