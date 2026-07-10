@@ -112,7 +112,8 @@ class _FakeBedrock:
         self._screening = screening
         self._dense = dense if dense is not None else {"0": {"score": 0.9, "rationale": "r"}}
 
-    def call_json(self, *, model, messages):
+    def call_json(self, *, model, messages, **kwargs):
+        # **kwargs: the screening call also passes system= and cache_system=.
         return self._screening if model == HAIKU_MODEL else self._dense
 
 
