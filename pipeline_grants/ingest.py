@@ -6,6 +6,7 @@ import argparse
 import logging
 
 from pipeline_grants import grants_gov, scoring
+from pipeline_grants.dedupe import load_corpus_key_index
 from pipeline_grants.denoise import judge_opportunity, regex_gate
 from pipeline_grants.exclusions import load_excluded_ids
 from pipeline_grants.match_compile import compile_match as _compile_match, load_vocab_or_disable
@@ -26,6 +27,10 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
     # hung item times out fast and is skipped by the per-item guard below.
     bedrock = BedrockClient(read_timeout=90)
     dynamo = get_dynamo_client()
+    # Cross-source duplicate guard: normalized-key index over the persisted corpus so
+    # an opportunity already held by an equal-or-higher-priority source is skipped
+    # before any Bedrock spend (see pipeline_grants/dedupe.py).
+    corpus_index = load_corpus_key_index(dynamo)
     # Off by default: compiling the matcher DSL+query is 2 extra Sonnet calls/grant for data
     # nothing reads until the SPS consumer ships. An empty/failed vocab load leaves vocab=[],
     # which disables compilation for the run (no abort, no wasted Bedrock call).
@@ -44,6 +49,12 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
             opp = normalize_grantsgov({"data": grants_gov.fetch_opportunity(hit["id"])})
             if opp.opportunity_id in excluded:
                 log.info("excluded %s (held out of matching)", opp.opportunity_id)
+                continue
+            duplicate_of = corpus_index.blocking_id(
+                opportunity_id=opp.opportunity_id, source=opp.source,
+                title=opp.title, sponsor=opp.sponsor)
+            if duplicate_of:
+                log.info("cross-dup %s: key already held by %s", opp.opportunity_id, duplicate_of)
                 continue
             ok, reason = regex_gate(opp)
             if not ok:
@@ -66,6 +77,8 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
             continue
         kept += 1
         pending.append(item)
+        corpus_index.add(opportunity_id=opp.opportunity_id, source=opp.source,
+                         title=opp.title, sponsor=opp.sponsor)
         artifact.append({
             "opportunity_id": opp.opportunity_id, "title": opp.title, "sponsor": opp.sponsor,
             "due_date": opp.due_date, "primary_topic_id": item["primary_topic_id"]["S"],

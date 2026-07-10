@@ -72,3 +72,38 @@ def test_run_ingest_skips_failed_item_and_persists_the_rest(monkeypatch):
     assert summary["failed"] == 1
     assert summary["persisted"] == 2
     assert {i["PK"]["S"] for i in persisted_items} == {"GRANT#grants_gov:1", "GRANT#grants_gov:3"}
+
+
+def test_run_ingest_skips_key_already_held_by_corpus(monkeypatch):
+    # The corpus already holds this normalized key under an equal-priority source
+    # (a different grants.gov listing) -> the incoming hit is skipped BEFORE any
+    # Bedrock spend (judge would explode if reached).
+    from pipeline_grants import dedupe
+
+    monkeypatch.setattr(ingest.grants_gov, "search_opportunities",
+                        lambda **kw: {"oppHits": [{"id": "2"}]})
+    monkeypatch.setattr(ingest.grants_gov, "fetch_opportunity",
+                        lambda oid: {"id": oid, "opportunityTitle": "Cancer Research Project",
+                                     "synopsis": {"synopsisDesc": "research"}})
+    monkeypatch.setattr(ingest.scoring, "load_taxonomy", lambda: {"taxonomy_version": "taxonomy_v2", "topics": []})
+    monkeypatch.setattr(ingest.scoring, "build_index", lambda tax: ({}, {}))
+    monkeypatch.setattr(ingest, "BedrockClient", lambda *a, **k: object())
+    monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
+
+    index = dedupe.CorpusKeyIndex()
+    index.add(opportunity_id="grants_gov:999", source="grants_gov",
+              title="The Cancer Research Project", sponsor="")
+    monkeypatch.setattr(ingest, "load_corpus_key_index", lambda client: index)
+
+    def _boom(*_a, **_k):
+        raise AssertionError("judge called for a corpus-duplicate")
+    monkeypatch.setattr(ingest, "judge_opportunity", _boom)
+
+    persisted = []
+    monkeypatch.setattr(ingest, "put_grants",
+                        lambda client, items, **kw: (persisted.extend(items), len(items))[1])
+    monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
+
+    summary = ingest.run(rows=10, keyword="")
+    assert summary["kept"] == 0 and summary["persisted"] == 0
+    assert persisted == []
