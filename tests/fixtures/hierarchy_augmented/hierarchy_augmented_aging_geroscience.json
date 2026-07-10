@@ -1,0 +1,69 @@
+{
+  "topic_id": "aging_geroscience",
+  "topic_label": "Aging & Geroscience",
+  "subtopics": [
+    {
+      "id": "aging_cellular_senescence_molecular",
+      "label": "Cellular Senescence and Molecular Aging Mechanisms",
+      "description": "Research on the molecular and cellular mechanisms of aging including cellular senescence, epigenetic clocks, DNA methylation, NAD+ metabolism, telomere biology, and senolytic interventions. Covers pathways such as mTOR, SIRT1/SIRT6, STAT signaling, and age-related genomic instability.",
+      "seed_pmids": [
+        31913702,
+        33500244,
+        33672392
+      ],
+      "coverage_estimate": 0.04,
+      "total_weight": 13.800798,
+      "activity_count": 31,
+      "display_name": "Cellular Senescence & Molecular Mechanisms",
+      "short_description": "Molecular pathways of aging including senescence, epigenetic clocks, NAD+ metabolism, telomere biology, and senolytic interventions."
+    },
+    {
+      "id": "aging_alzheimers_neurodegeneration",
+      "label": "Alzheimer's Disease and Neurodegenerative Pathology",
+      "description": "Research on Alzheimer's disease biomarkers (amyloid-beta, tau, neuroinflammation), neuroimaging, disease mechanisms including microglial activation and neurovascular dysfunction, and therapeutic targets. Includes studies on disease progression, cognitive decline, and preclinical detection.",
+      "seed_pmids": [
+        37095396,
+        34851693,
+        39353433
+      ],
+      "coverage_estimate": 0.07,
+      "total_weight": 26.681514,
+      "activity_count": 50,
+      "display_name": "Alzheimer's Disease & Neurodegeneration",
+      "short_description": "Biomarkers, neuroimaging, and therapeutic targets for Alzheimer's disease, cognitive decline, and neurodegenerative pathology."
+    },
+    {
+      "id": "aging_brain_imaging_cerebrovascular",
+      "label": "Brain Imaging, Cerebrovascular Disease, and Cognitive Impairment",
+      "description": "Studies using neuroimaging (MRI, PET, QSM) to assess cerebrovascular pathology, white matter hyperintensities, brain iron deposition, blood-brain barrier dysfunction, glymphatic function, and their associations with cognitive impairment and dementia. Includes corneal nerve imaging as a surrogate biomarker.",
+      "seed_pmids": [
+        35099829,
+        39789638,
+        40130450
+      ],
+      "coverage_estimate": 0.06,
+      "total_weight": 17.997453,
+      "activity_count": 28,
+      "display_name": "Brain Imaging & Cerebrovascular Pathology",
+      "short_description": "Neuroimaging of white matter disease, brain iron, blood-brain barrier dysfunction, and glymphatic changes linked to dementia."
+    }
+  ],
+  "uncovered_pmids": [
+    "36620608",
+    "34285158"
+  ],
+  "total_activities": 571,
+  "coverage_pct": 0.8406,
+  "generated_at": "2026-04-14T14:49:53.774817Z",
+  "sonnet_model_id": "us.anthropic.claude-sonnet-4-6",
+  "passes_executed": 2,
+  "review_status": "approved",
+  "reviewer": "Paul Albert",
+  "reviewed_at": "2026-04-14T15:34:43Z",
+  "review_notes": "Deviation from plan acceptance criteria accepted: 30 subtopics vs 8-15 target, 84.1% coverage vs 85% target. D-01 extension pass behavior is correct and authorized. Flagged for D-21 gate in Plan 05.",
+  "augmented_at": "2026-04-14T23:06:27Z",
+  "augmentation_source": {
+    "total_weights_file": "/Users/paulalbert/Dropbox/GitHub/ReciterAI -ReCiter-Integration/.planning/phases/04-subtopic-system/total_weights_aging_geroscience.json",
+    "activity_count_method": "dynamodb_primary_subtopic_id_unique_pmids"
+  }
+}
