@@ -14,6 +14,21 @@ def _n(value) -> dict:
     return {"N": str(to_decimal(value))}
 
 
+def _eligibility_attr(elig: dict) -> dict:
+    """Native DynamoDB map for the structured eligibility block (#290): list fields -> L of S,
+    booleans -> BOOL, everything else (citizenship + provenance) -> S. The SPS mapper's
+    parseJsonAttr reads the native map directly, so it is NOT stored as a compact-JSON string."""
+    out = {}
+    for key, value in elig.items():
+        if isinstance(value, bool):
+            out[key] = {"BOOL": value}
+        elif isinstance(value, list):
+            out[key] = {"L": [{"S": str(v)} for v in value]}
+        else:
+            out[key] = {"S": str(value)}
+    return out
+
+
 def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: dict,
                      match_dsl=None, match_query=None) -> dict:
     """Low-level attribute-format DynamoDB item for one opportunity (PK=GRANT#{id}, SK=META).
@@ -61,6 +76,9 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
         item["mechanism"] = {"S": opp.mechanism}
     item.update(prestige_item_attrs(opp))   # prestige (M) + is_honorific (BOOL)
     item.update(match_attrs(match_dsl, match_query))   # match_dsl / match_query (S JSON) when compiled
+    eligibility = (judge or {}).get("eligibility")   # structured eligibility (M) when the judge extracted it (#290)
+    if isinstance(eligibility, dict):
+        item["eligibility"] = {"M": _eligibility_attr(eligibility)}
     return item
 
 
