@@ -114,6 +114,8 @@ the expected new behavior.
 
 ## 4. Delete junk `STAGE#` rows (destructive — gated, read-first)
 
+> **DONE 2026-07-10.** Ran the gate (collisions=0) and deleted the 101 `records_written==1` rows; the 7 genuine weekly rows survived (partition now `total=7, junk=0`). #301 stopped the test from writing more, so this step is one-and-done — retained below as the record + the pattern if the partition ever repopulates.
+
 Written by a test that called `run(dry_run=False)` without patching `get_table`
 (fixed in #301). Inert — the skip cache keys on `input_hash`, and #312's new
 scans filter by `run_id` (which these lack), so they affect no live path — but
