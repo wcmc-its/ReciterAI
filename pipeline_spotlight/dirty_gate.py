@@ -71,7 +71,9 @@ def evaluate_gate(
     top_set = set(top_subtopic_ids)
     counts: dict[str, int] = defaultdict(int)
     for pmid, subtopic_ids in new_pmid_assignments.items():
-        for sid in subtopic_ids:
+        # Dedup per PMID: a paper with several co-author TOPIC# rows sharing
+        # one primary_subtopic_id is one dirty *publication*, not several.
+        for sid in set(subtopic_ids):
             if sid in top_set:
                 counts[sid] += 1
     dirty = sorted(
