@@ -119,6 +119,28 @@ def test_gate_multi_assignment_pmid_contributes_to_each_subtopic():
     }
 
 
+def test_gate_counts_distinct_publications_not_activity_rows():
+    """A single new paper with several co-author TOPIC# rows sharing one
+    primary_subtopic_id is one dirty publication, not several (#311). Three such
+    papers in three subtopics stay below the 5-pub floor and must not regen."""
+    assignments = {
+        "pmid_a": ["sub_000"] * 5,  # one paper, five co-author rows
+        "pmid_b": ["sub_001"] * 5,
+        "pmid_c": ["sub_002"] * 5,
+    }
+    result = dirty_gate.evaluate_gate(
+        new_pmid_assignments=assignments,
+        top_subtopic_ids=TOP_50,
+        min_dirty_subtopics=3,
+        min_pubs_per_subtopic=5,
+    )
+    assert result.counts_per_top_subtopic == {
+        "sub_000": 1, "sub_001": 1, "sub_002": 1,
+    }
+    assert result.dirty_subtopics == []
+    assert result.should_regen is False
+
+
 def test_gate_reason_strings_describe_branch():
     """The reason() string is human-readable and indicates which branch."""
     triggered = dirty_gate.evaluate_gate(
