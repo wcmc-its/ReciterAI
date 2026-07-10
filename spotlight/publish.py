@@ -277,12 +277,9 @@ def publish_artifact(
         return 1
 
     # Step 6: post-publish SPOTLIGHT_HISTORY# writeback. publish_id == version
-    # so the rotation selector's decay calculation can correlate runs.
-    # Phase 11 D-04: hierarchy_version == version in spotlight publish context.
-    # The spotlight publisher reads `version` from the active manifest
-    # (f"v{date.today().isoformat()}"); this is also the hierarchy_version
-    # that governs which subtopic IDs are valid for this publish run.
-    update_history(dynamo_client, selections, publish_id=version, hierarchy_version=version)
+    # so the rotation selector's decay calculation can correlate runs. The
+    # history PK is unversioned so it accumulates across publishes.
+    update_history(dynamo_client, selections, publish_id=version)
 
     # Step 7: operational summary (no lede text, no credentials, T-06-07-11).
     logger.info(

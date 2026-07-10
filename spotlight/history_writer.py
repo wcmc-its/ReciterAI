@@ -1,4 +1,4 @@
-"""Post-publish writer for SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id} state.
+"""Post-publish writer for SPOTLIGHT_HISTORY#{subtopic_id} state.
 
 Implements the write half of SPOT-04. Called by ``spotlight/publish.py``
 after S3 PutObjects succeed (Plan 06-06). Each Selection produces one
@@ -8,12 +8,10 @@ DynamoDB UpdateItem call:
                         SET last_shown_at = :now,
                             last_shown_publish_id = :pid"
 
-Phase 11 D-04: PK shape changed to
-``SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id}``.
-``hierarchy_version`` is operator/code-controlled and flows via the PK
-string construction only — the UpdateExpression itself remains a literal
-constant (T-06-03-01 security pattern preserved). This is safe because PK
-values are not expressions; they are write-side keys provided by the caller.
+The PK carries no version segment. Subtopic IDs are durable across
+hierarchy versions (#191), and rotation history must outlive any single
+hierarchy or spotlight publish — a versioned PK partitions the history per
+publish, so every read lands on an empty partition and decay never applies.
 
 Idempotent on same-day re-publish in the audit-trail sense: ``ADD`` is
 additive, so a same-day re-publish increments ``shown_count`` again.
@@ -24,8 +22,6 @@ selector's decay calculation.
 Security (CLAUDE.md, T-06-03-01): ``publish_id`` flows through
 ``ExpressionAttributeValues`` only. The UpdateExpression string is a
 literal — never f-string'd or .format()'d with user-controlled values.
-``hierarchy_version`` flows via PK key construction (operator-controlled
-value, not user input).
 """
 
 from __future__ import annotations
@@ -87,15 +83,12 @@ def _get_default_client():
 
 
 def update_history(
-    client, selections: list[Selection], publish_id: str, *, hierarchy_version: str
+    client, selections: list[Selection], publish_id: str
 ) -> None:
     """SPOT-04 write — UpdateItem on SPOTLIGHT_HISTORY# for each Selection.
 
-    Phase 11 D-04: PK shape is now
-    ``SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id}``.
-    ``hierarchy_version`` is a required keyword argument. It flows via PK
-    key construction only — the UpdateExpression literal (``_UPDATE_EXPRESSION``)
-    is unchanged (T-06-03-01 security pattern: no expression string interpolation).
+    PK shape is ``SPOTLIGHT_HISTORY#{subtopic_id}`` — unversioned, so history
+    accumulates across publishes and the rotation selector's decay can see it.
 
     Increments ``shown_count`` by 1, sets ``last_shown_at`` to the current
     UTC ISO timestamp (Z suffix), and records ``last_shown_publish_id``.
@@ -109,8 +102,6 @@ def update_history(
             ``rotation_selector.select_with_diversity()``.
         publish_id: opaque publish-run identifier (typically
             ``v{ISO-date}``). Operator-controlled; flows through EAV only.
-        hierarchy_version: Semver-shaped hierarchy version string (e.g.
-            "v2026-06-01"). Operator/code-controlled; flows via PK key string.
     """
     client = client or _get_default_client()
     now = now_iso()
@@ -119,7 +110,7 @@ def update_history(
         client.update_item(
             TableName=TABLE_NAME,
             Key={
-                "PK": {"S": f"SPOTLIGHT_HISTORY#{hierarchy_version}#{s.entry.subtopic_id}"},
+                "PK": {"S": f"SPOTLIGHT_HISTORY#{s.entry.subtopic_id}"},
                 "SK": {"S": "STATE"},
             },
             UpdateExpression=_UPDATE_EXPRESSION,
@@ -131,8 +122,7 @@ def update_history(
         )
 
     logger.info(
-        "SPOTLIGHT_HISTORY updated for %d subtopics, publish_id=%s, hierarchy_version=%s",
+        "SPOTLIGHT_HISTORY updated for %d subtopics, publish_id=%s",
         len(selections),
         publish_id,
-        hierarchy_version,
     )
