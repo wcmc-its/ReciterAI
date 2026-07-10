@@ -61,8 +61,8 @@ code is deployed (step 1), or the old writer re-fragments on its next publish.
 export RECITERAI_TABLE=reciterai AWS_REGION=us-east-1   # defaults; set explicitly
 
 scripts/fold_spotlight_history_versions.py --dry-run
-# Expected (from the handoff snapshot): 159 rows, 91 subtopics_to_fold,
-# 38 recovered_repeat_features, 0 malformed.
+# Expected: 159 rows_scanned, 91 subtopics_to_fold, 38 recovered_repeat_features,
+# 0 malformed, 0 already_folded. (Re-confirmed live on staging 2026-07-10 — exact match.)
 ```
 
 - `malformed` **must be `[]`**. Any entry means an unexpected PK shape — stop and
@@ -112,35 +112,50 @@ the expected new behavior.
 
 ---
 
-## 4. Delete 98 junk `STAGE#` rows (destructive — gated, read-first)
+## 4. Delete junk `STAGE#` rows (destructive — gated, read-first)
 
 Written by a test that called `run(dry_run=False)` without patching `get_table`
 (fixed in #301). Inert — the skip cache keys on `input_hash`, and #312's new
 scans filter by `run_id` (which these lack), so they affect no live path — but
 they pollute the `STAGE#assign_subtopics#topic:cardiovascular_disease` partition
-alongside the one genuine row.
+alongside the genuine weekly hot-run rows.
+
+> **Live snapshot (verified 2026-07-10): 108 rows = 101 junk (`records_written==1`)
+> + 7 genuine.** The handoff's "98 junk / 1 genuine" is stale — the
+> `reciterai-hot-weekly` cron has written one legitimate assign row per Monday
+> (~12:06 UTC, `records_written` 46–816) since 2026-05-26, so **`keep` grows by one
+> each week**. `records_written==1` still separates junk from real (no genuine run
+> has yet assigned exactly 1 cardiovascular PMID), but that is a value-coincidence,
+> not a guarantee — so the delete is gated on an explicit no-collision check below.
 
 **The `reciterai` table has PITR (35-day continuous restore)** — recovery exists
-if a delete goes wrong. Still, read first:
+if a delete goes wrong. Read + safety-check first:
 
 ```bash
-# READ: confirm the shape before deleting anything.
+# READ + SAFETY GATE: confirm the shape AND that no rw==1 row collides with the
+# Monday-noon hot-weekly cron window (which would mean a genuine light-week run).
 aws dynamodb query --table-name reciterai --region us-east-1 \
   --key-condition-expression 'PK = :pk' \
   --expression-attribute-values '{":pk":{"S":"STAGE#assign_subtopics#topic:cardiovascular_disease"}}' \
   --projection-expression 'SK, records_written, completed_at' \
   --output json | python3 -c '
-import json,sys
+import json,sys,datetime
 items=json.load(sys.stdin)["Items"]
 junk=[i for i in items if i.get("records_written",{}).get("N")=="1"]
 real=[i for i in items if i.get("records_written",{}).get("N")!="1"]
-print(f"total={len(items)}  junk(records_written==1)={len(junk)}  keep={len(real)}")
+def sk_dt(i):
+    try: return datetime.datetime.fromisoformat(i["SK"]["S"].removeprefix("RUN#").replace("Z","+00:00"))
+    except ValueError: return None
+# a genuine light-week run would be rw==1 AND land in the Mon 12:00-12:15 UTC cron window
+collide=[i["SK"]["S"] for i in junk if (d:=sk_dt(i)) and d.weekday()==0 and d.hour==12 and d.minute<15]
+print(f"total={len(items)}  junk(rw==1)={len(junk)}  keep={len(real)}  cron_window_collisions={len(collide)}")
 for i in real: print("  KEEP:", i["SK"]["S"], "rw=", i.get("records_written",{}).get("N"))
+for sk in collide: print("  !! DO NOT DELETE (Mon-noon, maybe genuine):", sk)
 '
-# Expect: total=99  junk=98  keep=1  (the KEEP row is records_written=816).
+# SAFE TO PROCEED ONLY IF cron_window_collisions=0. Every KEEP row must read Mon ~12:06.
 ```
 
-Only if that prints `junk=98 keep=1`, delete the 98:
+Only if `cron_window_collisions=0`, delete the junk (`records_written==1`):
 
 ```bash
 aws dynamodb query --table-name reciterai --region us-east-1 \
@@ -158,7 +173,7 @@ print("deleted junk rows")
 '
 ```
 
-Re-run the READ query; expect `total=1 keep=1`.
+Re-run the READ gate; expect `junk=0` and only the genuine weekly `keep` rows left.
 
 ---
 
