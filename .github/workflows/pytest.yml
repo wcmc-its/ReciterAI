@@ -31,7 +31,11 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run tests
+        # `python -m pytest`, not the bare `pytest` script: only the former puts
+        # the repo root on sys.path, which is how the suite imports `cli`,
+        # `pipeline_common`, `assign_subtopics`, and friends.
+        #
         # No credentials in the environment: a test that reaches a real AWS or
-        # MariaDB endpoint should fail here rather than pass by picking up an
-        # ambient session.
-        run: pytest -q
+        # MariaDB endpoint should fail here rather than pass by silently picking
+        # up an ambient session.
+        run: python -m pytest -q
