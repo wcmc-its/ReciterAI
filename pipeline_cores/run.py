@@ -154,9 +154,13 @@ def main(argv=None):
     # borderline true positives collapse to score 1 — so it is opt-in (--all-cores-screen)
     # until re-calibrated to parity. See pipeline_cores/README.md.
     screen_map = signals.screen_all_cores(bedrock, cores, pubs) if (bedrock and args.all_cores_screen) else None
+    # Affinity prior: one Scan grouped by core_id in memory, not one Scan per
+    # core. The byline attribution keys on each row's own core_id, and each
+    # run_core reads only its own core's slice — so passing the whole prior is
+    # identical to a per-core filtered scan, at 1/len(cores) the table reads.
+    prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity)
     all_records = []
     for core in cores:
-        prior_counts = load_prior_user_counts(core.core_id, bylines, enabled=args.with_affinity)
         recs = run_core(core, pubs, bedrock=bedrock, full_text=full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
                         prior_user_counts=prior_counts, screen_map=screen_map,

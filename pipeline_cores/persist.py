@@ -11,10 +11,14 @@ output is DynamoDB. The claim store lives in SPS.
 """
 from __future__ import annotations
 
+import logging
+
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, get_dynamo_client, to_decimal
 from utils.iso_clock import now_iso
 
 from pipeline_cores.models import STATUS_BELOW, STATUS_CANDIDATE, CoreUsageRecord
+
+logger = logging.getLogger(__name__)
 
 
 def _n(value) -> dict:
@@ -151,5 +155,11 @@ def scan_prior_core_usage(core_id: str = None, *, client=None, table_name: str =
                 break
             kwargs["ExclusiveStartKey"] = lek
     except Exception:
+        # A mid-run throttle here silently zeros the affinity prior and degrades
+        # ranking — log loudly so the operator sees it rather than swallowing.
+        logger.exception(
+            "scan_prior_core_usage failed (core_id=%s) — affinity prior degraded "
+            "to empty for this run", core_id,
+        )
         return []
     return out

@@ -453,8 +453,17 @@ def run_daily_enrichment(
     #     so the delta moves forward.
     accumulator = CostAccumulator()
     outcomes: list[PmidOutcome] = []
+    # Idempotency cull (#312): a prior failed run leaves the watermark unadvanced,
+    # so the next delta re-includes every already-enriched PMID. Skip those (their
+    # IMPACT# row already carries synopsis + impact) rather than re-spending the LLM.
+    already_enriched = set(
+        check_enrichment_coverage(get_dynamo_client(), [str(r["pmid"]) for r in delta])["complete"]
+    )
     for row in delta:
         pmid = str(row["pmid"])
+        if pmid in already_enriched:
+            logger.info("daily run: pmid=%s skipped (already enriched)", pmid)
+            continue
         if quarantine.is_quarantined(pmid, quarantine_threshold, table=ddb_table):
             outcomes.append(PmidOutcome(pmid=pmid, quarantine_skipped=True))
             logger.info(
