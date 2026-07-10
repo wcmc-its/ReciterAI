@@ -122,6 +122,46 @@ class BedrockEmptyContentError(RuntimeError):
         )
 
 
+JSON_RETRY_HINT = "Respond with valid JSON only. No markdown fences."
+
+
+def _build_json_retry_messages(messages: list, bad_content: str) -> list:
+    """Messages for call_json's one-shot retry, with roles kept alternating.
+
+    Bedrock Converse rejects consecutive same-role turns for Anthropic models
+    with a ValidationException, which is not in RETRYABLE_CODES — appending the
+    hint as a second user turn made the retry raise before it could ever help.
+
+    So the model's bad output goes back as the assistant turn it actually was,
+    which both restores alternation and shows the model what it got wrong.
+    When the response is blank, Converse would reject the echoed empty text
+    block, so the hint is folded into the trailing user turn rather than added
+    as a new one.
+    """
+    retry = list(messages)
+    last_user = next(
+        (i for i in range(len(retry) - 1, -1, -1) if retry[i].get("role") == "user"),
+        None,
+    )
+    trailing_user = last_user is not None and all(
+        m.get("role") == "system" for m in retry[last_user + 1:]
+    )
+
+    if not trailing_user:
+        return retry + [{"role": "user", "content": JSON_RETRY_HINT}]
+
+    if bad_content and bad_content.strip():
+        return retry + [
+            {"role": "assistant", "content": bad_content},
+            {"role": "user", "content": JSON_RETRY_HINT},
+        ]
+
+    # Blank response: fold the hint into the existing user turn.
+    folded = dict(retry[last_user])
+    folded["content"] = f"{folded.get('content', '')}\n\n{JSON_RETRY_HINT}".strip()
+    return retry[:last_user] + [folded] + retry[last_user + 1:]
+
+
 @dataclass
 class BedrockCallResult:
     """One Bedrock Converse call outcome — response text plus token usage.
@@ -296,11 +336,7 @@ class BedrockClient:
             logger.warning(
                 "Bedrock response is not valid JSON. Retrying with stronger hint..."
             )
-            # Retry once with stronger hint appended
-            retry_messages = list(messages) + [{
-                "role": "user",
-                "content": "Respond with valid JSON only. No markdown fences.",
-            }]
+            retry_messages = _build_json_retry_messages(messages, content)
             retry_content = self.call(
                 model=model,
                 messages=retry_messages,

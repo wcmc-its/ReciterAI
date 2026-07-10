@@ -324,7 +324,13 @@ def test_p11_run_propagates_hierarchy_version_to_update_activity(monkeypatch):
     # Patch should_skip to never skip
     monkeypatch.setattr(ast_mod, "should_skip", lambda *a, **k: (False, {}))
 
-    # Patch get_table to return None-like mock (dry_run=True skips stage writes)
+    # run(dry_run=False) resolves a real stage table (`get_table(TABLE_NAME)`)
+    # and write_complete()s a STAGE# row onto it. Unpatched, this test issues a
+    # live DynamoDB PutItem against the real `reciterai` table whenever the
+    # runner happens to have AWS credentials, and fails with NoCredentialsError
+    # where it doesn't (e.g. CI).
+    monkeypatch.setattr(ast_mod, "get_table", lambda *a, **k: MagicMock())
+
     import tempfile, json as _json
     from pathlib import Path
 
