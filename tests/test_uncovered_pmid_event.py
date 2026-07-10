@@ -44,7 +44,7 @@ class _FakeBedrock:
         self._dense = dense or {}
         self.calls = 0
 
-    def call_json(self, *, model, messages):
+    def call_json(self, *, model, messages, **kwargs):
         self.calls += 1
         # Pass 1 is the screening call (no nested dicts).
         if self.calls == 1:

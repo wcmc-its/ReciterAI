@@ -525,30 +525,12 @@ def build_topic_index(taxonomy: dict) -> tuple:
     return int_to_id, id_to_int
 
 
-def make_screening_prompt(pub: dict, taxonomy: dict) -> str:
-    """
-    Build the Haiku screening prompt for a single publication.
+_SCREENING_TASK = (
+    "Score this publication's relevance to each research topic. This is a "
+    "screening pass — err on the side of inclusion. A second pass will refine scores."
+)
 
-    Uses integer topic IDs for compact output — mapped back to names after parsing.
-    """
-    topics_list = "\n".join(
-        f"- {i}: {t['label']} — {t['description']}"
-        for i, t in enumerate(taxonomy['topics'])
-    )
-
-    abstract = pub.get('abstract') or ''
-    synopsis = pub.get('synopsis') or ''
-
-    return f"""Score this publication's relevance to each research topic. This is a screening pass — err on the side of inclusion. A second pass will refine scores.
-
-Publication:
-Synopsis: {synopsis}
-Abstract: {abstract}
-
-Topics:
-{topics_list}
-
-Scoring guidance:
+_SCREENING_GUIDANCE = """Scoring guidance:
 - 0.0: No connection whatsoever
 - 0.1-0.2: Tangential or incidental mention
 - 0.3-0.5: Meaningful but secondary relevance (methods used, population studied, comorbidity addressed)
@@ -557,7 +539,65 @@ Scoring guidance:
 
 When in doubt, score higher. Topics scoring >= 0.3 advance to detailed review.
 Return ONLY a JSON object with integer topic number keys and float values.
-Example: {{"0": 0.85, "14": 0.20, "32": 0.35}}"""
+Example: {"0": 0.85, "14": 0.20, "32": 0.35}"""
+
+
+def _screening_topics_block(taxonomy: dict) -> str:
+    return "\n".join(
+        f"- {i}: {t['label']} — {t['description']}"
+        for i, t in enumerate(taxonomy['topics'])
+    )
+
+
+def _screening_publication_block(pub: dict) -> str:
+    return (
+        f"Publication:\nSynopsis: {pub.get('synopsis') or ''}\n"
+        f"Abstract: {pub.get('abstract') or ''}"
+    )
+
+
+def make_screening_system(taxonomy: dict) -> str:
+    """The invariant half of the screening prompt: task, topics, scoring guidance.
+
+    Identical for every publication in a run (~6.7K tokens for 68 topics), so it
+    is passed as the system prompt with ``cache_system=True``. Bedrock caches the
+    prefix and bills subsequent reads at roughly a tenth of the input rate —
+    without this, the whole topic list is re-billed on every one of the ~10K
+    screening calls in a full-corpus run.
+    """
+    return (
+        f"{_SCREENING_TASK}\n\nTopics:\n{_screening_topics_block(taxonomy)}\n\n"
+        f"{_SCREENING_GUIDANCE}"
+    )
+
+
+def make_screening_user(pub: dict) -> str:
+    """The per-publication half of the screening prompt.
+
+    Kept out of the cached prefix — it is the only part that varies.
+    """
+    return _screening_publication_block(pub)
+
+
+def make_screening_prompt(pub: dict, taxonomy: dict) -> str:
+    """
+    Build the Haiku screening prompt for a single publication, as one string.
+
+    Uses integer topic IDs for compact output — mapped back to names after parsing.
+
+    Retained verbatim for callers that compose their own single-turn prompt
+    (cli/score_new_topics.py appends a per-topic rubric, scripts/debug/*). The
+    hot path uses make_screening_system + make_screening_user so the static half
+    can be prompt-cached.
+    """
+    return f"""{_SCREENING_TASK}
+
+{_screening_publication_block(pub)}
+
+Topics:
+{_screening_topics_block(taxonomy)}
+
+{_SCREENING_GUIDANCE}"""
 
 
 def make_dense_prompt(pub: dict, passed_topics: dict, taxonomy: dict, id_to_int: dict) -> str:
@@ -798,10 +838,13 @@ def score_one_publication(
         mark_processing(dynamo_client, table_name, pmid, 'pending', taxonomy_version)
 
         # --- Screening pass (Haiku) — returns integer topic IDs ---
-        screening_prompt = make_screening_prompt(pub, taxonomy)
+        # The 68-topic block + scoring guidance is identical for every PMID, so
+        # it rides in a cached system prefix; only the publication text varies.
         raw_screening = bedrock.call_json(
             model=HAIKU_MODEL,
-            messages=[{"role": "user", "content": screening_prompt}],
+            messages=[{"role": "user", "content": make_screening_user(pub)}],
+            system=make_screening_system(taxonomy),
+            cache_system=True,
         )
 
         # Parse screening result: map int IDs back to topic names
