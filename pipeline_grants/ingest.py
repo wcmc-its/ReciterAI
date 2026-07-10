@@ -15,8 +15,15 @@ from pipeline_grants.normalize import normalize_grantsgov
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
 from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_dynamo_client
+from utils.event_records import load_thresholds
 
 log = logging.getLogger("pipeline_grants.ingest")
+
+# Off-domain force-fit guard: `persist.build_grant_item` picks primary_topic_id = argmax, so an
+# off-domain grant always lands on SOME biomedical topic. Drop it when even its best topic cannot
+# clear the same relevance bar the scorer screens topics on (config/thresholds.json score_floor) —
+# i.e. nothing really fit. Pairs with the is_biomedical_relevant judge gate. See #293.
+_PRIMARY_TOPIC_FLOOR = load_thresholds()["score_floor"]
 
 
 def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool = False,
@@ -68,10 +75,18 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
             if not verdict["is_research"]:
                 log.info("llm-drop %s: %s", opp.opportunity_id, verdict["reason"])
                 continue
+            if not verdict.get("is_biomedical_relevant", True):
+                log.info("offdomain-drop %s: %s", opp.opportunity_id, verdict["reason"])
+                continue
             dense = scoring.score_grant_text(
                 title=opp.title, synopsis=opp.synopsis, opportunity_id=opp.opportunity_id,
                 bedrock=bedrock, taxonomy=taxonomy, int_to_id=int_to_id, id_to_int=id_to_int,
             )
+            top_score = max((d.get("score", 0.0) for d in dense.values()), default=0.0)
+            if top_score < _PRIMARY_TOPIC_FLOOR:
+                log.info("floor-drop %s: top topic score %.3f < %.2f",
+                         opp.opportunity_id, top_score, _PRIMARY_TOPIC_FLOOR)
+                continue
             m_dsl, m_query = _compile_match(opp.title, opp.synopsis, vocab, bedrock=bedrock) if vocab else (None, None)
             item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict,
                                     match_dsl=m_dsl, match_query=m_query)

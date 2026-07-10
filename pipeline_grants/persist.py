@@ -48,6 +48,7 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
         "topic_vector": {"L": topic_vector},
         "primary_topic_id": {"S": ranked[0][0] if ranked else ""},
         "is_research": {"BOOL": bool((judge or {}).get("is_research", False))},
+        "is_biomedical_relevant": {"BOOL": bool((judge or {}).get("is_biomedical_relevant", True))},
         "appeal_by_stage": {"M": {k: _n(v) for k, v in appeal.items()}},
     }
     for field_name, value in (("award_ceiling", opp.award_ceiling),
