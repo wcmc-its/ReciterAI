@@ -159,6 +159,20 @@ def test_try_generate_lede_skips_on_transient_bedrock_error():
     assert out is None
 
 
+def test_try_generate_lede_forwards_stage_table():
+    """#311: the CRITIC_REJECT# audit + reason-code drift WARN in run_critic_loop
+    only fire when a stage_table is threaded through. The publish path must pass
+    one so the Phase 12 D-08 instrumentation actually runs in production."""
+    sentinel = object()
+    with patch("spotlight.critic.run_critic_loop", return_value=SimpleNamespace(
+        status="pass", lede="x")) as rc:
+        _try_generate_lede(
+            _meta(), [1, 2], "v2026-06-10", "parent_topic", (),
+            stage_table=sentinel,
+        )
+    assert rc.call_args.kwargs["stage_table"] is sentinel
+
+
 # ---------------------------------------------------------------------------
 # #191 brick E lede-skip: _reused_validated_lede wraps a prior lede as a PASS
 # ValidatedLede whose papers_used == the CURRENT run's grounding PMIDs, so the
@@ -266,3 +280,163 @@ def test_lede_reuse_short_circuits_generation():
 
     # A subtopic with no map entry -> None -> the loop would call the generator.
     assert lede_reuse_for(skip_map, "st_other", papers) is None
+
+
+# ---------------------------------------------------------------------------
+# #311: --regen-only must ground the re-rolled lede on the paper's REAL
+# synopsis/impact from the live TOPIC# rows — the assembler strips those
+# fields from the published artifact, so grounding on the subtopic description
+# repeated per paper (and letting the critic "anchor" against that fake text)
+# is the bug this test guards against. It must also thread a stage_table so the
+# CRITIC_REJECT# audit runs.
+# ---------------------------------------------------------------------------
+
+def test_regen_only_grounds_lede_on_live_substrate(monkeypatch):
+    import json as _json
+
+    import cli.backfill_spotlight as bs
+
+    prior_artifact = {
+        "spotlights": [
+            {
+                "subtopic_id": "parent1_001",
+                "parent_topic": "parent1",
+                "papers": [
+                    {
+                        "pmid": "111", "title": "T", "journal": "J", "year": 2025,
+                        "first_author": {"personIdentifier": "fa", "displayName": "FA"},
+                        "last_author": {"personIdentifier": "la", "displayName": "LA"},
+                    },
+                    {
+                        "pmid": "222", "title": "T2", "journal": "J2", "year": 2025,
+                        "first_author": {"personIdentifier": "fa2", "displayName": "FA2"},
+                        "last_author": {"personIdentifier": "la2", "displayName": "LA2"},
+                    },
+                ],
+            }
+        ]
+    }
+
+    class _Body:
+        def read(self):
+            return _json.dumps(prior_artifact).encode("utf-8")
+
+    fake_s3 = SimpleNamespace(get_object=lambda **kw: {"Body": _Body()})
+
+    live_rows = {
+        "111": {"Items": [{
+            "pmid": {"S": "111"}, "primary_subtopic_id": {"S": "parent1_001"},
+            "impact_score": {"N": "88.5"},
+            "impact_justification": {"S": "REAL JUST 111"},
+            "synopsis": {"S": "REAL SYNOPSIS 111"},
+        }]},
+        "222": {"Items": [{
+            "pmid": {"S": "222"}, "primary_subtopic_id": {"S": "parent1_001"},
+            "impact_score": {"N": "70.0"},
+            "impact_justification": {"S": "REAL JUST 222"},
+            "synopsis": {"S": "REAL SYNOPSIS 222"},
+        }]},
+    }
+    fake_ddb = SimpleNamespace(
+        query=lambda **kw: live_rows[kw["ExpressionAttributeValues"][":p"]["S"]]
+    )
+
+    monkeypatch.setattr(
+        "boto3.client",
+        lambda service, **kw: {"s3": fake_s3, "dynamodb": fake_ddb}[service],
+    )
+
+    hierarchy = {"topics": {"parent1": {
+        "display_name": "Parent 1",
+        "subtopics": [{"id": "parent1_001", "label": "Sub",
+                       "description": "SUBTOPIC DESCRIPTION"}],
+    }}}
+    monkeypatch.setattr(bs, "_load_hierarchy", lambda: hierarchy)
+
+    stage_sentinel = object()
+    monkeypatch.setattr(
+        "utils.dynamodb_helpers.get_table", lambda *a, **kw: stage_sentinel
+    )
+
+    captured = {}
+
+    def fake_loop(*, meta, papers, publish_id, parent_topic, stage_table=None):
+        captured["papers"] = papers
+        captured["stage_table"] = stage_table
+        return SimpleNamespace(lede="re-rolled", status="pass",
+                               papers_used=("111", "222"))
+
+    monkeypatch.setattr("spotlight.critic.run_critic_loop", fake_loop)
+    monkeypatch.setattr("spotlight.review_queue.write_review_entry",
+                        lambda **kw: None)
+
+    assert bs._run_regen_only("parent1_001") == 0
+
+    papers = captured["papers"]
+    assert [p.pmid for p in papers] == ["111", "222"]
+    # Grounded on the live substrate, NOT the subtopic description.
+    assert papers[0].synopsis == "REAL SYNOPSIS 111"
+    assert papers[0].impact_justification == "REAL JUST 111"
+    assert papers[0].impact_score == 88.5
+    assert all(p.synopsis != "SUBTOPIC DESCRIPTION" for p in papers)
+    # #311 finding 3: the CRITIC_REJECT# audit table is threaded through.
+    assert captured["stage_table"] is stage_sentinel
+
+
+def test_regen_only_drops_paper_with_no_live_topic_row(monkeypatch):
+    """A published PMID whose TOPIC# row has left the substrate is dropped from
+    the grounding set rather than grounded on placeholder text."""
+    import json as _json
+
+    import cli.backfill_spotlight as bs
+
+    prior_artifact = {"spotlights": [{
+        "subtopic_id": "parent1_001", "parent_topic": "parent1",
+        "papers": [
+            {"pmid": "111", "title": "T", "journal": "J", "year": 2025,
+             "first_author": {}, "last_author": {}},
+            {"pmid": "999", "title": "T", "journal": "J", "year": 2025,
+             "first_author": {}, "last_author": {}},
+        ],
+    }]}
+
+    class _Body:
+        def read(self):
+            return _json.dumps(prior_artifact).encode("utf-8")
+
+    fake_s3 = SimpleNamespace(get_object=lambda **kw: {"Body": _Body()})
+    # 111 has a live row; 999 does not (empty Items -> None).
+    live_rows = {
+        "111": {"Items": [{
+            "pmid": {"S": "111"}, "primary_subtopic_id": {"S": "parent1_001"},
+            "impact_score": {"N": "50.0"}, "impact_justification": {"S": "J"},
+            "synopsis": {"S": "REAL SYNOPSIS 111"},
+        }]},
+        "999": {"Items": []},
+    }
+    fake_ddb = SimpleNamespace(
+        query=lambda **kw: live_rows[kw["ExpressionAttributeValues"][":p"]["S"]]
+    )
+    monkeypatch.setattr(
+        "boto3.client",
+        lambda service, **kw: {"s3": fake_s3, "dynamodb": fake_ddb}[service],
+    )
+    hierarchy = {"topics": {"parent1": {
+        "display_name": "Parent 1",
+        "subtopics": [{"id": "parent1_001", "label": "Sub", "description": "D"}],
+    }}}
+    monkeypatch.setattr(bs, "_load_hierarchy", lambda: hierarchy)
+    monkeypatch.setattr("utils.dynamodb_helpers.get_table", lambda *a, **kw: object())
+
+    captured = {}
+
+    def fake_loop(*, meta, papers, publish_id, parent_topic, stage_table=None):
+        captured["papers"] = papers
+        return SimpleNamespace(lede="x", status="pass", papers_used=("111",))
+
+    monkeypatch.setattr("spotlight.critic.run_critic_loop", fake_loop)
+    monkeypatch.setattr("spotlight.review_queue.write_review_entry",
+                        lambda **kw: None)
+
+    assert bs._run_regen_only("parent1_001") == 0
+    assert [p.pmid for p in captured["papers"]] == ["111"]
