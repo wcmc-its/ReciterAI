@@ -97,9 +97,9 @@ class FakeTable:
         item["orphan_count"] = ExpressionAttributeValues[":o"]
 
 
-def _hist(version, ident, shown=3, last="2026-06-01T00:00:00Z", pid="v2026-06-01"):
+def _hist(ident, shown=3, last="2026-06-01T00:00:00Z", pid="v2026-06-01"):
     return {
-        "PK": f"SPOTLIGHT_HISTORY#{version}#{ident}",
+        "PK": f"SPOTLIGHT_HISTORY#{ident}",
         "SK": "STATE",
         "shown_count": shown,
         "last_shown_at": last,
@@ -118,22 +118,23 @@ _FIXED_CLOCK = lambda: "2026-06-11T12:00:00Z"  # noqa: E731 — test clock injec
 def test_classify_buckets_migrate_orphan_already_and_malformed():
     slug_to_durable = {"aging_one": "st_one", "aging_two": "st_two"}
     items = [
-        _hist("v2026-06-01", "aging_one"),          # -> migrate
-        _hist("v2026-06-01", "aging_two"),          # -> migrate
-        _hist("v2026-06-01", "ghost_slug"),         # -> orphan (no durable)
-        _hist("v2026-06-01", "st_one"),             # -> already durable-keyed (skip)
-        {"PK": "SPOTLIGHT_HISTORY#bogus", "SK": "STATE"},  # -> malformed (no 3rd part)
+        _hist("aging_one"),          # -> migrate
+        _hist("aging_two"),          # -> migrate
+        _hist("ghost_slug"),         # -> orphan (no durable)
+        _hist("st_one"),             # -> already durable-keyed (skip)
+        # a leftover versioned key: the fold has not run -> malformed, never re-keyed
+        {"PK": "SPOTLIGHT_HISTORY#v2026-06-01#aging_one", "SK": "STATE"},
         {"PK": "SUBTOPIC_SLUG#aging_one", "SK": "PTR"},    # -> non-STATE: ignored entirely
     ]
     c = classify_history_rows(items, slug_to_durable)
     assert {p.slug for p in c.to_migrate} == {"aging_one", "aging_two"}
     assert {p.target_pk for p in c.to_migrate} == {
-        "SPOTLIGHT_HISTORY#v2026-06-01#st_one",
-        "SPOTLIGHT_HISTORY#v2026-06-01#st_two",
+        "SPOTLIGHT_HISTORY#st_one",
+        "SPOTLIGHT_HISTORY#st_two",
     }
-    assert c.orphans == [("v2026-06-01", "ghost_slug")]
+    assert c.orphans == ["ghost_slug"]
     assert c.already_migrated == 1
-    assert c.malformed == ["SPOTLIGHT_HISTORY#bogus"]
+    assert c.malformed == ["SPOTLIGHT_HISTORY#v2026-06-01#aging_one"]
     assert c.collisions == {}
 
 
@@ -146,19 +147,19 @@ def test_classify_raises_on_namespace_overlap():
 def test_classify_detects_target_collision():
     # two distinct slugs resolving to the same durable in the same version
     slug_to_durable = {"slug_a": "st_dup", "slug_b": "st_dup"}
-    items = [_hist("v1", "slug_a"), _hist("v1", "slug_b")]
+    items = [_hist("slug_a"), _hist("slug_b")]
     c = classify_history_rows(items, slug_to_durable)
-    assert "SPOTLIGHT_HISTORY#v1#st_dup" in c.collisions
-    assert len(c.collisions["SPOTLIGHT_HISTORY#v1#st_dup"]) == 2
+    assert "SPOTLIGHT_HISTORY#st_dup" in c.collisions
+    assert len(c.collisions["SPOTLIGHT_HISTORY#st_dup"]) == 2
 
 
 def test_build_durable_item_preserves_attrs_and_stamps_provenance():
     [plan] = classify_history_rows(
-        [_hist("v1", "aging_one", shown=5, last="2026-05-01T00:00:00Z")],
+        [_hist("aging_one", shown=5, last="2026-05-01T00:00:00Z")],
         {"aging_one": "st_one"},
     ).to_migrate
     out = build_durable_item(plan, migrated_at="2026-06-11T12:00:00Z")
-    assert out["PK"] == "SPOTLIGHT_HISTORY#v1#st_one"
+    assert out["PK"] == "SPOTLIGHT_HISTORY#st_one"
     assert out["SK"] == "STATE"
     assert out["shown_count"] == 5
     assert out["last_shown_at"] == "2026-05-01T00:00:00Z"
@@ -172,17 +173,17 @@ def test_build_durable_item_preserves_attrs_and_stamps_provenance():
 
 
 def test_dry_run_writes_nothing():
-    table = FakeTable([_hist("v1", "aging_one")], page=1)
+    table = FakeTable([_hist("aging_one")], page=1)
     summary = migrate_history(
         table, slug_to_durable={"aging_one": "st_one"}, dry_run=True, now_fn=_FIXED_CLOCK
     )
     assert summary["migrated_rotation_count"] == 1
     assert table.ops == []  # nothing written
-    assert ("SPOTLIGHT_HISTORY#v1#aging_one", "STATE") in table.items  # slug row untouched
+    assert ("SPOTLIGHT_HISTORY#aging_one", "STATE") in table.items  # slug row untouched
 
 
 def test_two_phase_puts_all_flush_before_any_delete():
-    items = [_hist("v1", "aging_one"), _hist("v1", "aging_two")]
+    items = [_hist("aging_one"), _hist("aging_two")]
     table = FakeTable(items, page=1)  # tiny page to exercise scan pagination too
     summary = migrate_history(
         table,
@@ -195,14 +196,14 @@ def test_two_phase_puts_all_flush_before_any_delete():
     # every put precedes every delete — the crash-safety invariant
     assert kinds == ["put", "put", "delete", "delete"]
     # durable rows present with carried attrs + provenance; slug rows gone
-    durable = table.items[("SPOTLIGHT_HISTORY#v1#st_one", "STATE")]
+    durable = table.items[("SPOTLIGHT_HISTORY#st_one", "STATE")]
     assert durable["shown_count"] == 3 and durable["migrated_from_slug"] == "aging_one"
-    assert ("SPOTLIGHT_HISTORY#v1#aging_one", "STATE") not in table.items
-    assert ("SPOTLIGHT_HISTORY#v1#aging_two", "STATE") not in table.items
+    assert ("SPOTLIGHT_HISTORY#aging_one", "STATE") not in table.items
+    assert ("SPOTLIGHT_HISTORY#aging_two", "STATE") not in table.items
 
 
 def test_idempotent_rerun_skips_already_durable_rows():
-    table = FakeTable([_hist("v1", "aging_one")], page=10)
+    table = FakeTable([_hist("aging_one")], page=10)
     mapping = {"aging_one": "st_one"}
     migrate_history(table, slug_to_durable=mapping, dry_run=False, now_fn=_FIXED_CLOCK)
     table.ops.clear()
@@ -214,18 +215,18 @@ def test_idempotent_rerun_skips_already_durable_rows():
 
 
 def test_orphan_rows_left_untouched():
-    table = FakeTable([_hist("v1", "ghost_slug")], page=10)
+    table = FakeTable([_hist("ghost_slug")], page=10)
     summary = migrate_history(
         table, slug_to_durable={"aging_one": "st_one"}, dry_run=False, now_fn=_FIXED_CLOCK
     )
     assert summary["orphan_count"] == 1
     assert summary["migrated_rotation_count"] == 0
     assert table.ops == []
-    assert ("SPOTLIGHT_HISTORY#v1#ghost_slug", "STATE") in table.items  # not deleted
+    assert ("SPOTLIGHT_HISTORY#ghost_slug", "STATE") in table.items  # not deleted
 
 
 def test_collision_aborts_real_migration():
-    table = FakeTable([_hist("v1", "slug_a"), _hist("v1", "slug_b")], page=10)
+    table = FakeTable([_hist("slug_a"), _hist("slug_b")], page=10)
     with pytest.raises(ValueError, match="collision"):
         migrate_history(
             table,

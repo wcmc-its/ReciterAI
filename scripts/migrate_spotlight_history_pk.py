@@ -2,7 +2,7 @@
 """One-shot cutover: re-key spotlight rotation history from slug ids to durable ids (#191 brick D).
 
 ``spotlight/history_writer.py`` writes rotation state under
-``SPOTLIGHT_HISTORY#{hierarchy_version}#{subtopic_id}`` where ``subtopic_id`` is the
+``SPOTLIGHT_HISTORY#{subtopic_id}`` where ``subtopic_id`` is the
 *slug* id of the published subtopic. Before durable ids (#191), an annual recompute
 rotated those slugs, so the only way to keep history from going stale was to truncate
 it wholesale (``backfill_spotlight.py --reset-history``) and lose every subtopic's
@@ -10,9 +10,13 @@ shown/last-shown state. The durable-id store (bricks A–C) ends that: a subtopi
 one opaque id across rebuilds, so rotation history *can* survive a relabel — once it is
 keyed by the durable id instead of the volatile slug.
 
-This script is that one-time re-key. For every ``SPOTLIGHT_HISTORY#{ver}#{slug}`` row it
-resolves ``slug -> durable_id`` and writes ``SPOTLIGHT_HISTORY#{ver}#{durable}`` carrying
-the same state attributes, then deletes the old slug-keyed row. After the cutover, an
+This script is that one-time re-key. For every ``SPOTLIGHT_HISTORY#{slug}`` row it
+resolves ``slug -> durable_id`` and writes ``SPOTLIGHT_HISTORY#{durable}`` carrying
+the same state attributes, then deletes the old slug-keyed row.
+
+Run ``scripts/fold_spotlight_history_versions.py`` first: it collapses the legacy
+per-publish ``SPOTLIGHT_HISTORY#{version}#{id}`` partitions onto the unversioned key,
+which is what guarantees the one-row-per-slug the collision guard below assumes. After the cutover, an
 annual recompute no longer needs ``--reset-history`` at all (that flag is now tombstoned),
 because the durable key is stable. The operator runs this once during the
 hierarchy-version cutover window.
@@ -37,9 +41,8 @@ Safety / correctness:
   hasn't populated the store yet) is left **untouched** and counted, never deleted. Run the
   durable reconcile first, then re-run to pick orphans up.
 - **Fail-loud on collision.** If two distinct slugs would re-key onto the same durable PK
-  (impossible within one published version — slug->durable is 1:1 there — so it implies a
-  corrupt store or cross-version clash), the script refuses rather than silently overwrite
-  one row's ``shown_count``.
+  (slug->durable is 1:1, so it implies a corrupt store), the script refuses rather than
+  silently overwrite one row's ``shown_count``.
 - **Disjoint-namespace guard.** Slugs match ``^[a-z0-9_]+$`` and durable ids
   ``^st_[a-z0-9]+$``; the script asserts the slug-key and durable-id sets never intersect,
   so the already-migrated-vs-migrate decision is unambiguous.
@@ -90,7 +93,6 @@ CUTOVER_SCOPE = "GLOBAL"
 class RekeyPlan:
     """One slug-keyed history row that resolves to a durable id."""
 
-    version: str
     slug: str
     durable_id: str
     source_pk: str
@@ -103,23 +105,27 @@ class Classification:
     """Bucketed result of one classification pass (pure; see classify_history_rows)."""
 
     to_migrate: list[RekeyPlan] = field(default_factory=list)
-    orphans: list[tuple[str, str]] = field(default_factory=list)  # (version, slug)
+    orphans: list[str] = field(default_factory=list)  # unmapped slugs
     already_migrated: int = 0
     malformed: list[str] = field(default_factory=list)  # raw PKs that did not parse
     collisions: dict[str, list[str]] = field(default_factory=dict)  # target_pk -> [source_pk]
 
 
-def _parse_history_pk(pk: str) -> Optional[tuple[str, str]]:
-    """``SPOTLIGHT_HISTORY#{version}#{ident}`` -> ``(version, ident)`` or ``None``.
+def _parse_history_pk(pk: str) -> Optional[str]:
+    """``SPOTLIGHT_HISTORY#{ident}`` -> ``ident`` or ``None``.
 
-    ``maxsplit=2``: neither the version (``v2026-..`` dates) nor the third component
-    (slug ``^[a-z0-9_]+$`` or durable ``^st_[a-z0-9]+$``) contains ``#``, so a
-    well-formed key yields exactly three parts and the third is returned intact.
+    The ident is everything after the prefix. Legacy versioned keys
+    (``SPOTLIGHT_HISTORY#{version}#{ident}``) do not parse here on purpose —
+    run ``fold_spotlight_history_versions.py`` first; a versioned key reaching
+    this script means the fold has not run and is reported as malformed rather
+    than re-keyed onto a wrong target.
     """
-    parts = pk.split("#", 2)
-    if len(parts) != 3 or parts[0] != "SPOTLIGHT_HISTORY" or not parts[1] or not parts[2]:
+    if not pk.startswith(HISTORY_PK_PREFIX):
         return None
-    return parts[1], parts[2]
+    ident = pk[len(HISTORY_PK_PREFIX):]
+    if not ident or "#" in ident:
+        return None
+    return ident
 
 
 def classify_history_rows(
@@ -148,22 +154,20 @@ def classify_history_rows(
         if item.get("SK") != HISTORY_SK:
             continue  # only STATE rows — forward-safe vs any future SK on this PK
         pk = item.get("PK", "")
-        parsed = _parse_history_pk(pk)
-        if parsed is None:
+        ident = _parse_history_pk(pk)
+        if ident is None:
             c.malformed.append(pk)
             continue
-        version, ident = parsed
         if ident in durable_set:
             c.already_migrated += 1  # already durable-keyed: idempotent re-run skip
             continue
         durable = slug_to_durable.get(ident)
         if durable is None:
-            c.orphans.append((version, ident))  # unmapped slug: leave untouched
+            c.orphans.append(ident)  # unmapped slug: leave untouched
             continue
-        target_pk = f"{HISTORY_PK_PREFIX}{version}#{durable}"
+        target_pk = f"{HISTORY_PK_PREFIX}{durable}"
         c.to_migrate.append(
             RekeyPlan(
-                version=version,
                 slug=ident,
                 durable_id=durable,
                 source_pk=pk,
@@ -228,8 +232,7 @@ def migrate_history(
         "orphan_count": len(c.orphans),
         "already_migrated": c.already_migrated,
         "malformed_skipped": len(c.malformed),
-        "distinct_versions_migrated": sorted({p.version for p in c.to_migrate}),
-        "orphan_sample": [f"{v}#{s}" for v, s in c.orphans[:10]],
+        "orphan_sample": c.orphans[:10],
     }
     if c.malformed:
         summary["malformed_sample"] = c.malformed[:10]
