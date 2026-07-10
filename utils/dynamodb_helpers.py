@@ -24,6 +24,14 @@ from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
 
+
+class BatchWriteError(RuntimeError):
+    """Raised when batch_write cannot persist every item it was given.
+
+    Callers must treat this as a failed write: the chunk is partially applied,
+    so any completion marker (PROCESSING#/STAGE# 'complete') would be a lie.
+    """
+
 # DynamoDB table name (DB-01)
 TABLE_NAME = "reciterai"
 
@@ -185,6 +193,12 @@ def batch_write(client, table_name: str, items: list):
         items: List of item dicts in DynamoDB attribute format
                (e.g., {"PK": {"S": "..."}, "SK": {"S": "..."}, ...}).
 
+    Raises:
+        BatchWriteError: if any item remains unprocessed after the retry budget.
+            UnprocessedItems come back inside a 200 response, so boto3's own
+            retry machinery never sees them — swallowing them here would report
+            a partial write as a success.
+
     Note:
         Each item must already be in DynamoDB attribute format with type descriptors.
         Use to_dynamodb_item() helper if starting from plain Python dicts.
@@ -214,9 +228,11 @@ def batch_write(client, table_name: str, items: list):
             retry_count += 1
 
         if unprocessed:
-            logger.warning(
-                f"batch_write: {len(unprocessed.get(table_name, []))} items "
-                f"still unprocessed after retries in chunk starting at index {i}"
+            dropped = len(unprocessed.get(table_name, []))
+            raise BatchWriteError(
+                f"batch_write: {dropped} of {len(chunk)} items still unprocessed "
+                f"after {retry_count} retries in chunk starting at index {i} "
+                f"(table '{table_name}', {written} items written before this chunk)"
             )
 
         written += len(chunk)
