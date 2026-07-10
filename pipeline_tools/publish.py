@@ -61,6 +61,14 @@ TOOL_CONTEXT_META_KIND = "tool_usage_signal"
 # immutable versioned copies (if any) can be cached long. Mirrors the hierarchy
 # publisher's CacheControl posture.
 LATEST_CACHE_CONTROL = "max-age=60, must-revalidate"
+# Shrink guard: refuse to overwrite live latest/ when the new run lost more than
+# this fraction of its tools vs the prior manifest. Same default as the spotlight
+# publisher's shrink guard.
+PUBLISH_SHRINK_MAX_FRACTION = 0.34
+
+
+class PublishShrinkGuardError(RuntimeError):
+    """Raised when a real publish would shrink the live tools artifact past the guard."""
 
 
 def _family_record(fam: dict) -> dict:
@@ -321,12 +329,29 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
     }
 
 
+def _prior_published_tool_count(s3_client, *, prefix: str) -> int | None:
+    """Best-effort tool count from the live ``latest/manifest.json``.
+
+    Returns None on any error (no prior, S3 hiccup, parse failure) so a missing or
+    corrupt prior never blocks a legitimate publish — the guard fails open.
+    """
+    try:
+        key = f"{prefix}latest/manifest.json"
+        if not s3_client.key_exists(key):
+            return None
+        prior = json.loads(s3_client.get_object_bytes(key))
+        return prior.get("counts", {}).get("tools")
+    except Exception:
+        return None
+
+
 def publish_artifacts(
     payload: dict,
     *,
     s3_client=None,
     prefix: str = S3_PREFIX,
     dry_run: bool = True,
+    force: bool = False,
 ) -> list[dict]:
     """Publish (or dry-run) the tools artifact set to S3. Returns a per-object report.
 
@@ -335,6 +360,11 @@ def publish_artifacts(
     uploads each object via the injected/constructed ``S3HierarchyClient``
     (ARTIFACTS_BUCKET). The S3 client is built lazily only on a real publish, so
     a dry-run never touches AWS.
+
+    A real publish is gated by a shrink guard (raises ``PublishShrinkGuardError``
+    before any PutObject when the tool count dropped past ``PUBLISH_SHRINK_MAX_FRACTION``
+    vs the live manifest — the symptom of a degraded corpus run). ``force=True``
+    overrides it; the guard fails open on a missing/corrupt prior.
     """
     items = _split_artifacts(payload, prefix=prefix)
     manifest = _build_manifest(items, payload, prefix=prefix)
@@ -349,6 +379,15 @@ def publish_artifacts(
     if s3_client is None:
         from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
         s3_client = S3HierarchyClient(bucket=ARTIFACTS_BUCKET)
+    if not force:
+        prev_tools = _prior_published_tool_count(s3_client, prefix=prefix)
+        new_tools = len(payload["tools"])
+        if prev_tools and new_tools < prev_tools * (1.0 - PUBLISH_SHRINK_MAX_FRACTION):
+            raise PublishShrinkGuardError(
+                f"tools artifact shrank from {prev_tools} to {new_tools} tools "
+                f"(>{PUBLISH_SHRINK_MAX_FRACTION:.0%} drop) — refusing to overwrite "
+                f"live latest/. Re-run with force=True to override."
+            )
     for it, r in zip(items, report):
         s3_client.put_object(it.key, it.body, content_type="application/json", cache_control=it.cache_control)
         r["uploaded"] = True
