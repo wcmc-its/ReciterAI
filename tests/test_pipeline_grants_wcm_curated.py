@@ -211,3 +211,19 @@ def test_curated_ingest_dry_run_writes_nothing(tmp_path, monkeypatch):
     summary = ic.run(_enriched_csv(tmp_path), dry_run=True)
     assert summary["dry_run"] is True and summary["persisted"] == 0
     assert "items" not in captured                          # put_grants never called
+
+
+def test_curated_ingest_skips_cross_source_duplicates(tmp_path, monkeypatch):
+    from pipeline_grants import dedupe
+
+    captured = {}
+    _patch_ingest(monkeypatch, captured)
+    index = dedupe.CorpusKeyIndex()
+    index.add(opportunity_id="grants_gov:42", source="grants_gov",
+              title="The Wolf Prize", sponsor="Wolf Foundation")
+    monkeypatch.setattr(ic, "load_corpus_key_index", lambda client: index)
+
+    summary = ic.run(_enriched_csv(tmp_path), dry_run=False)
+    assert summary["built"] == 1                       # Wolf Prize key held by grants_gov
+    assert len(captured["items"]) == 1
+    assert captured["items"][0]["PK"]["S"].startswith("GRANT#wcm_curated:young-investigator-award")

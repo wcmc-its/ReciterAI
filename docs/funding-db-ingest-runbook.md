@@ -87,10 +87,17 @@ corpus = [norm(it.get("title",{}).get("S","")) for page in c.get_paginator("scan
 # keep a CSV row only if no corpus title is token-identical to it (jac < 1.0)
 ```
 
-**Residual:** fuzzier near-dups (Jaccard 0.6–0.9) and cross-source duplicates are **kept**
-by design (too uncertain to auto-drop). A proper cross-source dedup pass — keyed on
-normalized `title+sponsor`, source-priority `grants_gov > spin > wcm_curated` — is the
-follow-up if corpus duplication becomes a problem.
+**Residual:** fuzzier near-dups (Jaccard 0.6–0.9) are **kept** by design (too uncertain
+to auto-drop). Cross-source duplicates now have a dedicated pass —
+`python -m pipeline_grants.dedupe` (dry-run report by default; `--apply` deletes the
+losing `GRANT#` items). Keyed on normalized `title+sponsor` (blank sponsors group on
+title alone), source-priority `grants_gov > spin > wcm_curated > manual_url`, ties keep
+the most recently ingested. The ingest paths consult the same key index
+(`dedupe.load_corpus_key_index`) so re-runs skip incoming items whose key an
+equal-or-higher-priority source already holds. **Review the dry-run before `--apply`:**
+the measured overlap includes the matcher's gold-standard grants, and deleting a
+`GRANT#` row does NOT remove an already-projected SPS Opportunity/OpenSearch row
+(upsert-only projection) — sweep those on the SPS side.
 
 ## Doing it incrementally (next time)
 

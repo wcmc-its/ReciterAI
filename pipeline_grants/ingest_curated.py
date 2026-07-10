@@ -21,6 +21,7 @@ import argparse
 import logging
 
 from pipeline_grants import scoring, wcm_curated
+from pipeline_grants.dedupe import load_corpus_key_index
 from pipeline_grants.exclusions import load_excluded_ids
 from pipeline_grants.match_compile import compile_match as _compile_match, load_vocab_or_disable
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
@@ -31,8 +32,13 @@ from utils.iso_clock import now_iso
 log = logging.getLogger("pipeline_grants.ingest_curated")
 
 
-def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool = False):
-    """Read the enriched CSV and return (dynamodb_items, artifact_rows). No writes."""
+def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool = False,
+                corpus_index=None):
+    """Read the enriched CSV and return (dynamodb_items, artifact_rows). No writes.
+
+    ``corpus_index`` (a ``dedupe.CorpusKeyIndex``, optional) skips rows whose
+    normalized (title, sponsor) key an equal-or-higher-priority source already
+    holds — before any Bedrock spend."""
     taxonomy = scoring.load_taxonomy()
     taxonomy_version = taxonomy.get("taxonomy_version", "taxonomy_v2")
     int_to_id, id_to_int = scoring.build_index(taxonomy)
@@ -42,7 +48,7 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool
     rows = wcm_curated.read_curated_csv(csv_path)
     excluded = load_excluded_ids()
     items, artifact = [], []
-    seen, dup, skipped = set(), 0, 0
+    seen, dup, skipped, crossdup = set(), 0, 0, 0
     for row in rows:
         synopsis = (row.get("synopsis") or "").strip() or wcm_curated.fallback_synopsis(row)
         opp = wcm_curated.make_curated_opportunity(row, synopsis=synopsis, ingested_at=ingested_at)
@@ -56,6 +62,14 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool
         if opp.opportunity_id in excluded:
             skipped += 1
             continue
+        if corpus_index is not None:
+            duplicate_of = corpus_index.blocking_id(
+                opportunity_id=opp.opportunity_id, source=opp.source,
+                title=opp.title, sponsor=opp.sponsor)
+            if duplicate_of:
+                crossdup += 1
+                log.info("cross-dup %s: key already held by %s", opp.opportunity_id, duplicate_of)
+                continue
         dense = scoring.score_grant_text(
             title=opp.title, synopsis=opp.synopsis, opportunity_id=opp.opportunity_id,
             bedrock=bedrock, taxonomy=taxonomy, int_to_id=int_to_id, id_to_int=id_to_int,
@@ -70,6 +84,9 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool
         item = build_grant_item(opp, dense, taxonomy_version=taxonomy_version, judge=verdict,
                                 match_dsl=m_dsl, match_query=m_query)
         items.append(item)
+        if corpus_index is not None:
+            corpus_index.add(opportunity_id=opp.opportunity_id, source=opp.source,
+                             title=opp.title, sponsor=opp.sponsor)
         artifact.append({
             "opportunity_id": opp.opportunity_id, "title": opp.title, "sponsor": opp.sponsor,
             "due_date": opp.due_date, "primary_topic_id": item["primary_topic_id"]["S"],
@@ -78,18 +95,24 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool
         log.info("dropped %d duplicate curated row(s) (same name+sponsor)", dup)
     if skipped:
         log.info("held out %d excluded curated award(s) (see config/excluded_opportunities.json)", skipped)
+    if crossdup:
+        log.info("skipped %d cross-source duplicate(s) (key held by an equal-or-higher-priority source)",
+                 crossdup)
     return items, artifact
 
 
 def run(csv_path: str, *, dry_run: bool = False, compile_match: bool = False) -> dict:
     bedrock = BedrockClient()
-    items, artifact = build_items(csv_path, bedrock=bedrock, compile_match=compile_match)
+    dynamo = get_dynamo_client()
+    # Read-only corpus scan (also under --dry-run) feeding the cross-source dup guard.
+    corpus_index = load_corpus_key_index(dynamo)
+    items, artifact = build_items(csv_path, bedrock=bedrock, compile_match=compile_match,
+                                  corpus_index=corpus_index)
     if dry_run:
         sample = [a["opportunity_id"] for a in artifact[:5]]
         summary = {"built": len(items), "persisted": 0, "dry_run": True, "sample_ids": sample}
         log.info("curated ingest (dry-run): %s", summary)
         return summary
-    dynamo = get_dynamo_client()
     persisted = put_grants(dynamo, items)
     manifest = publish_opportunities_artifact(artifact)
     summary = {"built": len(items), "persisted": persisted, "artifact_version": manifest.get("version")}

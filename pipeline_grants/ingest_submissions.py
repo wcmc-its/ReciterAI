@@ -17,6 +17,14 @@ prize/lectureship pages legitimately, and ``prestige_item_attrs``'s
 ``is_honorific`` marks those downstream — but the LLM judge still drops
 non-research programs, with its reason surfaced.
 
+Suppressed submissions: the SPS intake subtab can mark a submission
+``status='suppressed'`` (operator retract). The drain only lists ``pending``
+items AND re-reads each submission's live status right before spending on it,
+so a suppression landing mid-drain is honored. For a submission suppressed
+AFTER it was drained, ``--cleanup-suppressed`` deletes the ``GRANT#`` items
+recorded in its ``produced_opportunity_ids`` (dry-run by default; add
+``--apply`` to delete).
+
 Run (writes to the ``reciterai`` table — use STAGING credentials first):
     python -m pipeline_grants.ingest_submissions
 Add ``--dry-run`` to fetch + extract + score nothing: it reports what WOULD
@@ -29,6 +37,7 @@ import re
 import urllib.parse
 
 from pipeline_grants import scoring
+from pipeline_grants.dedupe import delete_grant_items
 from pipeline_grants.denoise import judge_opportunity
 from pipeline_grants.models import Opportunity, make_opportunity_id
 from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
@@ -169,6 +178,15 @@ def list_pending(client, table_name: str = TABLE_NAME) -> list:
     return pending
 
 
+def get_submission_status(client, sk: str, table_name: str = TABLE_NAME) -> str:
+    """Current status of one SUBMISSION item ('' when the row is gone)."""
+    item = client.get_item(
+        TableName=table_name,
+        Key={"PK": {"S": SUBMISSION_PK}, "SK": {"S": sk}},
+    ).get("Item") or {}
+    return item.get("status", {}).get("S", "")
+
+
 def mark_submission(client, sk: str, *, status: str, produced=None, reject_reason=None,
                     table_name: str = TABLE_NAME) -> None:
     expression = "SET #st = :st, processed_at = :ts"
@@ -268,15 +286,24 @@ def drain(*, dry_run: bool = False) -> dict:
     pending = list_pending(dynamo)
     if not pending:
         log.info("no pending submissions")
-        return {"pending": 0, "processed": 0, "rejected": 0, "failed": 0, "persisted": 0}
+        return {"pending": 0, "processed": 0, "rejected": 0, "failed": 0, "persisted": 0,
+                "skipped_not_pending": 0}
 
     corpus_titles = load_corpus_title_index(dynamo)
-    processed = rejected = failed = persisted = 0
+    processed = rejected = failed = persisted = skipped = 0
     artifact = []
     for sub in pending:
         # One bad page/Bedrock hiccup skips that submission (it stays pending and
         # is retried next run) — it never aborts the drain. Same posture as ingest.
         try:
+            # Honor a status flip since listing (SPS staff can mark a pending
+            # submission 'suppressed' from the intake subtab): re-read right before
+            # spending, so a suppressed URL never produces GRANT# rows.
+            current = get_submission_status(dynamo, sub["sk"])
+            if current != "pending":
+                skipped += 1
+                log.info("skip submission %s: status is now %r", sub["sk"], current)
+                continue
             outcome = process_submission(
                 sub, bedrock=bedrock, taxonomy=taxonomy, taxonomy_version=taxonomy_version,
                 int_to_id=int_to_id, id_to_int=id_to_int, corpus_titles=corpus_titles,
@@ -303,8 +330,75 @@ def drain(*, dry_run: bool = False) -> dict:
     if artifact and not dry_run:
         publish_opportunities_artifact(artifact)
     summary = {"pending": len(pending), "processed": processed, "rejected": rejected,
-               "failed": failed, "persisted": persisted, "dry_run": dry_run}
+               "failed": failed, "persisted": persisted,
+               "skipped_not_pending": skipped, "dry_run": dry_run}
     log.info("submissions drain summary: %s", summary)
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Suppressed-submission maintenance (dry-run by default)
+# ---------------------------------------------------------------------------
+
+
+def list_suppressed(client, table_name: str = TABLE_NAME) -> list:
+    """SUBMISSION items with status='suppressed': [{sk, produced, produced_deleted_at}]."""
+    paginator = client.get_paginator("query")
+    suppressed = []
+    for page in paginator.paginate(
+        TableName=table_name,
+        KeyConditionExpression="PK = :pk",
+        FilterExpression="#st = :suppressed",
+        ExpressionAttributeNames={"#st": "status"},
+        ExpressionAttributeValues={":pk": {"S": SUBMISSION_PK}, ":suppressed": {"S": "suppressed"}},
+    ):
+        for item in page.get("Items", []):
+            suppressed.append({
+                "sk": item.get("SK", {}).get("S", ""),
+                "produced": [e.get("S", "") for e in
+                             item.get("produced_opportunity_ids", {}).get("L", []) if e.get("S")],
+                "produced_deleted_at": item.get("produced_deleted_at", {}).get("S", ""),
+            })
+    return suppressed
+
+
+def cleanup_suppressed(client=None, *, apply: bool = False, table_name: str = TABLE_NAME) -> dict:
+    """Delete the GRANT# items a now-suppressed submission produced (dry-run default).
+
+    The SPS intake subtab lets staff suppress a submission AFTER the drain already
+    processed it — the produced ``GRANT#manual_url:*`` rows must then leave the
+    corpus. Idempotent: DeleteItem on an absent key is a no-op, and a submission
+    stamped ``produced_deleted_at`` by a previous ``--apply`` is skipped. Deleting a
+    GRANT# row does NOT remove an already-projected SPS Opportunity/OpenSearch row
+    (upsert-only projection) — sweep those on the SPS side.
+    """
+    client = client or get_dynamo_client()
+    suppressed = list_suppressed(client, table_name)
+    to_clean = []
+    for sub in suppressed:
+        if sub["produced_deleted_at"]:
+            log.info("suppressed %s: produced rows already deleted at %s",
+                     sub["sk"], sub["produced_deleted_at"])
+            continue
+        if not sub["produced"]:
+            continue
+        for oid in sub["produced"]:
+            log.info("%s GRANT#%s (produced by suppressed submission %s)",
+                     "DELETE" if apply else "would-delete", oid, sub["sk"])
+        to_clean.append(sub)
+    deleted = 0
+    if apply:
+        for sub in to_clean:
+            deleted += delete_grant_items(client, sub["produced"], table_name=table_name)
+            client.update_item(
+                TableName=table_name,
+                Key={"PK": {"S": SUBMISSION_PK}, "SK": {"S": sub["sk"]}},
+                UpdateExpression="SET produced_deleted_at = :ts",
+                ExpressionAttributeValues={":ts": {"S": now_iso()}},
+            )
+    summary = {"suppressed": len(suppressed), "with_produced": len(to_clean),
+               "grant_items_deleted": deleted, "dry_run": not apply}
+    log.info("suppressed-submission cleanup summary: %s", summary)
     return summary
 
 
@@ -314,8 +408,16 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Drain SPS-submitted opportunity URLs (SUBMISSION# queue)")
     p.add_argument("--dry-run", action="store_true",
                    help="fetch + extract + dedup only; no Bedrock scoring, no writes, no status updates")
+    p.add_argument("--cleanup-suppressed", action="store_true",
+                   help="instead of draining: delete the GRANT# items produced by submissions SPS has "
+                        "since marked status='suppressed' (dry-run report by default)")
+    p.add_argument("--apply", action="store_true",
+                   help="with --cleanup-suppressed: actually delete (default is a dry-run report)")
     args = p.parse_args(argv)
-    drain(dry_run=args.dry_run)
+    if args.cleanup_suppressed:
+        cleanup_suppressed(apply=args.apply)
+    else:
+        drain(dry_run=args.dry_run)
     return 0
 
 
