@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from pipeline_grants.normalize import normalize_grantsgov
+from pipeline_grants.normalize import canonical_sponsor, normalize_grantsgov
 
 FIXTURE = Path(__file__).parent / "fixtures" / "grantsgov_detail.json"
 
@@ -102,3 +102,20 @@ def test_sponsor_single_line_role_title_rejected():
 def test_sponsor_blank_when_nothing_clean():
     opp = normalize_grantsgov(_detail(agency="John Smith\nGrantor"))
     assert opp.sponsor == ""
+
+
+def test_canonical_sponsor_collapses_known_variants():
+    # &/and, acronym + Inc. suffix, and outright typos all fold to one facet label.
+    assert canonical_sponsor("Leukemia & Lymphoma Society") == "Leukemia and Lymphoma Society"
+    assert canonical_sponsor("American Cancer Society (ACS)") == "American Cancer Society"
+    assert canonical_sponsor("American Cancer Society, Inc.") == "American Cancer Society"
+    assert canonical_sponsor("AmerisourceBergen Foundtion") == "AmerisourceBergen Foundation"
+    assert (canonical_sponsor("NewYork Presbyterian Hospital William Rodes Center for Glioblastoma")
+            == "The NewYork-Presbyterian Hospital William Rhodes Center for Glioblastoma")
+
+
+def test_canonical_sponsor_passes_through_unknown_and_blank():
+    assert canonical_sponsor("National Institutes of Health") == "National Institutes of Health"
+    assert canonical_sponsor("  American Cancer Society, Inc.  ") == "American Cancer Society"  # trims
+    assert canonical_sponsor("") == ""
+    assert canonical_sponsor(None) == ""

@@ -80,6 +80,26 @@ def _select_sponsor(data: dict, syn: dict) -> str:
     return ""
 
 
+# Near-variant sponsor labels fragment the facet: one funder appears under an "& / and"
+# swap, a "(ACS)" / ", Inc." suffix, or an outright typo. A corpus pass over the 316 distinct
+# live labels found only these, so a short explicit map (not a fuzzy normalizer that could
+# merge distinct orgs) collapses them to one canonical label at persist time. Refs #294 item 3.
+_SPONSOR_CANONICAL = {
+    "American Cancer Society (ACS)": "American Cancer Society",
+    "American Cancer Society, Inc.": "American Cancer Society",
+    "Leukemia & Lymphoma Society": "Leukemia and Lymphoma Society",
+    "AmerisourceBergen Foundtion": "AmerisourceBergen Foundation",
+    "NewYork Presbyterian Hospital William Rodes Center for Glioblastoma":
+        "The NewYork-Presbyterian Hospital William Rhodes Center for Glioblastoma",
+}
+
+
+def canonical_sponsor(name: str) -> str:
+    """Collapse a known near-variant sponsor label to its canonical form (else unchanged)."""
+    name = (name or "").strip()
+    return _SPONSOR_CANONICAL.get(name, name)
+
+
 def normalize_grantsgov(detail_resp: dict) -> Opportunity:
     data = detail_resp.get("data", {})
     syn = data.get("synopsis") or {}
