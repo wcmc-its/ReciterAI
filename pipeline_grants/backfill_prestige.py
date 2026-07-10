@@ -1,11 +1,20 @@
-"""Backfill prestige + is_honorific onto existing GRANT# items — no re-score.
+"""Backfill prestige + is_honorific (+ recovered mechanism) onto existing GRANT# items — no re-score.
 
 The prestige producer (pipeline_grants.prestige, wired into build_grant_item)
 only stamps prestige on items written by a NEW ingest. Existing GRANT# items
 predate it. Re-running the full ingest to populate them would re-score every opp
 through Bedrock (slow + $$). This backfill instead recomputes prestige from
 fields ALREADY on each item (mechanism, award_ceiling/estimated_funding, sponsor,
-title) and updates just the two attributes — no model calls.
+title) and updates just those attributes — no model calls.
+
+Mechanism (#288): items ingested before #275 never stored `mechanism` (100% null
+in the staging matcher output), even though the activity code is recoverable from
+the title — prestige.rationale already carries it. When the stored mechanism is
+empty/absent AND the title yields a code, the update also SETs `mechanism`; a
+non-empty stored mechanism is never overwritten. One --apply re-run of this
+backfill doubles as the one-time migration. The SPS side reads `mechanism`
+through the nightly etl:dynamodb projection, so no SPS change is needed —
+just let the next nightly run pick it up.
 
 Idempotent: recompute + overwrite (cheap). Dry-run by DEFAULT — prints the
 coverage/label report without writing; pass --apply to write. Use STAGING
@@ -82,8 +91,8 @@ def scan_grant_items(client, table_name: str = TABLE_NAME):
 
 
 def backfill(client, *, apply: bool = False, limit: int = None, table_name: str = TABLE_NAME) -> dict:
-    """Recompute prestige/is_honorific for every GRANT# item. Writes iff apply."""
-    seen = honorific = written = 0
+    """Recompute prestige/is_honorific (+ title-recovered mechanism) for every GRANT# item. Writes iff apply."""
+    seen = honorific = written = mech_backfilled = 0
     labels = {"Flagship": 0, "Major": 0, "Standard": 0}
     for item in scan_grant_items(client, table_name):
         if limit is not None and seen >= limit:
@@ -94,23 +103,33 @@ def backfill(client, *, apply: bool = False, limit: int = None, table_name: str 
         labels[attrs["prestige"]["M"]["label"]["S"]] += 1
         if attrs["is_honorific"]["BOOL"]:
             honorific += 1
+        # opp.mechanism is stored-or-recovered (opp_from_item); write it back only
+        # when the item had none — never overwrite a non-empty stored mechanism.
+        recovered_mech = "" if _s(item, "mechanism") else opp.mechanism
+        if recovered_mech:
+            mech_backfilled += 1
         if apply:
+            update = "SET prestige = :p, is_honorific = :h"
+            values = {":p": attrs["prestige"], ":h": attrs["is_honorific"]}
+            if recovered_mech:
+                update += ", mechanism = :m"
+                values[":m"] = {"S": recovered_mech}
             client.update_item(
                 TableName=table_name,
                 Key={"PK": item["PK"], "SK": item["SK"]},
-                UpdateExpression="SET prestige = :p, is_honorific = :h",
-                ExpressionAttributeValues={":p": attrs["prestige"], ":h": attrs["is_honorific"]},
+                UpdateExpression=update,
+                ExpressionAttributeValues=values,
             )
             written += 1
     summary = {"scanned": seen, "honorific": honorific, "labels": labels,
-               "written": written, "applied": apply}
+               "mechanism_backfilled": mech_backfilled, "written": written, "applied": apply}
     log.info("prestige backfill %s: %s", "APPLIED" if apply else "dry-run", summary)
     return summary
 
 
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
-    p = argparse.ArgumentParser(description="Backfill prestige + is_honorific onto GRANT# items (no re-score)")
+    p = argparse.ArgumentParser(description="Backfill prestige + is_honorific + recovered mechanism onto GRANT# items (no re-score)")
     p.add_argument("--apply", action="store_true", help="write to DynamoDB (default: dry-run report only)")
     p.add_argument("--limit", type=int, default=None, help="cap items processed (smoke testing)")
     args = p.parse_args(argv)

@@ -94,6 +94,16 @@ def test_make_curated_opportunity_maps_fields(tmp_path):
     assert opp.due_date == "2026-02-16"
     assert opp.program_type == "award"
     assert opp.eligibility_raw == "All stages"   # curated career stage retained
+    assert opp.mechanism == ""                   # no NIH-style code in a prize title (#288)
+
+
+def test_make_curated_opportunity_recovers_mechanism_from_title():
+    # An NIH-style activity code in the curated title populates mechanism (#288);
+    # foundation awards without one stay empty (covered above).
+    row = {H: "" for H in (wc.H_SPONSOR, wc.H_FIELD, wc.H_STAGE, wc.H_AMOUNT, wc.H_DEADLINE, wc.H_WEBSITE)}
+    row[wc.H_NAME] = "Mentored Clinical Scientist Development Award (K08)"
+    opp = wc.make_curated_opportunity(row, synopsis="s", ingested_at="2026-07-09T00:00:00Z")
+    assert opp.mechanism == "K08"
 
 
 def test_fallback_synopsis_uses_field_and_sponsor(tmp_path):

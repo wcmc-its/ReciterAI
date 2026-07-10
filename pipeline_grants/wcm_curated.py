@@ -19,6 +19,7 @@ import hashlib
 import re
 
 from pipeline_grants.models import Opportunity, make_opportunity_id
+from pipeline_grants.normalize import _activity_code
 
 CURATED_SOURCE = "wcm_curated"
 
@@ -193,7 +194,10 @@ def make_curated_opportunity(row: dict, *, synopsis: str, ingested_at: str) -> O
         title=name,
         synopsis=(synopsis or "").strip(),
         program_type="award",
-        mechanism="",
+        # Most curated foundation awards have no NIH-style activity code — empty is
+        # correct for them — but recover one when the title carries it (#288), the
+        # same title fallback normalize_grantsgov and backfill_prestige use.
+        mechanism=_activity_code(name),
         estimated_funding=parse_amount(row.get(H_AMOUNT, "")),
         open_date="",
         due_date=parse_deadline(row.get(H_DEADLINE, "")),
