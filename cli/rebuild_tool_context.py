@@ -284,16 +284,22 @@ def republish_sidecar(
 ) -> dict:
     """Republish the rebuilt sidecar via the real publish path; tool set frozen.
 
-    The live ``tools.json`` bundle IS the publish payload minus ``tool_context``
-    (``publish._split_artifacts``), so the payload is simply that bundle with the
-    rebuilt context swapped in. ``publish_artifacts`` then re-emits the full set +
-    manifest. SAFETY: the would-write ``tools.json`` / ``families.json`` /
-    ``faculty.json`` bytes must be byte-identical to live (only ``tool_context.json``
-    changes); we assert their sha256 against the live manifest before any upload.
-    Default is a dry run — no S3 write.
+    The live ``tools.json`` bundle IS the publish payload minus the split-out sidecars
+    (``publish._split_artifacts``), so the payload is that bundle with the rebuilt context
+    swapped in. SAFETY: the would-write ``tools.json`` / ``families.json`` / ``faculty.json``
+    bytes must be byte-identical to live (only ``tool_context.json`` changes); we assert their
+    sha256 against the live manifest before any upload.
+
+    The ``entities.json`` / ``entity_context.json`` sidecars are NOT carried on the tools.json
+    bundle (split OUT at publish), so ``_split_artifacts`` renders them EMPTY here — publishing
+    those empties would WIPE the live #1166 entity layer. They are therefore NEVER uploaded and
+    their live manifest entries are preserved verbatim; a real publish requires the live manifest
+    so those entries can be preserved. Default is a dry run — no S3 write.
     """
     import hashlib
-    from pipeline_tools.publish import _build_manifest, _split_artifacts, publish_artifacts, S3_PREFIX
+    from pipeline_tools.publish import (
+        LATEST_CACHE_CONTROL, PublishItem, S3_PREFIX, _build_manifest, _split_artifacts,
+    )
 
     bundle = json.load(open(live_tools_path))
     bundle.pop("tool_context", None)
@@ -304,19 +310,43 @@ def republish_sidecar(
     shas = {it.key.rsplit("/", 1)[-1]: hashlib.sha256(it.body).hexdigest()
             for it in items if it.key.startswith(f"{S3_PREFIX}latest/")}
     frozen = {"tools.json", "families.json", "faculty.json"}
+    entity_sidecars = {"entities.json", "entity_context.json"}
+    manifest = _build_manifest(items, payload, prefix=S3_PREFIX)
     if live_manifest_path:
-        live = json.load(open(live_manifest_path)).get("objects", {})
-        drift = [n for n in frozen if n in live and live[n]["sha256"] != shas.get(n)]
+        live = json.load(open(live_manifest_path))
+        live_objs = live.get("objects", {})
+        drift = [n for n in frozen if n in live_objs and live_objs[n]["sha256"] != shas.get(n)]
         if drift:
             raise SystemExit(f"ABORT: {drift} would change — republish must touch ONLY tool_context.json")
-        logger.info("safety check: tools/families/faculty byte-identical to live ✓ (only tool_context.json changes)")
-    manifest = _build_manifest(items, payload, prefix=S3_PREFIX)
-    report = publish_artifacts(payload, dry_run=not publish)
-    logger.info("%s: %d objects; tool_context.json sha=%s bytes=%s; manifest counts.tool_context=%d",
-                "PUBLISHED" if publish else "DRY-RUN (no upload)",
-                len(report), shas["tool_context.json"][:12],
-                next(it.size for it in items if it.key.endswith("latest/tool_context.json")),
-                manifest["counts"]["tool_context"])
+        # This path never carries the entity layer, so keep the live entity sidecars (manifest
+        # objects + counts) verbatim rather than the empty ones _split_artifacts produced.
+        for n in entity_sidecars:
+            if n in live_objs:
+                manifest["objects"][n] = live_objs[n]
+        for n in ("entities", "entity_context"):
+            if n in live.get("counts", {}):
+                manifest["counts"][n] = live["counts"][n]
+        logger.info("safety check: tools/families/faculty byte-identical to live ✓; entity sidecars preserved")
+    elif publish:
+        raise SystemExit("--republish --publish requires --live-manifest (freeze check + entity preservation)")
+
+    # Upload every object EXCEPT the (empty) entity sidecars, plus the patched manifest.
+    upload = [it for it in items if it.key.rsplit("/", 1)[-1] not in entity_sidecars]
+    manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
+    upload.append(PublishItem(f"{S3_PREFIX}latest/manifest.json", manifest_bytes, LATEST_CACHE_CONTROL))
+    report = [{"key": it.key, "bytes": it.size, "uploaded": False} for it in upload]
+    if publish:
+        from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
+        s3 = S3HierarchyClient(bucket=ARTIFACTS_BUCKET)
+        for it, r in zip(upload, report):
+            s3.put_object(it.key, it.body, content_type="application/json", cache_control=it.cache_control)
+            r["uploaded"] = True
+        logger.info("published %d object(s) to s3://wcmc-reciterai-artifacts/%s", len(upload), S3_PREFIX)
+    else:
+        for it in upload:
+            logger.info("DRY-RUN would upload s3://wcmc-reciterai-artifacts/%s (%d bytes)", it.key, it.size)
+    logger.info("%s: %d objects; tool_context.json sha=%s; entity sidecars preserved",
+                "PUBLISHED" if publish else "DRY-RUN (no upload)", len(report), shas["tool_context.json"][:12])
     return {"report": report, "manifest": manifest, "published": publish}
 
 
@@ -352,6 +382,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.republish:
         if not args.live_tools:
             ap.error("--republish requires --live-tools <live tools.json>")
+        if args.publish and not args.live_manifest:
+            ap.error("--republish --publish requires --live-manifest <live latest/manifest.json>")
         republish_sidecar(args.out, args.live_tools,
                           live_manifest_path=args.live_manifest, publish=args.publish)
         return 0

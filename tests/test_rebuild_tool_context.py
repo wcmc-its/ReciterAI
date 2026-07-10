@@ -143,3 +143,44 @@ def test_republish_aborts_if_a_frozen_artifact_would_change(tmp_path):
     manifest.write_text(json.dumps({"objects": {"tools.json": {"sha256": "deadbeef"}}}))
     with pytest.raises(SystemExit):
         republish_sidecar(str(sidecar), str(live_tools), live_manifest_path=str(manifest), publish=False)
+
+
+def test_republish_never_wipes_the_live_entity_sidecars(tmp_path):
+    # The tools.json bundle never carries the #1166 entity layer, so _split_artifacts renders
+    # entities.json / entity_context.json EMPTY here; a context republish must NOT publish those
+    # empties (that wipes the live layer) — it excludes them and preserves the live manifest entries.
+    import hashlib
+    from pipeline_tools.publish import S3_PREFIX, _split_artifacts
+
+    live_tools, sidecar = _payload_and_files(tmp_path, context={"t1": {"100": "A full sentence."}})
+    payload = {**json.load(open(live_tools)), "tool_context": json.load(open(sidecar))}
+    items = _split_artifacts(payload, prefix=S3_PREFIX)
+    shas = {it.key.rsplit("/", 1)[-1]: hashlib.sha256(it.body).hexdigest()
+            for it in items if it.key.startswith(f"{S3_PREFIX}latest/")}
+    live_entities = {"key": "tools/latest/entities.json", "bytes": 999, "sha256": "LIVEENTITIES"}
+    live_ctx = {"key": "tools/latest/entity_context.json", "bytes": 42, "sha256": "LIVECTX"}
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "objects": {
+            "tools.json": {"sha256": shas["tools.json"]},
+            "families.json": {"sha256": shas["families.json"]},
+            "faculty.json": {"sha256": shas["faculty.json"]},
+            "entities.json": live_entities,
+            "entity_context.json": live_ctx,
+        },
+        "counts": {"entities": 5, "entity_context": 3},
+    }))
+    out = republish_sidecar(str(sidecar), str(live_tools), live_manifest_path=str(manifest), publish=False)
+    upload_leaves = {r["key"].rsplit("/", 1)[-1] for r in out["report"]}
+    assert "entities.json" not in upload_leaves and "entity_context.json" not in upload_leaves
+    # the live entity objects + counts survive verbatim in the republished manifest
+    assert out["manifest"]["objects"]["entities.json"] == live_entities
+    assert out["manifest"]["objects"]["entity_context.json"] == live_ctx
+    assert out["manifest"]["counts"]["entities"] == 5 and out["manifest"]["counts"]["entity_context"] == 3
+
+
+def test_republish_publish_requires_a_live_manifest(tmp_path):
+    # A real publish without the live manifest can't preserve the entity sidecars -> refuse.
+    live_tools, sidecar = _payload_and_files(tmp_path, context={"t1": {"100": "A full sentence."}})
+    with pytest.raises(SystemExit):
+        republish_sidecar(str(sidecar), str(live_tools), publish=True)
