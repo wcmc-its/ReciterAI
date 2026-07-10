@@ -37,6 +37,66 @@ def test_run_ingest_filters_and_persists(monkeypatch):
     assert captured["items"][0]["PK"]["S"] == "GRANT#grants_gov:2"
 
 
+def test_run_ingest_drops_off_domain_grant(monkeypatch):
+    # A construction-safety NOFO is real research (is_research=True) and scores well onto some
+    # biomedical topic, but the judge flags is_biomedical_relevant=False -> it must be dropped,
+    # not surfaced (#293). Without the gate the grant is kept (this asserts the gate fires).
+    monkeypatch.setattr(ingest.grants_gov, "search_opportunities",
+                        lambda **kw: {"oppHits": [{"id": "1"}]})
+    monkeypatch.setattr(ingest.grants_gov, "fetch_opportunity",
+                        lambda oid: {"id": oid, "opportunityTitle": "Construction Safety Research",
+                                     "synopsis": {"synopsisDesc": "occupational safety",
+                                                  "responseDate": "Oct 19, 2099 12:00:00 AM EDT"}})
+    monkeypatch.setattr(ingest.scoring, "load_taxonomy", lambda: {"taxonomy_version": "taxonomy_v2", "topics": []})
+    monkeypatch.setattr(ingest.scoring, "build_index", lambda tax: ({}, {}))
+    monkeypatch.setattr(ingest.scoring, "score_grant_text",
+                        lambda **kw: {"epidemiology": {"score": 0.9, "rationale": "r"}})
+    monkeypatch.setattr(ingest, "judge_opportunity",
+                        lambda opp, bedrock: {"is_research": True, "is_biomedical_relevant": False,
+                                              "reason": "off-domain", "appeal_by_stage": {}})
+    monkeypatch.setattr(ingest, "BedrockClient", lambda *a, **k: object())
+    monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
+
+    persisted = []
+    monkeypatch.setattr(ingest, "put_grants",
+                        lambda client, items, **kw: (persisted.extend(items), len(items))[1])
+    monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
+
+    summary = ingest.run(rows=10, keyword="")
+    assert summary["kept"] == 0 and summary["persisted"] == 0
+    assert persisted == []
+
+
+def test_run_ingest_drops_grant_below_topic_floor(monkeypatch):
+    # A biomedical-passing grant whose best topic still lands below the score floor (0.3) is a
+    # force-fit (argmax onto noise) and must be dropped rather than surfaced (#293). Without the
+    # floor the grant is kept.
+    monkeypatch.setattr(ingest.grants_gov, "search_opportunities",
+                        lambda **kw: {"oppHits": [{"id": "1"}]})
+    monkeypatch.setattr(ingest.grants_gov, "fetch_opportunity",
+                        lambda oid: {"id": oid, "opportunityTitle": "Weakly Related Project",
+                                     "synopsis": {"synopsisDesc": "research",
+                                                  "responseDate": "Oct 19, 2099 12:00:00 AM EDT"}})
+    monkeypatch.setattr(ingest.scoring, "load_taxonomy", lambda: {"taxonomy_version": "taxonomy_v2", "topics": []})
+    monkeypatch.setattr(ingest.scoring, "build_index", lambda tax: ({}, {}))
+    monkeypatch.setattr(ingest.scoring, "score_grant_text",
+                        lambda **kw: {"breast_cancer": {"score": 0.1, "rationale": "r"}})  # < score_floor
+    monkeypatch.setattr(ingest, "judge_opportunity",
+                        lambda opp, bedrock: {"is_research": True, "is_biomedical_relevant": True,
+                                              "reason": "", "appeal_by_stage": {}})
+    monkeypatch.setattr(ingest, "BedrockClient", lambda *a, **k: object())
+    monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
+
+    persisted = []
+    monkeypatch.setattr(ingest, "put_grants",
+                        lambda client, items, **kw: (persisted.extend(items), len(items))[1])
+    monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
+
+    summary = ingest.run(rows=10, keyword="")
+    assert summary["kept"] == 0 and summary["persisted"] == 0
+    assert persisted == []
+
+
 def test_run_ingest_skips_failed_item_and_persists_the_rest(monkeypatch):
     # Middle opportunity's scoring raises (e.g. a non-JSON Bedrock reply); the run must
     # skip it and still persist the two good ones, not abort the whole batch.

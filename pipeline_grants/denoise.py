@@ -30,13 +30,17 @@ _STAGES = ("grad", "postdoc", "early", "mid", "senior")
 
 _JUDGE_SYSTEM = (
     "You triage research funding opportunities for a medical college. "
-    "Decide if an opportunity is a substantive research opportunity (not a travel/conference/"
-    "prize/equipment award), rate how appealing it is to each career stage, and extract "
+    "Decide (a) if an opportunity is a substantive research opportunity (not a travel/conference/"
+    "prize/equipment award); (b) if its subject is biomedical, clinical, public-health or "
+    "life-sciences relevant to a medical college — NOT off-domain research such as construction/"
+    "occupational safety, agriculture, defense/aerospace engineering, or physical sciences with no "
+    "health application; (c) rate how appealing it is to each career stage; and (d) extract "
     "structured eligibility facts FROM THE ELIGIBILITY TEXT (title/synopsis are context only; "
     "when the text does not state a fact, use the empty list or 'not_stated' — never guess). "
     "Respond ONLY with JSON:\n"
     "{\n"
     '  "is_research": bool,\n'
+    '  "is_biomedical_relevant": bool,\n'
     '  "reason": str,\n'
     '  "appeal_by_stage": {"grad": 0-1, "postdoc": 0-1, "early": 0-1, "mid": 0-1, "senior": 0-1},\n'
     '  "eligibility": {\n'
@@ -134,6 +138,9 @@ def judge_opportunity(opp: Opportunity, bedrock) -> dict:
     appeal_in = raw.get("appeal_by_stage") or {}
     return {
         "is_research": bool(raw.get("is_research", False)),
+        # Fail-open: only an explicit False drops the grant (see ingest gate). A missing
+        # field keeps it, so a judge reply that omits the key never nukes recall.
+        "is_biomedical_relevant": bool(raw.get("is_biomedical_relevant", True)),
         "reason": raw.get("reason", "") or "",
         "appeal_by_stage": {s: float(appeal_in.get(s, 0.0) or 0.0) for s in _STAGES},
         "eligibility": _clean_eligibility(raw.get("eligibility"), HAIKU_MODEL),
