@@ -25,12 +25,45 @@ def test_build_grant_item_keys_and_types():
     assert tv[0]["M"]["score"]["N"] == str(Decimal("0.95"))
 
 
+def test_build_grant_item_canonicalizes_sponsor():
+    # The persist choke point every source flows through (incl. spin/curated) applies the
+    # sponsor canonical map, so a fragmenting variant lands as one facet label. Refs #294 item 3.
+    opp = _opp()
+    opp.sponsor = "American Cancer Society, Inc."
+    item = build_grant_item(opp, {}, taxonomy_version="taxonomy_v2", judge={})
+    assert item["sponsor"] == {"S": "American Cancer Society"}
+
+
 def test_build_grant_item_handles_none_award():
     opp = _opp()
     opp.award_ceiling = None
     item = build_grant_item(opp, {}, taxonomy_version="taxonomy_v2", judge={})
     assert "award_ceiling" not in item  # omit nulls rather than write empty
     assert item["primary_topic_id"] == {"S": ""}
+    assert "eligibility" not in item  # no structured block on the judge -> attr omitted (#290)
+
+
+def test_build_grant_item_serializes_structured_eligibility():
+    # A validated eligibility block persists as a NATIVE DynamoDB map (not a JSON string) so the
+    # SPS mapper reads it directly: lists -> L of S, booleans -> BOOL, scalars -> S.
+    judge = {"is_research": True, "eligibility": {
+        "applicant_org_types": ["higher_ed", "small_business"],
+        "career_stages": ["early_career_faculty"],
+        "degree_required": [],
+        "citizenship_requirement": "us_citizen_or_permanent_resident_required",
+        "esi_targeted": True, "limited_submission": False,
+        "cost_sharing_required": False, "individual_award": True,
+        "extracted_by": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "extracted_at": "2026-07-10T00:00:00Z",
+    }}
+    item = build_grant_item(_opp(), {}, taxonomy_version="taxonomy_v2", judge=judge)
+    m = item["eligibility"]["M"]
+    assert m["applicant_org_types"] == {"L": [{"S": "higher_ed"}, {"S": "small_business"}]}
+    assert m["degree_required"] == {"L": []}
+    assert m["citizenship_requirement"] == {"S": "us_citizen_or_permanent_resident_required"}
+    assert m["esi_targeted"] == {"BOOL": True}
+    assert m["limited_submission"] == {"BOOL": False}
+    assert m["extracted_by"] == {"S": "us.anthropic.claude-haiku-4-5-20251001-v1:0"}
 
 
 # --- preserve-on-put (#292): re-ingest must not clobber backfill-only attrs ---------------

@@ -3,6 +3,7 @@ import hashlib
 import json as _json
 
 from pipeline_grants.match_compile import match_attrs
+from pipeline_grants.normalize import canonical_sponsor
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
 from utils.iso_clock import now_iso
@@ -11,6 +12,21 @@ from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
 
 def _n(value) -> dict:
     return {"N": str(to_decimal(value))}
+
+
+def _eligibility_attr(elig: dict) -> dict:
+    """Native DynamoDB map for the structured eligibility block (#290): list fields -> L of S,
+    booleans -> BOOL, everything else (citizenship + provenance) -> S. The SPS mapper's
+    parseJsonAttr reads the native map directly, so it is NOT stored as a compact-JSON string."""
+    out = {}
+    for key, value in elig.items():
+        if isinstance(value, bool):
+            out[key] = {"BOOL": value}
+        elif isinstance(value, list):
+            out[key] = {"L": [{"S": str(v)} for v in value]}
+        else:
+            out[key] = {"S": str(value)}
+    return out
 
 
 def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: dict,
@@ -35,7 +51,7 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
         "opportunity_id": {"S": opp.opportunity_id},
         "source": {"S": opp.source},
         "source_url": {"S": opp.source_url},
-        "sponsor": {"S": opp.sponsor},
+        "sponsor": {"S": canonical_sponsor(opp.sponsor)},
         "title": {"S": opp.title},
         "synopsis": {"S": opp.synopsis},
         "status": {"S": opp.status},
@@ -61,6 +77,9 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
         item["mechanism"] = {"S": opp.mechanism}
     item.update(prestige_item_attrs(opp))   # prestige (M) + is_honorific (BOOL)
     item.update(match_attrs(match_dsl, match_query))   # match_dsl / match_query (S JSON) when compiled
+    eligibility = (judge or {}).get("eligibility")   # structured eligibility (M) when the judge extracted it (#290)
+    if isinstance(eligibility, dict):
+        item["eligibility"] = {"M": _eligibility_attr(eligibility)}
     return item
 
 
