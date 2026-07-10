@@ -66,6 +66,38 @@ def test_is_honorific():
     assert not h(_opp(title="JEM Early Career Travel Award"))
 
 
+def test_is_honorific_sponsor_veto():
+    """#314 — a bare '…Award' from an open-competition grantmaker is applyable, not an
+    honor. These trip tier-2 (no prize wording, no mechanism, no applyable *type* keyword)
+    and are rescued only by the sponsor. Regression anchors: a change that re-flags any of
+    these as honorific must fail CI."""
+    h = prestige.is_honorific
+    for title, sponsor in [
+        ("Department of Defense - Investigator-Initiated Research Award", "Department of Defense"),
+        ("Department of Defense - Clinical Trial Award", "Department of Defense"),
+        ("Department of Defense - Technology/Therapeutic Development Award", "Department of Defense"),
+        ("Hartwell Foundation Individual Biomedical Research Award", "The Hartwell Foundation"),
+        ("Damon Runyon Clinical Investigator Award", "Damon Runyon Cancer Research Foundation"),
+        ("Physician-Scientist Award", "Research to Prevent Blindness"),
+        ("Investigator Award", "Rheumatology Research Foundation"),
+        ("Clinical Research Award", "Cystic Fibrosis Foundation"),
+    ]:
+        assert not h(_opp(title=title, sponsor=sponsor)), f"should be applyable: {title}"
+
+    # The veto is narrow: professional societies / academies confer HONORS titled 'Award'
+    # and must stay flagged. Same bare-'Award' titles, honor-conferring sponsor -> honorific.
+    for title, sponsor in [
+        ("AACR Team Science Award", "American Association for Cancer Research"),
+        ("NAS Award in Molecular Biology", "National Academy of Sciences"),
+        ("AAI Meritorious Career Award", "The American Association of Immunologists"),
+        ("Avanti Award in Lipids", "American Society for Biochemistry and Molecular Biology"),
+    ]:
+        assert h(_opp(title=title, sponsor=sponsor)), f"should stay honorific: {title}"
+
+    # Explicit prize wording is honorific regardless of sponsor (tier-1, sponsor never consulted).
+    assert h(_opp(title="Some Prize", sponsor="Department of Defense"))
+
+
 def test_sponsor_tier_matches_curated_funders():
     s = prestige.sponsor_tier
     assert s(_opp(sponsor="U.S. National Science Foundation")) == 0.7

@@ -7,7 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pipeline_tools.corpus_run import _classify_resumable
+from pipeline_tools.corpus_run import _classify_resumable, _load_classify_cache
+from pipeline_tools.registry import norm_name
 
 
 def _inputs(n):
@@ -56,6 +57,30 @@ def test_partial_resume_only_classifies_missing(tmp_path):
     out = _classify_resumable(_inputs(5), call_json=_counting_call_json(c), batch_size=2, checkpoint_path=ckpt)
     assert len(out) == 5
     assert c["classified"] == 2  # only the 2 new forms re-classified
+
+
+def test_llm_error_placeholders_not_checkpointed(tmp_path):
+    # A batch whose LLM call fails leaves its forms UNCLASSIFIED (disposition None). Those
+    # placeholders must NOT persist to the cache, or a resume treats them as done and never
+    # retries — a transient failure would drop the tool permanently.
+    ckpt = tmp_path / "classify_cache.jsonl"
+
+    def flaky(system, user):
+        items = json.loads(user[user.index("["):])
+        if any(it["raw_name"] == "Tool 0" for it in items):  # this batch -> unclassified
+            raise RuntimeError("content filter")
+        return {"classifications": [
+            {"raw_name": it["raw_name"], "disposition": "method_tool", "kind": "method",
+             "supercategory": "computational_statistical", "attributes": {}, "confidence": "high"}
+            for it in items
+        ]}
+
+    out = _classify_resumable(_inputs(4), call_json=flaky, batch_size=2, checkpoint_path=ckpt)
+    assert len(out) == 4  # all forms returned in-memory (failures flagged unclassified)
+    cached = _load_classify_cache(ckpt)
+    assert all(rec.get("disposition") is not None for rec in cached.values())  # no placeholders on disk
+    assert norm_name("Tool 0") not in cached  # the failed form is absent -> a resume re-classifies it
+    assert norm_name("Tool 2") in cached      # the successful batch persisted
 
 
 def test_torn_final_line_tolerated(tmp_path):

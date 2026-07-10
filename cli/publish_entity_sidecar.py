@@ -170,6 +170,41 @@ def fetch_live_parent_descriptors(s3) -> dict:
     }
 
 
+def fetch_live_entity_context(s3) -> dict:
+    """``{eid: {pmid: [usage,...]}}`` from the live entity_context.json (empty if absent).
+    A missing live entity layer is the first-publish case, not an error."""
+    try:
+        obj = s3.get_object(Bucket=BUCKET, Key=f"{S3_PREFIX}latest/entity_context.json")
+        return json.loads(obj["Body"].read()).get("entity_context", {})
+    except Exception as exc:  # noqa: BLE001 — best-effort; a missing live layer skips the check
+        log.warning("could not read live entity_context.json (%s); fragment-regression check skipped", exc)
+        return {}
+
+
+def assert_no_fragment_regression(live_ctx: dict, fresh_ctx: dict) -> None:
+    """Refuse to publish a freshly-built entity_context MORE fragmented than the live one.
+
+    gather_entity_bodies re-runs the corpus, which projects entity_context from the RAW
+    (pre-#239) tool_context; run after a #254 alignment, that projection would regress the live
+    sentence-aligned usage_sentence values to mid-clause fragments. This is the fragment-metric
+    abort rebuild_entity_context implies but the sidecar publisher lacked — direct the operator
+    to cli/rebuild_entity_context.py, which re-projects from the live aligned tool_context.
+    """
+    from cli.rebuild_entity_context import entity_fragment_metrics
+
+    live_m = entity_fragment_metrics(live_ctx)
+    if live_m["snippets"] == 0:  # no live entity layer to regress (first publish)
+        return
+    fresh_m = entity_fragment_metrics(fresh_ctx)
+    if (fresh_m["no_terminal_punct_pct"] > live_m["no_terminal_punct_pct"]
+            or fresh_m["start_lowercase_pct"] > live_m["start_lowercase_pct"]):
+        raise SystemExit(
+            f"ABORT: freshly-built entity_context is more fragmented than live (live={live_m}, "
+            f"fresh={fresh_m}). The corpus re-run projects from the pre-#239 tool_context; "
+            "re-project from the live aligned tool_context with cli/rebuild_entity_context.py instead."
+        )
+
+
 def build_v4_manifest(entities_body: bytes, ctx_body: bytes, counts: dict, live: dict) -> dict:
     """Live manifest + the two new entity objects; tools/families/faculty/tool_context
     objects (and the top-level tools.json sha/bytes) preserved verbatim."""
@@ -233,6 +268,11 @@ def main(argv: list[str] | None = None) -> int:
     live_descriptors = {} if args.reuse_bodies else fetch_live_parent_descriptors(s3)
     entities_body, ctx_body, counts = gather_entity_bodies(
         reuse=args.reuse_bodies, live_descriptors=live_descriptors,
+    )
+    # The corpus re-run projects entity_context from the RAW tool_context; abort rather than
+    # regress a live #254-aligned entity_context to fragments (use rebuild_entity_context then).
+    assert_no_fragment_regression(
+        fetch_live_entity_context(s3), json.loads(ctx_body).get("entity_context", {}),
     )
     manifest = build_v4_manifest(entities_body, ctx_body, counts, live)
     manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")

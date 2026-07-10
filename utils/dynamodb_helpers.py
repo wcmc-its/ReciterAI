@@ -17,6 +17,7 @@ Security (T-01-04, T-01-05):
 import os
 import logging
 from decimal import Decimal
+from functools import lru_cache
 
 import boto3
 
@@ -69,8 +70,19 @@ def get_table(table_name: str = TABLE_NAME, region: str = None):
         boto3 DynamoDB Table resource bound to `table_name`.
     """
     resolved_region = region or os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
-    resource = boto3.resource('dynamodb', region_name=resolved_region)
-    return resource.Table(table_name)
+    return _dynamo_resource(resolved_region).Table(table_name)
+
+
+@lru_cache(maxsize=None)
+def _dynamo_resource(region: str):
+    """One cached boto3 DynamoDB resource per region.
+
+    Callers like assign_subtopics invoke get_table() once per TOPIC# row; a fresh
+    resource each time pays a new TLS handshake. The resource is a lazy handle
+    (no AWS call until used) and is safe to reuse in the single-threaded offline
+    pipeline. Keyed on the resolved region so a region change gets its own handle.
+    """
+    return boto3.resource('dynamodb', region_name=region)
 
 
 def create_chatbot_table(client, table_name: str = TABLE_NAME):

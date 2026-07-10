@@ -55,6 +55,21 @@
         "Item.$": "$.orchestrate.terminal_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "End"
     },
 
@@ -67,6 +82,21 @@
         "Item.$": "$.orchestrate.terminal_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "NotifyCostExceeded"
     },
 
@@ -115,6 +145,21 @@
         "Item.$": "$.enrich_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "Score"
     },
 
@@ -150,6 +195,21 @@
         "Item.$": "$.score_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "DeriveDirtyTopics"
     },
 
@@ -248,6 +308,14 @@
               "Item.$": "$.assign_one_envelope"
             },
             "ResultPath": null,
+            "Retry": [
+              {
+                "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
             "End": true
           }
         }
@@ -313,6 +381,21 @@
         "Item.$": "$.top_topic_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "Rollup"
     },
 
@@ -350,6 +433,21 @@
         "Item.$": "$.rollup_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "Next": "Finalize"
     },
 
@@ -399,6 +497,21 @@
         "Item.$": "$.finalize_envelope"
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "WriteOnboardingFailed"
+        }
+      ],
       "End": true
     },
 
@@ -421,6 +534,14 @@
         }
       },
       "ResultPath": null,
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.ProvisionedThroughputExceededException", "DynamoDB.RequestLimitExceeded", "DynamoDB.InternalServerError", "DynamoDB.ServiceUnavailableException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
       "Next": "NotifyFailed"
     },
 

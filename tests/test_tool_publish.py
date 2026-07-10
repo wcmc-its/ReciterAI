@@ -10,8 +10,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import hashlib
 
+import pytest
+
 from pipeline_tools import salience as sal
-from pipeline_tools.publish import build_publish_payload, publish_artifacts
+from pipeline_tools.publish import (
+    PublishShrinkGuardError,
+    build_publish_payload,
+    publish_artifacts,
+)
 
 # The full published key set: 7 flat (transition) + 7 latest/ + the latest/ manifest.
 # (#1166 added entities.json + entity_context.json — empty here, since _result() has
@@ -159,3 +165,42 @@ def test_publish_manifest_integrity_and_latest_mirror():
     entry = meta["tool_context_meta"]["tool_000001"]["39000001"]
     assert set(entry) == {"informativeness_score", "mention_class"}
     assert entry["mention_class"] in ("usage", "mention")
+
+
+class _PriorS3:
+    """Fake S3 client with a prior manifest carrying `prior_tools`, recording puts."""
+
+    def __init__(self, prior_tools):
+        self._prior = prior_tools
+        self.puts = []
+
+    def key_exists(self, key):
+        return self._prior is not None
+
+    def get_object_bytes(self, key):
+        return json.dumps({"counts": {"tools": self._prior}}).encode("utf-8")
+
+    def put_object(self, key, body, content_type="application/json", cache_control=None):
+        self.puts.append(key)
+
+
+def test_publish_shrink_guard_blocks_force_overrides_missing_prior_fails_open():
+    """#312: a real publish refuses to overwrite live latest/ when the tool count
+    collapsed vs the prior manifest; force=True overrides; a missing prior fails open."""
+    p = build_publish_payload(_result(), provenance={})  # 1 tool
+
+    # Prior had 100 tools; new run has 1 → >34% drop → blocked before any PutObject.
+    blocked = _PriorS3(prior_tools=100)
+    with pytest.raises(PublishShrinkGuardError):
+        publish_artifacts(p, s3_client=blocked, dry_run=False)
+    assert blocked.puts == []
+
+    # force=True overrides the guard.
+    forced = _PriorS3(prior_tools=100)
+    publish_artifacts(p, s3_client=forced, dry_run=False, force=True)
+    assert forced.puts
+
+    # No prior manifest → fail open → publishes.
+    fresh = _PriorS3(prior_tools=None)
+    publish_artifacts(p, s3_client=fresh, dry_run=False)
+    assert fresh.puts

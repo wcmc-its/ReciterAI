@@ -63,6 +63,7 @@ from utils.sql_queries import (
 )
 from utils.stage_records import (
     build_complete_record,
+    build_failed_record,
     build_skipped_record,
     compute_input_hash,
     should_skip,
@@ -1570,6 +1571,7 @@ async def main():
 
     scored_records: list = []
     content_filter_count = 0
+    succeeded = 0
     scoring_results_path = Path(__file__).parent / 'scoring_results.json'
 
     if not unscored:
@@ -1657,26 +1659,51 @@ async def main():
         else:
             print("\nResults saved. Run load_dynamodb.py next.")
 
-    # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
+    # --- Phase 10 D-07: STAGE# terminal row (direct write or envelope emit) ---
     completed_at = now_iso()
     duration_ms = int((time.monotonic() - t_stage_start) * 1000)
-    complete_kwargs = dict(
-        stage=STAGE_NAME,
-        scope=STAGE_SCOPE_GLOBAL,
-        input_hash=input_hash,
-        started_at=stage_started_at,
-        completed_at=completed_at,
-        duration_ms=duration_ms,
-        cost_observed_usd=SCORE_COST_USD,
-        output_pointer=str(scoring_results_path),
-        records_written=len(scored_records),
-        model_ids_snapshot=STAGE_MODEL_IDS,
-        content_filter_count=content_filter_count,
-    )
-    if args.emit_envelope:
-        print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+    if unscored and succeeded == 0:
+        # Every PMID in a non-empty work set failed (e.g. a Bedrock outage
+        # exhausted retries). A `complete` row would let the skip cache
+        # (should_skip matches on input_hash alone) make the failure
+        # permanent: a re-run computes the same unscored set → same
+        # input_hash → skip, and no cache-respecting path (--additive, the
+        # date-delta) re-scores the PMIDs. Write `failed` so the retry
+        # actually re-runs (#310).
+        failed_kwargs = dict(
+            stage=STAGE_NAME,
+            scope=STAGE_SCOPE_GLOBAL,
+            input_hash=input_hash,
+            error_code="SCORE_ALL_PMIDS_FAILED",
+            error_message=f"All {len(unscored)} PMIDs failed to score",
+            started_at=stage_started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=SCORE_COST_USD,
+            model_ids_snapshot=STAGE_MODEL_IDS,
+        )
+        if args.emit_envelope:
+            print(json.dumps(build_failed_record(**failed_kwargs), default=str))
+        else:
+            write_failed(stage_table, **failed_kwargs)
     else:
-        write_complete(stage_table, **complete_kwargs)
+        complete_kwargs = dict(
+            stage=STAGE_NAME,
+            scope=STAGE_SCOPE_GLOBAL,
+            input_hash=input_hash,
+            started_at=stage_started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            cost_observed_usd=SCORE_COST_USD,
+            output_pointer=str(scoring_results_path),
+            records_written=len(scored_records),
+            model_ids_snapshot=STAGE_MODEL_IDS,
+            content_filter_count=content_filter_count,
+        )
+        if args.emit_envelope:
+            print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+        else:
+            write_complete(stage_table, **complete_kwargs)
 
 
 if __name__ == "__main__":

@@ -265,6 +265,78 @@ def test_without_force_a_prior_complete_row_skips(monkeypatch, tmp_path):
     assert result.get("stage_status") == "skipped"
 
 
+# ---------- #310: total failure must not write a `complete` terminal row -----
+
+
+def _drive_run_over_failing_topic(monkeypatch, tmp_path):
+    """Drive run() over a one-PMID topic whose classify always raises, capturing
+    every STAGE# put_item. Returns (summary, captured_items)."""
+    monkeypatch.setenv("RECITERAI_HIERARCHY_VERSION", "v2026-06-01")
+
+    captured: list = []
+    fake_stage_table = MagicMock()
+    fake_stage_table.put_item.side_effect = lambda Item: captured.append(Item) or {}
+    monkeypatch.setattr(ast_mod, "get_table", lambda *a, **k: fake_stage_table)
+    monkeypatch.setattr(ast_mod, "_get_flag", lambda *a, **k: False)
+    monkeypatch.setattr(ast_mod, "should_skip", lambda *a, **k: (False, {}))
+
+    fake_row = {
+        "PK": "TOPIC#cardiovascular_disease",
+        "SK": "SCORE#0850#ACTIVITY#pmid_99#cwid_abc",
+        "pmid": "99",
+        "impact_score": "0.85",
+    }
+    monkeypatch.setattr(ast_mod, "_query_topic_activity_rows", lambda tid: [fake_row])
+    grouped = {
+        "99": {
+            "activity": {"pmid": "99", "title": "t", "synopsis": "s"},
+            "rows": [fake_row],
+            "has_primary": False,
+        }
+    }
+    monkeypatch.setattr(ast_mod, "_dedupe_by_pmid", lambda rows: grouped)
+
+    def boom(*a, **k):
+        raise RuntimeError("Bedrock outage")
+
+    monkeypatch.setattr(ast_mod, "_classify_activity", boom)
+
+    draft = {
+        "topic_id": "cardiovascular_disease",
+        "subtopics": [{"id": "atherosclerosis", "label": "A", "description": "..."}],
+        "review_status": "approved",
+    }
+    draft_path = tmp_path / "draft.json"
+    draft_path.write_text(json.dumps(draft))
+
+    summary = ast_mod.run(
+        topic_id="cardiovascular_disease", draft_path=draft_path,
+        concurrency=1, confidence_floor=0.3, limit=None, resume=False,
+        dry_run=False, force=False,
+    )
+    return summary, captured
+
+
+def test_total_failure_writes_failed_terminal_row_not_complete(monkeypatch, tmp_path):
+    """#310: when every PMID in the topic fails, the terminal STAGE# row is
+    `failed`, not `complete` — a `complete` row would let the content-addressed
+    skip cache treat the outage as a permanent success and block the --resume
+    retry the docstring promises."""
+    summary, captured = _drive_run_over_failing_topic(monkeypatch, tmp_path)
+
+    assert summary["failed"] == 1
+    assert summary["assigned"] == 0
+
+    topic_pk = f"STAGE#{ast_mod.STAGE_NAME}#topic:cardiovascular_disease"
+    terminal_rows = [i for i in captured if i.get("PK") == topic_pk]
+    assert len(terminal_rows) == 1
+    assert terminal_rows[0]["status"] == sr.STATUS_FAILED
+    assert not any(
+        i.get("PK") == topic_pk and i.get("status") == sr.STATUS_COMPLETE
+        for i in captured
+    )
+
+
 # ---------------------------------------------------------------------------
 # Phase 11 Task 1 — Test 5: hierarchy_version propagated through run()
 # ---------------------------------------------------------------------------

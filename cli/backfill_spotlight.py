@@ -445,7 +445,9 @@ def _top_publishable(
     return chosen
 
 
-def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers):
+def _try_generate_lede(
+    meta, papers, publish_id, parent_topic, excluded_openers, stage_table=None
+):
     """Run the lede critic loop for one subtopic, converting a per-subtopic
     failure into a skip (return None) rather than aborting the whole publish.
 
@@ -466,6 +468,7 @@ def _try_generate_lede(meta, papers, publish_id, parent_topic, excluded_openers)
             publish_id=publish_id,
             parent_topic=parent_topic,
             excluded_openers=excluded_openers,
+            stage_table=stage_table,
         )
     except ValueError as e:
         # Lede generator rejects subtopics without >=2 author-identified papers.
@@ -821,6 +824,14 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             len(lede_skip_map),
         )
 
+    # Phase 12 D-08: the CRITIC_REJECT# audit row + reason-code drift WARN in
+    # run_critic_loop only fire when a stage_table is threaded through. Only
+    # --dry-run-full / --publish reach here (plain --dry-run returns above), so
+    # AWS is available; mirror the score_publications stage_table pattern.
+    from utils.dynamodb_helpers import get_table, TABLE_NAME
+
+    stage_table = get_table(TABLE_NAME)
+
     validated_ledes = []
     opener_counts: Counter[str] = Counter()
     ledes_reused = 0
@@ -871,6 +882,7 @@ def _run_pipeline(dry_run: bool, dry_run_full: bool, publish: bool) -> int:
             publish_id,
             sel.entry.parent_topic,
             at_cap,
+            stage_table=stage_table,
         )
         if vlede is None:
             continue
@@ -1132,6 +1144,44 @@ def _run_reject(subtopic_id: str, publish_id: str | None) -> int:
     return 0
 
 
+def _live_paper_fields(dynamo_client, pmid, subtopic_id):
+    """Return (impact_score, impact_justification, synopsis) from the live
+    TOPIC# row for (pmid, subtopic_id), or None if no such row exists.
+
+    ``assembler._paper_to_json`` strips these fields from the published
+    artifact as pipeline-internal, so a regen must read the grounding text
+    back from the substrate (PmidIndex GSI: pmid HASH, PK RANGE) rather than
+    ground the lede — and the critic's anchored_in_synopses check — on
+    placeholder text.
+    """
+    from utils.dynamodb_helpers import TABLE_NAME
+
+    start_key = None
+    while True:
+        kwargs = {
+            "TableName": TABLE_NAME,
+            "IndexName": "PmidIndex",
+            "KeyConditionExpression": "pmid = :p AND begins_with(PK, :t)",
+            "ExpressionAttributeValues": {
+                ":p": {"S": str(pmid)},
+                ":t": {"S": "TOPIC#"},
+            },
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+        resp = dynamo_client.query(**kwargs)
+        for item in resp.get("Items", []):
+            if item.get("primary_subtopic_id", {}).get("S") == subtopic_id:
+                return (
+                    float(item.get("impact_score", {}).get("N", "0")),
+                    item.get("impact_justification", {}).get("S", ""),
+                    item.get("synopsis", {}).get("S", ""),
+                )
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            return None
+
+
 def _run_regen_only(subtopic_id: str) -> int:
     """Re-roll a single lede; route candidate into the review queue.
 
@@ -1144,6 +1194,7 @@ def _run_regen_only(subtopic_id: str) -> int:
 
     from spotlight.critic import run_critic_loop
     from spotlight.review_queue import write_review_entry
+    from utils.dynamodb_helpers import get_table, TABLE_NAME
 
     s3 = boto3.client("s3", region_name="us-east-1")
     resp = s3.get_object(Bucket=ARTIFACTS_BUCKET_NAME, Key=LATEST_SPOTLIGHT_KEY)
@@ -1169,11 +1220,27 @@ def _run_regen_only(subtopic_id: str) -> int:
         print(f"Subtopic {subtopic_id} not in current hierarchy; abort.")
         return 1
 
-    # Reconstruct the Paper list from the prior artifact's paper payload.
+    # Reconstruct the Paper list from the prior artifact's paper payload,
+    # re-hydrating the substrate-only fields (synopsis / impact) the assembler
+    # strips from the published artifact from the live TOPIC# rows. Grounding
+    # the regen on those real fields — not the subtopic description repeated
+    # per paper — is the whole point of the fix path (a paper that no longer
+    # has a TOPIC# row under this subtopic is dropped from the grounding set).
     from spotlight.types import Author, Paper
 
+    dynamo_client = boto3.client("dynamodb", region_name="us-east-1")
     papers: list[Paper] = []
     for p in target.get("papers", []):
+        live = _live_paper_fields(dynamo_client, p["pmid"], subtopic_id)
+        if live is None:
+            logger.warning(
+                "Regen: PMID %s has no live TOPIC# row under %s; dropping "
+                "from the grounding set.",
+                p["pmid"],
+                subtopic_id,
+            )
+            continue
+        impact_score, impact_justification, synopsis = live
         fa = p.get("first_author", {})
         la = p.get("last_author", {})
         papers.append(
@@ -1182,9 +1249,9 @@ def _run_regen_only(subtopic_id: str) -> int:
                 title=p.get("title", ""),
                 journal=p.get("journal", ""),
                 year=int(p.get("year", 0)),
-                impact_score=0.0,
-                impact_justification="",
-                synopsis=meta.description,
+                impact_score=impact_score,
+                impact_justification=impact_justification,
+                synopsis=synopsis,
                 first_author=Author(
                     person_identifier=fa.get("personIdentifier", ""),
                     display_name=fa.get("displayName", ""),
@@ -1205,6 +1272,7 @@ def _run_regen_only(subtopic_id: str) -> int:
         papers=papers,
         publish_id=publish_id,
         parent_topic=parent_topic,
+        stage_table=get_table(TABLE_NAME),
     )
 
     # Route candidate into the review queue regardless of pass/fail status:

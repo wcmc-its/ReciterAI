@@ -66,27 +66,63 @@ def size_bucket(opp) -> float | None:
 # --- honorific flag (the prereq) -------------------------------------------
 # Nomination-based recognition (unwinnable prize/medal/lectureship, or a recognition
 # "Award") that the prestige sort must NOT float to the top of the reverse RD browse
-# list (find-researchers bypasses the matcher, so it inherits no matcher-side filter).
-# ponytail: title-regex heuristic calibrated on the 199-row curated set -> ~93% honorific,
-# which fits a source that is curated *awards/prizes* with a "Nomination Deadline" column;
-# the 7% spared are genuinely applyable (fellowships/scholarships/travel/career-dev).
-# Mechanism-gated: an applyable NIH award carries an activity code (R35 "Outstanding
-# Investigator Award", DP2), honorific recognition does not — so the broad "Award" tier
-# only fires when mechanism is empty. SPS #1296 remains the authoritative gate; this is
-# the upstream default so every consumer inherits it. Upgrade path: replace with the
-# #1296 regex (or a curated is_honorific column) if precision matters.
+# list (find-researchers bypasses the matcher, so it inherits no matcher-side filter),
+# and that the SPS forward matcher hard-excludes via `must_not term isHonorific:true`.
+# This flag is the SOLE honorific gate for both consumers — SPS #1628 removed its
+# redundant title regex — so precision here matters directly.
+#
+# Two tiers:
+#   1. explicit prize/medal/lectureship/laureate wording -> always honorific.
+#   2. a bare "Award" with no NIH activity code -> honorific ONLY when it is neither a
+#      known applyable *type* (fellowship/career-dev/…) NOR from a known open-competition
+#      *grantmaker*. The sponsor veto (#314) is what keeps the tier-2 net from swallowing
+#      real foundation/agency grants titled "…Award" (DoD CDMRP, Hartwell, Damon Runyon,
+#      Komen, disease-foundation research awards): those are open competitions a PI applies
+#      to, not honors. Verified against the live corpus — the allowlist below vetoes 41
+#      award-tier items and every one is a real grant (zero true honors).
+# ponytail: sponsor allowlist, not a typed field — the corpus carries no opportunity_type.
+# Ceiling: it can't help rows with a BLANK sponsor (a wcm_curated ingest gap; ~9 real
+# grants like Hirschl/Komen stay mis-flagged) and won't auto-cover a new grantmaker. The
+# durable fix is a typed opportunity_type at ingest (ReciterAI #290). Add funders HERE as
+# they recur; do NOT reintroduce a title-text applyable heuristic (that is what #1628 cut).
 _HONORIFIC_RE = re.compile(r"\b(prizes?|prix|medals?|lectureships?|laureate)\b", re.I)
 _AWARD_RE = re.compile(r"\bawards?\b", re.I)
 _APPLYABLE_RE = re.compile(
     r"\b(fellowships?|scholarships?|travel|pilot|seed|career[ -]development|"
     r"postbac\w*|seminar|residency|internship|traineeship|sabbatical)\b", re.I)
+# Open-competition grantmakers whose "…Award" listings are applyable grants, not honors.
+# Matched as case-folded substrings of the sponsor field. Kept deliberately tight to
+# disease foundations + agencies that run open competitions; professional societies and
+# academies (AACR/ASBMB/NAS/AAAS/SfN/ICIS/AAMC) are excluded because they confer honors
+# titled "Award".
+_APPLYABLE_SPONSORS = frozenset({
+    "department of defense", "hartwell", "damon runyon", "burroughs wellcome",
+    "research to prevent blindness", "rheumatology research foundation",
+    "cystic fibrosis foundation", "crohn's & colitis", "multiple sclerosis society",
+    "children's cancer research fund", "colorectal cancer alliance", "curing kids cancer",
+    "dermatology foundation", "emerald foundation", "harrington discovery",
+    "immunodeficiency canada", "lung cancer research foundation", "mark foundation for cancer",
+    "musculoskeletal tumor society", "patient-centered outcomes research", "st. baldrick",
+    "breakthrough t1d", "american sleep medicine foundation", "american cancer society",
+    "simons foundation", "american heart association",
+})
+
+
+def _is_applyable_sponsor(sponsor: str) -> bool:
+    s = (sponsor or "").lower()
+    return any(k in s for k in _APPLYABLE_SPONSORS)
 
 
 def is_honorific(opp) -> bool:
     t = opp.title or ""
     if _HONORIFIC_RE.search(t):
         return True
-    if _AWARD_RE.search(t) and not opp.mechanism and not _APPLYABLE_RE.search(t):
+    if (
+        _AWARD_RE.search(t)
+        and not opp.mechanism
+        and not _APPLYABLE_RE.search(t)
+        and not _is_applyable_sponsor(opp.sponsor)
+    ):
         return True
     return False
 

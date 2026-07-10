@@ -107,6 +107,8 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
                         help="resumable classify-checkpoint dir (default: <out-dir>/_checkpoint; a crash re-classifies only the missing forms)")
     parser.add_argument("--publish", action="store_true",
                         help="upload tools.json to s3://wcmc-reciterai-artifacts/tools/ (default: dry-run report)")
+    parser.add_argument("--force", action="store_true",
+                        help="override the publish shrink guard (a large drop in tool count vs the live artifact)")
     args = parser.parse_args(argv)
     checkpoint_dir = args.checkpoint_dir if args.checkpoint_dir is not None else (args.out_dir / "_checkpoint")
 
@@ -160,7 +162,7 @@ def main(argv: list[str] | None = None, *, call_json=None, embed=None) -> int:
     }
     payload = build_publish_payload(result, provenance=provenance)
     paths = write_outputs(result, args.out_dir, payload=payload)
-    publish_report = publish_artifacts(payload, dry_run=not args.publish)
+    publish_report = publish_artifacts(payload, dry_run=not args.publish, force=args.force)
 
     _print_summary(result.telemetry, paths, publish_report, published=args.publish)
     return 0
