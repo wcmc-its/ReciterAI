@@ -325,3 +325,145 @@ def test_d33_invariant_passes_on_aligned_writes():
         subtopic_score_partition_data=faculty_scores_exclusive,
     )
     # No exception = pass
+
+
+# ---------------------------------------------------------------------------
+# #312 finding d: fully-dropped faculty keep a stale subtopic_scores.<topic>
+# ---------------------------------------------------------------------------
+
+
+def test_write_faculty_scores_clears_dropped_faculty(monkeypatch):
+    """A prior contributor whose every row went stale drops out of touched_pids
+    but must still have subtopic_scores.<topic> REMOVEd (also_clear) — otherwise
+    D-06's wholesale replacement never reaches them and SPS ranks on a stale score."""
+    cleared: list[str] = []
+    written: list[str] = []
+    monkeypatch.setattr(
+        agg, "clear_faculty_subtopic_scores_for_topic",
+        lambda pid, topic: cleared.append(pid),
+    )
+    monkeypatch.setattr(
+        agg, "update_faculty_subtopic_scores",
+        lambda pid, topic, scores: written.append(pid),
+    )
+
+    n_cleared, n_written = agg._write_faculty_scores(
+        {"alice": {"s1": 1.0}}, "cardio", dry_run=False,
+        also_clear={"bob", "carol"},
+    )
+
+    assert set(written) == {"alice"}, "only surviving faculty get fresh scores"
+    assert set(cleared) == {"alice", "bob", "carol"}, "dropped faculty must be cleared too"
+    assert (n_cleared, n_written) == (3, 1)
+
+
+# ---------------------------------------------------------------------------
+# #312 finding e: retired-subtopic SUBTOPIC_SCORE# partitions are orphaned
+# ---------------------------------------------------------------------------
+
+
+class _OrphanTable:
+    def __init__(self, existing):
+        self._existing = existing
+        self.deleted: list[str] = []
+
+    def scan(self, **kwargs):
+        return {"Items": self._existing}
+
+    def delete_item(self, Key):
+        self.deleted.append(Key["PK"])
+
+
+def test_delete_orphan_subtopic_score_partitions():
+    """A recompute overwrites current subtopics but leaves a retired subtopic's
+    partition behind; the prune deletes exactly the partitions not written this run,
+    across both the exclusive and inclusive kinds."""
+    existing = [
+        {"PK": "SUBTOPIC_SCORE#cardio#s1", "SK": "GLOBAL"},
+        {"PK": "SUBTOPIC_SCORE#cardio#retired", "SK": "GLOBAL"},
+        {"PK": "SUBTOPIC_SCORE_INCLUSIVE#cardio#s1", "SK": "GLOBAL"},
+        {"PK": "SUBTOPIC_SCORE_INCLUSIVE#cardio#retired", "SK": "GLOBAL"},
+    ]
+    table = _OrphanTable(existing)
+    live_pks = {"SUBTOPIC_SCORE#cardio#s1", "SUBTOPIC_SCORE_INCLUSIVE#cardio#s1"}
+
+    deleted = agg._delete_orphan_subtopic_score_partitions(
+        table, topic_id="cardio", live_pks=live_pks
+    )
+
+    assert deleted == 2
+    assert set(table.deleted) == {
+        "SUBTOPIC_SCORE#cardio#retired",
+        "SUBTOPIC_SCORE_INCLUSIVE#cardio#retired",
+    }
+
+
+# ---------------------------------------------------------------------------
+# #312 finding f: D-33 must cross-check the PERSISTED rows, not a pivot of self
+# ---------------------------------------------------------------------------
+
+
+class _ReadBackTable:
+    def __init__(self, stored):
+        self._stored = stored  # {pk: row-or-None}
+
+    def get_item(self, Key, ConsistentRead=False):
+        row = self._stored.get(Key["PK"])
+        return {"Item": row} if row is not None else {}
+
+
+def _exclusive_items(rows):
+    fse, _ = agg._aggregate_exclusive(rows)
+    items = agg._write_subtopic_score_partitions(
+        MagicMock(), topic_id="cardio",
+        faculty_scores_exclusive=fse, faculty_scores_inclusive=fse, run_id="r",
+    )
+    return fse, items
+
+
+def test_d33_readback_catches_unpersisted_partition():
+    """The read-back cross-check catches a SUBTOPIC_SCORE# write that never landed —
+    the divergence the old x==x pivot of the in-memory items structurally could not."""
+    rows = [_make_row(faculty_uid="alice", primary_subtopic_id="s1", subtopic_ids=["s1"])]
+    fse, items = _exclusive_items(rows)
+
+    table = _ReadBackTable({})  # nothing persisted → get_item returns {}
+    view = agg._read_back_exclusive_partition_view(table, items)
+
+    assert view == {}
+    with pytest.raises(RuntimeError):
+        agg._assert_d33_reconciliation(faculty_map=fse, subtopic_score_partition_data=view)
+
+
+def test_d33_readback_passes_when_persisted_rows_match():
+    """When the persisted rows match the faculty-map, the read-back view reconciles."""
+    rows = [
+        _make_row(faculty_uid="alice", primary_subtopic_id="s1", subtopic_ids=["s1"]),
+        _make_row(faculty_uid="bob",   primary_subtopic_id="s2", subtopic_ids=["s2"]),
+    ]
+    fse, items = _exclusive_items(rows)
+
+    stored = {
+        it["PK"]: it for it in items if it["record_type"] == "SUBTOPIC_SCORE"
+    }
+    table = _ReadBackTable(stored)
+    view = agg._read_back_exclusive_partition_view(table, items)
+
+    agg._assert_d33_reconciliation(faculty_map=fse, subtopic_score_partition_data=view)
+
+
+# ---------------------------------------------------------------------------
+# #312 add-regardless: non-empty TOPIC# partition must yield >=1 SUBTOPIC_SCORE
+# ---------------------------------------------------------------------------
+
+
+def test_topic_yields_partitions_invariant():
+    """aging_geroscience had 2,013 scored activities but 0 materialized partitions
+    and it alerted no one; the invariant turns that gap into a hard failure."""
+    with pytest.raises(RuntimeError, match="post-aggregation invariant"):
+        agg._assert_topic_yields_partitions("aging_geroscience", 2013, {})
+
+    # A topic that produced partitions is fine.
+    agg._assert_topic_yields_partitions("aging", 2013, {"cwid_a": {"s1": 1.0}})
+    # A genuinely empty topic (no live rows) yields nothing legitimately.
+    agg._assert_topic_yields_partitions("empty", 0, {})

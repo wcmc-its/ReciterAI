@@ -410,32 +410,98 @@ def _write_subtopic_score_partitions(
     return items_written
 
 
-def _project_exclusive_partition_view(
+def _delete_orphan_subtopic_score_partitions(
+    table: Any,
+    *,
+    topic_id: str,
+    live_pks: set[str],
+) -> int:
+    """Delete this topic's SUBTOPIC_SCORE# / SUBTOPIC_SCORE_INCLUSIVE# partitions
+    left over from a prior run whose subtopic id is no longer produced.
+
+    put_item overwrites the current subtopics' partitions, but a retired subtopic
+    (re-clustered away, renamed) leaves its old partition behind forever — nothing
+    else deletes them, so every recompute accretes orphans (unbounded growth; they
+    also corrupt ad-hoc partition scans). We enumerate the topic's partitions and
+    delete any PK not in ``live_pks`` (the set just written this run). The trailing
+    '#' in each prefix keeps a topic id from matching a longer sibling's partitions.
+    """
+    excl_prefix = f"SUBTOPIC_SCORE#{topic_id}#"
+    incl_prefix = f"SUBTOPIC_SCORE_INCLUSIVE#{topic_id}#"
+    deleted = 0
+    scan_kwargs: dict = {
+        "FilterExpression": "begins_with(PK, :e) OR begins_with(PK, :i)",
+        "ExpressionAttributeValues": {":e": excl_prefix, ":i": incl_prefix},
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        for item in resp.get("Items", []):
+            pk = item.get("PK", "")
+            if not pk or pk in live_pks:
+                continue
+            table.delete_item(Key={"PK": pk, "SK": item.get("SK", "GLOBAL")})
+            deleted += 1
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    return deleted
+
+
+def _read_back_exclusive_partition_view(
+    table: Any,
     items_written: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:
-    """Project the SUBTOPIC_SCORE# (exclusive) items back into a {pid: {sid: score}} dict.
+    """Read the PERSISTED SUBTOPIC_SCORE# (exclusive) rows back and project them
+    into {pid: {sid: score}} for the D-33 reconciliation.
 
-    The Decimal-coerced faculty_scores in each item are converted back to float
-    for the D-33 reconciliation comparison (which uses an epsilon-based float
-    compare). Only items with record_type == "SUBTOPIC_SCORE" contribute; the
-    inclusive partition has no parallel faculty-map view (D-33 scope).
-
-    This is the second, INDEPENDENT derivation of the exclusive aggregation
-    that D-33 cross-checks against the in-memory faculty-map. Passing the
-    aggregator's own faculty_scores dict here would reduce the check to x == x
-    (W-2 tautology — the bug this helper exists to prevent).
+    Projecting the in-memory items instead (both sides built from the same
+    faculty_scores dict) only ever validates item construction — the two
+    derivations are the same numbers pivoted differently, so a real aggregation
+    or write bug corrupts both identically and the check passes. Reading the rows
+    that actually landed (ConsistentRead) makes D-33 a genuine memory-vs-persisted
+    cross-check: a partition that did not persist, or persisted with a corrupted /
+    round-trip-lost value, now diverges from the faculty-map and raises. Only
+    record_type == "SUBTOPIC_SCORE" rows contribute (the inclusive partition has
+    no parallel faculty-map view — D-33 scope).
     """
     by_pid: dict[str, dict[str, float]] = defaultdict(dict)
     for item in items_written:
         if item.get("record_type") != "SUBTOPIC_SCORE":
             continue
-        subtopic_id = item.get("subtopic_id", "")
+        resp = table.get_item(
+            Key={"PK": item["PK"], "SK": item.get("SK", "GLOBAL")},
+            ConsistentRead=True,
+        )
+        row = resp.get("Item")
+        if not row:
+            # A written partition that will not read back is itself a divergence;
+            # leaving it out of the view surfaces it as a reconciliation failure.
+            continue
+        subtopic_id = row.get("subtopic_id", "")
         if not subtopic_id:
             continue
-        faculty_scores = item.get("faculty_scores", {}) or {}
-        for pid, score in faculty_scores.items():
+        for pid, score in (row.get("faculty_scores", {}) or {}).items():
             by_pid[pid][subtopic_id] = float(score)
     return {pid: dict(scores) for pid, scores in by_pid.items()}
+
+
+def _assert_topic_yields_partitions(
+    topic_id: str,
+    live_row_count: int,
+    faculty_scores: dict,
+) -> None:
+    """Post-aggregation invariant (audit-2026-07): a non-empty TOPIC# partition
+    MUST yield >=1 SUBTOPIC_SCORE partition. `aging_geroscience` had 2,013 scored
+    activities but 0 materialized partitions and the gap alerted no one — make it
+    a hard failure so a topic that scored rows yet produced no subtopic partitions
+    (every row unassigned/malformed) aborts the stage instead of silently
+    shipping an empty rollup to SPS."""
+    if live_row_count and not faculty_scores:
+        raise RuntimeError(
+            f"post-aggregation invariant violated: TOPIC#{topic_id} has "
+            f"{live_row_count} live SCORE# rows but produced 0 SUBTOPIC_SCORE "
+            f"partitions (every row unassigned or malformed)"
+        )
 
 
 def _assert_d33_reconciliation(
@@ -492,29 +558,41 @@ def _assert_d33_reconciliation(
 # DynamoDB write (wholesale replacement, D-06)
 # ---------------------------------------------------------------------------
 
+def _clear_topic_for(person_identifier: str, topic_id: str) -> bool:
+    """REMOVE subtopic_scores.<topic> on one faculty. Returns True if attempted."""
+    try:
+        clear_faculty_subtopic_scores_for_topic(person_identifier, topic_id)
+        return True
+    except Exception as exc:
+        # The REMOVE on a non-existent nested path is a benign no-op in
+        # DynamoDB; the only real failure is a missing FACULTY# record.
+        logger.warning(
+            f"clear_faculty_subtopic_scores_for_topic failed for "
+            f"pid={person_identifier}: {exc}"
+        )
+        return False
+
+
 def _write_faculty_scores(
     faculty_scores: dict,
     topic_id: str,
     dry_run: bool,
+    also_clear: set[str] | None = None,
 ) -> tuple[int, int]:
     """For every touched faculty, clear stale scores for this topic, then write
-    the fresh dict. Returns (cleared_count, written_count).
+    the fresh dict. Faculty in ``also_clear`` (prior contributors whose every row
+    in this topic went stale, so they produce no fresh score) are cleared but NOT
+    written — otherwise D-06's wholesale replacement never reaches them and SPS
+    keeps ranking on an obsolete subtopic_scores.<topic> entry. Returns
+    (cleared_count, written_count).
     """
     cleared = 0
     written = 0
     for person_identifier, scores in faculty_scores.items():
         if dry_run:
             continue
-        try:
-            clear_faculty_subtopic_scores_for_topic(person_identifier, topic_id)
+        if _clear_topic_for(person_identifier, topic_id):
             cleared += 1
-        except Exception as exc:
-            # The REMOVE on a non-existent nested path is a benign no-op in
-            # DynamoDB; the only real failure is a missing FACULTY# record.
-            logger.warning(
-                f"clear_faculty_subtopic_scores_for_topic failed for "
-                f"pid={person_identifier}: {exc}"
-            )
 
         try:
             update_faculty_subtopic_scores(person_identifier, topic_id, scores)
@@ -524,6 +602,12 @@ def _write_faculty_scores(
                 f"update_faculty_subtopic_scores failed for "
                 f"pid={person_identifier}: {exc}"
             )
+
+    for person_identifier in sorted(also_clear or ()):
+        if dry_run:
+            continue
+        if _clear_topic_for(person_identifier, topic_id):
+            cleared += 1
     return cleared, written
 
 
@@ -575,6 +659,15 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
 
     rows = _query_topic_rows(topic_id)
 
+    # Faculty who held ANY row in this topic before the live-intersection. A
+    # member whose every row goes stale drops out of touched_pids below but keeps
+    # a subtopic_scores.<topic> entry that D-06's per-touched clear never reaches;
+    # capture them here so we can clear those orphaned entries too (finding d).
+    prior_faculty = {
+        _strip_faculty_prefix(r.get("faculty_uid") or "") for r in rows
+    }
+    prior_faculty.discard("")
+
     # #222: drop stale rows (faculty no longer attributed to the pmid in the
     # live MariaDB mapping) before aggregating, so they stop inflating scores.
     rows = _filter_rows_to_live(rows)
@@ -583,12 +676,16 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
     faculty_scores, total_weights = _aggregate_exclusive(rows)
     faculty_scores_inclusive, total_weights_inclusive = _aggregate_inclusive(rows)
 
+    _assert_topic_yields_partitions(topic_id, len(rows), faculty_scores)
+
     touched_pids = set(faculty_scores.keys())
     logger.info(f"Faculty touched: {len(touched_pids)}")
 
-    # 1. Write existing faculty-map (unchanged SPS consumer contract per D-13)
+    # 1. Write existing faculty-map (unchanged SPS consumer contract per D-13).
+    #    Also clear the topic entry for prior contributors who lost every row.
     cleared, written = _write_faculty_scores(
-        faculty_scores, topic_id, dry_run=dry_run
+        faculty_scores, topic_id, dry_run=dry_run,
+        also_clear=prior_faculty - touched_pids,
     )
     logger.info(
         f"Writes: cleared={cleared}, written={written}, dry_run={dry_run}"
@@ -610,12 +707,21 @@ def run(topic_id: str, output_dir: Path, dry_run: bool) -> dict:
             f"for topic={topic_id} run_id={run_id}"
         )
 
-        # 3. D-33 in-stream invariant: verify faculty-map ↔ SUBTOPIC_SCORE# equality
-        # per CWID/subtopic. The partition view is reconstructed from the items
-        # actually emitted to put_item (independent of the faculty_scores dict),
-        # so this is a genuine cross-check — not the x == x tautology of passing
-        # the same dict twice.
-        partition_view = _project_exclusive_partition_view(items_written)
+        # 3. Prune orphan partitions from retired subtopic ids (finding e): every
+        # recompute overwrites current subtopics but leaves a re-clustered-away
+        # subtopic's partition behind forever.
+        orphans = _delete_orphan_subtopic_score_partitions(
+            table, topic_id=topic_id,
+            live_pks={it["PK"] for it in items_written},
+        )
+        if orphans:
+            logger.info(f"Pruned {orphans} orphan SUBTOPIC_SCORE partitions for topic={topic_id}")
+
+        # 4. D-33 in-stream invariant: verify faculty-map ↔ SUBTOPIC_SCORE# equality
+        # per CWID/subtopic. The partition view is read back from the rows that
+        # actually persisted (ConsistentRead), so this is a genuine memory-vs-DDB
+        # cross-check — not the x == x tautology of pivoting the same dict twice.
+        partition_view = _read_back_exclusive_partition_view(table, items_written)
         _assert_d33_reconciliation(
             faculty_map=faculty_scores,
             subtopic_score_partition_data=partition_view,
