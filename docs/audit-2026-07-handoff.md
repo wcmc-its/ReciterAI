@@ -29,6 +29,8 @@ Method: 8 subsystem reviewers over `origin/main` (952b78f) plus a read-only prob
 
 ### 2.1 Rollout steps for what already merged — **do these first, they are half-finished**
 
+> **Executable runbook:** [`docs/audit-2026-07-rollout-runbook.md`](audit-2026-07-rollout-runbook.md) — the ordered, command-by-command procedure. It supersedes the step *ordering* below and accounts for the later #318–#323 merges (audit issues #308–#312), which ride the same deploy surfaces. The notes below stay as the rationale.
+
 1. **Run the spotlight history fold.** `#304` shipped `scripts/fold_spotlight_history_versions.py` but it has **not been run**. It must run *after* the code is deployed, or the old code re-fragments the partitions on its next publish.
    ```
    scripts/fold_spotlight_history_versions.py --dry-run   # expect: 159 rows, 91 subtopics, 38 recovered, 0 malformed
