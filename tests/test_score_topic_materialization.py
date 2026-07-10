@@ -31,7 +31,7 @@ _AUTHORS = [{"cwid": "abc1234", "position": "first"}]
 class _FakeBedrockScoring:
     """Bedrock stub: topic int 0 passes screening and dense scoring."""
 
-    def call_json(self, *, model, messages):
+    def call_json(self, *, model, messages, **kwargs):
         if model == HAIKU_MODEL:
             return {"0": 0.9}
         return {"0": {"score": 0.9, "rationale": "r"}}
@@ -42,7 +42,7 @@ class _FakeBedrockNoPass:
     so no topic clears screening — score_one_publication takes the
     no-relevant-topics completion path."""
 
-    def call_json(self, *, model, messages):
+    def call_json(self, *, model, messages, **kwargs):
         if model == HAIKU_MODEL:
             return {"0": 0.0}
         return {"0": {"score": 0.0, "rationale": ""}}
