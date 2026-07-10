@@ -64,6 +64,7 @@ from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.dynamodb_subtopic_migration import update_activity_subtopics
 from utils.stage_records import (
     build_complete_record,
+    build_failed_record,
     build_skipped_record,
     compute_input_hash,
     should_skip,
@@ -1064,25 +1065,49 @@ def run(
         else:
             print(f"  {k}: {v}")
 
-    # --- Phase 10 D-07: STAGE# complete row (direct write or envelope emit) ---
+    # --- Phase 10 D-07: STAGE# terminal row (direct write or envelope emit) ---
     if stage_table is not None:
         completed_at = now_iso()
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)
-        complete_kwargs = dict(
-            stage=STAGE_NAME,
-            scope=_topic_scope(topic_id),
-            input_hash=input_hash,
-            started_at=stage_started_at,
-            completed_at=completed_at,
-            duration_ms=duration_ms,
-            cost_observed_usd=ASSIGN_COST_USD,
-            records_written=total_rows_written,
-            model_ids_snapshot=STAGE_MODEL_IDS,
-        )
-        if emit_envelope:
-            print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+        if failed_count:
+            # A `complete` row would let the content-addressed skip cache
+            # (should_skip matches on input_hash alone) treat this run as a
+            # permanent success: a --resume re-run recomputes the same
+            # pmids_todo set → same input_hash → the topic-level skip fires
+            # before any failed PMID is retried. Write `failed` so the retry
+            # actually re-runs (#310).
+            failed_kwargs = dict(
+                stage=STAGE_NAME,
+                scope=_topic_scope(topic_id),
+                input_hash=input_hash,
+                error_code="ASSIGN_PMIDS_FAILED",
+                error_message=f"{failed_count}/{total} PMIDs failed to assign",
+                started_at=stage_started_at,
+                completed_at=completed_at,
+                duration_ms=duration_ms,
+                cost_observed_usd=ASSIGN_COST_USD,
+                model_ids_snapshot=STAGE_MODEL_IDS,
+            )
+            if emit_envelope:
+                print(json.dumps(build_failed_record(**failed_kwargs), default=str))
+            else:
+                write_failed(stage_table, **failed_kwargs)
         else:
-            write_complete(stage_table, **complete_kwargs)
+            complete_kwargs = dict(
+                stage=STAGE_NAME,
+                scope=_topic_scope(topic_id),
+                input_hash=input_hash,
+                started_at=stage_started_at,
+                completed_at=completed_at,
+                duration_ms=duration_ms,
+                cost_observed_usd=ASSIGN_COST_USD,
+                records_written=total_rows_written,
+                model_ids_snapshot=STAGE_MODEL_IDS,
+            )
+            if emit_envelope:
+                print(json.dumps(build_complete_record(**complete_kwargs), default=str))
+            else:
+                write_complete(stage_table, **complete_kwargs)
 
     return summary
 

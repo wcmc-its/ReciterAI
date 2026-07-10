@@ -202,3 +202,76 @@ def test_per_pmid_input_hash_is_pmid_sensitive():
     assert h1 != h2
     # Determinism
     assert h1 == sp._per_pmid_input_hash("taxonomy_v2", "1")
+
+
+# ---------- #310: total failure must not write a `complete` terminal row -----
+
+
+def _run_main_and_capture_terminal_record(monkeypatch, capsys, results):
+    """Drive main() in --emit-envelope mode over a one-PMID --pmids --force run
+    whose scoring produces `results`, and return the emitted GLOBAL STAGE#
+    record dict. --emit-envelope prints the terminal record instead of writing
+    it, and skips every file/DynamoDB side effect."""
+    import asyncio
+    import json as _json
+    import sys
+
+    monkeypatch.setattr(sys, "argv", [
+        "score_publications.py", "--pmids", "99999", "--force", "--emit-envelope",
+    ])
+    monkeypatch.setattr(sp, "get_table", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(sp, "load_thresholds", lambda: {})
+    monkeypatch.setattr(sp, "BedrockClient", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(sp, "get_dynamo_client", lambda: MagicMock())
+    monkeypatch.setattr(
+        sp, "extract_publications_by_pmids",
+        lambda pmids: [{"pmid": "99999", "title": "t",
+                        "abstract": "a", "synopsis": "s"}],
+    )
+    monkeypatch.setattr(sp, "scan_invalid_pmids", lambda *a, **k: [])
+    monkeypatch.setattr(sp, "extract_author_mapping", lambda: {})
+    monkeypatch.setattr(sp, "extract_faculty_metadata", lambda: {})
+
+    async def fake_score_batch(*a, **k):
+        return results
+
+    monkeypatch.setattr(sp, "score_batch_async", fake_score_batch)
+
+    asyncio.run(sp.main())
+
+    target_pk = f"STAGE#{sp.STAGE_NAME}#{sp.STAGE_SCOPE_GLOBAL}"
+    for line in capsys.readouterr().out.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            rec = _json.loads(line)
+        except ValueError:
+            continue
+        if rec.get("PK") == target_pk:
+            return rec
+    return None
+
+
+def test_total_failure_emits_failed_terminal_record_not_complete(monkeypatch, capsys):
+    """#310: a --pmids run where every PMID fails must emit a `failed` terminal
+    STAGE# record, not a `complete` one. A `complete` row (records_written=0)
+    collides on input_hash with the re-run and makes the outage permanent."""
+    results = [sp.ScoringResult(pmid="99999", synopsis="s", abstract="a",
+                                status="failed")]
+    rec = _run_main_and_capture_terminal_record(monkeypatch, capsys, results)
+    assert rec is not None
+    assert rec["status"] == sr.STATUS_FAILED
+
+
+def test_partial_success_still_emits_complete_terminal_record(monkeypatch, capsys):
+    """Control: at least one scored PMID keeps the terminal record `complete`."""
+    results = [
+        sp.ScoringResult(pmid="99999", synopsis="s", abstract="a",
+                         status="complete", dense_scores={"t1": {"score": 0.9}}),
+        sp.ScoringResult(pmid="88888", synopsis="s", abstract="a",
+                         status="failed"),
+    ]
+    rec = _run_main_and_capture_terminal_record(monkeypatch, capsys, results)
+    assert rec is not None
+    assert rec["status"] == sr.STATUS_COMPLETE
