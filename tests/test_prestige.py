@@ -98,6 +98,24 @@ def test_is_honorific_sponsor_veto():
     assert h(_opp(title="Some Prize", sponsor="Department of Defense"))
 
 
+def test_is_honorific_recognition_wording():
+    """#289 side 2 — conferred recognition (designation / named chair / election) that leaks
+    past the prize/medal tier. Always honorific; a mechanism or applyable sponsor must NOT
+    rescue it (you can't apply for a designation). MACC is the live-corpus leak this fixes."""
+    h = prestige.is_honorific
+    for title in [
+        "Master of the American College of Cardiology (MACC) designation",
+        "Election to the National Academy of Medicine",
+        "Jane Doe Endowed Chair in Oncology",
+        "Named Professorship in Immunology",
+        "Cardiology Hall of Fame",
+    ]:
+        assert h(_opp(title=title, mechanism="R01", sponsor="Department of Defense")), title
+    # 'chair'/'professorship' only recognize when *named*/*endowed* — a bare committee-chair
+    # grant title must not be swept in.
+    assert not h(_opp(title="Steering Chair Pilot Research Grant", mechanism="R01"))
+
+
 def test_sponsor_tier_matches_curated_funders():
     s = prestige.sponsor_tier
     assert s(_opp(sponsor="U.S. National Science Foundation")) == 0.7

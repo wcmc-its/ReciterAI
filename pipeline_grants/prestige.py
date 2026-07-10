@@ -86,6 +86,15 @@ def size_bucket(opp) -> float | None:
 # durable fix is a typed opportunity_type at ingest (ReciterAI #290). Add funders HERE as
 # they recur; do NOT reintroduce a title-text applyable heuristic (that is what #1628 cut).
 _HONORIFIC_RE = re.compile(r"\b(prizes?|prix|medals?|lectureships?|laureate)\b", re.I)
+# Recognition-only wording (#289): items you are *conferred*, never apply for — a
+# designation, a named/endowed chair, election to a body, a hall of fame. These carry no
+# money and leak past the prize/medal tier ("Master of the American College of Cardiology
+# (MACC) designation" surfaced as a fundable opportunity on staging). Always honorific, no
+# mechanism/sponsor escape — none of these words can name an applyable grant. Verified
+# against the live corpus: flags the one MACC leak and zero real grants.
+_RECOGNITION_RE = re.compile(
+    r"\b(designation|named (chair|professorship)|endowed (chair|professorship)|"
+    r"election to|elected to|hall of fame)\b", re.I)
 _AWARD_RE = re.compile(r"\bawards?\b", re.I)
 _APPLYABLE_RE = re.compile(
     r"\b(fellowships?|scholarships?|travel|pilot|seed|career[ -]development|"
@@ -115,7 +124,7 @@ def _is_applyable_sponsor(sponsor: str) -> bool:
 
 def is_honorific(opp) -> bool:
     t = opp.title or ""
-    if _HONORIFIC_RE.search(t):
+    if _HONORIFIC_RE.search(t) or _RECOGNITION_RE.search(t):
         return True
     if (
         _AWARD_RE.search(t)
