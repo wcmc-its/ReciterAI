@@ -292,7 +292,10 @@ def _classify_resumable(
             done += len(recs)
             completed += 1
             if checkpoint_path:
-                flush_buffer.extend(recs)
+                # Cache only real classifications — an _unclassified placeholder (llm-error /
+                # omitted, disposition None) must NOT persist, or a resume treats it as done and
+                # never retries, permanently dropping the tool from the taxonomy (cf. extract.py).
+                flush_buffer.extend(c for c in recs if c.get("disposition") is not None)
                 if completed % _CLASSIFY_FLUSH_EVERY == 0:
                     _append_classify_cache(checkpoint_path, flush_buffer)
                     flush_buffer = []
