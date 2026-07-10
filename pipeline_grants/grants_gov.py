@@ -30,6 +30,28 @@ def search_opportunities(*, keyword: str = "", statuses: str = "posted|forecaste
     return _check(_post_json(SEARCH_URL, payload))
 
 
+def search_all_opportunities(*, keyword: str = "", statuses: str = "posted|forecasted",
+                             rows: int = 100, agencies: str = ""):
+    """Yield every oppHit across all result pages, paginating startRecordNum to data.hitCount.
+
+    `rows` is the page size. Includes forecasted NOFOs by default. Two independent stop
+    conditions (an empty page, or having yielded hitCount rows) guard against an inflated
+    hitCount looping forever.
+    """
+    start = seen = 0
+    while True:
+        data = search_opportunities(keyword=keyword, statuses=statuses,
+                                    rows=rows, start=start, agencies=agencies)
+        hits = data.get("oppHits") or []
+        if not hits:
+            break
+        yield from hits
+        seen += len(hits)
+        if seen >= data.get("hitCount", 0):
+            break
+        start += rows
+
+
 def fetch_opportunity(opportunity_id: str) -> dict:
     """Full detail for one opportunity. Returns the `data` object (data.synopsis, data.cfdas, ...)."""
     return _check(_post_json(FETCH_URL, {"opportunityId": opportunity_id}))

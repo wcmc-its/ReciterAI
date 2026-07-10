@@ -21,6 +21,23 @@ def test_fetch_opportunity_unwraps_data(monkeypatch):
     assert gg.fetch_opportunity("359855")["id"] == "359855"
 
 
+def test_search_all_opportunities_paginates_and_includes_forecasted(monkeypatch):
+    # 5 hits across pages of 2 -> requests at startRecordNum 0,2,4 then stops at hitCount
+    # (no extra empty page). Default status set must include forecasted NOFOs.
+    pages = {0: [{"id": "a"}, {"id": "b"}], 2: [{"id": "c"}, {"id": "d"}], 4: [{"id": "e"}]}
+    starts = []
+
+    def fake_post(url, payload, timeout=30):
+        starts.append(payload["startRecordNum"])
+        assert payload["oppStatuses"] == "posted|forecasted"
+        return {"errorcode": 0, "data": {"hitCount": 5, "oppHits": pages[payload["startRecordNum"]]}}
+
+    monkeypatch.setattr(gg, "_post_json", fake_post)
+    ids = [h["id"] for h in gg.search_all_opportunities(rows=2)]
+    assert ids == ["a", "b", "c", "d", "e"]
+    assert starts == [0, 2, 4]
+
+
 def test_raises_on_grants_gov_errorcode(monkeypatch):
     monkeypatch.setattr(gg, "_post_json", lambda url, payload, timeout=30: {"errorcode": 1, "msg": "boom", "data": {}})
     try:

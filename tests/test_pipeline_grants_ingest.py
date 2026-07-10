@@ -74,6 +74,31 @@ def test_run_ingest_skips_failed_item_and_persists_the_rest(monkeypatch):
     assert {i["PK"]["S"] for i in persisted_items} == {"GRANT#grants_gov:1", "GRANT#grants_gov:3"}
 
 
+def test_run_ingest_respects_limit(monkeypatch):
+    # Three research hits are available; --limit 1 must fetch/process only the first, so the
+    # per-item Bedrock cost of a paginated sweep stays boundable.
+    monkeypatch.setattr(ingest.grants_gov, "search_opportunities",
+                        lambda **kw: {"hitCount": 3, "oppHits": [{"id": "1"}, {"id": "2"}, {"id": "3"}]})
+    titles = {"1": "Cancer Research Project", "2": "Diabetes Research Project", "3": "Heart Research Project"}
+    monkeypatch.setattr(ingest.grants_gov, "fetch_opportunity",
+                        lambda oid: {"id": oid, "opportunityTitle": titles[oid],
+                                     "synopsis": {"synopsisDesc": "research"}})
+    monkeypatch.setattr(ingest.scoring, "load_taxonomy", lambda: {"taxonomy_version": "taxonomy_v2", "topics": []})
+    monkeypatch.setattr(ingest.scoring, "build_index", lambda tax: ({}, {}))
+    monkeypatch.setattr(ingest.scoring, "score_grant_text",
+                        lambda **kw: {"breast_cancer": {"score": 0.9, "rationale": "r"}})
+    monkeypatch.setattr(ingest, "judge_opportunity",
+                        lambda opp, bedrock: {"is_research": True, "reason": "", "appeal_by_stage": {}})
+    monkeypatch.setattr(ingest, "BedrockClient", lambda *a, **k: object())
+    monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
+    monkeypatch.setattr(ingest, "put_grants", lambda client, items, **kw: len(items))
+    monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
+
+    summary = ingest.run(rows=10, keyword="", limit=1)
+    assert summary["fetched"] == 1
+    assert summary["kept"] == 1
+
+
 def test_run_ingest_skips_key_already_held_by_corpus(monkeypatch):
     # The corpus already holds this normalized key under an equal-priority source
     # (a different grants.gov listing) -> the incoming hit is skipped BEFORE any
