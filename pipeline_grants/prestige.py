@@ -114,6 +114,13 @@ _APPLYABLE_SPONSORS = frozenset({
     "musculoskeletal tumor society", "patient-centered outcomes research", "st. baldrick",
     "breakthrough t1d", "american sleep medicine foundation", "american cancer society",
     "simons foundation", "american heart association",
+    # Federal biomedical agencies run open grant competitions; their "…Award" listings
+    # (NIH Institutional Network / MERIT / MIRA, HRSA Kirschstein NRSA) are applyable grants,
+    # not honors (#289). NSF is deliberately omitted: its mis-flagged "…Award" items are
+    # off-domain (engineering/archaeology) — that is #293's biomedical gate to suppress, not
+    # this one's. The lone FNIH honor here ("Montrone-Seigel Prize") stays flagged because
+    # _HONORIFIC_RE fires on "Prize" before the sponsor branch is consulted.
+    "national institutes of health", "health resources and services administration",
 })
 
 
