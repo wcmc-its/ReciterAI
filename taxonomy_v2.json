@@ -392,12 +392,6 @@
       "display_threshold": 0.5
     },
     {
-      "id": "hematology_medical_oncology",
-      "label": "Hematology & Medical Oncology",
-      "description": "Clinical practice and translational research in the integrated discipline of medical oncology and malignant hematology — systemic cancer treatment spanning chemotherapy, immunotherapy, targeted and cellular therapies (including CAR-T and stem cell transplantation), and oncology clinical trials. Encompasses diagnosis and management of hematologic malignancies (leukemia, lymphoma, myeloma) alongside solid-tumor medical oncology across organ sites, plus supportive and survivorship care. Distinct from benign Hematology (hemostasis, anemias) and from organ-specific cancer biology, which it complements rather than replaces.",
-      "display_threshold": 0.5
-    },
-    {
       "id": "bioethics_medical_humanities",
       "label": "Bioethics, Medical Humanities & Clinician Wellbeing",
       "description": "Research examining ethical frameworks in medicine, patient autonomy, clinical decision-making, AI ethics in healthcare, and the philosophical foundations of biomedical ethics. Includes clinician burnout, moral distress, resilience, narrative medicine, and the role of humanities in medical education and professional identity.",
