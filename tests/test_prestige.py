@@ -81,8 +81,18 @@ def test_is_honorific_sponsor_veto():
         ("Physician-Scientist Award", "Research to Prevent Blindness"),
         ("Investigator Award", "Rheumatology Research Foundation"),
         ("Clinical Research Award", "Cystic Fibrosis Foundation"),
+        # Federal biomedical open-competition agencies (#289): applyable grants titled "Award".
+        ("Institutional Network Award for Promoting Kidney Research", "National Institutes of Health"),
+        ("Ruth L. Kirschstein National Research Service Award Institutional", "Health Resources and Services Administration"),
     ]:
         assert not h(_opp(title=title, sponsor=sponsor)), f"should be applyable: {title}"
+
+    # NIH/HRSA "…Award" grants stay applyable even with no mechanism on the item.
+    assert not h(_opp(title="Maximizing Investigators' Research Award", sponsor="National Institutes of Health"))
+    # ...but an FNIH-conferred PRIZE is caught by the prize tier BEFORE the sponsor branch,
+    # so the NIH-substring sponsor match never resurrects it.
+    assert h(_opp(title="Montrone-Seigel Prize in Biomedical Sciences",
+                  sponsor="Foundation for the National Institutes of Health"))
 
     # The veto is narrow: professional societies / academies confer HONORS titled 'Award'
     # and must stay flagged. Same bare-'Award' titles, honor-conferring sponsor -> honorific.
