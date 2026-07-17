@@ -1,5 +1,7 @@
-"""#224: spotlight publish aborts (zero PutObject) on a catastrophic card shrink,
-fail-open on a missing/unreadable prior, overridable with force=True."""
+"""#224 + §1.5: spotlight publish aborts (zero PutObject) on a catastrophic card
+shrink OR below the absolute floor (spotlight_publish_min_cards, default 5), fails
+open on a missing/unreadable PRIOR only for a healthy (>= floor) artifact,
+overridable with force=True."""
 import json
 
 from spotlight import publish as sp
@@ -49,10 +51,21 @@ def test_within_tolerance_publishes(monkeypatch):
 
 
 def test_no_prior_publishes(monkeypatch):
+    # A healthy (>= floor) artifact still publishes when there is no prior to
+    # relatively compare — the relative guard's fail-open is preserved.
     s3 = _FakeS3(prior_cards=None)
-    rc = _publish(monkeypatch, s3, _artifact(3))
+    rc = _publish(monkeypatch, s3, _artifact(6))
     assert rc == 0
     assert len(s3.puts) >= 6
+
+
+def test_below_floor_aborts_even_without_prior(monkeypatch):
+    # §1.5: the absolute floor closes the no-prior fail-open window — a collapse
+    # to a handful of cards must NOT overwrite latest/ even with nothing to compare.
+    s3 = _FakeS3(prior_cards=None)
+    rc = _publish(monkeypatch, s3, _artifact(3))  # 3 < floor 5
+    assert rc == 1
+    assert s3.puts == []
 
 
 def test_force_overrides_shrink(monkeypatch):
@@ -68,6 +81,6 @@ def test_prior_fetch_error_fails_open(monkeypatch):
             raise RuntimeError("s3 down")
 
     s3 = _BadS3(prior_cards=9)
-    rc = _publish(monkeypatch, s3, _artifact(2))
-    assert rc == 0  # unreadable prior must not block a publish
+    rc = _publish(monkeypatch, s3, _artifact(6))  # healthy artifact, >= floor
+    assert rc == 0  # unreadable prior must not block a healthy publish
     assert len(s3.puts) >= 6

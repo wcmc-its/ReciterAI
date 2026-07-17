@@ -349,6 +349,11 @@
       "maximum": 1,
       "description": "#224 publish shrink guard (spotlight). spotlight/publish.py aborts (returns non-zero, no PutObject) when the new card count is below prev*(1-this) vs the prior latest/ artifact, unless --force. 0.34 ~= block losing >3 of 9 cards while tolerating normal 1-2 card rotation. Code default 0.34."
     },
+    "spotlight_publish_min_cards": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "§1.5 absolute publish floor (spotlight). spotlight/publish.py aborts (returns non-zero, no PutObject) when the new card count is below this, regardless of the prior -- backstops the relative shrink guard's fail-open window (no prior / corrupt prior), where ajv's minItems:1 otherwise lets a 1..N-card collapse through. Overridable with --force. Code default 5. Tune up toward the healthy steady-state card count."
+    },
     "spotlight_author_resolve_min_ratio": {
       "type": "number",
       "minimum": 0,

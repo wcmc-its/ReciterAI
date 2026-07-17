@@ -404,6 +404,7 @@ def _run_publish(dry_run: bool) -> int:
     from utils.s3_client import S3HierarchyClient
     from jsonschema import Draft202012Validator
     from botocore.exceptions import NoCredentialsError
+    from gates.shrink_guard import shrink_guard_gate
     import hashlib
     from datetime import date, datetime, timezone
 
@@ -477,6 +478,39 @@ def _run_publish(dry_run: bool) -> int:
                 f"{version}/ already exists in s3://{HIERARCHY_BUCKET} "
                 f"— overwriting (same-day re-publish)."
             )
+
+        # §4.2 shrink guard — this raw-publish path bypassed the gate that
+        # pipeline_hierarchy/publish.py runs, and the schema has no minItems on
+        # subtopics, so a truncated hierarchy validates and ships. Block a
+        # catastrophic shrink vs the live latest/ BEFORE any PutObject. Baseline
+        # is counted off the prior latest/hierarchy.json itself (not the manifest,
+        # which this path does not stamp with a subtopic_count), so it works no
+        # matter which publisher wrote the prior. Fail-open on a missing/corrupt
+        # prior; override with BACKFILL_PUBLISH_FORCE=1.
+        new_subtopic_count = sum(
+            len(t.get("subtopics", [])) for t in hierarchy.get("topics", {}).values()
+        )
+        prev_subtopic_count = None
+        try:
+            if s3.key_exists("latest/hierarchy.json"):
+                prev_h = json.loads(s3.get_object_bytes("latest/hierarchy.json"))
+                prev_subtopic_count = sum(
+                    len(t.get("subtopics", [])) for t in prev_h.get("topics", {}).values()
+                )
+        except Exception as exc:  # noqa: BLE001 — fail-open, but say so
+            logger.warning(
+                "shrink guard: could not read prior latest/hierarchy.json (%s); "
+                "guard is fail-open this run", exc,
+            )
+        gate = shrink_guard_gate(
+            prev_subtopic_count=prev_subtopic_count, new_subtopic_count=new_subtopic_count
+        )
+        if gate.blocked and os.environ.get("BACKFILL_PUBLISH_FORCE") != "1":
+            print(
+                f"\nABORT: hierarchy {gate.summary} — refusing to overwrite latest/. "
+                f"Re-run with BACKFILL_PUBLISH_FORCE=1 to override."
+            )
+            return 1
 
         # Versioned prefix (D-04).
         s3.put_object(f"{version}/hierarchy.json", hierarchy_bytes)

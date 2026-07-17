@@ -312,6 +312,12 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
         "schema_version": PUBLISH_SCHEMA_VERSION,
         "version": f"v{generated_at[:10]}",  # YYYY-MM-DD, from the single clock read
         "generated_at": generated_at,
+        # §4.4 content identity: the artifact's REAL corpus run time (from the
+        # producing run's provenance), distinct from `version`/`generated_at`,
+        # which are publish-wall-clock and advance even on a zero-content
+        # republish. Lets SPS surface the true "data as of" moment instead of
+        # the publish date. None if the caller supplied no provenance.
+        "run_at_utc": (payload.get("provenance") or {}).get("run_at_utc"),
         "sha256": hashlib.sha256(tools_it.body).hexdigest(),
         "artifact_bytes": tools_it.size,
         "objects": objects,

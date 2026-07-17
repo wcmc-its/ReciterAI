@@ -423,3 +423,32 @@ def test_run_archive_failure_does_not_fail_publish(
     # the consumer-facing version/latest writes still happened
     keys = [c.args[0] for c in mock_s3.put_object.call_args_list]
     assert "spotlight/latest/spotlight.json" in keys
+
+
+# §1.5 absolute-floor guard — a schema-valid but collapsed artifact (below the
+# floor) must NOT overwrite latest/, even with no prior to relatively compare.
+def test_13_below_floor_aborts_no_putobject(
+    valid_artifact, schema, selections, mock_s3, mock_dynamo, capsys
+):
+    mock_s3.key_exists.return_value = False  # no prior: relative guard fails open
+    collapsed = {**valid_artifact, "spotlights": valid_artifact["spotlights"][:1]}
+    rc = publish_artifact(
+        artifact=collapsed, schema=schema, selections=selections,
+        dry_run=False, s3_client=mock_s3, dynamo_client=mock_dynamo,
+    )
+    assert rc == 1
+    assert mock_s3.put_object.call_count == 0
+    assert "absolute" in capsys.readouterr().out.lower()
+
+
+def test_14_force_overrides_the_floor(
+    valid_artifact, schema, selections, mock_s3, mock_dynamo
+):
+    mock_s3.key_exists.return_value = False
+    collapsed = {**valid_artifact, "spotlights": valid_artifact["spotlights"][:1]}
+    rc = publish_artifact(
+        artifact=collapsed, schema=schema, selections=selections,
+        dry_run=False, s3_client=mock_s3, dynamo_client=mock_dynamo, force=True,
+    )
+    assert rc == 0
+    assert mock_s3.put_object.call_count == 6
