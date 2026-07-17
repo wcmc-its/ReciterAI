@@ -83,19 +83,36 @@ def _spotlight_shrink_fraction() -> float:
         return 0.34
 
 
+def _spotlight_min_cards() -> int:
+    """§1.5 absolute floor — the fewest cards a publish may carry regardless of the
+    prior. Backstops the relative guard's fail-open window (no prior / corrupt
+    prior), where ajv's minItems:1 otherwise lets a 1..N-card collapse through."""
+    try:
+        from utils.env_check import load_thresholds
+
+        return int(load_thresholds().get("spotlight_publish_min_cards", 5))
+    except Exception:
+        return 5
+
+
 def _prior_spotlight_card_count(s3) -> int | None:
     """#224 best-effort prior card count from latest/spotlight.json.
 
     Returns None on any error (no prior, S3 hiccup, parse failure) so a missing
-    or corrupt prior never blocks a legitimate publish (fail-open).
+    or corrupt prior never blocks a legitimate publish (fail-open). §1.5: a read
+    FAILURE is logged (an absent prior is not), so a silently-skipped guard is
+    visible instead of an inert no-op.
     """
+    key = f"{PREFIX}/latest/spotlight.json"
     try:
-        key = f"{PREFIX}/latest/spotlight.json"
         if not s3.key_exists(key):
             return None
-        prior = json.loads(s3.get_object_bytes(key))
-        return len(prior.get("spotlights", []))
-    except Exception:
+        return len(json.loads(s3.get_object_bytes(key)).get("spotlights", []))
+    except Exception as exc:  # noqa: BLE001 — fail-open, but say so
+        logger.warning(
+            "spotlight shrink guard: could not read prior %s (%s); guard is fail-open this run",
+            key, exc,
+        )
         return None
 
 
@@ -225,8 +242,18 @@ def publish_artifact(
         # upstream read thinning the pool). Fail-open on a missing/corrupt prior;
         # fail-closed on a real shrink. Overridable with force=True.
         if not force:
-            prev_count = _prior_spotlight_card_count(s3)
             new_count = len(artifact.get("spotlights", []))
+            # §1.5 absolute floor — catches a collapse even with no/corrupt prior
+            # (the relative check below fails open there).
+            min_cards = _spotlight_min_cards()
+            if new_count < min_cards:
+                print(
+                    f"\nABORT: spotlight has only {new_count} card(s) (< absolute "
+                    f"floor {min_cards}) — refusing to overwrite latest/. "
+                    f"Re-run with force=True to override."
+                )
+                return 1
+            prev_count = _prior_spotlight_card_count(s3)
             frac = _spotlight_shrink_fraction()
             if prev_count and new_count < prev_count * (1.0 - frac):
                 print(

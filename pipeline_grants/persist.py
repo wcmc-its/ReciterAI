@@ -1,13 +1,21 @@
 """Persist scored opportunities: GRANT# DynamoDB rows + a versioned S3 artifact."""
 import hashlib
 import json as _json
+import logging
 
+from gates.shrink_guard import shrink_guard_gate
 from pipeline_grants.match_compile import match_attrs
 from pipeline_grants.normalize import canonical_sponsor
 from pipeline_grants.prestige import prestige_item_attrs
 from utils.dynamodb_helpers import TABLE_NAME, batch_write, to_decimal
 from utils.iso_clock import now_iso
 from utils.s3_client import ARTIFACTS_BUCKET, S3HierarchyClient
+
+logger = logging.getLogger(__name__)
+
+
+class OpportunitiesPublishShrinkError(RuntimeError):
+    """A real opportunities publish would shrink the live artifact past the guard."""
 
 
 def _n(value) -> dict:
@@ -138,9 +146,44 @@ def put_grants(client, items: list, table_name: str = TABLE_NAME) -> int:
 _ARTIFACT_PREFIX = "grants"
 
 
-def publish_opportunities_artifact(opportunities: list, *, s3=None, version: str = None) -> dict:
-    """Publish opportunities.json + manifest (version-pinned + latest pointer). Returns the manifest."""
+def _prior_opportunity_count(s3) -> int | None:
+    """Best-effort prior opportunity count from latest/manifest.json.
+
+    Returns None on any error (no prior, S3 hiccup, parse failure) so a missing
+    or corrupt prior never blocks a legitimate publish — the guard fails open.
+    Logs the read failure so an inert guard is visible, not silent.
+    """
+    key = f"{_ARTIFACT_PREFIX}/latest/manifest.json"
+    try:
+        if not s3.key_exists(key):
+            return None
+        return _json.loads(s3.get_object_bytes(key)).get("count")
+    except Exception as exc:  # noqa: BLE001 — fail-open, but say so
+        logger.warning("shrink guard: could not read prior %s (%s); guard is fail-open this run", key, exc)
+        return None
+
+
+def publish_opportunities_artifact(
+    opportunities: list, *, s3=None, version: str = None, force: bool = False
+) -> dict:
+    """Publish opportunities.json + manifest (version-pinned + latest pointer). Returns the manifest.
+
+    Gated by a shrink guard (raises ``OpportunitiesPublishShrinkError`` before any
+    PutObject when the opportunity count dropped past the configured fraction vs the
+    live latest/ — the symptom of a degraded ingest run). ``force=True`` overrides it;
+    the guard fails open on a missing/corrupt prior.
+    """
     s3 = s3 or S3HierarchyClient(bucket=ARTIFACTS_BUCKET)
+    new_count = len(opportunities)
+    if not force:
+        gate = shrink_guard_gate(
+            prev_subtopic_count=_prior_opportunity_count(s3), new_subtopic_count=new_count
+        )
+        if gate.blocked:
+            raise OpportunitiesPublishShrinkError(
+                f"opportunities artifact {gate.summary} — refusing to overwrite live "
+                f"latest/. Re-run with force=True to override."
+            )
     generated_at = now_iso()
     version = version or f"v{generated_at[:10]}"
     body = _json.dumps(opportunities, sort_keys=True, separators=(",", ":")).encode("utf-8")
