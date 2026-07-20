@@ -19,6 +19,14 @@ __pycache__
 htmlcov
 tests
 docs
+# ...except the spotlight artifact schema. cli/backfill_spotlight.py reads
+# `./docs/spotlight.schema.json` (SCHEMA_PATH, :59) at publish time (:1045),
+# immediately before publish_artifact(). Excluding it makes every CONTAINERISED
+# spotlight run die with FileNotFoundError at the last step -- invisible today
+# only because all six real publishes were run by hand from a full checkout,
+# never from the image. Keep this re-include below `docs`; .dockerignore is
+# last-match-wins.
+!docs/spotlight.schema.json
 *.md
 !README.md
 Dockerfile
