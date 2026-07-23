@@ -8,6 +8,16 @@ itself is not in this repo. The opportunities land as `GRANT#` items with
 GrantRecs) — provenance is recoverable via `source_url` (the `research.weill.cornell.edu`
 domain) and the specific opportunities.
 
+## 🔴 Before you ingest: run from post-#337 `main`
+
+Step 3 (`ingest_curated`) calls `put_grants`, which re-writes the **whole** `GRANT#` item.
+Post-#337 `main` carries any backfilled structured `eligibility` map through that re-put via
+`PRESERVED_ATTRS` (`pipeline_grants/persist.py`); pre-#337 code does **not** — it drops the map,
+and the Scholars Profile System then silently falls back to prose-regex eligibility flags
+(coarser: ~97% collapse to the permissive default triad). Confirm `git log --oneline -1` is at
+or after #337 (`c08b753`) before ingesting. If a stale ingest already clobbered maps, repair with
+`python -m pipeline_grants.backfill_eligibility --overwrite`.
+
 ## Pipeline
 
 ```

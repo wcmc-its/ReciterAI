@@ -22,6 +22,13 @@ python -m pipeline_grants.ingest_submissions             # the real thing
 No scheduler exists yet (#269) — run it manually alongside the other ingests until
 that lands, then fold it into the daily schedule.
 
+🔴 **Run from post-#337 `main`.** The per-program `build_grant_item`/`put_grants` re-writes the
+**whole** `GRANT#` item. Post-#337 `main` carries any backfilled structured `eligibility` map
+through the re-put via `PRESERVED_ATTRS` (`pipeline_grants/persist.py`); pre-#337 code drops it,
+and the Scholars Profile System silently falls back to prose-regex eligibility flags. Confirm
+`git log --oneline -1` is at or after #337 (`c08b753`) first; repair a stale clobber with
+`python -m pipeline_grants.backfill_eligibility --overwrite`.
+
 ## Per-submission flow
 
 1. **Guarded fetch** (`safe_fetch.fetch_page_text`): https-only, public-IP-only DNS
