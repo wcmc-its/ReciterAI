@@ -1,6 +1,6 @@
 from pipeline_grants.models import Opportunity
-from pipeline_grants.denoise import judge_opportunity
-from utils.bedrock_client import HAIKU_MODEL
+from pipeline_grants.denoise import ELIGIBILITY_SCHEMA_VERSION, judge_opportunity
+from utils.bedrock_client import SONNET_MODEL
 
 
 class _FakeBedrock:
@@ -64,8 +64,52 @@ def test_judge_extracts_and_normalizes_eligibility():
     assert elig["degree_required"] == []
     assert elig["citizenship_requirement"] == "us_citizen_or_permanent_resident_required"
     assert elig["esi_targeted"] is True and elig["individual_award"] is True
-    assert elig["extracted_by"] == HAIKU_MODEL       # provenance stamped in code, not the prompt
+    assert elig["extracted_by"] == SONNET_MODEL      # provenance stamped in code, not the prompt
+    assert elig["schema_version"] == ELIGIBILITY_SCHEMA_VERSION
     assert isinstance(elig["extracted_at"], str) and elig["extracted_at"]
+    # v2 facets default cleanly when the judge omits them (no-op for the shipped core-8 payload).
+    assert elig["nomination_gated"] is False and elig["mentorship"] == "not_stated"
+    assert elig["faculty_track_required"] == [] and elig["institutional_eligibility"] == []
+    assert "career_window" not in elig and "nominee_cap" not in elig  # optional scalars omitted when null
+
+
+def test_judge_extracts_v2_facets_and_fails_soft():
+    # A career-award payload: v2 facets extract; a bad faculty_track / institutional entry / anchor
+    # drops ONLY that field (fail-soft) while the rest of the map — incl. the core-8 — persists.
+    fake = _FakeBedrock({"is_research": True, "eligibility": {
+        "career_stages": ["early_career_faculty"],
+        "citizenship_requirement": "not_stated",
+        "nomination_gated": True, "nominee_cap": 1,
+        "mentorship": "independent_required",
+        "career_window": {"anchor": "first_faculty_appt", "max_years": 5},
+        "funding_history_restriction": ["new_investigator_only", "bogus_rule"],  # bad value dropped
+        "faculty_track_required": ["tenure_track", "professor"],                 # bad value dropped
+        "min_research_effort_pct": 75,
+        "institutional_eligibility": [
+            {"value": "idea_state_only", "polarity": "exclusion"},
+            {"value": "not_an_enum", "polarity": "exclusion"},                   # dropped
+            {"value": "epscor_jurisdiction_only", "polarity": "bogus"},          # dropped (bad polarity)
+        ],
+    }})
+    elig = judge_opportunity(_opp(), fake)["eligibility"]
+    assert elig is not None                                   # fail-SOFT: map survives the bad values
+    assert elig["career_stages"] == ["early_career_faculty"]  # core-8 intact
+    assert elig["nomination_gated"] is True and elig["nominee_cap"] == 1
+    assert elig["mentorship"] == "independent_required"
+    assert elig["career_window"] == {"anchor": "first_faculty_appt", "max_years": 5}
+    assert elig["funding_history_restriction"] == ["new_investigator_only"]
+    assert elig["faculty_track_required"] == ["tenure_track"]
+    assert elig["min_research_effort_pct"] == 75
+    assert elig["institutional_eligibility"] == [{"value": "idea_state_only", "polarity": "exclusion"}]
+
+
+def test_judge_bad_career_window_anchor_drops_only_the_window():
+    fake = _FakeBedrock({"is_research": True, "eligibility": {
+        "citizenship_requirement": "not_stated",
+        "career_window": {"anchor": "invented_anchor", "max_years": 3},
+    }})
+    elig = judge_opportunity(_opp(), fake)["eligibility"]
+    assert elig is not None and "career_window" not in elig  # bad anchor -> window omitted, map kept
 
 
 def test_judge_drops_eligibility_on_enum_violation():
