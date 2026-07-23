@@ -22,19 +22,28 @@ def _n(value) -> dict:
     return {"N": str(to_decimal(value))}
 
 
+def _to_attr(value) -> dict:
+    """Serialize a Python value to a native DynamoDB attribute-value (recursive).
+
+    bool -> BOOL, int/float -> N, list -> L, dict -> M, everything else -> S. Recursion carries the
+    v2 eligibility shapes (career_window as a nested M, institutional_eligibility as an L of M,
+    nominee_cap/min_research_effort_pct as N) while keeping the core-8 byte-identical (str lists
+    still serialize to L of S, citizenship/provenance to S, the four bools to BOOL)."""
+    if isinstance(value, bool):
+        return {"BOOL": value}
+    if isinstance(value, (int, float)):
+        return {"N": str(value)}
+    if isinstance(value, list):
+        return {"L": [_to_attr(v) for v in value]}
+    if isinstance(value, dict):
+        return {"M": {k: _to_attr(v) for k, v in value.items()}}
+    return {"S": str(value)}
+
+
 def _eligibility_attr(elig: dict) -> dict:
-    """Native DynamoDB map for the structured eligibility block (#290): list fields -> L of S,
-    booleans -> BOOL, everything else (citizenship + provenance) -> S. The SPS mapper's
-    parseJsonAttr reads the native map directly, so it is NOT stored as a compact-JSON string."""
-    out = {}
-    for key, value in elig.items():
-        if isinstance(value, bool):
-            out[key] = {"BOOL": value}
-        elif isinstance(value, list):
-            out[key] = {"L": [{"S": str(v)} for v in value]}
-        else:
-            out[key] = {"S": str(value)}
-    return out
+    """Native DynamoDB map for the structured eligibility block (#290, extended v2). The SPS mapper
+    reads the native map directly, so it is NOT stored as a compact-JSON string."""
+    return {key: _to_attr(value) for key, value in elig.items()}
 
 
 def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: dict,
@@ -97,8 +106,10 @@ def build_grant_item(opp, dense_scores: dict, *, taxonomy_version: str, judge: d
 # (default OFF; backfill_match.py populates the corpus) and match_rel is backfill-ONLY
 # (backfill_rel.py — never compiled at ingest). Everything else on the item is recomputed from
 # fresh source data every ingest (incl. prestige/is_honorific), so new-wins is correct there.
-# Future backfill-only fields (e.g. structured eligibility, #290) ride this list.
-PRESERVED_ATTRS = ("match_dsl", "match_query", "match_rel")
+# structured eligibility (#290) rides this list: it is backfilled onto the corpus by
+# backfill_eligibility.py and a plain re-ingest whose judge fail-opens omits the field entirely — so
+# without preserving it here, put_grants would silently drop a backfilled map on the next nightly.
+PRESERVED_ATTRS = ("match_dsl", "match_query", "match_rel", "eligibility")
 
 
 def fetch_preserved_attrs(client, keys: list, table_name: str = TABLE_NAME) -> dict:

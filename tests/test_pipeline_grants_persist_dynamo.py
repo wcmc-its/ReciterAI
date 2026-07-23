@@ -44,8 +44,9 @@ def test_build_grant_item_handles_none_award():
 
 
 def test_build_grant_item_serializes_structured_eligibility():
-    # A validated eligibility block persists as a NATIVE DynamoDB map (not a JSON string) so the
-    # SPS mapper reads it directly: lists -> L of S, booleans -> BOOL, scalars -> S.
+    # A validated eligibility block persists as a NATIVE DynamoDB map (not a JSON string) so the SPS
+    # mapper reads it directly: str lists -> L of S, booleans -> BOOL, scalars -> S; and the v2 shapes
+    # -> N (ints), M (career_window), L of M (institutional_eligibility).
     judge = {"is_research": True, "eligibility": {
         "applicant_org_types": ["higher_ed", "small_business"],
         "career_stages": ["early_career_faculty"],
@@ -53,8 +54,12 @@ def test_build_grant_item_serializes_structured_eligibility():
         "citizenship_requirement": "us_citizen_or_permanent_resident_required",
         "esi_targeted": True, "limited_submission": False,
         "cost_sharing_required": False, "individual_award": True,
-        "extracted_by": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-        "extracted_at": "2026-07-10T00:00:00Z",
+        "nomination_gated": True, "nominee_cap": 1, "min_research_effort_pct": 75,
+        "career_window": {"anchor": "first_faculty_appt", "max_years": 5},
+        "institutional_eligibility": [{"value": "idea_state_only", "polarity": "exclusion"}],
+        "schema_version": "2.0.0",
+        "extracted_by": "us.anthropic.claude-sonnet-4-6",
+        "extracted_at": "2026-07-23T00:00:00Z",
     }}
     item = build_grant_item(_opp(), {}, taxonomy_version="taxonomy_v2", judge=judge)
     m = item["eligibility"]["M"]
@@ -63,7 +68,13 @@ def test_build_grant_item_serializes_structured_eligibility():
     assert m["citizenship_requirement"] == {"S": "us_citizen_or_permanent_resident_required"}
     assert m["esi_targeted"] == {"BOOL": True}
     assert m["limited_submission"] == {"BOOL": False}
-    assert m["extracted_by"] == {"S": "us.anthropic.claude-haiku-4-5-20251001-v1:0"}
+    assert m["nomination_gated"] == {"BOOL": True}
+    assert m["nominee_cap"] == {"N": "1"} and m["min_research_effort_pct"] == {"N": "75"}
+    assert m["career_window"] == {"M": {"anchor": {"S": "first_faculty_appt"}, "max_years": {"N": "5"}}}
+    assert m["institutional_eligibility"] == {
+        "L": [{"M": {"value": {"S": "idea_state_only"}, "polarity": {"S": "exclusion"}}}]}
+    assert m["schema_version"] == {"S": "2.0.0"}
+    assert m["extracted_by"] == {"S": "us.anthropic.claude-sonnet-4-6"}
 
 
 # --- preserve-on-put (#292): re-ingest must not clobber backfill-only attrs ---------------

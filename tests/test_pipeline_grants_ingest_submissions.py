@@ -1,6 +1,6 @@
 from pipeline_grants import ingest_submissions as mod
 from pipeline_grants.safe_fetch import FetchRejected
-from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL
+from utils.bedrock_client import SONNET_MODEL
 
 URL = "https://www.skincancer.org/about-us/research-grants"
 
@@ -28,14 +28,15 @@ EXTRACTION = {
 
 
 class _FakeBedrock:
-    """Routes by model: Sonnet -> extraction, Haiku -> judge (travel award fails)."""
+    """Both calls are now Sonnet (#eligibility Sonnet swap), so route by purpose, not model:
+    the per-opportunity judge sends a "Title: ..." user turn; page extraction sends page text."""
 
     def call_json(self, model, messages, **kwargs):
-        if model == SONNET_MODEL:
-            return EXTRACTION
-        assert model == HAIKU_MODEL
+        assert model == SONNET_MODEL
         content = messages[0]["content"]
-        if "Travel Award" in content:
+        if not content.startswith("Title:"):  # the page-extraction call
+            return EXTRACTION
+        if "Travel Award" in content:          # the judge call
             return {"is_research": False, "reason": "travel support, not research funding"}
         return {"is_research": True, "reason": "substantive",
                 "appeal_by_stage": {"grad": 0.2, "postdoc": 0.6, "early": 0.9, "mid": 0.5, "senior": 0.3}}
