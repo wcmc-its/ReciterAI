@@ -32,6 +32,11 @@ Research-area granularity is calibrated against actual publication volume using 
 
 This approach ensures that large research areas get appropriate granularity for expert discovery, while small areas are not over-fragmented.
 
+For the reverse question — does an existing compound `X & Y` topic bundle two domains that should
+be *un*-merged into separate top-level areas? — see
+[`research-area-split-criteria.md`](./research-area-split-criteria.md), which operationalizes this
+principle's "distinct departmental identity" carve-out into a repeatable test.
+
 ### 4. Overlap Is Acceptable
 
 This taxonomy functions as an **institutional research map**, not a strict classification ontology. Publications can (and should) score against multiple research areas. A cardiology paper in a general medicine journal should score on `cardiovascular_disease`, not be silently classified as "General Internal Medicine." Boundary descriptions include "distinct from X" notes to help the LLM discriminate, but overlapping scores are a feature, not a bug.
@@ -71,7 +76,12 @@ The final taxonomy is validated against 12 sample research dean queries to confi
 
 ## Current Taxonomy (v2)
 
-- **67 research areas** across disease areas, basic science, clinical specialties, population health, and research infrastructure
+- **67 research areas** in the `taxonomy_v2.json` baseline (as of 2026-07-10; was 68 until
+  `hematology_medical_oncology` — a prior additive mint, see § "Adding a single research area later"
+  in `topic-subtopic-assignment.md` — was retired via `cli/retire_topic.py`, commit `02d3445`;
+  see [`research-area-split-criteria.md`](./research-area-split-criteria.md) for why that history
+  isn't a precedent for splitting an existing bundled topic) across disease areas, basic science,
+  clinical specialties, population health, and research infrastructure
 - **8 oncology subareas** (breast, lung, prostate/urologic, GI, neuro-oncology, gynecologic, melanoma/skin, general cancer biology)
 - **Calibrated against Science-Metrix** publication volumes for granularity decisions
 - **Validated at 100% match rate** (12/12 sample queries) before volume-based refinement

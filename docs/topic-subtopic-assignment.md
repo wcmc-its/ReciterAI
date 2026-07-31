@@ -70,6 +70,11 @@ Research-area IDs (`topic_id`) **are stable** across the lifecycle of a `taxonom
 
 A genuinely new domain can be minted into the existing taxonomy without re-running the full generate-and-score pipeline. Hematology & Medical Oncology (taxonomy `67 → 68`) was added this way.
 
+> This is an *additive-mint* mechanism — for the different question of whether an existing compound
+> `X & Y` topic should be split into two, and the contrastive-routing/fidelity-check machinery below
+> is the right tool to reuse when acting on one, see
+> [`research-area-split-criteria.md`](./research-area-split-criteria.md).
+
 Generator: `cli/score_new_topics.py`.
 
 - Hand-add the new research area to `taxonomy_v2.json`, then score **only that area** against a small set of "context" competitor areas for contrastive routing (so a heme/onc paper isn't mis-routed to a neighboring cancer area).
