@@ -230,6 +230,18 @@
       "display_threshold": 0.5
     },
     {
+      "id": "pain_medicine",
+      "label": "Pain Medicine",
+      "description": "Assessment and management of pain as a primary clinical problem, including chronic, cancer-related, neuropathic, and complex acute pain; multimodal analgesia; interventional pain procedures; and opioid stewardship. Includes pain biology when directly connected to assessment or treatment. Distinct from anesthesiology, where anesthesia, sedation, or perioperative physiologic management is the primary focus; substance use and addiction medicine; and rehabilitation-focused restoration of function.",
+      "display_threshold": 0.5
+    },
+    {
+      "id": "anesthesiology",
+      "label": "Anesthesiology",
+      "description": "Anesthetic and perioperative management for surgical, diagnostic, and therapeutic procedures, including general and regional anesthesia, procedural sedation, airway management, anesthetic pharmacology, intraoperative monitoring, and perioperative outcomes. Includes critical care when specifically centered on anesthesiology practice. Distinct from pain medicine, where pain is the primary condition being treated, and from broader surgical, perioperative, emergency, and critical care topics.",
+      "display_threshold": 0.5
+    },
+    {
       "id": "biomedical_informatics",
       "label": "Biomedical Informatics",
       "description": "Research applying computational methods, natural language processing, machine learning, and data infrastructure to clinical and biomedical problems as a distinct departmental and institutional identity. Includes electronic health records, clinical decision support, computable phenotyping, and knowledge representation for biomedical discovery.",
