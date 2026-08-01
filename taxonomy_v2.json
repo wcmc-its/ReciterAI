@@ -8,12 +8,6 @@
       "display_threshold": 0.5
     },
     {
-      "id": "neuroscience_neurology",
-      "label": "Neuroscience & Neurology",
-      "description": "Basic and clinical neuroscience spanning fundamental neural mechanisms, neurophysiology, neuroanatomy, and clinical neurology including stroke, epilepsy, brain injury, and movement disorders. Covers molecular and cellular neurobiology, neuroimaging, neuromodulation, and neural circuit function. Distinct from neurodegenerative disease (progressive conditions like Alzheimer's/Parkinson's) and psychiatry (mental health disorders).",
-      "display_threshold": 0.5
-    },
-    {
       "id": "infectious_disease_immunology",
       "label": "Infectious Disease & Host Defense",
       "description": "Pathogen-focused research on bacterial, viral, fungal, and parasitic infections alongside host defense mechanisms, vaccine development, and antimicrobial resistance. Encompasses HIV, COVID-19, tuberculosis, hepatitis, and emerging infections. Distinct from Immunology & Inflammation (fundamental immune regulation) in its focus on pathogen biology and infection-specific immune responses.",
