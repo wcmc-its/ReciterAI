@@ -408,6 +408,18 @@
       "label": "Environmental & Planetary Health",
       "description": "Research on how environmental exposures, climate change, occupational hazards, and ecological disruption affect human health. Covers air pollution, chemical exposures, the exposome, heat-related illness, and the intersection of environmental determinants with population health outcomes.",
       "display_threshold": 0.5
+    },
+    {
+      "id": "basic_neuroscience",
+      "label": "Basic Neuroscience",
+      "description": "Fundamental and experimental study of the nervous system, including neurophysiology, neuroanatomy, molecular and cellular neurobiology, neural circuits, cognition, and behavior. Includes neuroimaging and neuromodulation when used to investigate mechanisms rather than primarily diagnose or treat disease. Distinct from clinical neurology, neurodegenerative disease, and psychiatry.",
+      "display_threshold": 0.5
+    },
+    {
+      "id": "clinical_neurology",
+      "label": "Clinical Neurology",
+      "description": "Diagnosis, treatment, prognosis, and patient outcomes in neurologic disease, including stroke, epilepsy, headache, multiple sclerosis, brain and spinal cord injury, movement disorders, neuromuscular disease, and neurologic critical care. Includes clinical neuroimaging and therapeutic neuromodulation. Distinct from basic neuroscience's mechanistic or experimental focus, psychiatry, and research centered specifically on progressive neurodegenerative pathology.",
+      "display_threshold": 0.5
     }
   ]
 }
