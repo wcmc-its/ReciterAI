@@ -224,12 +224,6 @@
       "display_threshold": 0.5
     },
     {
-      "id": "pain_management_anesthesiology",
-      "label": "Pain Management & Anesthesiology",
-      "description": "Research on perioperative care, pain mechanisms, analgesic strategies, and anesthetic pharmacology. Covers chronic pain conditions, opioid stewardship, regional anesthesia, neuropathic pain biology, and the intersection of pain management with surgical and critical care contexts.",
-      "display_threshold": 0.5
-    },
-    {
       "id": "pain_medicine",
       "label": "Pain Medicine",
       "description": "Assessment and management of pain as a primary clinical problem, including chronic, cancer-related, neuropathic, and complex acute pain; multimodal analgesia; interventional pain procedures; and opioid stewardship. Includes pain biology when directly connected to assessment or treatment. Distinct from anesthesiology, where anesthesia, sedation, or perioperative physiologic management is the primary focus; substance use and addiction medicine; and rehabilitation-focused restoration of function.",
