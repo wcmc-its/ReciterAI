@@ -269,7 +269,7 @@ def _call_discovery_pass(
         model=SONNET_MODEL,
         messages_converse=client._translate_messages(messages, DISCOVERY_SYSTEM_PROMPT)[0],
         system_list=client._translate_messages(messages, DISCOVERY_SYSTEM_PROMPT)[1],
-        max_tokens=8192,
+        max_tokens=16384,  # 8192 truncated mid-JSON on a 1104-activity topic; 16384 matches generate_taxonomy.py's precedent for the same model
         temperature=0.0,  # D-01 reproducibility requirement
     )
 
@@ -282,7 +282,7 @@ def _call_discovery_pass(
     )
 
     cleaned = _strip_json_fences(text)
-    parsed = json.loads(cleaned)
+    parsed, _ = json.JSONDecoder().raw_decode(cleaned)  # tolerate trailing prose after the JSON object
     return parsed, usage
 
 
@@ -322,7 +322,7 @@ def _call_extension_pass(
         model=SONNET_MODEL,
         messages_converse=converse_msgs,
         system_list=system_list,
-        max_tokens=4096,
+        max_tokens=16384,  # 4096 truncated mid-JSON on 774 uncovered activities; match the initial-pass cap
         temperature=0.0,  # D-01 reproducibility requirement
     )
 
@@ -335,7 +335,7 @@ def _call_extension_pass(
     )
 
     cleaned = _strip_json_fences(text)
-    parsed = json.loads(cleaned)
+    parsed, _ = json.JSONDecoder().raw_decode(cleaned)  # tolerate trailing prose after the JSON object
     return parsed, usage
 
 
