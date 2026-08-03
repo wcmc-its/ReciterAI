@@ -49,7 +49,7 @@ def test_eventbridge_has_region(eventbridge_config):
     assert eventbridge_config["region"]
 
 
-def test_eventbridge_defines_five_rules(eventbridge_config):
+def test_eventbridge_defines_six_rules(eventbridge_config):
     names = [r["name"] for r in eventbridge_config["rules"]]
     assert names == [
         "reciterai-hot-weekly",
@@ -57,6 +57,7 @@ def test_eventbridge_defines_five_rules(eventbridge_config):
         "reciterai-drift-daily",
         "reciterai-onboarding-detector-daily",
         "reciterai-enrichment-daily",
+        "reciterai-taxonomy-drift-daily",
     ]
 
 
@@ -68,6 +69,7 @@ def test_eventbridge_defines_five_rules(eventbridge_config):
         ("reciterai-drift-daily", "cron(0 14 * * ? *)"),
         ("reciterai-onboarding-detector-daily", "cron(0 13 * * ? *)"),
         ("reciterai-enrichment-daily", "cron(0 11 * * ? *)"),
+        ("reciterai-taxonomy-drift-daily", "cron(0 15 * * ? *)"),
     ],
 )
 def test_cron_expressions_match_plan(eventbridge_config, rule_name, expected_schedule):

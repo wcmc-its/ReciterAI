@@ -123,6 +123,13 @@ LAMBDAS=(
   # off pipeline_common.alert (Slack/`gh`, dead in the Lambda runtime) to the
   # Teams transport on this deploy, matching the hot path + enrichment.
   "reciterai-drift-evaluator|pipeline_drift.evaluator||pipeline_drift/__init__.py pipeline_drift/evaluator.py pipeline_drift/severity.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py|utils.dynamodb_helpers utils.event_records pipeline_enrichment.alerting"
+  # ---- Taxonomy drift (ADR D5 layer 2) ------------------------------------
+  # NOTE: this bundles taxonomy_v2.json, making it a FIFTH replication site of
+  # the artifact whose replication the ADR exists to control. It must be: it
+  # cannot compare data against the current topic set without carrying it. It
+  # is therefore in scope for the ADR's D1 build step and D3 handshake like any
+  # other taxonomy-bearing artifact — not exempt because it is the checker.
+  "reciterai-taxonomy-drift|pipeline_taxonomy_drift.checker||pipeline_taxonomy_drift/__init__.py pipeline_taxonomy_drift/checker.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py utils/taxonomy.py taxonomy_v2.json|utils.dynamodb_helpers utils.taxonomy pipeline_enrichment.alerting"
 )
 
 # Common dirs included in every zip except where commented otherwise.

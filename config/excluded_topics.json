@@ -1,15 +1,37 @@
 {
-  "_comment": "Frozen list of taxonomy topics excluded from the published hierarchy. Carry-forward from the original Phase 5 hand-crafted hierarchy_full.json. To be replaced by a query against the processing tracker once that source exists (see issue #4 DoD item 4).",
+  "_comment": "Topics excluded from the published hierarchy. EXCLUDED MEANS SCORED BUT NOT PUBLISHED (ADR docs/adr-taxonomy-change-propagation.md, D7): these topics stay in taxonomy_v2.json, keep accumulating TOPIC# rows, and cost scoring spend every Monday; they are withheld only from hierarchy.json. Per D8 each entry carries as_of + evidence so the recorded rationale can be checked rather than trusted — both entries were stale for months before the 2026-08-03 audit. Re-test when a topic's activity_count doubles from its recorded value (with a floor, so small topics do not trip on 1->2). The re-test is #307's overlap measurement, not a subjective quality call.",
   "excluded_topics": [
     {
       "id": "implementation_science",
-      "reason": "clustering quality fail",
-      "activity_count": 1314
+      "reason": "Domain-overlapping methodology topic: 2178 of its 2179 distinct PMIDs are already covered by at least one other topic, so publishing it as a research area would re-file existing work rather than surface new work. Retained in the taxonomy because it still scores usefully as a methodology signal.",
+      "activity_count": 4193,
+      "as_of": "2026-08-03",
+      "evidence": {
+        "activity_count_method": "TOPIC#implementation_science row count, fully paginated Query",
+        "distinct_pmids": 2179,
+        "distinct_faculty": 890,
+        "pmids_covered_by_another_topic": 2178,
+        "unique_pmids": 1,
+        "strongest_overlap": {"topic": "health_services_policy", "pct": 72.7},
+        "subtopics": 15,
+        "rank_by_share_covered_of_69_topics": 42,
+        "rank_by_strongest_single_overlap_of_69_topics": 16,
+        "caveat": "High overlap is NOT distinguishing on its own: across all 69 topics the median share of PMIDs covered by another topic is 100.0% and 40 topics have zero unique PMIDs. On that metric this topic ranks 42nd of 69 — BELOW the median, i.e. less overlapping than 41 other topics. (It ranks 16th only on a different metric, strongest single-topic overlap; the two ranks are recorded separately above because conflating them overstates its standing by 26 places.) #307 retired hematology_medical_oncology on a restricted 10-cancer-topic denominator (88.6%), which is again a different metric and not comparable to either figure here. Keeping this topic excluded rests on it being a methodology label whose overlap with domain topics is definitional — not on any overlap percentage, which would condemn most of the taxonomy.",
+        "supersedes": "reason 'clustering quality fail' / activity_count 1314, recorded 2026-05-11 with no method declared and never revisited. The 1314 figure's units could not be established in the 2026-08-03 audit, so no growth ratio against it is meaningful; it is recorded here only as the superseded value."
+      }
     },
     {
       "id": "oral_craniofacial_health",
-      "reason": "below cold-start floor",
-      "activity_count": 25
+      "reason": "No subtopic structure: zero SUBTOPIC_SCORE partitions exist, so there is nothing to publish as a research area even though the topic now clears the cold-start floor on volume.",
+      "activity_count": 94,
+      "as_of": "2026-08-03",
+      "evidence": {
+        "activity_count_method": "TOPIC#oral_craniofacial_health row count, fully paginated Query",
+        "distinct_pmids": 54,
+        "distinct_faculty": 41,
+        "subtopics": 0,
+        "supersedes": "reason 'below cold-start floor' / activity_count 25, recorded 2026-05-11. That reason is now FALSE on its own terms: the cold-start floor is 30 unique PMIDs at score >= 0.3 (cli/backfill_topic.py) and this topic measures 54, so it would clear. The exclusion still holds, but for the different reason recorded above."
+      }
     }
   ]
 }

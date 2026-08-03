@@ -467,6 +467,7 @@ no rollback — onboarding is all-new resources except the additive
 - `infra/eventbridge.json` — cron rules + targets.
 - `infra/lambda_iam_policy.json` — minimum-privilege policy.
 - `infra/README.md` — D-10 single-file IaC + CDK migration trigger.
+- `docs/adr-taxonomy-change-propagation.md` — how a taxonomy change reaches production. Taxonomy evolution is named as a cold-path trigger in this doc; the ADR is the ordered pipeline it triggers, and the reason a repo edit alone changes nothing deployed.
 - `docs/severity.md` — D-11 alert severity table.
 - `docs/data-model-and-queries.md` — full DynamoDB record-type reference.
 - `docs/stage-records-and-gates.md` — Phase 9 STAGE# substrate this phase builds on.

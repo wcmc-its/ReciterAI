@@ -32,6 +32,8 @@ v1 of this spec enumerated 37 gaps. Feedback collapsed them: most clustered arou
 
 **Decision-deferred** (per §10): the four Axis 2 producer-model questions exist as tracked issues with label `decision-deferred`. Phase 8 is blocked until all four close.
 
+**Decisions recorded outside this spec**: two decisions are standalone docs rather than numbered `Decision N` sections here — `docs/tool-context-style-decision.md` (tool-context style) and `docs/adr-taxonomy-change-propagation.md` (how a taxonomy change reaches production, accepted 2026-08-03). Both post-date this spec's §0 status table, which has been stale since 2026-05-12; treat the docs as authoritative over any summary here.
+
 **Recent slip-checkpoints fired**: none. Phase 9's end-of-working-day-5 checkpoint did not fire — phase shipped in a single ~6-hour session because two tasks (G-35 centralization, table provisioning) collapsed to additive/docs-only work and two more were pure docs. The 5–8 day plan estimate was conservative.
 
 **Production state (2026-05-12)**: `s3://wcmc-reciterai-hierarchy/latest/manifest.json` → `v2026-05-12`, sha256 `84eecdb29881…`, 65 topics / 1,526 subtopics, taxonomy `taxonomy_v2`, schema `1.0.0`. First publish via the #4 bundler. G-29 (sha churn from `generated_at` re-stamping) observed in real life — sha differed between dry-run and real publish despite identical inputs. Not a problem here; flagged for Phase 11.

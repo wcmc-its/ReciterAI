@@ -275,6 +275,7 @@ above.
 
 ## Related
 
+- `docs/adr-taxonomy-change-propagation.md` — how a taxonomy change reaches production. Directly relevant to the manual-deploy stance above: `taxonomy_v2.json` is baked into three Lambda zips plus the Docker image, and three `update-function-code` calls are never atomic, so a partial deploy splits the taxonomy across artifacts.
 - `docs/data-model-and-queries.md` — DynamoDB record types these crons write.
 - `docs/hot-cold-paths.md` (T13) — operator guide for hot/cold/spotlight/drift/onboarding/enrichment invocation.
 - `docs/daily-enrichment.md` — operator guide for the daily enrichment job; §"Deploying the enrichment job" is the PR 4 deploy runbook (ECR push, secrets, task def register, cron apply, smoke gate, #112 backfill).
