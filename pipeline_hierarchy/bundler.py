@@ -116,8 +116,15 @@ def _read_excluded_topics(excluded_path: Path) -> list[dict[str, Any]]:
     entries = data.get("excluded_topics", [])
     out: list[dict[str, Any]] = []
     for entry in entries:
+        # The three required keys are normalised (activity_count is coerced);
+        # anything else the config carries passes through untouched. D8 adds
+        # `as_of` and `evidence`, and a whitelist here would silently drop them
+        # — the published artifact would keep asserting a rationale with no way
+        # to tell how old it is. Schema allows the extra keys
+        # (docs/hierarchy.schema.json $defs.ExcludedTopicEntry).
         out.append(
             {
+                **{k: v for k, v in entry.items() if k not in ("id", "reason", "activity_count")},
                 "id": entry["id"],
                 "reason": entry["reason"],
                 "activity_count": int(entry["activity_count"]),
