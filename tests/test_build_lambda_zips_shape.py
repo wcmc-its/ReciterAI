@@ -41,6 +41,7 @@ EXPECTED_ZIPS = {
     "reciterai-onboarding-derive-topics",
     "reciterai-onboarding-enrich",
     "reciterai-drift-evaluator",
+    "reciterai-taxonomy-drift",
 }
 
 

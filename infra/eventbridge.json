@@ -88,6 +88,22 @@
           "assign_public_ip": "DISABLED"
         }
       }
+    },
+    {
+      "name": "reciterai-taxonomy-drift-daily",
+      "description": "Taxonomy/data drift check (ADR D5 layer 2). Scans the TOPIC# partition space and compares it two-way against the bundled taxonomy_v2.json: orphan partitions (a topic still being scored after retirement) and unscored topics (a topic added but never reaching prod). Writes DRIFT#taxonomy; dispatches WARN/ERROR Teams cards via pipeline_enrichment.alerting. Distinct from reciterai-drift-daily, which evaluates model-quality drift and owns DRIFT#evaluation.",
+      "schedule_expression": "cron(0 15 * * ? *)",
+      "schedule_comment": "Daily 15:00 UTC = 11:00 EDT. One hour after the drift evaluator so the two daily checks do not contend, and 21 hours ahead of the Monday cron(0 12 ? * MON *) hot run — the ADR requires this check to land before the weekly scoring pass, since that pass is what re-mints rows for retired topics.",
+      "state": "ENABLED",
+      "target": {
+        "id": "taxonomy-drift",
+        "kind": "lambda",
+        "arn_template": "arn:aws:lambda:{region}:{account_id}:function:reciterai-taxonomy-drift",
+        "input": {
+          "initiated_by": "scheduled",
+          "trigger": "eventbridge:reciterai-taxonomy-drift-daily"
+        }
+      }
     }
   ],
 
