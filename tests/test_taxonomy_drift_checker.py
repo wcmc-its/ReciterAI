@@ -100,6 +100,30 @@ class TestScan:
         table = _table_returning({"Items": [{"PK": "TOPIC#odd#name"}]})
         assert list(scan_topic_partitions(table)) == ["odd#name"]
 
+    def test_bare_topic_prefix_is_skipped_not_keyed_as_empty_string(self):
+        # A bare "TOPIC#" row yields "" as the topic id. It is never in the
+        # taxonomy, so it would become an orphan, so it would become a key in
+        # orphan_last_written — and DynamoDB rejects an empty map key with
+        # ValidationException, aborting the whole check at put_item.
+        table = _table_returning(
+            {"Items": [{"PK": "TOPIC#", "SK": "x"}, {"PK": "TOPIC#cardiology"}]}
+        )
+        assert scan_topic_partitions(table) == {"cardiology": ""}
+
+    def test_real_timestamp_is_not_clobbered_by_a_later_row_without_created_at(self):
+        # The majority shape in prod: 10,361 rows carry created_at and 103,244
+        # do not, interleaved within the same partitions. A row with no
+        # created_at arriving after one that has it must not reset the value.
+        table = _table_returning(
+            {
+                "Items": [
+                    {"PK": "TOPIC#heme", "created_at": "2026-07-27T00:00:00Z"},
+                    {"PK": "TOPIC#heme"},
+                ]
+            }
+        )
+        assert scan_topic_partitions(table) == {"heme": "2026-07-27T00:00:00Z"}
+
 
 class TestRunCheck:
     def _table(self, items):
@@ -162,6 +186,24 @@ class TestRunCheck:
         assert context["orphan_last_written"] == {
             "hematology_medical_oncology": "2026-07-27T00:00:00Z"
         }
+
+    def test_alert_still_fires_when_the_row_write_fails(self, monkeypatch):
+        # Persistence is ordered before dispatch, so an unhandled put_item error
+        # would silence the alert at exactly the moment drift was found.
+        import pipeline_enrichment.alerting as alerting
+
+        calls = []
+        monkeypatch.setattr(alerting, "alert", lambda *a, **k: calls.append((a, k)) or True)
+
+        table = self._table([{"PK": "TOPIC#retired_topic"}])
+        table.put_item.side_effect = RuntimeError("ValidationException")
+
+        result = run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        assert result["severity"] == "ERROR"
+        assert result["row_persisted"] is False
+        assert len(calls) == 1
+        assert calls[0][0][3]["row_persisted"] is False
 
     def test_unscored_alerts_warn_without_mentioning(self, monkeypatch):
         import pipeline_enrichment.alerting as alerting

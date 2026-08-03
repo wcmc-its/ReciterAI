@@ -116,20 +116,28 @@ def _read_excluded_topics(excluded_path: Path) -> list[dict[str, Any]]:
     entries = data.get("excluded_topics", [])
     out: list[dict[str, Any]] = []
     for entry in entries:
-        # The three required keys are normalised (activity_count is coerced);
-        # anything else the config carries passes through untouched. D8 adds
-        # `as_of` and `evidence`, and a whitelist here would silently drop them
-        # — the published artifact would keep asserting a rationale with no way
-        # to tell how old it is. Schema allows the extra keys
-        # (docs/hierarchy.schema.json $defs.ExcludedTopicEntry).
-        out.append(
-            {
-                **{k: v for k, v in entry.items() if k not in ("id", "reason", "activity_count")},
-                "id": entry["id"],
-                "reason": entry["reason"],
-                "activity_count": int(entry["activity_count"]),
-            }
-        )
+        # D8 adds `as_of` and `evidence`; without them here the published
+        # artifact keeps asserting a rationale with no way to date it. They are
+        # named explicitly rather than passed through wholesale, for two
+        # reasons that both bite the artifact:
+        #   - `_canonical_serialize` is json.dumps(indent=2) with no sort_keys,
+        #     so emission order IS the published byte order. A fixed key order
+        #     here keeps hierarchy.json bit-stable across content-identical
+        #     reruns (D-14 / G-29); a dict-order passthrough would mint a new
+        #     version prefix whenever someone reordered keys while editing.
+        #   - this file's own convention includes `_comment` keys. An unbounded
+        #     passthrough publishes operator notes to S3, and neither the schema
+        #     nor the PII gate would stop it.
+        # Adding a key to the published contract should be a deliberate edit here.
+        built = {
+            "id": entry["id"],
+            "reason": entry["reason"],
+            "activity_count": int(entry["activity_count"]),
+        }
+        for optional in ("as_of", "evidence"):
+            if optional in entry:
+                built[optional] = entry[optional]
+        out.append(built)
     return out
 
 

@@ -20,10 +20,10 @@ The ADR's original second check — "every partition's `topic_scores_version`
 corresponds to the current taxonomy hash" — is deliberately NOT implemented.
 `topic_scores_version` is stamped from `taxonomy["taxonomy_version"]`, a static
 family label; all 113,605 `TOPIC#` rows measured 2026-08-03 carry the identical
-value `"taxonomy_v2"`, unchanged across all seven taxonomy edits. That check
-would pass on 100% of rows by construction. A check that can only return "clean"
-is worse than no check, so it is omitted rather than faked; see the ADR's D5
-section for the amendment and the forward-only path.
+value `"taxonomy_v2"`, unchanged across all seven post-creation edits to the
+file. That check would pass on 100% of rows by construction. A check that can
+only return "clean" is worse than no check, so it is omitted rather than faked;
+see the ADR's D5 section for the amendment and the forward-only path.
 """
 
 from __future__ import annotations
@@ -90,6 +90,14 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
         resp = table.scan(**kwargs)
         for item in resp.get("Items", []):
             topic = item["PK"].split("#", 1)[1]
+            if not topic:
+                # A bare "TOPIC#" row. utils/topic_records.py builds the PK from
+                # dense-scoring output keys with no non-empty guard, so this is
+                # reachable. It must not become a dict key below: DynamoDB
+                # rejects an empty map key with ValidationException, which would
+                # abort the whole check.
+                logger.warning("skipping TOPIC# row with an empty topic id: %s", item.get("SK"))
+                continue
             created = item.get("created_at")
             if created and created > newest.get(topic, ""):
                 newest[topic] = created
@@ -108,14 +116,24 @@ def run_check(table: Any, taxonomy_ids: Iterable[str], *, taxonomy_hash: str, da
     # Minting dates for orphans only — this is what made the 07-10 incident legible.
     result["orphan_last_written"] = {t: newest_by_topic[t] for t in result["orphan_topics"]}
 
-    table.put_item(
-        Item={
-            "PK": DRIFT_PK,
-            "SK": f"DAY#{day}",
-            "checked_at": day,
-            **result,
-        }
-    )
+    # Persist first for idempotency, but never let a write failure swallow the
+    # alert: a check that has just found drift going silent because it could not
+    # record the finding is the worst available outcome, and exactly the
+    # "reported nothing" shape this ADR exists to prevent.
+    try:
+        table.put_item(
+            Item={
+                "PK": DRIFT_PK,
+                "SK": f"DAY#{day}",
+                "checked_at": day,
+                **result,
+            }
+        )
+    except Exception:
+        logger.exception("failed to persist %s DAY#%s; continuing to alert", DRIFT_PK, day)
+        result["row_persisted"] = False
+    else:
+        result["row_persisted"] = True
 
     if result["severity"] in ALERTABLE:
         from pipeline_enrichment import alerting
@@ -150,6 +168,7 @@ def run_check(table: Any, taxonomy_ids: Iterable[str], *, taxonomy_hash: str, da
                 "taxonomy_hash": taxonomy_hash,
                 "partition_count": result["partition_count"],
                 "taxonomy_topic_count": result["taxonomy_topic_count"],
+                "row_persisted": result["row_persisted"],
             },
             mention=bool(orphans),
         )

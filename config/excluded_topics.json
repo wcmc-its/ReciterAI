@@ -14,8 +14,9 @@
         "unique_pmids": 1,
         "strongest_overlap": {"topic": "health_services_policy", "pct": 72.7},
         "subtopics": 15,
-        "overlap_rank_of_69_topics": 16,
-        "caveat": "High overlap is NOT distinguishing on its own: across all 69 topics the median share of PMIDs covered by another topic is 100.0%, 40 topics have zero unique PMIDs, and this topic ranks 16th. #307 retired hematology_medical_oncology on a restricted 10-cancer-topic denominator (88.6%), which is a different metric and not comparable to this corpus-wide figure. Keeping this topic excluded rests on it being a methodology label whose overlap with domain topics is definitional — not on the overlap percentage, which would condemn most of the taxonomy.",
+        "rank_by_share_covered_of_69_topics": 42,
+        "rank_by_strongest_single_overlap_of_69_topics": 16,
+        "caveat": "High overlap is NOT distinguishing on its own: across all 69 topics the median share of PMIDs covered by another topic is 100.0% and 40 topics have zero unique PMIDs. On that metric this topic ranks 42nd of 69 — BELOW the median, i.e. less overlapping than 41 other topics. (It ranks 16th only on a different metric, strongest single-topic overlap; the two ranks are recorded separately above because conflating them overstates its standing by 26 places.) #307 retired hematology_medical_oncology on a restricted 10-cancer-topic denominator (88.6%), which is again a different metric and not comparable to either figure here. Keeping this topic excluded rests on it being a methodology label whose overlap with domain topics is definitional — not on any overlap percentage, which would condemn most of the taxonomy.",
         "supersedes": "reason 'clustering quality fail' / activity_count 1314, recorded 2026-05-11 with no method declared and never revisited. The 1314 figure's units could not be established in the 2026-08-03 audit, so no growth ratio against it is meaningful; it is recorded here only as the superseded value."
       }
     },
