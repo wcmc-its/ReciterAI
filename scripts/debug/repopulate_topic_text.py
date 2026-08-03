@@ -128,11 +128,24 @@ def main(argv=None) -> int:
         if not r.get("journal") and meta.get("journalTitleVerbose"):
             sets.append("#jr = :jr"); vals[":jr"] = str(meta["journalTitleVerbose"])
         # A str here is an S-typed year from the 2026-05 run; rewrite it as an
-        # int so it lands as N. int() also normalizes the resource client's
-        # Decimal for already-correct rows, which simply no-ops.
+        # int so it lands as N.
         year_now = r.get("year")
-        if (year_now is None or isinstance(year_now, str)) and meta.get("articleYear") is not None:
-            sets.append("#yr = :yr"); vals[":yr"] = int(meta["articleYear"])
+        if year_now is None or isinstance(year_now, str):
+            # Prefer MariaDB, but fall back to re-typing the row's own S value.
+            # That fallback needs no external source, so it is the only repair
+            # available for PMIDs outside the scoreable corpus (pre-2020,
+            # non-Academic-Article, delisted) — MariaDB returns nothing for
+            # those, and without it a correct year stays stranded as a String
+            # that pool_ranker reads as 0.
+            src = meta.get("articleYear")
+            if src is None and isinstance(year_now, str):
+                src = year_now
+            try:
+                year_val = None if src is None else int(str(src).strip())
+            except ValueError:
+                year_val = None
+            if year_val is not None:
+                sets.append("#yr = :yr"); vals[":yr"] = year_val
         if not sets:
             nothing_to_do += 1
             continue
