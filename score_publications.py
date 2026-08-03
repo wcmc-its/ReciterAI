@@ -253,6 +253,10 @@ class ScoringResult:
     synopsis: str
     abstract: str
     title: str = ""  # article title — TOPIC# materialization (#80 PR 4a)
+    # Article year — TOPIC# materialization. spotlight.pool_ranker filters on
+    # this attribute with a 0 default, so rows minted without it are dropped
+    # from the spotlight pool for falling below the recency cutoff.
+    year: str = ""
     # #212 Part A — enriched impact value, joined off the IMPACT# row at
     # extraction (see _attach_synopses_from_ddb) and written onto the TOPIC#
     # rows at materialization so a PMID scored after enrichment carries
@@ -757,6 +761,7 @@ def _materialize_topic_rows(
     taxonomy_version: str,
     synopsis: str,
     title: str,
+    year: str | int | None = None,
     impact_score: str | int | None = None,
     impact_justification: str = "",
 ) -> None:
@@ -784,6 +789,7 @@ def _materialize_topic_rows(
         min_score=SCREENING_THRESHOLD,
         synopsis=synopsis,
         title=title,
+        year=year,
         # #212 Part A — join the enriched impact value at build time so the
         # rows carry it from birth (onboarding ordering). Absent when the
         # IMPACT# row had no score yet; Part B back-propagates that case.
@@ -823,6 +829,7 @@ def score_one_publication(
         synopsis=str(pub.get('synopsis') or ''),
         abstract=str(pub.get('abstract') or ''),
         title=str(pub.get('title') or ''),
+        year=str(pub.get('year') or ''),
         # #212 Part A — carry the enriched impact value through to
         # _materialize_topic_rows. None when the IMPACT# row has no score yet.
         impact_score=pub.get('impact_score'),
@@ -890,7 +897,7 @@ def score_one_publication(
                 _materialize_topic_rows(
                     dynamo_client, table_name, pmid=pmid, dense_scores={},
                     authors=authors or [], taxonomy_version=taxonomy_version,
-                    synopsis=result.synopsis, title=result.title,
+                    synopsis=result.synopsis, title=result.title, year=result.year,
                     impact_score=result.impact_score,
                     impact_justification=result.impact_justification,
                 )
@@ -958,7 +965,7 @@ def score_one_publication(
             _materialize_topic_rows(
                 dynamo_client, table_name, pmid=pmid, dense_scores=dense_scores,
                 authors=authors or [], taxonomy_version=taxonomy_version,
-                synopsis=result.synopsis, title=result.title,
+                synopsis=result.synopsis, title=result.title, year=result.year,
                 impact_score=result.impact_score,
                 impact_justification=result.impact_justification,
             )
@@ -1190,6 +1197,10 @@ def serialize_results(results: list) -> list:
             }
             if r.fallback_model:
                 entry['fallback_model'] = r.fallback_model
+            # Carry the article year into scoring_results.json so the cold-path
+            # loader writes the same `year` attribute the onboarding path does.
+            if r.year:
+                entry['year'] = r.year
             # #212 Part A — carry the enriched impact value into
             # scoring_results.json so the cold-path loader
             # (load_dynamodb.build_topic_records) can join it onto TOPIC#

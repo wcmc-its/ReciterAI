@@ -105,6 +105,37 @@ def test_plain_float_dense_score_supported():
     assert rows[0]["rationale"] == {"S": ""}
 
 
+def test_year_written_as_number_when_known():
+    """A row missing `year` reads as 0 in spotlight.pool_ranker and is dropped
+    for falling below the recency cutoff, so the attribute must land at birth."""
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=_AUTHORS,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+        year=2025,
+    )
+    assert rows[0]["year"] == {"N": "2025"}
+    # The read pool_ranker actually performs.
+    assert int(rows[0].get("year", {}).get("N", "0")) == 2025
+
+
+def test_year_omitted_when_unknown_or_unparseable():
+    """Omit rather than zero-fill: a real 0 would be indistinguishable from
+    'unknown', and both are wrong to write into a Number attribute."""
+    for bad in (None, "", "   ", "n/a"):
+        rows = build_topic_rows_for_pmid(
+            pmid="111",
+            dense_scores={"cardio": {"score": 0.9}},
+            authors=_AUTHORS,
+            taxonomy_version="taxonomy_v2",
+            min_score=0.3,
+            year=bad,
+        )
+        assert "year" not in rows[0], f"year should be omitted for {bad!r}"
+
+
 def test_no_authors_yields_no_rows():
     assert build_topic_rows_for_pmid(
         pmid="111",

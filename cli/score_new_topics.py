@@ -369,6 +369,7 @@ def build_additive_topic_rows(scored: dict, corpus_by_pmid: dict,
             min_score=FLOOR,
             synopsis=str(pub.get("synopsis") or ""),
             title=str(pub.get("title") or ""),
+            year=pub.get("year"),
             impact_score=pub.get("impact_score"),
             impact_justification=str(pub.get("impact_justification") or ""),
         ))

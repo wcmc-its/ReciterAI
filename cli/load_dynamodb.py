@@ -93,6 +93,7 @@ def build_topic_records(
             authors=authors,
             taxonomy_version=taxonomy_version,
             min_score=min_score,
+            year=pub.get('year'),
             # #212 Part A — cold-path build-time join. scoring_results.json
             # carries impact_score/impact_justification only when the IMPACT#
             # row was enriched at score time; absent keys leave the row at its

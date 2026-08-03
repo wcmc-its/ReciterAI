@@ -35,24 +35,48 @@ from utils.sql_queries import fetch_publications_for_enrichment  # noqa: E402
 
 
 def scan_bare_rows(table, topic: str | None) -> list[dict]:
-    """TOPIC# rows missing a synopsis attribute. Returns [{PK, SK, pmid}]."""
+    """TOPIC# rows missing any of synopsis / title / journal / year.
+
+    Returns [{PK, SK, pmid, <whichever of the four are present>}] — the
+    caller writes only the attributes a row actually lacks.
+
+    `year` joined the filter after SPS found five partitions (4,765 rows)
+    at 0% year coverage: those rows all HAVE a synopsis, so the original
+    synopsis-only filter matched none of them. `year` was never written by
+    utils.topic_records at all until that was fixed; the rows that do carry
+    it are the ones this script repaired in its 2026-05 run.
+    """
+    names = {"#yr": "year"}  # `year` is a DynamoDB reserved word
+    projection = "PK, SK, pmid, synopsis, title, journal, #yr"
+    missing_any = (
+        Attr("synopsis").not_exists()
+        | Attr("title").not_exists()
+        | Attr("journal").not_exists()
+        | Attr("year").not_exists()
+        # This script's own 2026-05 run wrote `str(articleYear)`, which the
+        # resource client stores as S. spotlight.pool_ranker reads year via
+        # .get("N", "0"), so an S-typed year is just as invisible to it as a
+        # missing one. Re-type those rows to N.
+        | Attr("year").attribute_type("S")
+    )
     rows, lek = [], None
     while True:
         if topic:
             kw = dict(
                 KeyConditionExpression=Key("PK").eq(f"TOPIC#{topic}")
                 & Key("SK").begins_with("SCORE#"),
-                FilterExpression=Attr("synopsis").not_exists(),
-                ProjectionExpression="PK, SK, pmid",
+                FilterExpression=missing_any,
+                ProjectionExpression=projection,
+                ExpressionAttributeNames=names,
             )
             if lek:
                 kw["ExclusiveStartKey"] = lek
             resp = table.query(**kw)
         else:
             kw = dict(
-                FilterExpression=Attr("PK").begins_with("TOPIC#")
-                & Attr("synopsis").not_exists(),
-                ProjectionExpression="PK, SK, pmid",
+                FilterExpression=Attr("PK").begins_with("TOPIC#") & missing_any,
+                ProjectionExpression=projection,
+                ExpressionAttributeNames=names,
             )
             if lek:
                 kw["ExclusiveStartKey"] = lek
@@ -85,23 +109,49 @@ def main(argv=None) -> int:
     print(f"resolved: synopsis for {len(syn)} PMIDs, "
           f"MariaDB metadata for {len(pubs)} PMIDs")
 
-    updated = skipped_no_syn = 0
+    updated = nothing_to_do = 0
+    filled = {"synopsis": 0, "title": 0, "journal": 0, "year": 0}
     for r in bare:
         pmid = str(r["pmid"])
-        s = (syn.get(pmid) or {}).get("synopsis")
-        if not s:
-            skipped_no_syn += 1
-            continue
         meta = pubs.get(pmid, {})
         names = {"#syn": "synopsis", "#ti": "title", "#jr": "journal", "#yr": "year"}
-        vals = {":syn": s}
-        sets = ["#syn = :syn"]
-        if meta.get("articleTitle"):
+        vals: dict = {}
+        sets: list[str] = []
+        # Only write attributes the row actually lacks — a row already
+        # carrying a good synopsis must not be overwritten from a stale or
+        # missing IMPACT# read, and re-writing the rest buys nothing.
+        s = (syn.get(pmid) or {}).get("synopsis")
+        if not r.get("synopsis") and s:
+            sets.append("#syn = :syn"); vals[":syn"] = s
+        if not r.get("title") and meta.get("articleTitle"):
             sets.append("#ti = :ti"); vals[":ti"] = str(meta["articleTitle"])
-        if meta.get("journalTitleVerbose"):
+        if not r.get("journal") and meta.get("journalTitleVerbose"):
             sets.append("#jr = :jr"); vals[":jr"] = str(meta["journalTitleVerbose"])
-        if meta.get("articleYear") is not None:
-            sets.append("#yr = :yr"); vals[":yr"] = str(meta["articleYear"])
+        # A str here is an S-typed year from the 2026-05 run; rewrite it as an
+        # int so it lands as N.
+        year_now = r.get("year")
+        if year_now is None or isinstance(year_now, str):
+            # Prefer MariaDB, but fall back to re-typing the row's own S value.
+            # That fallback needs no external source, so it is the only repair
+            # available for PMIDs outside the scoreable corpus (pre-2020,
+            # non-Academic-Article, delisted) — MariaDB returns nothing for
+            # those, and without it a correct year stays stranded as a String
+            # that pool_ranker reads as 0.
+            src = meta.get("articleYear")
+            if src is None and isinstance(year_now, str):
+                src = year_now
+            try:
+                year_val = None if src is None else int(str(src).strip())
+            except ValueError:
+                year_val = None
+            if year_val is not None:
+                sets.append("#yr = :yr"); vals[":yr"] = year_val
+        if not sets:
+            nothing_to_do += 1
+            continue
+        for tok, attr in names.items():
+            if any(tok in s_ for s_ in sets):
+                filled[attr] += 1
         used_names = {k: v for k, v in names.items()
                       if any(k in s_ for s_ in sets)}
         if args.dry_run:
@@ -116,7 +166,8 @@ def main(argv=None) -> int:
         updated += 1
 
     verb = "would update" if args.dry_run else "updated"
-    print(f"{verb} {updated} rows; skipped {skipped_no_syn} (no IMPACT# synopsis)")
+    print(f"{verb} {updated} rows; {nothing_to_do} had no resolvable gap")
+    print("  attributes filled: " + ", ".join(f"{k}={v}" for k, v in filled.items()))
     return 0
 
 

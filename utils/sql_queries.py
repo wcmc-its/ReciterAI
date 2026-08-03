@@ -69,6 +69,7 @@ PUBLICATION_EXTRACTION_SQL = """
 SELECT DISTINCT
     a1.pmid,
     a1.articleTitle AS title,
+    a1.articleYear AS year,
     r.abstractVarchar AS abstract
 FROM analysis_summary_article a1
 LEFT JOIN reporting_abstracts r ON r.pmid = a1.pmid

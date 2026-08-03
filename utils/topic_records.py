@@ -22,6 +22,13 @@ The optional ``synopsis`` / ``title`` attributes are written for
 onboarding — the Assign stage's subtopic classifier reads them. The
 cold loader omits both.
 
+``year`` is written by both paths. ``spotlight.pool_ranker.rank_pool``
+filters on it with a 0 default, so a row missing ``year`` sorts below the
+recency cutoff and never reaches spotlight ranking. Before this attribute
+existed on the builder, the only rows carrying it were those repaired by
+``scripts/debug/repopulate_topic_text.py`` (a 2026-05 one-off for a
+different bug), which is why coverage was partial and arbitrary.
+
 The optional ``impact_score`` / ``impact_justification`` attributes are
 the #212 Part A build-time join: when the PMID's ``IMPACT#`` row already
 carries an enriched score at materialization time (the onboarding
@@ -47,6 +54,7 @@ def build_topic_rows_for_pmid(
     min_score: float,
     synopsis: str = "",
     title: str = "",
+    year: str | int | None = None,
     impact_score: str | int | float | None = None,
     impact_justification: str = "",
     created_at: str | None = None,
@@ -69,6 +77,12 @@ def build_topic_rows_for_pmid(
             when non-empty so the Assign subtopic classifier can read it.
         title: article title; written as the ``title`` attribute when
             non-empty, same rationale.
+        year: article publication year; written as the ``year`` Number
+            attribute when present. ``spotlight.pool_ranker.rank_pool``
+            defaults a missing ``year`` to 0 and drops the row for falling
+            below its recency cutoff, so a row without it is invisible to
+            spotlight ranking. Omitted (not zero-filled) when unknown, so
+            the absence stays distinguishable from a real old year.
         impact_score: enriched impact score copied from the PMID's ``IMPACT#``
             row (#212 Part A). May be the DDB string form ("N"), an int/float,
             or None. Written as the ``impact_score`` Number attribute ONLY when
@@ -104,6 +118,15 @@ def build_topic_rows_for_pmid(
     if impact_score is not None and str(impact_score).strip() != "":
         impact_score_n = str(impact_score)
 
+    # Same omit-when-unknown rule as impact_score. Non-numeric input is
+    # dropped rather than written, so the Number attribute never holds junk.
+    year_n: str | None = None
+    if year is not None and str(year).strip() != "":
+        try:
+            year_n = str(int(str(year).strip()))
+        except ValueError:
+            year_n = None
+
     for topic_id, score_data in (dense_scores or {}).items():
         if isinstance(score_data, dict):
             score = score_data.get("score")
@@ -136,6 +159,8 @@ def build_topic_rows_for_pmid(
                 item["synopsis"] = {"S": str(synopsis)}
             if title:
                 item["title"] = {"S": str(title)}
+            if year_n is not None:
+                item["year"] = {"N": year_n}
             if impact_score_n is not None:
                 item["impact_score"] = {"N": impact_score_n}
                 # Match the stopgap backfill: justification only when present.
