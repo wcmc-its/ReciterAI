@@ -27,6 +27,19 @@ import pytest
 from pipeline_feedback.sweep import FeedbackSweepRun, run_sweep
 
 
+# The diagnostic path windows CRITIC_REJECT# rows against
+# `now - critic_reject_persistence_days` (default 90). Every critic row in this
+# file is dated 2026-04/05, so against a real wall clock these tests aged out of
+# their own window on 2026-07-30 and began failing on main for no reason related
+# to the code (#341).
+#
+# `run_sweep` already takes `now` for exactly this — WR-06 added it so the
+# effective_since cutoff would not shift between runs — but the tests were never
+# wired to it. Pin it here: these are fixture-driven unit tests and must not
+# depend on the date they are run.
+PINNED_NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+
 # ---------------------------------------------------------------------------
 # Helpers for building test fixtures
 # ---------------------------------------------------------------------------
@@ -426,6 +439,7 @@ def test_diagnostic_distinct_pmid_sets_per_subtopic():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-diag", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -471,6 +485,7 @@ def test_diagnostic_below_threshold_no_emit():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-below-diag", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -516,6 +531,7 @@ def test_diagnostic_window_bounded():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-window", bedrock_client=bedrock, thresholds=thresholds,
+        now=now_dt,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -524,11 +540,16 @@ def test_diagnostic_window_bounded():
 
     # With only 2 in-window rows (both distinct pairs) and threshold=2:
     # 2 >= 2 → should emit. Check distinct_pmid_set_count = 2 (not 3).
-    if subtopic_c_diag:
-        diag = subtopic_c_diag[0]
-        assert diag["distinct_pmid_set_count"] == 2, (
-            f"Expected 2 in-window pairs (out-of-window row excluded), got {diag['distinct_pmid_set_count']}"
-        )
+    # Asserted unconditionally: this was previously guarded by `if subtopic_c_diag:`,
+    # which made the whole test vacuous the moment the rows aged out of the window
+    # — it passed for two months while asserting nothing.
+    assert len(subtopic_c_diag) == 1, (
+        f"Expected exactly one SPOTLIGHT_DIAGNOSTIC for subtopic_c; got {len(subtopic_c_diag)}"
+    )
+    diag = subtopic_c_diag[0]
+    assert diag["distinct_pmid_set_count"] == 2, (
+        f"Expected 2 in-window pairs (out-of-window row excluded), got {diag['distinct_pmid_set_count']}"
+    )
 
 
 def test_diagnostic_groups_by_subtopic_not_cwid():
@@ -560,6 +581,7 @@ def test_diagnostic_groups_by_subtopic_not_cwid():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-grain", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -601,6 +623,7 @@ def test_underlying_rejects_suffix_shape_per_d08():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-suffix", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -647,6 +670,7 @@ def test_underlying_rejects_capped():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-cap-underlying", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -688,6 +712,7 @@ def test_unknown_reason_code_bucket_handled():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-unknown", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     put_items = [c[1].get("Item") or (c[0][0] if c[0] else None) for c in table.put_item.call_args_list]
@@ -741,6 +766,7 @@ def test_sonnet_invocation_only_for_uncovered():
     result = run_sweep(
         table=table, since=since_dt, triggered_by="operator",
         run_id="test-no-bedrock", bedrock_client=bedrock, thresholds=thresholds,
+        now=PINNED_NOW,
     )
 
     # No uncovered PMIDs → Bedrock should NOT be called
