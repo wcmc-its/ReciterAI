@@ -25,7 +25,8 @@ Full ordering is `docs/adr-taxonomy-change-propagation.md` (D1). The short form:
   2. REBUILD + REDEPLOY every artifact bundling it — the three hot-path Lambda
      zips (scripts/build_lambda_zips.sh) and the Docker image
   3. VERIFY each deployed artifact's taxonomy actually changed
-  4. only then run this tool
+  4. only then run this tool (it deletes the rows AND refreshes the
+     TAXONOMY#{version}/META catalog record downstream consumers read)
   5. republish the hierarchy (operator-gated cold run)
   6. notify SPS (Aurora DELETE + etl:dynamodb)
 
@@ -44,6 +45,17 @@ import json
 import os
 import sys
 from pathlib import Path
+
+# Run directly (`cli/retire_topic.py ...`) sys.path[0] is cli/, not the repo
+# root, so `from cli.load_dynamodb import ...` fails. Under pytest the root is
+# already on the path, which is why the unit tests cannot see this.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Imported at module scope on purpose. As a function-local import it sat AFTER
+# the row deletions, so an import failure would delete the rows and then skip
+# the catalog refresh — reintroducing the exact desync this tool now prevents.
+# Module scope also means `--help` exercises it, so the import path is covered.
+from cli.load_dynamodb import build_taxonomy_record  # noqa: E402
 
 TOPIC_PK = "TOPIC#{topic}"
 SUBTOPIC_PREFIX_TEMPLATES = (
@@ -114,6 +126,47 @@ def delete_subtopic_score_partitions(table, topic: str, dry_run: bool) -> int:
     return _collect_and_delete(keys, table, dry_run)
 
 
+def refresh_taxonomy_meta(
+    table_name: str, region: str, *, taxonomy_path: str | Path, dry_run: bool
+) -> dict:
+    """Rewrite `TAXONOMY#{version}/META` from the on-disk taxonomy.
+
+    That record is the *catalog* — a single item listing every topic's id,
+    label and description — and it is what downstream consumers read to
+    enumerate topics. The Scholars Profile System builds its `topic` table from
+    it nightly.
+
+    Deleting a retired topic's rows without refreshing it leaves the catalog
+    advertising a topic that no longer exists. That is not hypothetical: on
+    2026-08-01 `score_new_topics.py` refreshed this record when #346 added two
+    topics, then #348 retired `neuroscience_neurology` and this tool deleted its
+    rows but left the record at 70 topics, still listing it. SPS kept upserting
+    it and could not prune it — its prune only fires for topics *absent* from
+    the catalog — so it showed 68 research areas against a published 67, and the
+    retired one was headed for a permanent zero-count tile once its stale
+    publication rows drained.
+
+    Idempotent: rewrites the whole item from the taxonomy file, so running it
+    twice is the same as running it once, and running it when nothing changed
+    is a no-op in content.
+    """
+    import boto3
+
+    taxonomy = json.loads(Path(taxonomy_path).read_text())
+    item = build_taxonomy_record(taxonomy)
+    version = taxonomy["taxonomy_version"]
+    summary = {
+        "record": f"TAXONOMY#{version}/META",
+        "topic_count": len(taxonomy["topics"]),
+        "written": not dry_run,
+    }
+    if not dry_run:
+        boto3.client("dynamodb", region_name=region).put_item(
+            TableName=table_name, Item=item
+        )
+    return summary
+
+
 def main() -> int:
     # Full docstring, not just its first line: the ordering below is the whole
     # point of the tool, and a `--help` that hides it is how #352 happened.
@@ -142,12 +195,16 @@ def main() -> int:
     table = boto3.resource("dynamodb", region_name=args.region).Table(args.table)
     topic_rows = delete_topic_partition(table, args.topic, dry_run)
     subtopic_rows = delete_subtopic_score_partitions(table, args.topic, dry_run)
+    meta = refresh_taxonomy_meta(
+        args.table, args.region, taxonomy_path=args.taxonomy, dry_run=dry_run
+    )
     print(json.dumps({
         "topic": args.topic,
         "table": args.table,
         "dry_run": dry_run,
         "topic_rows": topic_rows,
         "subtopic_score_rows": subtopic_rows,
+        "taxonomy_meta": meta,
         "action": "would delete" if dry_run else "deleted",
     }, indent=2))
 

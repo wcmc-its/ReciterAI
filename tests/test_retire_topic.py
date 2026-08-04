@@ -5,6 +5,8 @@ benign `hematology` topic), the taxonomy-presence ordering guard, and that a
 dry-run deletes nothing.
 """
 import json
+from pathlib import Path
+import sys
 
 from cli.retire_topic import (
     belongs_to_topic,
@@ -71,3 +73,89 @@ def test_dry_run_deletes_nothing_execute_deletes():
     assert delete_topic_partition(t2, HEME, dry_run=False) == 2
     assert all(pk == f"TOPIC#{HEME}" for pk, _ in t2.deleted)  # only heme rows deleted
     assert ("TOPIC#hematology", "SCORE#0700#ACTIVITY#pmid_3#cwid_c") not in t2.deleted
+
+
+# ---------------------------------------------------------------------------
+# TAXONOMY#{version}/META refresh
+# ---------------------------------------------------------------------------
+
+
+def _taxonomy_file(tmp_path, ids):
+    p = tmp_path / "taxonomy_test.json"
+    p.write_text(json.dumps({
+        "taxonomy_version": "taxonomy_v2",
+        "topics": [
+            {"id": i, "label": i.title(), "description": f"desc {i}"} for i in ids
+        ],
+    }))
+    return p
+
+
+def test_meta_refresh_writes_the_current_topic_set(tmp_path, monkeypatch):
+    """The catalog record must reflect the taxonomy AFTER the retirement.
+
+    Regression guard: retire_topic used to delete a topic's rows and leave
+    TAXONOMY#.../META still advertising it, which is how SPS ended up listing
+    68 research areas against a published 67.
+    """
+    import boto3
+    from cli.retire_topic import refresh_taxonomy_meta
+
+    written = {}
+
+    class _FakeClient:
+        def put_item(self, TableName, Item):
+            written["table"] = TableName
+            written["item"] = Item
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _FakeClient())
+
+    tax = _taxonomy_file(tmp_path, ["a", "b"])  # retired topic already removed
+    out = refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=False)
+
+    assert out == {"record": "TAXONOMY#taxonomy_v2/META", "topic_count": 2, "written": True}
+    assert written["table"] == "reciterai"
+    item = written["item"]
+    assert item["PK"]["S"] == "TAXONOMY#taxonomy_v2"
+    assert item["SK"]["S"] == "META"
+    assert item["topic_count"]["N"] == "2"
+    assert {e["M"]["id"]["S"] for e in item["topics"]["L"]} == {"a", "b"}
+
+
+def test_meta_refresh_writes_nothing_on_dry_run(tmp_path, monkeypatch):
+    import boto3
+    from cli.retire_topic import refresh_taxonomy_meta
+
+    calls = []
+
+    class _FakeClient:
+        def put_item(self, **kw):
+            calls.append(kw)
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _FakeClient())
+
+    tax = _taxonomy_file(tmp_path, ["a"])
+    out = refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=True)
+
+    assert calls == []
+    assert out["written"] is False
+    assert out["topic_count"] == 1
+
+
+def test_script_runs_as_a_script_not_just_under_pytest():
+    """Guard the import path when invoked directly.
+
+    pytest puts the repo root on sys.path, so `from cli.load_dynamodb import ...`
+    resolves in-process even when it would fail for a real operator running
+    `cli/retire_topic.py`. Only a subprocess sees the difference.
+    """
+    import subprocess
+    repo_root = Path(__file__).resolve().parent.parent
+    r = subprocess.run(
+        [sys.executable, str(repo_root / "cli" / "retire_topic.py"), "--help"],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert r.returncode == 0, f"--help failed:\n{r.stderr}"
+    # The ordering is the point of the tool; --help must surface it (#352).
+    assert "DELETING ROWS IS NOT THE LAST STEP" in r.stdout
+    assert "TAXONOMY#{version}/META" in r.stdout
