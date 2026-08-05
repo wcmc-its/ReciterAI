@@ -7,7 +7,8 @@ on 07-10 and the weekly hot run — still carrying the old bundled taxonomy —
 re-minted its rows on 07-13, 07-20 and 07-27. Symmetrically, four topics added
 by #339 had no rows at all because the deployed taxonomy had never heard of them.
 
-Both directions are checked:
+Two independent replicas are checked against the taxonomy — the `TOPIC#`
+partition space and the `TAXONOMY#{version}/META` catalog record:
 
   ORPHAN   a `TOPIC#` partition whose topic is not in the taxonomy.
            Something is scoring against a taxonomy we no longer ship. ERROR.
@@ -15,6 +16,21 @@ Both directions are checked:
   UNSCORED a taxonomy topic with no `TOPIC#` partition.
            Expected briefly after a topic is added, so WARN rather than ERROR —
            but it is the exact shape of "the new topics never reached prod".
+
+  CATALOG  `TAXONOMY#{version}/META` disagreeing with the taxonomy in either
+           direction, or being unreadable. ERROR — downstream consumers
+           enumerate topics from that record, so a stale one reaches users
+           immediately.
+
+The catalog check exists because omitting it made this checker useless against
+the incident it should have caught first. Run against prod on 2026-08-03 it
+reported a clean `OK — 69 partitions vs 69 taxonomy ids, 0 orphans` while the
+catalog record said 70 and SPS was serving `neuroscience_neurology`, retired
+two days earlier (#355). Partition drift and catalog drift are independent:
+`retire_topic` used to delete the rows without refreshing the record, so the
+partitions were correct and the catalog was not. Checking one replica says
+nothing about the other, and a green report on a partial check is worse than
+no check — it was read as evidence the taxonomy had propagated.
 
 The ADR's original second check — "every partition's `topic_scores_version`
 corresponds to the current taxonomy hash" — is deliberately NOT implemented.
@@ -41,15 +57,32 @@ DRIFT_PK = "DRIFT#taxonomy"
 ALERTABLE = ("WARN", "ERROR")
 
 
-def evaluate(partition_ids: Iterable[str], taxonomy_ids: Iterable[str]) -> dict[str, Any]:
-    """Compare the topic ids present in data against the taxonomy. Pure."""
+def evaluate(
+    partition_ids: Iterable[str],
+    taxonomy_ids: Iterable[str],
+    catalog_ids: Iterable[str] | None = None,
+) -> dict[str, Any]:
+    """Compare the topic ids present in data against the taxonomy. Pure.
+
+    `catalog_ids` is the `TAXONOMY#{version}/META` topic set. Pass None only
+    when the record could not be read — that is itself reported, never treated
+    as agreement.
+    """
     present = set(partition_ids)
     expected = set(taxonomy_ids)
 
     orphans = sorted(present - expected)
     unscored = sorted(expected - present)
 
-    if orphans:
+    catalog_stale: list[str] = []
+    catalog_missing: list[str] = []
+    catalog_read = catalog_ids is not None
+    if catalog_read:
+        catalog = set(catalog_ids)  # type: ignore[arg-type]
+        catalog_stale = sorted(catalog - expected)
+        catalog_missing = sorted(expected - catalog)
+
+    if orphans or catalog_stale or catalog_missing or not catalog_read:
         severity = "ERROR"
     elif unscored:
         severity = "WARN"
@@ -60,9 +93,48 @@ def evaluate(partition_ids: Iterable[str], taxonomy_ids: Iterable[str]) -> dict[
         "severity": severity,
         "orphan_topics": orphans,
         "unscored_topics": unscored,
+        "catalog_stale_topics": catalog_stale,
+        "catalog_missing_topics": catalog_missing,
+        "catalog_read": catalog_read,
         "partition_count": len(present),
         "taxonomy_topic_count": len(expected),
     }
+
+
+def read_catalog_topic_ids(table: Any, taxonomy_version: str) -> set[str] | None:
+    """Return the topic ids listed in `TAXONOMY#{version}/META`, or None.
+
+    This record is a SEPARATE replica of the taxonomy from the `TOPIC#`
+    partitions, and it is the one downstream consumers enumerate topics from —
+    SPS builds its `topic` catalog off it nightly.
+
+    Omitting it is why the first version of this checker reported a clean
+    `OK — 69 partitions vs 69 taxonomy ids, 0 orphans` on 2026-08-03 while this
+    record said 70 and SPS was serving a research area retired two days
+    earlier (#355). Partition drift and catalog drift are independent failures;
+    checking one says nothing about the other.
+
+    Returns None when the record cannot be read. The caller reports that as a
+    failure, never as agreement — an unreadable catalog is not a clean one.
+    """
+    from boto3.dynamodb.conditions import Key  # noqa: F401  (parity with house style)
+
+    try:
+        resp = table.get_item(
+            Key={"PK": f"TAXONOMY#{taxonomy_version}", "SK": "META"},
+            ProjectionExpression="topics",
+        )
+    except Exception:
+        logger.exception("could not read TAXONOMY#%s/META", taxonomy_version)
+        return None
+
+    item = resp.get("Item")
+    if not item:
+        logger.error("TAXONOMY#%s/META does not exist", taxonomy_version)
+        return None
+
+    ids = {t["id"] for t in item.get("topics", []) if isinstance(t, dict) and t.get("id")}
+    return ids or None
 
 
 def scan_topic_partitions(table: Any) -> dict[str, str]:
@@ -108,10 +180,18 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
     return newest
 
 
-def run_check(table: Any, taxonomy_ids: Iterable[str], *, taxonomy_hash: str, day: str) -> dict:
+def run_check(
+    table: Any,
+    taxonomy_ids: Iterable[str],
+    *,
+    taxonomy_hash: str,
+    day: str,
+    taxonomy_version: str = "taxonomy_v2",
+) -> dict:
     """Scan, evaluate, persist a `DRIFT#taxonomy` row, alert if actionable."""
     newest_by_topic = scan_topic_partitions(table)
-    result = evaluate(newest_by_topic.keys(), taxonomy_ids)
+    catalog_ids = read_catalog_topic_ids(table, taxonomy_version)
+    result = evaluate(newest_by_topic.keys(), taxonomy_ids, catalog_ids)
     result["taxonomy_hash"] = taxonomy_hash
     # Minting dates for orphans only — this is what made the 07-10 incident legible.
     result["orphan_last_written"] = {t: newest_by_topic[t] for t in result["orphan_topics"]}
@@ -140,7 +220,29 @@ def run_check(table: Any, taxonomy_ids: Iterable[str], *, taxonomy_hash: str, da
 
         orphans = result["orphan_topics"]
         unscored = result["unscored_topics"]
-        if orphans:
+        stale = result["catalog_stale_topics"]
+        missing = result["catalog_missing_topics"]
+
+        if not result["catalog_read"]:
+            title = "Taxonomy drift: the topic catalog could not be read"
+            message = (
+                f"TAXONOMY#{taxonomy_version}/META is missing, empty, or unreadable. "
+                f"Downstream consumers build their topic list from it — SPS rebuilds "
+                f"its catalog off it nightly — so this is reported as a failure rather "
+                f"than assumed clean."
+            )
+        elif stale or missing:
+            title = "Taxonomy drift: the topic catalog disagrees with the taxonomy"
+            message = (
+                f"TAXONOMY#{taxonomy_version}/META lists {len(stale)} topic(s) that are "
+                f"not in the taxonomy ({', '.join(stale) or 'none'}) and is missing "
+                f"{len(missing)} that are ({', '.join(missing) or 'none'}). Downstream "
+                f"consumers enumerate topics from this record, so they are serving the "
+                f"wrong topic set right now — this reaches users without touching any "
+                f"TOPIC# row. Refresh it: cli/retire_topic.py does so on retirement, "
+                f"cli/score_new_topics.py on addition."
+            )
+        elif orphans:
             title = "Taxonomy drift: retired topics still being scored"
             message = (
                 f"{len(orphans)} topic(s) hold TOPIC# rows but are absent from the "
@@ -164,13 +266,16 @@ def run_check(table: Any, taxonomy_ids: Iterable[str], *, taxonomy_hash: str, da
                 "source": "pipeline_taxonomy_drift.checker",
                 "orphan_topics": orphans,
                 "unscored_topics": unscored,
+                "catalog_stale_topics": stale,
+                "catalog_missing_topics": missing,
+                "catalog_read": result["catalog_read"],
                 "orphan_last_written": result["orphan_last_written"],
                 "taxonomy_hash": taxonomy_hash,
                 "partition_count": result["partition_count"],
                 "taxonomy_topic_count": result["taxonomy_topic_count"],
                 "row_persisted": result["row_persisted"],
             },
-            mention=bool(orphans),
+            mention=bool(orphans or stale or missing or not result["catalog_read"]),
         )
 
     return result

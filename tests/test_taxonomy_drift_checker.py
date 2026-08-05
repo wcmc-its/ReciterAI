@@ -17,6 +17,7 @@ import pytest
 from pipeline_taxonomy_drift.checker import (
     DRIFT_PK,
     evaluate,
+    read_catalog_topic_ids,
     run_check,
     scan_topic_partitions,
 )
@@ -37,7 +38,7 @@ def _table_returning(*pages):
 
 class TestEvaluate:
     def test_clean_taxonomy_reports_ok(self):
-        result = evaluate(["cardiology", "oncology"], ["cardiology", "oncology"])
+        result = evaluate(["cardiology", "oncology"], ["cardiology", "oncology"], ["cardiology", "oncology"])
         assert result["severity"] == "OK"
         assert result["orphan_topics"] == []
         assert result["unscored_topics"] == []
@@ -55,7 +56,8 @@ class TestEvaluate:
     def test_topic_added_but_never_scored_is_a_warning(self):
         # The #339 half of the same incident: four new topics the deployed
         # taxonomy had never heard of, so nothing ever scored into them.
-        result = evaluate(["cardiology"], ["cardiology", "basic_neuroscience"])
+        result = evaluate(["cardiology"], ["cardiology", "basic_neuroscience"],
+                          ["cardiology", "basic_neuroscience"])
         assert result["severity"] == "WARN"
         assert result["unscored_topics"] == ["basic_neuroscience"]
         assert result["orphan_topics"] == []
@@ -126,15 +128,21 @@ class TestScan:
 
 
 class TestRunCheck:
-    def _table(self, items):
+    def _table(self, items, catalog=None):
+        """A mock table. `catalog` defaults to whatever the taxonomy expects, so
+        these tests stay about partition drift; catalog drift has its own class."""
         table = MagicMock()
         table.scan.side_effect = [{"Items": items}]
+        table.get_item.return_value = {
+            "Item": {"topics": [{"id": t} for t in (catalog if catalog is not None else [])]}
+        }
         return table
 
     def test_writes_a_drift_row_on_its_own_partition(self):
         # DRIFT#evaluation is owned by pipeline_drift and consumed by
         # pipeline_feedback.sweep; this must not land there.
-        table = self._table([{"PK": "TOPIC#cardiology", "created_at": "2026-01-01T00:00:00Z"}])
+        table = self._table([{"PK": "TOPIC#cardiology", "created_at": "2026-01-01T00:00:00Z"}],
+                            catalog=["cardiology"])
         run_check(table, ["cardiology"], taxonomy_hash="abc123", day="2026-08-03")
 
         item = table.put_item.call_args.kwargs["Item"]
@@ -153,7 +161,7 @@ class TestRunCheck:
         called = []
         monkeypatch.setattr(alerting, "alert", lambda *a, **k: called.append(a))
 
-        table = self._table([{"PK": "TOPIC#cardiology"}])
+        table = self._table([{"PK": "TOPIC#cardiology"}], catalog=["cardiology"])
         run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
         assert called == []
 
@@ -174,7 +182,8 @@ class TestRunCheck:
         )
 
         table = self._table(
-            [{"PK": "TOPIC#hematology_medical_oncology", "created_at": "2026-07-27T00:00:00Z"}]
+            [{"PK": "TOPIC#hematology_medical_oncology", "created_at": "2026-07-27T00:00:00Z"}],
+            catalog=["cardiology"],
         )
         result = run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
 
@@ -195,7 +204,7 @@ class TestRunCheck:
         calls = []
         monkeypatch.setattr(alerting, "alert", lambda *a, **k: calls.append((a, k)) or True)
 
-        table = self._table([{"PK": "TOPIC#retired_topic"}])
+        table = self._table([{"PK": "TOPIC#retired_topic"}], catalog=["cardiology"])
         table.put_item.side_effect = RuntimeError("ValidationException")
 
         result = run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
@@ -213,7 +222,8 @@ class TestRunCheck:
             alerting, "alert", lambda *a, **k: calls.append((a, k)) or True
         )
 
-        table = self._table([{"PK": "TOPIC#cardiology"}])
+        table = self._table([{"PK": "TOPIC#cardiology"}],
+                            catalog=["cardiology", "basic_neuroscience"])
         run_check(table, ["cardiology", "basic_neuroscience"], taxonomy_hash="a", day="2026-08-03")
 
         (severity, *_), kwargs = calls[0]
@@ -251,3 +261,76 @@ class TestBundledTaxonomyIsReadable:
 
         assert TAXONOMY_PATH.exists()
         assert json.loads(TAXONOMY_PATH.read_text())["taxonomy_version"] == "taxonomy_v2"
+
+
+class TestCatalogDrift:
+    """TAXONOMY#{version}/META is a second replica, independent of TOPIC# rows.
+
+    Omitting it made the first version of this checker report OK against prod on
+    2026-08-03 while the catalog said 70 and SPS served a retired topic (#355).
+    """
+
+    def test_catalog_agreeing_with_taxonomy_is_ok(self):
+        r = evaluate(["a", "b"], ["a", "b"], ["a", "b"])
+        assert r["severity"] == "OK"
+        assert r["catalog_stale_topics"] == []
+        assert r["catalog_missing_topics"] == []
+
+    def test_stale_catalog_is_an_error_even_when_partitions_are_perfect(self):
+        # The exact 2026-08-03 state: partitions clean, catalog one topic behind.
+        r = evaluate(["a", "b"], ["a", "b"], ["a", "b", "neuroscience_neurology"])
+        assert r["severity"] == "ERROR"
+        assert r["catalog_stale_topics"] == ["neuroscience_neurology"]
+        assert r["orphan_topics"] == []
+        assert r["unscored_topics"] == []
+
+    def test_catalog_missing_a_live_topic_is_an_error(self):
+        r = evaluate(["a", "b"], ["a", "b"], ["a"])
+        assert r["severity"] == "ERROR"
+        assert r["catalog_missing_topics"] == ["b"]
+
+    def test_unreadable_catalog_is_an_error_not_an_ok(self):
+        # None must never be read as agreement.
+        r = evaluate(["a"], ["a"], None)
+        assert r["severity"] == "ERROR"
+        assert r["catalog_read"] is False
+
+    def test_reader_returns_ids(self):
+        table = MagicMock()
+        table.get_item.return_value = {"Item": {"topics": [{"id": "a"}, {"id": "b"}]}}
+        assert read_catalog_topic_ids(table, "taxonomy_v2") == {"a", "b"}
+        key = table.get_item.call_args.kwargs["Key"]
+        assert key == {"PK": "TAXONOMY#taxonomy_v2", "SK": "META"}
+
+    def test_reader_returns_none_when_absent_or_broken(self):
+        absent = MagicMock()
+        absent.get_item.return_value = {}
+        assert read_catalog_topic_ids(absent, "taxonomy_v2") is None
+
+        empty = MagicMock()
+        empty.get_item.return_value = {"Item": {"topics": []}}
+        assert read_catalog_topic_ids(empty, "taxonomy_v2") is None
+
+        boom = MagicMock()
+        boom.get_item.side_effect = RuntimeError("throttled")
+        assert read_catalog_topic_ids(boom, "taxonomy_v2") is None
+
+    def test_run_check_reads_the_catalog_and_alerts_on_staleness(self, monkeypatch):
+        import pipeline_enrichment.alerting as alerting
+
+        calls = []
+        monkeypatch.setattr(alerting, "alert", lambda *a, **k: calls.append((a, k)) or True)
+
+        table = MagicMock()
+        table.scan.side_effect = [{"Items": [{"PK": "TOPIC#a"}]}]
+        table.get_item.return_value = {"Item": {"topics": [{"id": "a"}, {"id": "gone"}]}}
+
+        result = run_check(table, ["a"], taxonomy_hash="h", day="2026-08-05")
+
+        assert result["severity"] == "ERROR"
+        assert result["catalog_stale_topics"] == ["gone"]
+        (severity, title, _msg, ctx), kwargs = calls[0]
+        assert severity == "ERROR"
+        assert "catalog" in title.lower()
+        assert ctx["catalog_stale_topics"] == ["gone"]
+        assert kwargs["mention"] is True

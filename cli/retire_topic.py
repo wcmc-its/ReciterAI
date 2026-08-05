@@ -161,9 +161,34 @@ def refresh_taxonomy_meta(
         "written": not dry_run,
     }
     if not dry_run:
-        boto3.client("dynamodb", region_name=region).put_item(
-            TableName=table_name, Item=item
-        )
+        client = boto3.client("dynamodb", region_name=region)
+        client.put_item(TableName=table_name, Item=item)
+
+        # Read back and verify, rather than reporting success because the call
+        # returned. On 2026-08-04 this tool exited 1 with no output and no
+        # traceback across three attempts while the record stayed stale; the
+        # cause was never identified. A read-back cannot prevent that, but it
+        # converts a silent no-op into a loud failure — which is the difference
+        # between "SPS is quietly wrong for weeks" and "the operator sees it".
+        want = {t["M"]["id"]["S"] for t in item["topics"]["L"]}
+        got = client.get_item(
+            TableName=table_name,
+            Key={"PK": item["PK"], "SK": item["SK"]},
+            ProjectionExpression="topics",
+            ConsistentRead=True,
+        ).get("Item")
+        if not got:
+            raise SystemExit(
+                f"VERIFY FAILED: wrote TAXONOMY#{version}/META but it does not read back."
+            )
+        actual = {t["M"]["id"]["S"] for t in got["topics"]["L"]}
+        if actual != want:
+            raise SystemExit(
+                f"VERIFY FAILED: TAXONOMY#{version}/META does not match the taxonomy "
+                f"after writing. Unexpected: {sorted(actual - want)}. "
+                f"Missing: {sorted(want - actual)}."
+            )
+        summary["verified"] = True
     return summary
 
 

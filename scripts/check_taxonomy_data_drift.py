@@ -28,7 +28,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pipeline_taxonomy_drift.checker import evaluate, run_check, scan_topic_partitions  # noqa: E402
+from pipeline_taxonomy_drift.checker import (  # noqa: E402
+    evaluate,
+    read_catalog_topic_ids,
+    run_check,
+    scan_topic_partitions,
+)
 from utils.dynamodb_helpers import get_table  # noqa: E402
 from utils.iso_clock import now_iso  # noqa: E402
 from utils.taxonomy import current_content_hash, topic_ids  # noqa: E402
@@ -54,7 +59,11 @@ def main() -> int:
             table, taxonomy, taxonomy_hash=current_content_hash(), day=now_iso()[:10]
         )
     else:
-        result = evaluate(scan_topic_partitions(table).keys(), taxonomy)
+        result = evaluate(
+            scan_topic_partitions(table).keys(),
+            taxonomy,
+            read_catalog_topic_ids(table, "taxonomy_v2"),
+        )
         result["taxonomy_hash"] = current_content_hash()
 
     if args.json:
@@ -63,7 +72,16 @@ def main() -> int:
         print(f"severity:  {result['severity']}")
         print(f"taxonomy:  {result['taxonomy_topic_count']} topics, hash {result['taxonomy_hash'][:12]}")
         print(f"partitions: {result['partition_count']} TOPIC# partitions in {args.table}")
-        for label, key in (("ORPHAN", "orphan_topics"), ("UNSCORED", "unscored_topics")):
+        print(
+            "catalog:   TAXONOMY#taxonomy_v2/META "
+            + ("read OK" if result["catalog_read"] else "UNREADABLE")
+        )
+        for label, key in (
+            ("ORPHAN", "orphan_topics"),
+            ("UNSCORED", "unscored_topics"),
+            ("CATALOG+", "catalog_stale_topics"),
+            ("CATALOG-", "catalog_missing_topics"),
+        ):
             for topic in result[key]:
                 print(f"  {label:9} {topic}")
 
