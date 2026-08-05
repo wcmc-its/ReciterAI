@@ -32,9 +32,12 @@ Not a settling cadence. #339 is an ongoing multi-step split programme.
 | `reciterai-hot-orchestrator` zip | same | same |
 | Docker image (`reciterai-enrichment:db04a79`) | `Dockerfile` `COPY . .` | **stale by 5 taxonomy commits** |
 | `reciterai-taxonomy-drift` zip | `scripts/build_lambda_zips.sh` | new in this ADR — see D5 |
+| `TAXONOMY#{version}/META` in DynamoDB | `cli/score_new_topics.py` on add; `cli/retire_topic.py` on retire (only since #356) | **was stale — 70 topics vs 69, added 2026-08-04** |
 | `hierarchy.json` on S3 | cold run publish | derived |
 | `TOPIC#` partitions | scoring output | derived |
 | SPS Aurora | `etl:dynamodb` | downstream |
+
+*Added 2026-08-04.* The `TAXONOMY#{version}/META` row was missing from this table until it caused an incident, which is this ADR committing its own trap 1 — an unenumerated replica. It is a single DynamoDB item listing every topic's id, label and description, and it is **the record downstream consumers enumerate topics from**: SPS rebuilds its `topic` catalog off it nightly, not off `hierarchy.json`. It is written by `score_new_topics.py` when a topic is added and, until #356, by nothing at all when one was retired. So on 2026-08-01 #346 refreshed it to 70 topics and #348's retirement left it there, still listing `neuroscience_neurology`. SPS served 68 research areas against a published 67 for three days and could not self-correct — its prune only fires for topics *absent* from the catalog. See #355.
 
 Editing the repo changes none of them. There is no Lambda deploy script (`infra/README.md`: deployment "stays manual `aws lambda create-function` / `update-function-code`"), no drift check, and no runbook step tying a taxonomy edit to a redeploy.
 
@@ -147,6 +150,9 @@ If any target fails, already-flipped aliases roll back and the script exits non-
 
 - **orphan** — no `TOPIC#` partition exists outside the current topic-id set. A retired topic still accumulating rows means something is scoring against a taxonomy we no longer ship. `ERROR`.
 - **unscored** — no taxonomy topic lacks a `TOPIC#` partition. This is the #339 half: four added topics that the deployed taxonomy had never heard of, so nothing ever scored into them. Expected briefly after an add, so `WARN`.
+- **catalog** — `TAXONOMY#{version}/META` agrees with the taxonomy in both directions, and is readable at all. `ERROR`: downstream consumers enumerate topics from that record, so a stale one is wrong in front of users immediately, without a single `TOPIC#` row being out of place. An unreadable record is reported as a failure, never assumed clean.
+
+**Amended 2026-08-04 — the catalog check was missing, and its absence made this check actively misleading.** As first shipped, layer 2 compared only the `TOPIC#` partition space against the taxonomy. Run against prod on 2026-08-03 it reported `OK — 69 partitions vs 69 taxonomy ids, 0 orphans`, and that result was used as evidence the taxonomy had propagated. It had not: `TAXONOMY#/META` said 70 and SPS was serving a topic retired two days earlier. The two replicas fail independently — `retire_topic` deleted the rows without refreshing the record, so the partitions were right and the catalog was wrong — and a green report from a partial check is worse than no report, because it is read as coverage. Generalising: every row in the replication-site table above is a candidate for its own check, and a drift checker that silently covers a subset of them will eventually certify an outage.
 
 The 2026-07-10 incident *manifested* here, in DynamoDB, and was found here. Both layers are cheap; run them on the daily cadence, ahead of Monday.
 

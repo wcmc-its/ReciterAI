@@ -5,6 +5,7 @@ benign `hematology` topic), the taxonomy-presence ordering guard, and that a
 dry-run deletes nothing.
 """
 import json
+import pytest
 from pathlib import Path
 import sys
 
@@ -108,12 +109,17 @@ def test_meta_refresh_writes_the_current_topic_set(tmp_path, monkeypatch):
             written["table"] = TableName
             written["item"] = Item
 
+        def get_item(self, **kw):
+            # The write is now verified by reading back; echo what was stored.
+            return {"Item": {"topics": written["item"]["topics"]}}
+
     monkeypatch.setattr(boto3, "client", lambda *a, **k: _FakeClient())
 
     tax = _taxonomy_file(tmp_path, ["a", "b"])  # retired topic already removed
     out = refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=False)
 
-    assert out == {"record": "TAXONOMY#taxonomy_v2/META", "topic_count": 2, "written": True}
+    assert out == {"record": "TAXONOMY#taxonomy_v2/META", "topic_count": 2,
+                   "written": True, "verified": True}
     assert written["table"] == "reciterai"
     item = written["item"]
     assert item["PK"]["S"] == "TAXONOMY#taxonomy_v2"
@@ -159,3 +165,70 @@ def test_script_runs_as_a_script_not_just_under_pytest():
     # The ordering is the point of the tool; --help must surface it (#352).
     assert "DELETING ROWS IS NOT THE LAST STEP" in r.stdout
     assert "TAXONOMY#{version}/META" in r.stdout
+
+
+def test_meta_refresh_verifies_the_write_and_raises_on_a_silent_noop(tmp_path, monkeypatch):
+    """A put_item that returns but does not persist must fail loudly.
+
+    On 2026-08-04 this tool exited 1 with no output across three attempts while
+    the record stayed stale, cause unidentified. Read-back verification cannot
+    prevent that, but it turns a silent no-op into a visible failure.
+    """
+    import boto3
+    from cli.retire_topic import refresh_taxonomy_meta
+
+    class _NoOpClient:
+        def put_item(self, TableName, Item):
+            pass  # accepted, never persisted
+
+        def get_item(self, **kw):
+            return {"Item": {"topics": {"L": [{"M": {"id": {"S": "stale_topic"}}}]}}}
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _NoOpClient())
+    tax = _taxonomy_file(tmp_path, ["a", "b"])
+
+    with pytest.raises(SystemExit) as e:
+        refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=False)
+    assert "VERIFY FAILED" in str(e.value)
+    assert "stale_topic" in str(e.value)
+
+
+def test_meta_refresh_raises_when_the_record_vanishes(tmp_path, monkeypatch):
+    import boto3
+    from cli.retire_topic import refresh_taxonomy_meta
+
+    class _GhostClient:
+        def put_item(self, TableName, Item):
+            pass
+
+        def get_item(self, **kw):
+            return {}
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _GhostClient())
+    tax = _taxonomy_file(tmp_path, ["a"])
+
+    with pytest.raises(SystemExit) as e:
+        refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=False)
+    assert "does not read back" in str(e.value)
+
+
+def test_meta_refresh_reports_verified_on_success(tmp_path, monkeypatch):
+    import boto3
+    from cli.retire_topic import refresh_taxonomy_meta
+
+    stored = {}
+
+    class _GoodClient:
+        def put_item(self, TableName, Item):
+            stored["item"] = Item
+
+        def get_item(self, **kw):
+            assert kw.get("ConsistentRead") is True  # a stale read would defeat the check
+            return {"Item": {"topics": stored["item"]["topics"]}}
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _GoodClient())
+    tax = _taxonomy_file(tmp_path, ["a", "b"])
+
+    out = refresh_taxonomy_meta("reciterai", "us-east-1", taxonomy_path=tax, dry_run=False)
+    assert out["written"] is True
+    assert out["verified"] is True
