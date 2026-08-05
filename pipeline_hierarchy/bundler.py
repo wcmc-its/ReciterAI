@@ -202,6 +202,7 @@ def _build_topics(
     display_threshold_default: float,
     durable_map: dict[str, str] | None = None,
     gate_on: bool = False,
+    excluded_ids: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
     topics: dict[str, dict[str, Any]] = {}
     missing: list[dict[str, Any]] = []
@@ -211,6 +212,11 @@ def _build_topics(
         topic_id = data.get("topic_id")
         if not topic_id:
             raise ValueError(f"{path}: missing `topic_id`")
+        # #344 / ADR D7: excluded means scored but not published. Skip before
+        # _build_subtopic so an excluded topic's incomplete augmented file
+        # cannot add to `missing` and abort the whole publish in strict mode.
+        if topic_id in excluded_ids:
+            continue
         if topic_id in topics:
             raise ValueError(
                 f"duplicate topic_id {topic_id!r}: seen in {path} but already in bundle"
@@ -280,6 +286,7 @@ def bundle(
         display_threshold_default=display_threshold_default,
         durable_map=durable_map,
         gate_on=gate_on,
+        excluded_ids=frozenset(e["id"] for e in excluded),
     )
 
     if strict and missing:
