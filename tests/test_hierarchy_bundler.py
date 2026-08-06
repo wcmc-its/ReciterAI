@@ -9,7 +9,8 @@ Two layers of coverage:
    propagation, end-to-end pass through generator.validate).
 2. Live structural: run the bundler against the real
    `.planning/.../hierarchy_augmented_*.json` files and assert it produces
-   the expected topic / subtopic counts (1541 subtopics across 66 topics)
+   the expected topic / subtopic counts (1526 published subtopics across 65
+   published topics; 66/1541 on disk, less the excluded `implementation_science`)
    with the D-19 UI fields populated on every subtopic.
 """
 
@@ -136,6 +137,33 @@ def test_excluded_topics_carry_through(tmp_path):
     ]
 
 
+def test_excluded_topic_is_not_published_and_does_not_break_strict(tmp_path):
+    """#344 / ADR D7: excluded == scored but not published.
+
+    The excluded topic's augmented file is deliberately missing the UI fields.
+    A post-hoc delete from `topics` would let it accumulate into `missing` and
+    raise MissingUIFieldsError for a topic that is not being published, so this
+    also pins the skip's placement, not just its effect.
+    """
+    aug_dir = tmp_path / "aug"
+    aug_dir.mkdir()
+    _write_augmented(aug_dir, "topic_a", [_minimal_sub("topic_a_one")])
+    _write_augmented(
+        aug_dir, "implementation_science", [_minimal_sub("is_one", with_ui=False)]
+    )
+
+    result = bundle(
+        augmented_dir=aug_dir,
+        taxonomy_path=_make_taxonomy(tmp_path),
+        excluded_topics_path=_make_excluded(tmp_path),
+        strict=True,
+    )
+
+    assert set(result["topics"]) == {"topic_a"}
+    # still declared in the metadata — that half already worked
+    assert [e["id"] for e in result["excluded_topics"]] == ["implementation_science"]
+
+
 def test_strict_raises_on_missing_display_name(tmp_path):
     aug_dir = tmp_path / "aug"
     aug_dir.mkdir()
@@ -259,15 +287,21 @@ def test_live_bundler_strict_mode_succeeds_after_relabel():
     flip of the prior `_fails_until_relabel_repopulates` test, which pinned
     the pre-relabel failure mode.
 
-    Asserts against the real corpus (66 topics / 1541 subtopics), so it only
-    runs where that corpus exists. The publish contract itself is covered on
-    every clone by tests/test_hierarchy_publisher.py's committed fixtures."""
+    Asserts against the real corpus, so it only runs where that corpus exists.
+    The publish contract itself is covered on every clone by
+    tests/test_hierarchy_publisher.py's committed fixtures.
+
+    Counts are post-#344: the corpus holds 66 augmented files / 1541 subtopics,
+    and `implementation_science` (15 subtopics) is now withheld from `topics`
+    by the D7 exclusion enforcement. `oral_craniofacial_health`, the other
+    excluded entry, has no augmented file at all, so it does not move these."""
     rebuilt = bundle(
         augmented_dir=DEFAULT_AUGMENTED_DIR,
     )
-    assert len(rebuilt["topics"]) == 66
+    assert len(rebuilt["topics"]) == 65
     total = sum(len(t["subtopics"]) for t in rebuilt["topics"].values())
-    assert total == 1541
+    assert total == 1526
+    assert "implementation_science" not in rebuilt["topics"]
     # Every subtopic carries both D-19 fields.
     for topic in rebuilt["topics"].values():
         for sub in topic["subtopics"]:
