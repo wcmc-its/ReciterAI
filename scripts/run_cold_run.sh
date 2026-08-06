@@ -50,6 +50,12 @@
 # Optional env:
 #   COLD_FROM_STAGE                  — resume from this stage (run mode only)
 #   COLD_DRYRUN_TIMEOUT_SECONDS      — dry-run poll timeout (default 600)
+#   RECITERAI_EXPECTED_TAXONOMY_HASH — taxonomy baseline for the in-container
+#                                      ADR-D3 preflight. Defaults to the content
+#                                      hash of freshly-fetched origin/main's
+#                                      taxonomy_v2.json. Set explicitly only to
+#                                      pin D2's change-record hash or to
+#                                      deliberately run a non-main taxonomy.
 
 set -euo pipefail
 
@@ -86,9 +92,31 @@ fi
 subnets_json="$(printf '%s' "$SUBNETS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')"
 sgs_json="$(printf '%s' "$SECURITY_GROUPS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')"
 
+# ADR D3: compute the taxonomy baseline the in-container preflight validates
+# against. The image has no .git and no GitHub credentials, so THIS shell — the
+# only place in the launch path with both — fetches origin/main and hands the
+# expected content hash in. An operator-provided value wins (D2's pinned hash,
+# or a deliberate non-main run).
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EXPECTED_TAXONOMY_HASH="${RECITERAI_EXPECTED_TAXONOMY_HASH:-}"
+if [[ -z "$EXPECTED_TAXONOMY_HASH" ]]; then
+  git -C "$REPO_ROOT" fetch --quiet origin main
+  EXPECTED_TAXONOMY_HASH="$(
+    git -C "$REPO_ROOT" show origin/main:taxonomy_v2.json | (
+      cd "$REPO_ROOT" && python3 -c '
+import json, sys
+from utils.taxonomy import content_hash
+print(content_hash(json.load(sys.stdin)))'
+    )
+  )"
+fi
+echo ">> taxonomy baseline (origin/main content hash): $EXPECTED_TAXONOMY_HASH"
+env_json="$(jq -nc --arg h "$EXPECTED_TAXONOMY_HASH" \
+  '[{name:"RECITERAI_EXPECTED_TAXONOMY_HASH", value:$h}]')"
+
 # Build the command override. dry-run always overrides; a real run uses the task
-# def default command (full cold-run) unless resuming from a stage.
-overrides_args=()
+# def default command (full cold-run) unless resuming from a stage. The baseline
+# env var is injected in every mode — the dry-run plumbing gate proves it lands.
 if [[ "$MODE" == "dry-run" ]]; then
   cmd_json='["python","-m","pipeline_cold.run","--dry-run"]'
   echo ">> cold-run (dry-run plumbing gate) on task def $TASK_DEF"
@@ -101,11 +129,15 @@ else
 fi
 
 if [[ -n "$cmd_json" ]]; then
-  overrides_json="$(jq -nc --argjson cmd "$cmd_json" \
+  overrides_json="$(jq -nc --argjson cmd "$cmd_json" --argjson env "$env_json" \
     --arg name "$CONTAINER" \
-    '{containerOverrides:[{name:$name, command:$cmd}]}')"
-  overrides_args=(--overrides "$overrides_json")
+    '{containerOverrides:[{name:$name, command:$cmd, environment:$env}]}')"
+else
+  overrides_json="$(jq -nc --argjson env "$env_json" \
+    --arg name "$CONTAINER" \
+    '{containerOverrides:[{name:$name, environment:$env}]}')"
 fi
+overrides_args=(--overrides "$overrides_json")
 
 network_json="$(jq -nc \
   --argjson subnets "$subnets_json" \

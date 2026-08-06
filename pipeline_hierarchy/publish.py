@@ -85,6 +85,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from utils.iso_clock import now_iso
+from utils.taxonomy_preflight import taxonomy_preflight
 
 STAGE_NAME = "publish_hierarchy"
 STAGE_SCOPE = "GLOBAL"
@@ -365,6 +366,7 @@ EXIT_OK = 0
 EXIT_BUNDLER_MISSING_FIELDS = 2
 EXIT_GATE_BLOCKED = 3
 EXIT_FORCE_WITHOUT_REASON = 4
+EXIT_PREFLIGHT_BLOCKED = 5
 
 
 # ---------- slug->durable alias map sidecar (brick D, #191) ----------
@@ -609,6 +611,17 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return EXIT_FORCE_WITHOUT_REASON
+
+    # ADR D3 blocking preflight — this is the bypass-resistant site: a raw
+    # containerOverrides `python -m pipeline_hierarchy.publish` skips
+    # run.py::main() entirely, and this stage is what overwrites the prod
+    # latest/ pointers SPS reads. Deliberately NOT overridable by --force —
+    # the only acknowledgement path is RECITERAI_EXPECTED_TAXONOMY_HASH
+    # (see utils/taxonomy_preflight.py).
+    preflight_ok, preflight_msg = taxonomy_preflight()
+    print(f"[publish] {preflight_msg}", file=sys.stdout if preflight_ok else sys.stderr)
+    if not preflight_ok:
+        return EXIT_PREFLIGHT_BLOCKED
 
     run_id: Optional[str] = args.run_id
 

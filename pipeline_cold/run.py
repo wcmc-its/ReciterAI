@@ -53,6 +53,7 @@ from utils.stage_records import (
     write_failed,
 )
 from utils.iso_clock import now_iso
+from utils.taxonomy_preflight import taxonomy_preflight
 
 logger = logging.getLogger(__name__)
 
@@ -386,6 +387,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     _print_plan(stages, args.initiated_by)
+
+    # ADR D3 blocking preflight. Sits above the --dry-run return on purpose:
+    # all three runtime modes (dry-run, full, --from-stage) must exercise it,
+    # and the dry-run plumbing gate is where a stale image is cheapest to catch.
+    preflight_ok, preflight_msg = taxonomy_preflight()
+    print(f"[cold] {preflight_msg}", file=sys.stdout if preflight_ok else sys.stderr)
+    if not preflight_ok:
+        return 3  # distinct from 2 (bad --from-stage) and 1 (stage failure)
 
     if args.dry_run:
         print("[--dry-run] no stages invoked.")

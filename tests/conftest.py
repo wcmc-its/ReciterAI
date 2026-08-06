@@ -7,6 +7,21 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _taxonomy_preflight_baseline(monkeypatch):
+    """Pin the ADR-D3 taxonomy preflight baseline to this checkout's own taxonomy.
+
+    `pipeline_cold.run.main()` and `pipeline_hierarchy.publish.main()` run a
+    blocking preflight whose git fallback fetches origin/main — network, and a
+    moving target. Tests validate against the bundled taxonomy itself so the
+    preflight passes deterministically offline. Preflight tests override the
+    env var (or call the git helper directly) to exercise the failure paths.
+    """
+    from utils.taxonomy import current_content_hash
+
+    monkeypatch.setenv("RECITERAI_EXPECTED_TAXONOMY_HASH", current_content_hash())
+
+
+@pytest.fixture(autouse=True)
 def _stub_scan_invalid_pmids(monkeypatch):
     """Default `scan_invalid_pmids` to an empty list across the suite (#150 item 3).
 
