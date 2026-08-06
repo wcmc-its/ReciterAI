@@ -37,8 +37,35 @@
 # (or via your preferred IAM workflow) before running this script.
 #
 # Acceptance: `scripts/deploy_cron.sh --dry-run` prints every aws call
-# without invoking AWS. Post-deploy, `aws events list-rules` shows the
-# three rules.
+# without invoking AWS. Post-deploy, `aws events list-rules` shows every
+# rule defined in infra/eventbridge.json -- count them from the file, do
+# NOT trust a number written here.
+#
+# This line used to say "the three rules", naming a hardcoded count
+# instead of deriving it from the config. Two ways that misled:
+#
+#   1. The count went stale. infra/eventbridge.json has grown from 3 rules
+#      to 5 since 2026-05-12, so "three" stopped describing anything.
+#   2. Worse, it was never a real check. reciterai-spotlight-monthly was
+#      one of the ORIGINAL three (8d546a3, 2026-05-12) and has never
+#      deployed -- so even on day one, list-rules showed 2 of 3 and the
+#      stated acceptance criterion should have failed.
+#
+# As of 2026-07-20: 5 rules declared, 4 deployed, spotlight the missing
+# one. Three later commits deployed OTHER rules and all looked correct,
+# while the spotlight schedule silently never shipped for two months --
+# until SPS's freshness heartbeat caught the artifact frozen at
+# v2026-06-15 (SPS #1813). Compare against the config, not a number.
+#
+# NOTE (2026-07-20): reciterai-spotlight-monthly still cannot be deployed
+# by this script. Its target Lambda, reciterai-spotlight-orchestrator, has
+# no entry in scripts/build_lambda_zips.sh, so the function does not exist
+# and `aws events put-targets` fails. Adding a build entry is not enough
+# either: pipeline_spotlight/orchestrator.py runs the generation by
+# shelling out to `python -m cli.backfill_spotlight --publish`, which
+# assumes the whole repo and a long runtime -- a design better matched to
+# a Fargate task (see reciterai-enrichment-daily) than to a Lambda.
+# Deciding that is a prerequisite, not a packaging detail.
 
 set -euo pipefail
 
