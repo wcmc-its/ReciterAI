@@ -1,0 +1,892 @@
+{
+  "_note": "SPIN target funders resolved against the live SponsorList directory (16,131 sponsors). 2026-06-26 human pass (live-verified): corrected 2 wrong-org matches (ALS Assn, Glaucoma Research Fdn), removed 7 wrong-org matches with no US canonical, added 16 residual funders resolved to verified canonical entries (incl. American Cancer Society, JDRF->Breakthrough T1D). spon_code is informational; pulls use the exact spin_name. relevance=AI score 1-10.",
+  "min_relevance": 8,
+  "matched_count": 122,
+  "target_funders": [
+    {
+      "funder": "The Leona M. and Harry B. Helmsley Charitable Trust",
+      "spin_name": "Helmsley (Leona M. and Harry B.) Charitable Trust",
+      "spon_code": "05382",
+      "relevance": 10,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Wellcome Trust",
+      "spin_name": "Wellcome Trust",
+      "spon_code": "51554",
+      "relevance": 10,
+      "type": "Foundation"
+    },
+    {
+      "funder": "ALS Association",
+      "spin_name": "Amyotrophic Lateral Sclerosis (ALS) Association",
+      "spon_code": "05420",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Alzheimer's Association",
+      "spin_name": "Alzheimer's Association",
+      "spon_code": "50068",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Society of Anesthesiologists",
+      "spin_name": "American Society of Anesthesiologists",
+      "spon_code": "50041",
+      "relevance": 9,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Doris Duke Charitable Foundation",
+      "spin_name": "Duke (Doris) Charitable Foundation",
+      "spon_code": "52164",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "European Molecular Biology Organisation (EMBO)",
+      "spin_name": "European Molecular Biology Organisation (EMBO)",
+      "spon_code": "51662",
+      "relevance": 9,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "Michael J. Fox Foundation",
+      "spin_name": "Fox (Michael J.) Foundation for Parkinson's Research",
+      "spon_code": "53136",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Bill & Melinda Gates Foundation",
+      "spin_name": "Gates (Bill and Melinda) Foundation",
+      "spon_code": "52515",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Genentech",
+      "spin_name": "Genentech",
+      "spon_code": "00911",
+      "relevance": 9,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Glaucoma Research Foundation",
+      "spin_name": "Glaucoma Research Foundation",
+      "spon_code": "54973",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Howard Hughes Medical Institute",
+      "spin_name": "Hughes (Howard) Medical Institute",
+      "spon_code": "50235",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Johnson (Robert Wood) Foundation",
+      "spin_name": "Johnson (Robert Wood) Foundation",
+      "spon_code": "50262",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Edward Mallinckrodt, Jr. Foundation",
+      "spin_name": "Mallinckrodt (Edward Jr.) Foundation",
+      "spon_code": "55201",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Melanoma Research Alliance",
+      "spin_name": "Melanoma Research Alliance",
+      "spon_code": "02299",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Patient-Centered Outcomes Research Institute (PCORI)",
+      "spin_name": "Patient-Centered Outcomes Research Institute (PCORI)",
+      "spon_code": "03709",
+      "relevance": 9,
+      "type": "Other"
+    },
+    {
+      "funder": "Pew Charitable Trusts",
+      "spin_name": "Pew Charitable Trusts",
+      "spon_code": "50359",
+      "relevance": 9,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Prostate Cancer Foundation",
+      "spin_name": "Prostate Cancer Foundation",
+      "spon_code": "52541",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Research to Prevent Blindness",
+      "spin_name": "Research to Prevent Blindness",
+      "spon_code": "57851",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Society for Immunotherapy of Cancer",
+      "spin_name": "Society for Immunotherapy of Cancer (SITC)",
+      "spon_code": "06778",
+      "relevance": 9,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Alliance for Clinical Trials in Oncology",
+      "spin_name": "Alliance for Clinical Trials In Oncology Foundation",
+      "spon_code": "03796",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Alzheimer's Drug Discovery Foundation",
+      "spin_name": "Alzheimer's Drug Discovery Foundation",
+      "spon_code": "56347",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Alzheimers Foundation of America",
+      "spin_name": "Alzheimer's Foundation of America",
+      "spon_code": "55515",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Academy of Dermatology",
+      "spin_name": "American Academy of Dermatology",
+      "spon_code": "54949",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Academy of Orthopaedic Surgeons",
+      "spin_name": "American Academy of Orthopaedic Surgeons",
+      "spon_code": "53171",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Academy of Sleep Medicine",
+      "spin_name": "American Academy of Sleep Medicine",
+      "spon_code": "56102",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American College of Cardiology",
+      "spin_name": "American College of Cardiology",
+      "spon_code": "50986",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Diabetes Association, Inc.",
+      "spin_name": "American Diabetes Association, Inc.",
+      "spon_code": "50003",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "AmFAR - The Foundation for AIDS Research",
+      "spin_name": "American Foundation for AIDS Research (amfAR)",
+      "spon_code": "50080",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Heart Association",
+      "spin_name": "American Heart Association",
+      "spon_code": "50006",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Lung Association",
+      "spin_name": "American Lung Association",
+      "spon_code": "50010",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Neuromuscular Foundation",
+      "spin_name": "American Neuromuscular Foundation",
+      "spon_code": "54141",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Parkinson Disease Association",
+      "spin_name": "American Parkinson Disease Association",
+      "spon_code": "50012",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Society for Gastrointestinal Endoscopy",
+      "spin_name": "American Society for Gastrointestinal Endoscopy",
+      "spon_code": "51015",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Society for Radiation Oncology (ASTRO)",
+      "spin_name": "American Society for Radiation Oncology (ASTRO)",
+      "spon_code": "54138",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Society of Nephrology",
+      "spin_name": "American Society of Nephrology",
+      "spon_code": "53264",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "American Society of Transplantation",
+      "spin_name": "American Society of Transplantation",
+      "spon_code": "54879",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Arthritis Foundation",
+      "spin_name": "Arthritis Foundation",
+      "spon_code": "50466",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Brain Research Foundation",
+      "spin_name": "Brain Research Foundation",
+      "spon_code": "05725",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Brain & Behavior Research Foundation",
+      "spin_name": "Brain and Behavior Research Foundation",
+      "spon_code": "56363",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Breast Cancer Research Foundation, Inc.",
+      "spin_name": "Breast Cancer Research Foundation",
+      "spon_code": "53612",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Cancer Research UK",
+      "spin_name": "Cancer Research UK",
+      "spon_code": "51775",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "Chan Zuckerberg Initiative",
+      "spin_name": "Chan Zuckerberg Initiative",
+      "spon_code": "05844",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Childrens Tumor Foundation",
+      "spin_name": "Children's Tumor Foundation",
+      "spon_code": "55899",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Colorectal Cancer Alliance",
+      "spin_name": "Colorectal Cancer Alliance",
+      "spon_code": "05914",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Crohns & Colitis Foundation of America",
+      "spin_name": "Crohn's & Colitis Foundation of America",
+      "spon_code": "50629",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Cystic Fibrosis Foundation",
+      "spin_name": "Cystic Fibrosis Foundation",
+      "spon_code": "50462",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Dana Foundation",
+      "spin_name": "Dana (Charles A.) Foundation, Inc.",
+      "spon_code": "50167",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Edward P. Evans Foundation",
+      "spin_name": "Evans (Edward P.) Foundation",
+      "spon_code": "06785",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Ferring Pharmaceuticals, Inc.",
+      "spin_name": "Ferring Pharmaceuticals",
+      "spon_code": "01652",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Fondation Leducq",
+      "spin_name": "Fondation Leducq",
+      "spon_code": "57596",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Foundation for the National Institutes of Health, Inc.",
+      "spin_name": "Foundation for the National Institutes of Health",
+      "spon_code": "55105",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Gateway for Cancer Research",
+      "spin_name": "Gateway for Cancer Research",
+      "spon_code": "54579",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Gilead Sciences",
+      "spin_name": "Gilead Sciences",
+      "spon_code": "01744",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "GlaxoSmithKline",
+      "spin_name": "GlaxoSmithKline",
+      "spon_code": "52813",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Harrington Discovery Institute, The",
+      "spin_name": "Harrington Discovery Institute",
+      "spon_code": "04427",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Heart Failure Society of America",
+      "spin_name": "Heart Failure Society of America",
+      "spon_code": "56119",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Hevolution Foundation",
+      "spin_name": "Hevolution Foundation",
+      "spon_code": "08095",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "Human Frontier Science Program Organization",
+      "spin_name": "Human Frontier Science Program Organization",
+      "spon_code": "50738",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "Huntingtons Disease Society of America",
+      "spin_name": "Huntington's Disease Society of America, Inc.",
+      "spon_code": "50021",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Immune Tolerance Network",
+      "spin_name": "Immune Tolerance Network",
+      "spon_code": "00292",
+      "relevance": 8,
+      "type": "Other"
+    },
+    {
+      "funder": "International Association for the Study of Pain",
+      "spin_name": "International Association for the Study of Pain (IASP)",
+      "spon_code": "54903",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "International Brain Research Organization",
+      "spin_name": "International Brain Research Organization",
+      "spon_code": "57600",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "International Centre for Genetic Engineering and Biotechnology",
+      "spin_name": "International Centre for Genetic Engineering and Biotechnology",
+      "spon_code": "00467",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "Keck (W.M.) Foundation",
+      "spin_name": "Keck (W. M.) Foundation",
+      "spon_code": "50270",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Kinship Foundation",
+      "spin_name": "Kinship Foundation",
+      "spon_code": "52550",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Klingenstein Fund, Esther A. & Joseph",
+      "spin_name": "Klingenstein (Esther A. & Joseph) Fund",
+      "spon_code": "50273",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Susan G. Komen Breast Cancer Foundation, Inc.",
+      "spin_name": "Komen (Susan G.) Breast Cancer Foundation",
+      "spon_code": "51220",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "LUNGevity Foundation",
+      "spin_name": "LUNGevity Foundation",
+      "spon_code": "03365",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Leukemia Research Foundation",
+      "spin_name": "Leukemia Research Foundation",
+      "spon_code": "52524",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Ludwig Institute for Cancer Research",
+      "spin_name": "Ludwig Institute for Cancer Research",
+      "spon_code": "03683",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Lung Cancer Research Foundation",
+      "spin_name": "Lung Cancer Research Foundation",
+      "spon_code": "00271",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Lupus Research Alliance",
+      "spin_name": "Lupus Research Alliance",
+      "spon_code": "55389",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Lustgarten Foundation",
+      "spin_name": "Lustgarten Foundation for Pancreatic Cancer Research",
+      "spon_code": "55721",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Lymphoma Research Foundation",
+      "spin_name": "Lymphoma Research Foundation",
+      "spon_code": "53206",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Mark Foundation for Cancer Research",
+      "spin_name": "Mark Foundation for Cancer Research",
+      "spon_code": "06604",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "The G. Harold and Leila Y. Mathers Foundation",
+      "spin_name": "Mathers (G.Harold and Leila Y.) Foundation",
+      "spon_code": "00715",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "James S. McDonnell Foundation",
+      "spin_name": "McDonnell (James S.) Foundation",
+      "spon_code": "50786",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "McKnight Endowment Fund for Neuroscience",
+      "spin_name": "McKnight Endowment Fund for Neuroscience",
+      "spon_code": "50292",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Melanoma Research Foundation",
+      "spin_name": "Melanoma Research Foundation",
+      "spon_code": "52236",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "National Bleeding Disorders Foundation",
+      "spin_name": "National Bleeding Disorders Foundation",
+      "spon_code": "50327",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "National Marrow Donor Program",
+      "spin_name": "National Marrow Donor Program (NMDP)",
+      "spon_code": "00067",
+      "relevance": 8,
+      "type": "International NGO/Charity"
+    },
+    {
+      "funder": "National Multiple Sclerosis Society",
+      "spin_name": "National Multiple Sclerosis Society",
+      "spon_code": "50030",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Craig H. Neilsen Foundation",
+      "spin_name": "Neilsen (Craig H.) Foundation",
+      "spon_code": "56501",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Neurosurgery Research and Education Foundation",
+      "spin_name": "Neurosurgery Research and Education Foundation",
+      "spon_code": "05208",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "New York Community Trust",
+      "spin_name": "New York Community Trust",
+      "spon_code": "50826",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "New York Stem Cell Foundation Inc.",
+      "spin_name": "New York Stem Cell Foundation",
+      "spon_code": "01716",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "One Mind",
+      "spin_name": "One Mind Institute",
+      "spon_code": "57855",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Ovarian Cancer Research Alliance",
+      "spin_name": "Ovarian Cancer Research Alliance",
+      "spon_code": "55182",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Pancreatic Cancer Action Network",
+      "spin_name": "Pancreatic Cancer Action Network",
+      "spon_code": "01109",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Parkinson's Foundation",
+      "spin_name": "Parkinson's Foundation",
+      "spon_code": "06568",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Pfizer Pharmaceuticals",
+      "spin_name": "Pfizer Pharmaceuticals",
+      "spon_code": "52360",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "PhRMA Foundation",
+      "spin_name": "Pharmaceutical Research & Manufacturers of America (PhRMA) Foundation",
+      "spon_code": "50451",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Prevent Cancer Foundation",
+      "spin_name": "Prevent Cancer Foundation",
+      "spon_code": "51977",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Society for Progressive Supranuclear Palsy (PSP)",
+      "spin_name": "Progressive Supranuclear Palsy (PSP) Association",
+      "spon_code": "01504",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Rally Foundation, Inc.",
+      "spin_name": "Rally Foundation",
+      "spon_code": "05148",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Retina Research Foundation",
+      "spin_name": "Retina Research Foundation",
+      "spon_code": "52882",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Rheumatology Research Foundation",
+      "spin_name": "Rheumatology Research Foundation",
+      "spon_code": "03898",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Society for Surgery of the Alimentary Tract",
+      "spin_name": "Society for Surgery of the Alimentary Tract",
+      "spon_code": "55029",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Society for Vascular Surgery Foundation",
+      "spin_name": "Society for Vascular Surgery",
+      "spon_code": "56482",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "St. Baldrick's Foundation",
+      "spin_name": "St. Baldrick's Foundation",
+      "spon_code": "57289",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Stand Up To Cancer",
+      "spin_name": "Stand Up To Cancer",
+      "spon_code": "07480",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Starr Foundation",
+      "spin_name": "Starr Foundation",
+      "spon_code": "50413",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Takeda",
+      "spin_name": "Takeda",
+      "spon_code": "00907",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Wings for Life Spinal Cord Research Foundation",
+      "spin_name": "Wings for Life Spinal Cord Research Foundation",
+      "spon_code": "56372",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Worldwide Cancer Research",
+      "spin_name": "Worldwide Cancer Research",
+      "spon_code": "04866",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Cancer Society",
+      "spin_name": "American Cancer Society, Inc.",
+      "spon_code": "50001",
+      "relevance": 9,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Cancer Research Institute",
+      "spin_name": "Cancer Research Institute, Inc.",
+      "spon_code": "50133",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "American Institute for Cancer Research",
+      "spin_name": "American Institute for Cancer Research",
+      "spon_code": "50083",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "National Foundation for Cancer Research",
+      "spin_name": "National Foundation for Cancer Research",
+      "spon_code": "55820",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Children's Cancer Research Fund",
+      "spin_name": "Children's Cancer Research Fund",
+      "spon_code": "02708",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "A-T Children's Project",
+      "spin_name": "A-T Children's Project",
+      "spon_code": "51991",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Arnold & Mabel Beckman Foundation",
+      "spin_name": "Beckman (Arnold and Mable) Foundation",
+      "spon_code": "52534",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Boehringer Ingelheim Pharmaceuticals, Inc.",
+      "spin_name": "Boehringer Ingelheim Pharmaceuticals, Inc. (BIPI)",
+      "spon_code": "07259",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "Conquer Cancer Foundation of ASCO",
+      "spin_name": "Conquer Cancer Foundation of ASCO",
+      "spon_code": "02910",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Neuroendocrine Tumor Research Foundation",
+      "spin_name": "Neuroendocrine Tumor (NET) Research Foundation",
+      "spon_code": "06503",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Simons Foundation Autism Research Initiative",
+      "spin_name": "Simons Foundation",
+      "spon_code": "56576",
+      "relevance": 8,
+      "type": "Foundation"
+    },
+    {
+      "funder": "Pershing Square Sohn Cancer Research Alliance",
+      "spin_name": "Pershing Square Foundation",
+      "spon_code": "05581",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Thoracic Surgery Foundation",
+      "spin_name": "Thoracic Surgery Foundation",
+      "spon_code": "56582",
+      "relevance": 8,
+      "type": "Professional Association/Society"
+    },
+    {
+      "funder": "Marsha Rivkin Center for Ovarian Cancer Research",
+      "spin_name": "Rivkin Center for Ovarian Cancer",
+      "spon_code": "05691",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    },
+    {
+      "funder": "Novo Nordisk Pharmaceuticals, Inc.",
+      "spin_name": "Novo Nordisk USA",
+      "spon_code": "04073",
+      "relevance": 8,
+      "type": "Biotech/Pharma Company"
+    },
+    {
+      "funder": "JDRF (Breakthrough T1D)",
+      "spin_name": "Breakthrough T1D",
+      "spon_code": "50267",
+      "relevance": 8,
+      "type": "Disease-specific Foundation"
+    }
+  ],
+  "pull_method": "[SOLR]spon_name:\"<exact spin_name>\"  (verified: returns only that sponsor's programs)",
+  "sponsor_directory_endpoint": "https://spin.infoedglobal.com/Service/SponsorList (16,131 sponsors; spon_code + spon_name + spon_abbr + ror_id)",
+  "_residual_unresolved": {
+    "_note": "Funders with NO suitable US canonical in the directory after the live pass. Genuine gaps (request a SPIN sponsor add) or ambiguous-foreign (owner decision).",
+    "true_gaps_absent": [
+      "V Foundation",
+      "Hartwell Foundation",
+      "Parker Institute for Cancer Immunotherapy",
+      "Wellcome Leap, Inc.",
+      "Chan Zuckerberg Biohub, Inc. (parent CZI already targeted)",
+      "Russell Berrie Foundation",
+      "HIV And Aging Research Consortium",
+      "HIV Vaccine Trials Network"
+    ],
+    "ambiguous_foreign_pharma_owner_decision": [
+      {
+        "funder": "Bayer, A.G. (Germany)",
+        "candidates": [
+          "51603 Bayer AG",
+          "55026 Bayer Biological Products"
+        ]
+      },
+      {
+        "funder": "Novartis Pharmaceuticals Corporation",
+        "candidates": [
+          "51476 Novartis Foundation",
+          "56229 Novartis Pharma AG"
+        ]
+      }
+    ]
+  }
+}
