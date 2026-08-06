@@ -180,6 +180,26 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
     return newest
 
 
+def _persist_row(table: Any, day: str, result: dict) -> bool:
+    """Write the `DRIFT#taxonomy` row for `day`. Returns False on failure.
+
+    Callers must not let a write failure abort the check — see run_check.
+    """
+    try:
+        table.put_item(
+            Item={
+                "PK": DRIFT_PK,
+                "SK": f"DAY#{day}",
+                "checked_at": day,
+                **result,
+            }
+        )
+    except Exception:
+        logger.exception("failed to persist %s DAY#%s", DRIFT_PK, day)
+        return False
+    return True
+
+
 def run_check(
     table: Any,
     taxonomy_ids: Iterable[str],
@@ -200,20 +220,7 @@ def run_check(
     # alert: a check that has just found drift going silent because it could not
     # record the finding is the worst available outcome, and exactly the
     # "reported nothing" shape this ADR exists to prevent.
-    try:
-        table.put_item(
-            Item={
-                "PK": DRIFT_PK,
-                "SK": f"DAY#{day}",
-                "checked_at": day,
-                **result,
-            }
-        )
-    except Exception:
-        logger.exception("failed to persist %s DAY#%s; continuing to alert", DRIFT_PK, day)
-        result["row_persisted"] = False
-    else:
-        result["row_persisted"] = True
+    result["row_persisted"] = _persist_row(table, day, result)
 
     if result["severity"] in ALERTABLE:
         from pipeline_enrichment import alerting
@@ -258,7 +265,7 @@ def run_check(
                 f"if it persists past a weekly run, the new taxonomy has not reached prod."
             )
 
-        alerting.alert(
+        result["alert_sent"] = alerting.alert(
             result["severity"],
             title,
             message,
@@ -277,6 +284,18 @@ def run_check(
             },
             mention=bool(orphans or stale or missing or not result["catalog_read"]),
         )
+
+        # Re-write so the row records whether anyone was actually notified.
+        # alert() returns False for BOTH "webhook unset" and "POST failed", and
+        # logs the former at INFO — so without this the row cannot distinguish a
+        # delivered alert from a silent drop, and the invocation still looks
+        # green either way. Same reasoning as the persist-before-dispatch
+        # ordering above, applied to the half it did not cover.
+        # Re-put rather than update_item: the Lambda role grants Scan/PutItem
+        # but NOT UpdateItem (infra/lambda_iam_policy.json).
+        # `alert_sent` is absent, not False, when severity was not alertable.
+        if result["row_persisted"]:
+            _persist_row(table, day, result)
 
     return result
 

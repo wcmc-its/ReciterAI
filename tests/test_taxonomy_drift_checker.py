@@ -214,6 +214,35 @@ class TestRunCheck:
         assert len(calls) == 1
         assert calls[0][0][3]["row_persisted"] is False
 
+    @pytest.mark.parametrize("dispatched", [True, False])
+    def test_row_records_whether_the_alert_was_delivered(self, monkeypatch, dispatched):
+        # alert() returns False for BOTH "webhook unset" (logged at INFO) and
+        # "POST failed", and the invocation returns green either way. Without
+        # alert_sent on the row, an operator cannot tell a delivered alert from
+        # a silent drop.
+        import pipeline_enrichment.alerting as alerting
+
+        monkeypatch.setattr(alerting, "alert", lambda *a, **k: dispatched)
+
+        table = self._table([{"PK": "TOPIC#retired_topic"}], catalog=["cardiology"])
+        result = run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        assert result["severity"] == "ERROR"
+        assert result["alert_sent"] is dispatched
+        # The re-put is what gets it onto the row, not just into the return value.
+        assert table.put_item.call_count == 2
+        assert table.put_item.call_args.kwargs["Item"]["alert_sent"] is dispatched
+
+    def test_clean_run_row_omits_alert_sent_rather_than_writing_false(self):
+        # Absent means "no alert was warranted"; False would be indistinguishable
+        # from "we tried and it did not land".
+        table = self._table([{"PK": "TOPIC#cardiology"}], catalog=["cardiology"])
+        result = run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        assert result["severity"] == "OK"
+        assert "alert_sent" not in result
+        assert table.put_item.call_count == 1
+
     def test_unscored_alerts_warn_without_mentioning(self, monkeypatch):
         import pipeline_enrichment.alerting as alerting
 
