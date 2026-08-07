@@ -57,15 +57,17 @@
 # until SPS's freshness heartbeat caught the artifact frozen at
 # v2026-06-15 (SPS #1813). Compare against the config, not a number.
 #
-# NOTE (2026-07-20): reciterai-spotlight-monthly still cannot be deployed
-# by this script. Its target Lambda, reciterai-spotlight-orchestrator, has
-# no entry in scripts/build_lambda_zips.sh, so the function does not exist
-# and `aws events put-targets` fails. Adding a build entry is not enough
-# either: pipeline_spotlight/orchestrator.py runs the generation by
-# shelling out to `python -m cli.backfill_spotlight --publish`, which
-# assumes the whole repo and a long runtime -- a design better matched to
-# a Fargate task (see reciterai-enrichment-daily) than to a Lambda.
-# Deciding that is a prerequisite, not a packaging detail.
+# RESOLVED (#329 shape a2): reciterai-spotlight-monthly is now an ECS
+# RunTask target (like reciterai-enrichment-daily) on the
+# `reciterai-spotlight` task definition, whose default command runs
+# pipeline_spotlight/orchestrator.py in the full-repo container -- so this
+# script CAN now deploy it. Prerequisites that must exist first (they are
+# NOT created here): the registered task definition
+# (infra/spotlight_task_definition.json with placeholders filled), the
+# /ecs/reciterai-spotlight log group, the reciterai-cold-task role, the
+# execution-role grant on the teams-webhook secret, and ecs:RunTask +
+# iam:PassRole for the reciterai-spotlight family on
+# reciterai-eventbridge-invoke-ecs (the enrichment-era policy predates it).
 
 set -euo pipefail
 

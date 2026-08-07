@@ -1,0 +1,85 @@
+{
+  "$schema_note": "ECS Fargate task definition for the MONTHLY SPOTLIGHT REFRESH (#329 shape a2; `python -m pipeline_spotlight.orchestrator`). Scheduled by EventBridge rule `reciterai-spotlight-monthly` (see eventbridge.json) as a direct RunTask target — EventBridge Input is NOT forwarded to ECS targets, so the default command below IS the invocation (deploy_cron.sh ecs branch). The orchestrator runs the D-03 dirty gate (cheap: DDB reads, minutes) and, only when thresholds trip, shells out to `cli/backfill_spotlight.py --publish` — the full synopsis+critic regen (Bedrock, ~hours-class), which is why this is Fargate and not Lambda. Uses the SAME Dockerfile + ECR repo as the enrichment/cold tasks; the `.dockerignore` re-include of `docs/spotlight.schema.json` exists precisely so the containerised publish survives. LOG GROUP `/ecs/reciterai-spotlight` MUST be pre-created — `ecsTaskExecutionRole` lacks `logs:CreateLogGroup` (same caveat as the cold run). The task ROLE is the cold-run's `reciterai-cold-task` (policy in cold_run_task_iam_policy.json): its S3 write on `wcmc-reciterai-artifacts/spotlight/*` + DDB CRUD covers this task's need (its hierarchy-bucket and `/ecs/reciterai-cold`-scoped logs statements are dead weight here but inert — awslogs writes via the EXECUTION role); the enrichment role has no S3 grant and cannot be used. KNOWN GAP: the D-11 `open_issue=True` half of the failure path is dead in this substrate — `pipeline_common.alert` shells out to the `gh` CLI, which the python:3.12-slim image does not contain and no token is injected; failures produce a Teams card + CloudWatch logs, no GitHub issue (#94 territory).",
+  "family": "reciterai-spotlight",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "4096",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "taskRoleArn": "{TASK_ROLE_ARN}",
+  "executionRoleArn": "{EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "reciterai-spotlight",
+      "image": "{IMAGE_URI}",
+      "essential": true,
+      "command": [
+        "python",
+        "-m",
+        "pipeline_spotlight.orchestrator"
+      ],
+      "environment": [
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "{DB_SECRET_ARN}:DB_HOST::"
+        },
+        {
+          "name": "DB_USERNAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_USERNAME::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "{DB_SECRET_ARN}:DB_PASSWORD::"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_NAME::"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "{OPENAI_SECRET_ARN}:OPENAI_API_KEY::"
+        },
+        {
+          "name": "AWS_BEARER_TOKEN_BEDROCK",
+          "valueFrom": "{BEDROCK_API_KEY_SECRET_ARN}"
+        },
+        {
+          "name": "RECITERAI_SLACK_WEBHOOK_URL",
+          "valueFrom": "{TEAMS_WEBHOOK_SECRET_ARN}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/reciterai-spotlight",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "spotlight"
+        }
+      }
+    }
+  ],
+  "deploy_notes": {
+    "placeholders": {
+      "{TASK_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/reciterai-cold-task — REUSED from the cold run (policy: cold_run_task_iam_policy.json — DDB CRUD on `reciterai`, S3 read+write on `wcmc-reciterai-hierarchy/*` + `wcmc-reciterai-artifacts/spotlight/*`, Secrets Manager read, CloudWatch Logs). Verify the role actually EXISTS before registering: the cold run has never executed on Fargate, so the role may never have been created — create it from the checked-in policy if `aws iam get-role --role-name reciterai-cold-task` 404s.",
+      "{EXECUTION_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/ecsTaskExecutionRole — the standard ECS task execution role (same as enrichment/cold). Needs ECR pull + CloudWatch Logs plus an inline `secretsmanager:GetSecretValue` grant on the 4 secret ARNs injected here — the enrichment deploy granted 3; ADD the teams-webhook secret ARN.",
+      "{IMAGE_URI}": "ECR image URI in the `reciterai-enrichment` repo, `docker build --platform linux/amd64`. MUST be built from a current-taxonomy commit: this task fires UNATTENDED monthly, so a stale pinned tag publishes stale spotlight content on a schedule — the ADR-D3 staleness trap with no operator present. Until a D2-style pinned baseline exists for spotlight, re-pin this tag as part of every taxonomy change (D1's apply script is the intended home).",
+      "{DB_SECRET_ARN}": "Full ARN of `reciterai/reciter-analysis-db` (JSON SecretString, per-key `:KEY::` injection). Same secret as the enrichment/cold tasks.",
+      "{OPENAI_SECRET_ARN}": "Full ARN of `reciterai/openai-api-key`. The Bedrock content-filter fallback. Same secret as the enrichment/cold tasks.",
+      "{BEDROCK_API_KEY_SECRET_ARN}": "Full ARN of `reciterai/bedrock-api-key` (plain SecretString). Injected as `AWS_BEARER_TOKEN_BEDROCK`; the task role intentionally has no `bedrock:InvokeModel`.",
+      "{TEAMS_WEBHOOK_SECRET_ARN}": "Full ARN of the Teams webhook secret (plain SecretString URL). Injected as `RECITERAI_SLACK_WEBHOOK_URL` (legacy env name — `pipeline_common.alert.dispatch` reads it; the orchestrator still uses the pre-2026-05-25 dispatcher, not `pipeline_enrichment.alerting`). WITHOUT this, an ERROR from the monthly run degrades to a CloudWatch log line and no card — the silent-alert family #361 documented. Unlike the cold run (operator-gated, webhook intentionally absent), this task runs unattended, so the webhook is REQUIRED."
+    },
+    "sizing": "1 vCPU / 4 GB — same envelope as the cold run, whose stage 9 IS this regen: the gate path is DDB-scan-bound (~100-150 MB for `pool_ranker`), and `backfill_spotlight` is Bedrock/IO-bound, not compute-bound.",
+    "plumbing_gate": "The orchestrator has NO dry-run flag: any real invocation runs the gate and, if dirty, the full publish. To prove the plumbing without risking one, `aws ecs run-task` with a command override of `[\"python\",\"-c\",\"import pipeline_spotlight.orchestrator; print('image+deps OK')\"]` — proves the image, secrets injection, task role, networking, and CloudWatch logging while never evaluating the gate. Gate-outcome expectations: the FIRST-EVER scheduled run WILL regen and publish unconditionally (no prior STAGE#spotlight_refresh complete row exists, so since_iso=None sweeps every TOPIC# row through the gate) — and with the #350 year backfill having ~tripled the ranker-visible pool, expect wholesale content shift on that run; attribute it to the backfill, not this deploy. Only runs AFTER a publish have a meaningfully clean gate."
+  }
+}
