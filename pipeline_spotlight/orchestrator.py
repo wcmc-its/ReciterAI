@@ -1,4 +1,11 @@
-"""Spotlight orchestrator: monthly Lambda handler.
+"""Spotlight orchestrator: the monthly scheduled spotlight refresh.
+
+Runs as an ECS Fargate task (`python -m pipeline_spotlight.orchestrator`,
+EventBridge rule `reciterai-spotlight-monthly` — #329 shape a2: the regen
+shells out to the full `cli.backfill_spotlight --publish`, which needs the
+whole repo + LLM deps and does not fit Lambda's 15-minute ceiling).
+`handler(event, context)` is retained as the callable seam the tests and any
+future Lambda-shaped invoker use.
 
 Flow:
 1. Resolve `last_successful_spotlight_at` from the latest
@@ -25,6 +32,7 @@ seams (lambda-friendly):
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 import sys
@@ -339,3 +347,25 @@ def handler(event: dict, context: Any = None) -> dict:
             open_issue=True,
         )
         raise
+
+
+def main() -> int:
+    """Entry point for the scheduled ECS task (and hand runs).
+
+    Both gate outcomes — skipped and complete — are successes (exit 0).
+    On failure, handler() has already written the failed STAGE# row and
+    dispatched the ERROR Teams alert before the exception reaches here,
+    so this only records the traceback and returns non-zero.
+    """
+    logging.basicConfig(level=logging.INFO)
+    try:
+        result = handler({})
+    except Exception:
+        logger.exception("spotlight orchestrator failed")
+        return 1
+    print(json.dumps(result, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

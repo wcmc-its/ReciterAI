@@ -9,12 +9,13 @@ overlays.
 
 ## Files
 
-- **`eventbridge.json`** — five cron rules and their targets:
+- **`eventbridge.json`** — six cron rules and their targets:
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
-  - `reciterai-spotlight-monthly` → Lambda `reciterai-spotlight-orchestrator` (1st of month, 13:00 UTC).
+  - `reciterai-spotlight-monthly` → ECS Fargate RunTask on task definition `reciterai-spotlight` (1st of month, 13:00 UTC; #329 shape a2 — the regen shells out to the full `cli.backfill_spotlight`, past Lambda's 15-minute ceiling; template in `spotlight_task_definition.json`).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
   - `reciterai-onboarding-detector-daily` → Lambda `reciterai-onboarding-detector` (daily 13:00 UTC; #80 Phase 2).
   - `reciterai-enrichment-daily` → ECS Fargate `RunTask` on task definition `reciterai-enrichment` (daily 11:00 UTC; #37 PR 4). The first ECS target — adds a new compute substrate alongside Lambda + Step Functions.
+  - `reciterai-taxonomy-drift-daily` → Lambda `reciterai-taxonomy-drift` (daily 15:00 UTC; ADR D5 layer 2).
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
@@ -203,10 +204,15 @@ they are the rollback path.
   uses a deterministic statement-id; re-running prints a notice but
   does not fail.
 - **ECS target networking is env-var-driven.** Subnets and security
-  groups for the `reciterai-enrichment-daily` rule come from
+  groups for the `reciterai-enrichment-daily` and
+  `reciterai-spotlight-monthly` rules come from
   `RECITERAI_ENRICHMENT_SUBNETS` and `RECITERAI_ENRICHMENT_SECURITY_GROUPS`
   at deploy time, not from `eventbridge.json` — VPC layout is
-  account-specific and should not be committed.
+  account-specific and should not be committed. The
+  `reciterai-eventbridge-invoke-ecs` role must allow `ecs:RunTask` on
+  BOTH task-definition families (`reciterai-enrichment`,
+  `reciterai-spotlight`) plus `iam:PassRole` for each task/execution
+  role pair — the enrichment-era policy predates the spotlight family.
 
 ## Onboarding state-machine role (#80 Phase 2)
 
