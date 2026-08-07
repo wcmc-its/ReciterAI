@@ -22,6 +22,24 @@ def _taxonomy_preflight_baseline(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _stub_hot_taxonomy_handshake(monkeypatch):
+    """Default the ADR-D3 hot-path taxonomy handshake to OK across the suite.
+
+    `pipeline_hot.orchestrator.handler()` now runs the handshake first, and
+    the real implementation downloads deployed peer zips via boto3 — network
+    and AWS, neither of which unit tests may touch. Handshake tests exercise
+    `pipeline_hot.taxonomy_handshake` directly with injected clients and
+    re-patch this seam where they drive the orchestrator. Only patches the
+    module if already imported (same posture as `_stub_scan_invalid_pmids`).
+    """
+    mod = sys.modules.get("pipeline_hot.orchestrator")
+    if mod is not None and hasattr(mod, "run_taxonomy_handshake"):
+        monkeypatch.setattr(
+            mod, "run_taxonomy_handshake", lambda: {"status": "ok"}
+        )
+
+
+@pytest.fixture(autouse=True)
 def _stub_scan_invalid_pmids(monkeypatch):
     """Default `scan_invalid_pmids` to an empty list across the suite (#150 item 3).
 

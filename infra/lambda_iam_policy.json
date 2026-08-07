@@ -93,6 +93,15 @@
         "arn:aws:secretsmanager:*:*:secret:reciterai/openai-api-key-*",
         "arn:aws:secretsmanager:*:*:secret:reciterai/github-token-*"
       ]
+    },
+    {
+      "Sid": "HotHandshakeReadPeerBundles",
+      "Effect": "Allow",
+      "Action": "lambda:GetFunction",
+      "Resource": [
+        "arn:aws:lambda:*:*:function:reciterai-hot-*",
+        "arn:aws:lambda:*:*:function:reciterai-taxonomy-drift"
+      ]
     }
   ]
 }
