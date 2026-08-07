@@ -58,6 +58,7 @@ from utils.stage_records import (
     write_skipped,
 )
 from pipeline_enrichment import alerting as teams_alerting
+from pipeline_hot.taxonomy_handshake import run_handshake as run_taxonomy_handshake
 from utils.iso_clock import now_iso
 
 logger = logging.getLogger(__name__)
@@ -649,6 +650,14 @@ def handler(event: dict, context: Any = None) -> dict:
         {"status": "skipped", "skip_reason": "prior_run_in_progress"} — short-circuit
     """
     started_at = now_iso()
+
+    # ADR D3 — taxonomy handshake before anything else: a fleet whose
+    # taxonomy-bearing bundles disagree must not score. Raises out of
+    # handler(); the Orchestrate state's Catch routes the abort through
+    # WriteHotRunFailed -> NotifyError -> Teams.
+    handshake = run_taxonomy_handshake()
+    logger.info("taxonomy handshake: %s", handshake["status"])
+
     state_machine_arn = event.get("state_machine_arn") or os.environ.get(
         "RECITERAI_HOT_STATE_MACHINE_ARN"
     )

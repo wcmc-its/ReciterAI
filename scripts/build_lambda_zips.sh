@@ -51,7 +51,7 @@ mkdir -p "$BUILD_DIR"
 
 LAMBDAS=(
   # ---- Hot path (6) -------------------------------------------------------
-  "reciterai-hot-orchestrator|pipeline_hot.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json|"
+  "reciterai-hot-orchestrator|pipeline_hot.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_hot/taxonomy_handshake.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json|"
   "reciterai-hot-score|pipeline_hot.handlers.score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json|"
   # assign also bundles the approved hierarchy_draft_*.json files (step 3b
   # below): both the onboarding Assign fan-out (#80 Phase 2 / PR 4) and the
