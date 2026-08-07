@@ -178,10 +178,31 @@ def _load_hierarchy() -> dict:
     against a stale local copy. Strict mode is off so a subtopic missing UI
     fields surfaces as empty strings (the spotlight assembler already has
     label-based fallbacks) rather than raising mid-pipeline.
+
+    Containerised runs (the monthly `reciterai-spotlight` Fargate task) have
+    NO local augmented drafts at all — `.planning` is gitignored AND
+    dockerignored, which is why the first automated publish died here
+    (2026-08-07; the six prior hand-runs all had a full checkout). When the
+    drafts are absent entirely, fall back to the published
+    `latest/hierarchy.json` — the schema-validated, exclusion-enforced
+    artifact those same drafts were bundled into. Local drafts still win
+    when present: cold-run stage 9 must consume the JUST-BUILT drafts,
+    which precede that run's own `publish_hierarchy`.
     """
     from pipeline_hierarchy.bundler import bundle
 
-    return bundle(strict=False)
+    try:
+        return bundle(strict=False)
+    except FileNotFoundError:
+        from utils.s3_client import S3HierarchyClient
+
+        logging.getLogger(__name__).info(
+            "no local hierarchy_augmented_*.json (containerised run) — "
+            "falling back to published latest/hierarchy.json"
+        )
+        return json.loads(
+            S3HierarchyClient().get_object_bytes("latest/hierarchy.json")
+        )
 
 
 def _build_parent_lookup(hierarchy: dict) -> dict[str, str]:
