@@ -135,6 +135,17 @@ def test_rule_states_are_valid(eventbridge_config):
         assert rule["state"] in {"ENABLED", "DISABLED"}
 
 
+def test_rule_descriptions_fit_eventbridge_512_cap(eventbridge_config):
+    """PutRule rejects descriptions over 512 chars (ValidationException) —
+    found live 2026-08-07 deploying the spotlight rule. Rationale prose
+    belongs in schedule_comment or the task-def $schema_note, which
+    EventBridge never sees."""
+    for rule in eventbridge_config["rules"]:
+        assert len(rule["description"]) <= 512, (
+            f"{rule['name']}: description is {len(rule['description'])} chars"
+        )
+
+
 def test_target_kinds_are_supported_by_deploy_script(eventbridge_config):
     supported = {"step_functions", "lambda", "ecs"}
     for rule in eventbridge_config["rules"]:

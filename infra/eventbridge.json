@@ -22,7 +22,7 @@
     },
     {
       "name": "reciterai-spotlight-monthly",
-      "description": "Spotlight refresh: monthly scheduled ECS Fargate RunTask (#329 shape a2) that runs the dirty-check gate (D-03) and, if thresholds tripped, regenerates the spotlight via backfill_spotlight.py --publish. Fargate rather than Lambda because the regen shells out to the full cli.backfill_spotlight (whole repo + LLM deps, well past Lambda's 15-minute ceiling). The task definition's default command is `python -m pipeline_spotlight.orchestrator` — EventBridge Input is NOT forwarded to ECS targets (see deploy_cron.sh's ecs branch), so the command lives in infra/spotlight_task_definition.json.",
+      "description": "Spotlight refresh: monthly ECS Fargate RunTask (#329 shape a2) running the dirty-check gate (D-03); if thresholds trip, regenerates the spotlight via backfill_spotlight.py --publish. Fargate, not Lambda: the regen runs the full cli.backfill_spotlight (whole repo + LLM deps, past the 15-min ceiling). EventBridge Input is not forwarded to ECS targets, so the invocation is the task definition's default command (infra/spotlight_task_definition.json).",
       "schedule_expression": "cron(0 13 1 * ? *)",
       "schedule_comment": "1st of each month, 13:00 UTC = 09:00 EDT. One hour after the hot path so the dirty-check sees STAGE# rows from the most recent hot run.",
       "state": "ENABLED",
