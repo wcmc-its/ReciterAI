@@ -194,15 +194,28 @@ def _load_hierarchy() -> dict:
     try:
         return bundle(strict=False)
     except FileNotFoundError:
+        import hashlib
+
         from utils.s3_client import S3HierarchyClient
 
+        # latest/ holds ONLY manifest.json (a pointer); the artifact lives at
+        # {version}/hierarchy.json — learned from a NoSuchKey on the first
+        # containerised attempt (2026-08-07).
+        client = S3HierarchyClient()
+        manifest = json.loads(client.get_object_bytes("latest/manifest.json"))
+        version = manifest["version"]
         logging.getLogger(__name__).info(
             "no local hierarchy_augmented_*.json (containerised run) — "
-            "falling back to published latest/hierarchy.json"
+            "falling back to published %s/hierarchy.json", version,
         )
-        return json.loads(
-            S3HierarchyClient().get_object_bytes("latest/hierarchy.json")
-        )
+        raw = client.get_object_bytes(f"{version}/hierarchy.json")
+        expected = manifest.get("sha256")
+        if expected and hashlib.sha256(raw).hexdigest() != expected:
+            raise RuntimeError(
+                f"published hierarchy failed its manifest integrity check: "
+                f"{version}/hierarchy.json does not hash to {expected}"
+            )
+        return json.loads(raw)
 
 
 def _build_parent_lookup(hierarchy: dict) -> dict[str, str]:
