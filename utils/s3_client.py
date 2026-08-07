@@ -28,9 +28,11 @@ Provides S3HierarchyClient with:
 Usage:
     from utils.s3_client import S3HierarchyClient, ARTIFACTS_BUCKET
 
-    # Phase 5 default (hierarchy bucket)
+    # Phase 5 default (hierarchy bucket). NOTE: latest/ holds ONLY
+    # manifest.json (a version pointer); hierarchy.json lives at
+    # {version}/hierarchy.json.
     s3 = S3HierarchyClient()
-    s3.put_object("latest/hierarchy.json", hierarchy_bytes)
+    s3.put_object("v2026-01-01/hierarchy.json", hierarchy_bytes)
 
     # Phase 6 publish target
     s3 = S3HierarchyClient(bucket=ARTIFACTS_BUCKET)

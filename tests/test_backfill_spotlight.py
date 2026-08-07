@@ -464,8 +464,34 @@ def test_load_hierarchy_prefers_local_bundle(monkeypatch):
     assert _load_hierarchy() is local
 
 
+def _stub_s3_with(published_bytes: bytes, *, sha256: str | None = None):
+    """Serve latest/manifest.json (version pointer) + the versioned artifact —
+    the real bucket layout: latest/ holds ONLY the manifest."""
+    import hashlib
+    import json as _json
+
+    manifest = {"version": "v2026-08-01b"}
+    if sha256 is None:
+        manifest["sha256"] = hashlib.sha256(published_bytes).hexdigest()
+    else:
+        manifest["sha256"] = sha256
+
+    class StubS3:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_object_bytes(self, key):
+            if key == "latest/manifest.json":
+                return _json.dumps(manifest).encode()
+            assert key == "v2026-08-01b/hierarchy.json", key
+            return published_bytes
+
+    return StubS3
+
+
 def test_load_hierarchy_falls_back_to_published_artifact(monkeypatch):
-    """No local augmented drafts (the container) -> published latest/hierarchy.json."""
+    """No local augmented drafts (the container) -> manifest-pointed
+    {version}/hierarchy.json (latest/ holds only the manifest)."""
     import json as _json
 
     import pipeline_hierarchy.bundler as bundler
@@ -477,17 +503,33 @@ def test_load_hierarchy_falls_back_to_published_artifact(monkeypatch):
 
     monkeypatch.setattr(bundler, "bundle", no_drafts)
     published = {"topics": {"cardiology": {"subtopics": [{"id": "cardiology_001"}]}}}
-
-    class StubS3:
-        def __init__(self, *a, **k):
-            pass
-
-        def get_object_bytes(self, key):
-            assert key == "latest/hierarchy.json"
-            return _json.dumps(published).encode()
-
-    monkeypatch.setattr(s3c, "S3HierarchyClient", StubS3)
+    raw = _json.dumps(published).encode()
+    monkeypatch.setattr(s3c, "S3HierarchyClient", _stub_s3_with(raw))
     assert _load_hierarchy() == published
+
+
+def test_load_hierarchy_fallback_rejects_integrity_mismatch(monkeypatch):
+    """A manifest sha256 that doesn't match the artifact must abort, not publish."""
+    import json as _json
+
+    import pipeline_hierarchy.bundler as bundler
+    import utils.s3_client as s3c
+    from cli.backfill_spotlight import _load_hierarchy
+
+    def no_drafts(strict):
+        raise FileNotFoundError("no hierarchy_augmented_*.json files")
+
+    monkeypatch.setattr(bundler, "bundle", no_drafts)
+    raw = _json.dumps({"topics": {}}).encode()
+    monkeypatch.setattr(
+        s3c, "S3HierarchyClient", _stub_s3_with(raw, sha256="0" * 64)
+    )
+    try:
+        _load_hierarchy()
+    except RuntimeError as exc:
+        assert "integrity" in str(exc)
+    else:
+        raise AssertionError("integrity mismatch should raise")
 
 
 def test_load_hierarchy_does_not_swallow_other_errors(monkeypatch):
