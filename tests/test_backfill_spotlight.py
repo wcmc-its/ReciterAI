@@ -440,3 +440,68 @@ def test_regen_only_drops_paper_with_no_live_topic_row(monkeypatch):
 
     assert bs._run_regen_only("parent1_001") == 0
     assert [p.pmid for p in captured["papers"]] == ["111"]
+
+
+# ---------------------------------------------------------------------------
+# _load_hierarchy — containerised-run fallback to the published artifact
+# ---------------------------------------------------------------------------
+
+
+def test_load_hierarchy_prefers_local_bundle(monkeypatch):
+    """Cold-run stage 9 must consume the just-built local drafts, never S3."""
+    import pipeline_hierarchy.bundler as bundler
+    from cli.backfill_spotlight import _load_hierarchy
+
+    local = {"topics": {"cardiology": {"subtopics": []}}}
+    monkeypatch.setattr(bundler, "bundle", lambda strict: local)
+
+    class ExplodingS3:
+        def __init__(self, *a, **k):
+            raise AssertionError("S3 must not be touched when local drafts exist")
+
+    import utils.s3_client as s3c
+    monkeypatch.setattr(s3c, "S3HierarchyClient", ExplodingS3)
+    assert _load_hierarchy() is local
+
+
+def test_load_hierarchy_falls_back_to_published_artifact(monkeypatch):
+    """No local augmented drafts (the container) -> published latest/hierarchy.json."""
+    import json as _json
+
+    import pipeline_hierarchy.bundler as bundler
+    import utils.s3_client as s3c
+    from cli.backfill_spotlight import _load_hierarchy
+
+    def no_drafts(strict):
+        raise FileNotFoundError("no hierarchy_augmented_*.json files")
+
+    monkeypatch.setattr(bundler, "bundle", no_drafts)
+    published = {"topics": {"cardiology": {"subtopics": [{"id": "cardiology_001"}]}}}
+
+    class StubS3:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_object_bytes(self, key):
+            assert key == "latest/hierarchy.json"
+            return _json.dumps(published).encode()
+
+    monkeypatch.setattr(s3c, "S3HierarchyClient", StubS3)
+    assert _load_hierarchy() == published
+
+
+def test_load_hierarchy_does_not_swallow_other_errors(monkeypatch):
+    """Only the drafts-absent case falls back; real bundler failures propagate."""
+    import pipeline_hierarchy.bundler as bundler
+    from cli.backfill_spotlight import _load_hierarchy
+
+    def broken(strict):
+        raise ValueError("malformed draft")
+
+    monkeypatch.setattr(bundler, "bundle", broken)
+    try:
+        _load_hierarchy()
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("ValueError should propagate, not fall back")
