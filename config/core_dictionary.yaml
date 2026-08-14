@@ -288,3 +288,53 @@ cores:
       MS-based proteomics and metabolomics: protein ID, label-free / SILAC / TMT
       quantitation, PTM analysis (phospho, ubiquitin, acetyl), immunopeptidomics,
       and targeted/untargeted metabolite profiling with 13C stable-isotope tracing
+
+  # ---------------------------------------------------------------------------
+  # 14th core, added 2026-08-14. Not a bench/instrument core like 1-13 — a
+  # research-computing/data-services core (Population Health Sciences). No
+  # canonical facility name distinct from the group name was supplied, so
+  # facility mirrors name (same convention as #7 Metabolic Phenotyping Center).
+  # Resolved against reciterdb.identity + analysis_summary_author 2026-08-14:
+  #   evs2008/thc2015 ARE in identity (both Population Health Sciences) but
+  #   carry large independent resolved-author counts (54, 88) -> tracked: false,
+  #   same over-confirm-risk rule already applied to Microbiome's founders
+  #   (Iliev/Artis/Longman) and Metabolic Phenotyping's advisory board: a big
+  #   own research portfolio means co-authorship doesn't specifically signal
+  #   "this paper used the core."
+  #   saa3011 is NOT in identity but has 15 resolved-author rows in
+  #   analysis_summary_author (unusual — present in author-resolution without a
+  #   faculty/staff identity row — but real) -> tracked: true, consistent with
+  #   the moderate service-staff row counts elsewhere in this file (e.g. #1's
+  #   paz2005/las2017).
+  #   nik2004 is in neither table (not a ReCiter target person, zero resolved
+  #   rows) -> tracked: false, can't fire signal 2 at all.
+  # Aliases are inferred qualified variants (no acknowledgment-text survey done
+  # yet) since the bare 2-word name is a generic discipline term and would be
+  # collision-prone per this file's own "no bare collision-prone terms" rule —
+  # revisit once real candidate acknowledgment text is available to check
+  # against.
+  # ---------------------------------------------------------------------------
+
+  - core_id: "14"
+    name: Research Informatics
+    facility: Research Informatics
+    owner_cwid: null            # TBD — designate via SPS Superuser grant.
+                                 # Intended owners: evs2008 (Evan Sholle),
+                                 # nik2004 (Nivedita Chang), saa3011 (Sajjad
+                                 # Abedian), thc2015 (Thomas Campion).
+    aliases:
+      - "Research Informatics"
+      - "Research Informatics Core"
+      - "Weill Cornell Medicine Research Informatics"
+      - "WCM Research Informatics"
+    staff:
+      - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences", tracked: false }
+      - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences", tracked: false }
+      - { cwid: saa3011, name: "Sajjad Abedian", dept: "",                           tracked: true }
+      - { cwid: nik2004, name: "Nivedita Chang", dept: "",                           tracked: false }
+    grant_ids: []
+    llm_description: >
+      research informatics service core: EHR-based reporting and clinical data
+      extraction, clinical trial support, secure environments for analysis of
+      research data sets, and access to high-performance/scientific computing
+      resources for the research enterprise
