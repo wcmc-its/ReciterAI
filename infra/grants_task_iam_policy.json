@@ -1,0 +1,55 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for the DAILY GRANT-OPPORTUNITY INGEST Fargate task role (#269; `sh -c 'python -m pipeline_grants.ingest; python -m pipeline_grants.ingest_submissions'`). Attach to the role referenced by `grants_task_definition.json.taskRoleArn` (`reciterai-grants-task`). Modeled on `cold_run_task_iam_policy.json`, minus everything pipeline_grants does not touch: (1) the DynamoDB statement is byte-identical to cold/enrichment's (GRANT#/SUBMISSION CRUD + the `load_corpus_key_index` Scan + `batch_write` are a subset); (2) the S3 statement is scoped to `wcmc-reciterai-artifacts/grants/*` ONLY — the grants ingest publishes `grants/{version}/` + `grants/latest/` (opportunities.json + manifest) and reads the prior `grants/latest/manifest.json` for the shrink guard; it never writes hierarchy or spotlight artifacts, so those grants are absent; (3) `s3:ListBucket` on the bucket (no prefix condition — matches the cold policy's shape) because `persist._prior_opportunity_count` -> `S3HierarchyClient.key_exists` HEADs via list semantics; without it the guard's read AccessDenies and the shrink guard silently fails open every run; (4) NO SecretsManager statement — the only secret (`reciterai/bedrock-api-key`) is injected as the `AWS_BEARER_TOKEN_BEDROCK` env var by the EXECUTION role, and pipeline_grants reads no DB and has no OpenAI fallback; (5) NO `bedrock:InvokeModel` — every `bedrock-runtime` call authenticates via the bearer token, so SigV4 IAM auth against the task role is intentionally not load-bearing (identical posture to enrichment/cold/spotlight); (6) CloudWatch Logs scoped to `/ecs/reciterai-grants`.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBReciterAITableGrantsCRUD",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai",
+        "arn:aws:dynamodb:*:*:table/reciterai/index/*"
+      ]
+    },
+    {
+      "Sid": "S3GrantsArtifactPublish",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-artifacts/grants/*"
+      ]
+    },
+    {
+      "Sid": "S3ListBucketForKeyExists",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-artifacts"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/reciterai-grants:*"
+    }
+  ]
+}

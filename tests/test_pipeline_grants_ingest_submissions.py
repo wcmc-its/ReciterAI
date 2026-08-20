@@ -179,12 +179,17 @@ def test_drain_skips_submission_suppressed_after_listing(monkeypatch):
     marked = []
     monkeypatch.setattr(mod, "mark_submission", lambda client, sk, **kw: marked.append(sk))
     monkeypatch.setattr(mod, "put_grants", lambda client, items, **kw: len(items))
-    monkeypatch.setattr(mod, "publish_opportunities_artifact", lambda arts, **kw: {})
 
     summary = mod.drain()
     assert processed_sks == ["sk-live"]       # suppressed one never fetched/scored
     assert marked == ["sk-live"]              # ...and its status row is left alone
     assert summary["skipped_not_pending"] == 1 and summary["processed"] == 1
+    # The drain must NOT publish the grants/latest opportunities artifact: SPS reads
+    # the GRANT# rows via DDB, and a drain-side publish of only this run's items would
+    # trip persist.py's shrink guard against the same-night full-sweep manifest on the
+    # shared daily Fargate task (or, if it passed, clobber the sweep's artifact).
+    # Re-adding the import/call requires solving that interaction first.
+    assert not hasattr(mod, "publish_opportunities_artifact")
 
 
 class _CleanupClient:

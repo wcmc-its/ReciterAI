@@ -40,7 +40,7 @@ from pipeline_grants import scoring
 from pipeline_grants.dedupe import delete_grant_items
 from pipeline_grants.denoise import judge_opportunity
 from pipeline_grants.models import Opportunity, make_opportunity_id
-from pipeline_grants.persist import build_grant_item, publish_opportunities_artifact, put_grants
+from pipeline_grants.persist import build_grant_item, put_grants
 from pipeline_grants.safe_fetch import FetchRejected, fetch_page_text
 from pipeline_grants.wcm_curated import slugify
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
@@ -291,7 +291,6 @@ def drain(*, dry_run: bool = False) -> dict:
 
     corpus_titles = load_corpus_title_index(dynamo)
     processed = rejected = failed = persisted = skipped = 0
-    artifact = []
     for sub in pending:
         # One bad page/Bedrock hiccup skips that submission (it stays pending and
         # is retried next run) — it never aborts the drain. Same posture as ingest.
@@ -321,14 +320,21 @@ def drain(*, dry_run: bool = False) -> dict:
         persisted += put_grants(dynamo, outcome["items"])
         mark_submission(dynamo, sub["sk"], status=outcome["status"],
                         produced=outcome["produced"], reject_reason=outcome["reject_reason"])
-        artifact.extend(outcome["artifact"])
         if outcome["status"] == "processed":
             processed += 1
         else:
             rejected += 1
 
-    if artifact and not dry_run:
-        publish_opportunities_artifact(artifact)
+    # DELIBERATELY no publish_opportunities_artifact here. The GRANT# rows above are
+    # what SPS consumes (its nightly etl:dynamodb — see
+    # docs/opportunity-url-submissions-runbook.md); the grants/latest/ S3 artifact is
+    # owned by the full-sweep ingests. A drain-side publish would overwrite latest/
+    # with ONLY this run's handful of items — and on the shared daily Fargate task
+    # (infra/grants_task_definition.json) it would deterministically trip persist.py's
+    # shrink guard against the sweep's same-night full-count manifest, failing the
+    # container and firing the OpportunitiesPublishShrinkError alarm every day a
+    # submission is pending. (outcome["artifact"] rows stay in process_submission's
+    # contract for callers that want them, e.g. dry-run reporting.)
     summary = {"pending": len(pending), "processed": processed, "rejected": rejected,
                "failed": failed, "persisted": persisted,
                "skipped_not_pending": skipped, "dry_run": dry_run}

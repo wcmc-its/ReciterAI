@@ -1,0 +1,54 @@
+{
+  "$schema_note": "ECS Fargate task definition for the DAILY GRANT-OPPORTUNITY INGEST (#269; grants.gov sweep + SPS submission-queue drain). Scheduled by EventBridge rule `reciterai-grants-daily` (see eventbridge.json) as a direct RunTask target — EventBridge Input is NOT forwarded to ECS targets, so the default command below IS the invocation (deploy_cron.sh ecs branch). The command chains the two ingests with ';' DELIBERATELY (not '&&'): a grants.gov API failure must not strand the SPS submission queue — development-office staff are waiting on their pasted URLs, so `ingest_submissions` runs regardless of `ingest`'s exit status (rationale also in infra/README.md 'Grants ingest launch path'). Uses the SAME Dockerfile + ECR repo as the enrichment/cold/spotlight tasks (the repo's single Dockerfile `COPY . .` already contains pipeline_grants); this task def only overrides the default CMD. LOG GROUP `/ecs/reciterai-grants` MUST be pre-created — `ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, so `awslogs-create-group` is intentionally omitted (ECS rejects `false`; only `true`-or-omit — same caveat as cold/spotlight). Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token; the task role carries NO `bedrock:InvokeModel` and — unlike enrichment/cold — NO DB or OpenAI secrets: pipeline_grants touches only DynamoDB `reciterai`, S3 `wcmc-reciterai-artifacts` under `grants/*`, and Bedrock. SPIN ingest (`pipeline_grants.ingest_spin`) is deliberately NOT in the command: its docstring decision #5 gates any scheduler on the SPIN ToS check clearing — adding it later is a command edit + task-def re-register, no new infra.",
+  "family": "reciterai-grants",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "2048",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "taskRoleArn": "{TASK_ROLE_ARN}",
+  "executionRoleArn": "{EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "reciterai-grants",
+      "image": "{IMAGE_URI}",
+      "essential": true,
+      "command": [
+        "sh",
+        "-c",
+        "python -m pipeline_grants.ingest; python -m pipeline_grants.ingest_submissions"
+      ],
+      "environment": [
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"}
+      ],
+      "secrets": [
+        {
+          "name": "AWS_BEARER_TOKEN_BEDROCK",
+          "valueFrom": "{BEDROCK_API_KEY_SECRET_ARN}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/reciterai-grants",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "grants"
+        }
+      }
+    }
+  ],
+  "deploy_notes": {
+    "placeholders": {
+      "{TASK_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/reciterai-grants-task — IAM role attached to the running container; carries the policy in `grants_task_iam_policy.json` (DDB CRUD on `reciterai`, S3 read+write on `wcmc-reciterai-artifacts/grants/*` + `s3:ListBucket` on the bucket for `persist.key_exists`, CloudWatch Logs on `/ecs/reciterai-grants`). This is a NEW role — the enrichment role has no S3 grant, and the cold role's S3 write is scoped to `spotlight/*`/hierarchy, not `grants/*`; neither can be reused.",
+      "{EXECUTION_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/ecsTaskExecutionRole — the standard ECS task execution role (reused from the enrichment deploy). Needs ECR pull + CloudWatch Logs (AWS-managed `AmazonECSTaskExecutionRolePolicy`) and its existing inline `secretsmanager:GetSecretValue` grant on `reciterai/bedrock-api-key` (already present since the enrichment deploy — no extension needed; this task injects only the one secret). The execution role — not the task role — injects the `secrets[]` env var at container start.",
+      "{IMAGE_URI}": "ECR image URI in the `reciterai-enrichment` repo, e.g. `{ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:{TAG}`, built `docker build --platform linux/amd64` (the task is X86_64; a Mac defaults to arm64, which won't run on Fargate). The Dockerfile `COPY . .` already includes `pipeline_grants` — no new build pipeline; the operator's normal build+push suffices. Like every scheduled task, config is image-baked (#204): `config/thresholds.json` (score_floor, shrink guard) and `config/spin_target_funders.json` ride the image.",
+      "{BEDROCK_API_KEY_SECRET_ARN}": "Full ARN of `reciterai/bedrock-api-key` (plain SecretString — a LONG-TERM Bedrock API key). boto3 auto-detects `AWS_BEARER_TOKEN_BEDROCK` and uses it as the bearer token for `bedrock-runtime` calls. Same secret as the enrichment/cold/spotlight tasks. Referenced by the EXECUTION role (env injection), not the task role — the grants task-role policy intentionally has no SecretsManager statement."
+    },
+    "sizing": "0.5 vCPU / 2 GB. Both ingests are serial Bedrock/HTTP-I/O loops (grants.gov pagination -> per-item judge/score; submission drain is a short queue walk) — no in-process model, no corpus load, no concurrent fan-out (the cold-run's 1-vCPU justification does not apply). Peak in-process memory is the corpus-key dedup index + one page of opportunities, well under 1 GB; 2 GB gives headroom for the full-table GRANT# scan behind `load_corpus_key_index` plus the boto3 dependency set. Wall-clock: a full grants.gov sweep is hours-class at one Bedrock call per kept item; the submission drain is minutes. NOTE: no Fargate task timeout exists — a hung run runs forever (see the README's first-tick monitoring step).",
+    "failure_isolation": "The ';' in `command` is load-bearing: `ingest` (grants.gov) and `ingest_submissions` (SPS queue) are independent sources sharing one daily task, and the second must run even when the first fails. Consequence: the container's exit code is `ingest_submissions`'s alone — a grants.gov failure is visible ONLY in the logs (Traceback / OpportunitiesPublishShrinkError), which is why the README's out-of-band metric-filter alarm on `/ecs/reciterai-grants` is REQUIRED before #269 is called closed.",
+    "plumbing_gate": "To prove the plumbing without a full sweep, `aws ecs run-task ... --overrides '{\"containerOverrides\":[{\"name\":\"reciterai-grants\",\"command\":[\"sh\",\"-c\",\"python -m pipeline_grants.ingest --limit 5; python -m pipeline_grants.ingest_submissions --dry-run\"]}]}'` — a bounded 5-opportunity ingest (real but cheap; `--limit` caps Bedrock spend) plus a no-write submission-queue report. Proves the image, secret injection, task role, networking, and CloudWatch logging. EXPECTED on this bounded run when `grants/latest/` already holds a full sweep: the ingest's end-of-run artifact publish raises `OpportunitiesPublishShrinkError` (5 items vs the prior full count) — that is the shrink guard correctly refusing to overwrite `latest/`, not a plumbing failure; the 5 GRANT# rows still land in DynamoDB, and the log line will trip the README's metric-filter alarm if it is already installed."
+  }
+}
