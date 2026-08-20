@@ -110,13 +110,34 @@
           "trigger": "eventbridge:reciterai-taxonomy-drift-daily"
         }
       }
+    },
+    {
+      "name": "reciterai-grants-daily",
+      "description": "Grant-opportunity ingest: daily ECS Fargate RunTask (#269) running the grants.gov sweep then the SPS submission-queue drain (pipeline_grants.ingest; pipeline_grants.ingest_submissions — chained with ';' so a grants.gov failure still drains the queue). EventBridge Input is not forwarded to ECS targets, so the invocation is the task definition's default command (infra/grants_task_definition.json). SPIN ingest is deliberately excluded (ingest_spin decision #5 — no scheduler until the ToS check clears).",
+      "schedule_expression": "cron(0 3 * * ? *)",
+      "schedule_comment": "Daily 03:00 UTC = 23:00 EDT. Overnight slot: launches 4h before SPS's 07:00 nightly projection reads the GRANT# rows and 8h before the 11:00 UTC enrichment tick — no contention with the other ECS crons. Completion inside that 4h window is an assumption, not a measurement (hours-class sweep, one Bedrock call per kept item, no Fargate timeout); measure the first full sweep's wall clock against 07:00 (README first-tick step) and, if it overruns, move the cron earlier or the drain first. Override: edit this rule + redeploy via scripts/deploy_cron.sh.",
+      "state": "ENABLED",
+      "target": {
+        "id": "grants-fargate",
+        "kind": "ecs",
+        "arn_template": "arn:aws:ecs:{region}:{account_id}:cluster/reciterai-cluster",
+        "role_arn_template": "arn:aws:iam::{account_id}:role/reciterai-eventbridge-invoke-ecs",
+        "task_definition_template": "arn:aws:ecs:{region}:{account_id}:task-definition/reciterai-grants",
+        "launch_type": "FARGATE",
+        "platform_version": "LATEST",
+        "network_configuration": {
+          "subnets_env": "RECITERAI_ENRICHMENT_SUBNETS",
+          "security_groups_env": "RECITERAI_ENRICHMENT_SECURITY_GROUPS",
+          "assign_public_ip": "DISABLED"
+        }
+      }
     }
   ],
 
   "deploy_notes": {
     "templating": "{account_id} is read from $AWS_ACCOUNT_ID at deploy time. {region} resolves from the top-level region field. scripts/deploy_cron.sh handles substitution before passing to aws CLI.",
-    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, the Lambda execution role attached to the named function for the Lambda targets, and reciterai-eventbridge-invoke-ecs for the ECS RunTask targets (Fargate enrichment + spotlight — its policy must allow ecs:RunTask on BOTH task-definition families and iam:PassRole for each task/execution role pair). Minimum policies are documented in infra/lambda_iam_policy.json (Lambdas), infra/enrichment_task_iam_policy.json (enrichment task role), and infra/cold_run_task_iam_policy.json (the reciterai-cold-task role, which the spotlight task reuses — it already scopes S3 write to wcmc-reciterai-artifacts/spotlight/*).",
-    "ecs_targets": "ECS targets need RECITERAI_ENRICHMENT_SUBNETS and RECITERAI_ENRICHMENT_SECURITY_GROUPS env vars at deploy time (comma-separated). Subnets must reach ReciterDB; security groups must permit egress to Bedrock + OpenAI + MariaDB + Secrets Manager. Reuse the hot-path Lambdas' VPC layout — same network requirements.",
+    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, the Lambda execution role attached to the named function for the Lambda targets, and reciterai-eventbridge-invoke-ecs for the ECS RunTask targets (Fargate enrichment + spotlight + grants — its policy must allow ecs:RunTask on ALL THREE task-definition families and iam:PassRole for each task/execution role pair; the per-family omission has bitten on every new family — see infra/README.md). Minimum policies are documented in infra/lambda_iam_policy.json (Lambdas), infra/enrichment_task_iam_policy.json (enrichment task role), infra/cold_run_task_iam_policy.json (the reciterai-cold-task role, which the spotlight task reuses — it already scopes S3 write to wcmc-reciterai-artifacts/spotlight/*), and infra/grants_task_iam_policy.json (the reciterai-grants-task role — S3 scoped to wcmc-reciterai-artifacts/grants/*).",
+    "ecs_targets": "ECS targets need RECITERAI_ENRICHMENT_SUBNETS and RECITERAI_ENRICHMENT_SECURITY_GROUPS env vars at deploy time (comma-separated). Subnets must reach ReciterDB; security groups must permit egress to Bedrock + OpenAI + MariaDB + Secrets Manager (the grants task uses only the Bedrock + AWS-API egress plus HTTPS to grants.gov and submitted opportunity URLs). Reuse the hot-path Lambdas' VPC layout — same network requirements.",
     "override_cadence": "All cron expressions are tunable here without code changes. Change the schedule_expression, re-run scripts/deploy_cron.sh, and EventBridge picks up the new schedule within ~1 minute."
   }
 }

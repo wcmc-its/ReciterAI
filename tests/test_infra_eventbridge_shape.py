@@ -5,11 +5,13 @@ This test pins those paths so future edits to the config can't
 silently break deploy_cron without a test failure.
 
 We also verify:
-- The five expected rules are present (hot weekly, spotlight monthly,
-  drift daily, onboarding-detector daily, enrichment daily — #37 PR 4)
+- The seven expected rules are present (hot weekly, spotlight monthly,
+  drift daily, onboarding-detector daily, enrichment daily — #37 PR 4,
+  taxonomy-drift daily, grants daily — #269)
   with the cron expressions locked in plan-phase (Open Q 10.1 → hot path
   = `cron(0 12 ? * MON *)`; onboarding detector daily = `cron(0 13 * * ? *)`,
-  #80 Phase 2; enrichment daily = `cron(0 11 * * ? *)`, #37 PR 4).
+  #80 Phase 2; enrichment daily = `cron(0 11 * * ? *)`, #37 PR 4;
+  grants daily = `cron(0 3 * * ? *)`, #269).
 - Each rule's target_arn template uses {account_id} + {region}
   placeholders so the deploy script's substitution is the only place
   account/region are bound.
@@ -49,7 +51,7 @@ def test_eventbridge_has_region(eventbridge_config):
     assert eventbridge_config["region"]
 
 
-def test_eventbridge_defines_six_rules(eventbridge_config):
+def test_eventbridge_defines_seven_rules(eventbridge_config):
     names = [r["name"] for r in eventbridge_config["rules"]]
     assert names == [
         "reciterai-hot-weekly",
@@ -58,6 +60,7 @@ def test_eventbridge_defines_six_rules(eventbridge_config):
         "reciterai-onboarding-detector-daily",
         "reciterai-enrichment-daily",
         "reciterai-taxonomy-drift-daily",
+        "reciterai-grants-daily",
     ]
 
 
@@ -70,6 +73,7 @@ def test_eventbridge_defines_six_rules(eventbridge_config):
         ("reciterai-onboarding-detector-daily", "cron(0 13 * * ? *)"),
         ("reciterai-enrichment-daily", "cron(0 11 * * ? *)"),
         ("reciterai-taxonomy-drift-daily", "cron(0 15 * * ? *)"),
+        ("reciterai-grants-daily", "cron(0 3 * * ? *)"),
     ],
 )
 def test_cron_expressions_match_plan(eventbridge_config, rule_name, expected_schedule):
