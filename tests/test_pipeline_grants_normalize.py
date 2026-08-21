@@ -119,3 +119,67 @@ def test_canonical_sponsor_passes_through_unknown_and_blank():
     assert canonical_sponsor("  American Cancer Society, Inc.  ") == "American Cancer Society"  # trims
     assert canonical_sponsor("") == ""
     assert canonical_sponsor(None) == ""
+
+
+# A forecasted NOFO carries no `synopsis` block at all — its body lives under `forecast`,
+# with `forecastDesc` / `estApplicationResponseDate` in place of `synopsisDesc` /
+# `responseDate`. Reading only `synopsis` produced an empty body, which failed screening
+# 100% of the time, so no forecast ever entered the corpus (#269). These assert the fallback.
+FORECAST_DETAIL = {
+    "data": {
+        "id": "999001",
+        "opportunityTitle": "Autism Centers of Excellence (ACE) (R01 Clinical Trial Optional)",
+        "opportunityNumber": "RFA-HD-27-001",
+        "docType": "forecast",
+        "synopsis": None,
+        "forecast": {
+            "forecastDesc": "<p>This NOFO invites applications for Autism Centers of Excellence.</p>",
+            "postingDate": "May 21, 2026 12:00:00 AM EDT",
+            "estApplicationResponseDate": "Oct 19, 2026 12:00:00 AM EDT",
+            "awardCeiling": "600000",
+            "awardFloor": "50000",
+            "estimatedFunding": "3000000",
+            "numberOfAwards": "3",
+            "applicantEligibilityDesc": "Higher education institutions may apply.",
+            "applicantTypes": [{"description": "Public and State controlled institutions of higher education"}],
+            "agencyName": "National Institutes of Health",
+        },
+        "cfdas": [{"cfdaNumber": "93.865"}],
+    }
+}
+
+
+def test_normalize_reads_forecast_block_when_synopsis_absent():
+    opp = normalize_grantsgov(FORECAST_DETAIL)
+    # The regression: without the `data.forecast` fallback this is "" and the item is unscoreable.
+    assert "Autism Centers of Excellence" in opp.synopsis
+    assert "<p>" not in opp.synopsis
+    assert opp.status == "forecasted"
+
+
+def test_normalize_maps_forecast_renamed_date_key():
+    # `estApplicationResponseDate`, not `responseDate`. An empty due_date also left
+    # denoise's expired-deadline gate dead for every forecast.
+    opp = normalize_grantsgov(FORECAST_DETAIL)
+    assert opp.due_date == "2026-10-19"
+    assert opp.open_date == "2026-05-21"
+
+
+def test_normalize_forecast_shares_key_names_for_the_rest():
+    # Everything except the two renamed keys is identical, so the rest of the normalizer
+    # starts working unchanged the moment `syn` points at the forecast block.
+    opp = normalize_grantsgov(FORECAST_DETAIL)
+    assert opp.award_ceiling == 600000
+    assert opp.number_of_awards == 3
+    assert opp.sponsor == "National Institutes of Health"
+    assert "Higher education" in opp.eligibility_raw
+
+
+def test_normalize_still_prefers_synopsis_when_both_present():
+    # `synopsis` wins; the fallback must not hijack a posted NOFO that also carries a
+    # forecast block (status is derived from `forecast` being present, so both coexist).
+    detail = _load()
+    detail["data"]["forecast"] = {"forecastDesc": "SHOULD NOT BE USED"}
+    opp = normalize_grantsgov(detail)
+    assert "SHOULD NOT BE USED" not in opp.synopsis
+    assert "NOFO" in opp.synopsis

@@ -102,7 +102,11 @@ def canonical_sponsor(name: str) -> str:
 
 def normalize_grantsgov(detail_resp: dict) -> Opportunity:
     data = detail_resp.get("data", {})
-    syn = data.get("synopsis") or {}
+    # A forecasted NOFO carries its body under `forecast`, not `synopsis` — same key names
+    # except the two `or`-chained below. Reading only `synopsis` handed every forecast to the
+    # scorer with an empty body, so 100% of them failed screening and none ever reached the
+    # corpus (#269). `status` below already read `data.forecast`; only the content was missed.
+    syn = data.get("synopsis") or data.get("forecast") or {}
     source_id = str(data.get("id") or syn.get("opportunityId") or "")
     sponsor = _select_sponsor(data, syn)
     cfdas = [c.get("cfdaNumber") for c in (data.get("cfdas") or []) if c.get("cfdaNumber")]
@@ -113,7 +117,7 @@ def normalize_grantsgov(detail_resp: dict) -> Opportunity:
         source_url=f"https://www.grants.gov/search-results-detail/{source_id}",
         sponsor=sponsor,
         title=data.get("opportunityTitle", "") or "",
-        synopsis=_strip_html(syn.get("synopsisDesc", "")),
+        synopsis=_strip_html(syn.get("synopsisDesc") or syn.get("forecastDesc") or ""),
         program_type=data.get("docType", "") or "",
         # NIH FOA numbers (PAR-23-065) rarely carry the activity code; the title
         # ("... (R01 Clinical Trial Not Allowed)") does ~58% of the time. Fall back to it.
@@ -123,7 +127,7 @@ def normalize_grantsgov(detail_resp: dict) -> Opportunity:
         estimated_funding=_to_int(syn.get("estimatedFunding")),
         number_of_awards=_to_int(syn.get("numberOfAwards")),
         open_date=_parse_detail_date(syn.get("postingDate", "")),
-        due_date=_parse_detail_date(syn.get("responseDate", "")),
+        due_date=_parse_detail_date(syn.get("responseDate") or syn.get("estApplicationResponseDate") or ""),
         status="forecasted" if data.get("forecast") else "posted",
         eligibility_raw=_eligibility_text(syn),
         cfda_list=cfdas,

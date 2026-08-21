@@ -192,3 +192,40 @@ def test_run_ingest_skips_key_already_held_by_corpus(monkeypatch):
     summary = ingest.run(rows=10, keyword="")
     assert summary["kept"] == 0 and summary["persisted"] == 0
     assert persisted == []
+
+
+def test_run_ingest_counts_empty_synopsis_without_calling_bedrock(monkeypatch):
+    # A content-free opportunity used to reach the scorer, fail json.loads at char 0, and land
+    # in `failed` alongside genuine network blips (#269). It must now be dropped before any
+    # Bedrock call and counted in its own bucket.
+    monkeypatch.setattr(ingest.grants_gov, "search_opportunities",
+                        lambda **kw: {"oppHits": [{"id": "1"}, {"id": "2"}]})
+    details = {
+        # Forecast-shaped item whose body failed to normalize -> empty synopsis.
+        "1": {"data": {"id": "1", "opportunityTitle": "Cancer Research Forecast",
+                       "synopsis": {"synopsisDesc": "   "}}},
+        "2": {"data": {"id": "2", "opportunityTitle": "Cancer Research Project",
+                       "synopsis": {"synopsisDesc": "research",
+                                    "responseDate": "Oct 19, 2099 12:00:00 AM EDT"}}},
+    }
+    monkeypatch.setattr(ingest.grants_gov, "fetch_opportunity", lambda oid: details[oid]["data"])
+    monkeypatch.setattr(ingest.scoring, "load_taxonomy", lambda: {"taxonomy_version": "taxonomy_v2", "topics": []})
+    monkeypatch.setattr(ingest.scoring, "build_index", lambda tax: ({}, {}))
+    monkeypatch.setattr(ingest.scoring, "score_grant_text",
+                        lambda **kw: {"breast_cancer": {"score": 0.9, "rationale": "r"}})
+
+    judged = []
+    def _judge(opp, bedrock):
+        judged.append(opp.opportunity_id)
+        return {"is_research": True, "reason": "", "appeal_by_stage": {}}
+    monkeypatch.setattr(ingest, "judge_opportunity", _judge)
+    monkeypatch.setattr(ingest, "BedrockClient", lambda *a, **k: object())
+    monkeypatch.setattr(ingest, "get_dynamo_client", lambda region=None: MagicMock())
+    monkeypatch.setattr(ingest, "put_grants", lambda client, items, **kw: len(items))
+    monkeypatch.setattr(ingest, "publish_opportunities_artifact", lambda arts, **kw: {"count": len(arts)})
+
+    summary = ingest.run(rows=10, keyword="")
+    assert summary["no_synopsis"] == 1
+    assert summary["kept"] == 1
+    assert summary["failed"] == 0            # counted as its own class, not as a failure
+    assert judged == ["grants_gov:2"]        # the empty one never reached Bedrock

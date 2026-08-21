@@ -51,7 +51,7 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
     hits = list(islice(grants_gov.search_all_opportunities(keyword=keyword, rows=rows), limit))
     excluded = load_excluded_ids()
     pending, artifact = [], []
-    kept = failed = persisted = 0
+    kept = failed = persisted = no_synopsis = 0
     for hit in hits:
         # Isolate each opportunity: one transient Bedrock/network failure skips that
         # item, it does not abort the whole run (a 1000-row run hits the occasional
@@ -70,6 +70,16 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
             ok, reason = regex_gate(opp)
             if not ok:
                 log.info("regex-drop %s: %s", opp.opportunity_id, reason)
+                continue
+            # An empty body cannot be screened: the model answers "I don't see the publication
+            # content" and json.loads dies at char 0, so three Bedrock calls buy a failure
+            # indistinguishable from a network blip. Counted, not silent — a rise here means a
+            # source changed shape again, the way forecasts did in #269.
+            # ponytail: strictly empty, no char floor. A thin-but-real body still gets screened
+            # and the existing topic-score floor drops it if it says nothing.
+            if not opp.synopsis.strip():
+                no_synopsis += 1
+                log.info("no-synopsis-drop %s: empty body", opp.opportunity_id)
                 continue
             verdict = judge_opportunity(opp, bedrock)
             if not verdict["is_research"]:
@@ -112,7 +122,7 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
     persisted += put_grants(dynamo, pending)
     manifest = publish_opportunities_artifact(artifact)
     summary = {"fetched": len(hits), "kept": kept, "failed": failed, "persisted": persisted,
-               "artifact_version": manifest.get("version")}
+               "no_synopsis": no_synopsis, "artifact_version": manifest.get("version")}
     log.info("ingest summary: %s", summary)
     return summary
 
