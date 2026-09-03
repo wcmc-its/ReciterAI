@@ -540,3 +540,62 @@ def test_suggest_aliases_caps_phrase_length_on_a_long_run():
     out = phrases(text)
     assert out, "should still emit something"
     assert max(len(p.split()) for p in out) <= MAX_PHRASE_WORDS
+
+
+# ---------------------------------------------------------------------------
+# pmc_search — signal 3 without the corpus prefetch
+# ---------------------------------------------------------------------------
+def test_alias_loader_returns_text_only_for_alias_hits():
+    """The loader is the whole point: full text for the papers PMC says name the
+    core, "" for everyone else — so run_core scans 25 papers, not 80,203."""
+    from pipeline_cores.models import CoreDefinition
+    from pipeline_cores.pmc_search import make_alias_loader
+
+    class FakeClient:
+        def __init__(self):
+            self.asked = []
+
+        def get(self, pmid):
+            self.asked.append(pmid)
+            return f"body of {pmid}"
+
+    client = FakeClient()
+    core = CoreDefinition(core_id="14", name="RI", aliases=["Architecture for Research Computing"])
+    loader = make_alias_loader(core, client=client, hits={"111", "222"})
+
+    assert loader("111") == "body of 111"
+    assert loader("999") == ""                 # not an alias hit -> never fetched
+    assert client.asked == ["111"]             # one fetch, not two
+
+
+def test_pmids_naming_skips_acronym_aliases(monkeypatch):
+    """esearch has no case-sensitive mode, so an acronym alias would return the
+    exact noise signals.py's word-boundary rule exists to prevent."""
+    from pipeline_cores import pmc_search
+    from pipeline_cores.models import CoreDefinition
+
+    searched = []
+    monkeypatch.setattr(pmc_search, "esearch_pmc", lambda p, **kw: searched.append(p) or [])
+    monkeypatch.setattr(pmc_search, "pmcids_to_pmids", lambda ids, **kw: set())
+
+    core = CoreDefinition(core_id="14", name="RI",
+                          aliases=["Architecture for Research Computing", "ARCH", "RIC"])
+    pmc_search.pmids_naming(core)
+    assert searched == ["Architecture for Research Computing"]
+
+
+def test_pmids_naming_survives_an_ncbi_failure(monkeypatch):
+    """Signal 3 is a bonus confirmer — one bad alias must not fail the run."""
+    from pipeline_cores import pmc_search
+    from pipeline_cores.models import CoreDefinition
+
+    def flaky(phrase, **kw):
+        if phrase == "Bad Alias":
+            raise TimeoutError("ncbi hiccup")
+        return ["7392233"]
+
+    monkeypatch.setattr(pmc_search, "esearch_pmc", flaky)
+    monkeypatch.setattr(pmc_search, "pmcids_to_pmids", lambda ids, **kw: {"32997716"})
+
+    core = CoreDefinition(core_id="14", name="RI", aliases=["Bad Alias", "Good Alias"])
+    assert pmc_search.pmids_naming(core) == {"32997716"}

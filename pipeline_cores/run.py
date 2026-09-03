@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from collections import defaultdict
 
 from pipeline_cores import combine as _combine
-from pipeline_cores import ingest, signals
+from pipeline_cores import ingest, pmc_search, signals
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import STATUS_CONFIRMED
 
@@ -121,6 +121,11 @@ def main(argv=None):
     ap.add_argument("--llm-workers", type=int, default=8,
                     help="concurrent Bedrock triage workers (default 8; lower if Bedrock throttles)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
+    ap.add_argument("--alias-search", action="store_true",
+                    help="signal 3 WITHOUT the corpus prefetch: ask PMC which papers name each "
+                         "alias (one esearch per alias), then fetch full text for those PMIDs "
+                         "only. Same coverage as --with-fulltext, ~25 fetches instead of 80k. "
+                         "Acronym aliases are skipped (esearch has no case-sensitive mode)")
     ap.add_argument("--fulltext-s3", action="store_true",
                     help="back the full-text cache with the shared S3 cache (warm with -m pipeline_cores.prefetch_fulltext)")
     ap.add_argument("--with-affinity", action="store_true",
@@ -161,7 +166,13 @@ def main(argv=None):
     prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity)
     all_records = []
     for core in cores:
-        recs = run_core(core, pubs, bedrock=bedrock, full_text=full_text,
+        # --alias-search is per-core (each core has its own aliases), unlike the
+        # shared corpus loader above.
+        core_full_text = (
+            pmc_search.make_alias_loader(core, use_s3=args.fulltext_s3)
+            if args.alias_search else full_text
+        )
+        recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
                         prior_user_counts=prior_counts, screen_map=screen_map,
                         llm_workers=args.llm_workers)

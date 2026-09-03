@@ -342,11 +342,20 @@ cores:
     # is the actual institutional brand and is what the body text names.
     # NB the reference-list exposure is GENERIC to signal 3, not specific to this
     # core — any alias appearing in a commonly-cited title has it. Not fixed here.
+    # PMC full-text search (pipeline_cores.pmc_search) over ALL of PMC, 2026-09-03:
+    #   "Architecture for Research Computing in Health"      20
+    #   "Architecture for Research Computing in Healthcare"   3
+    #   "Architecture for Research Computing"                25   <- covers both
+    #   "WCM Research Informatics"                            2
+    # 25 papers name it; 17 are in the WCM corpus, 9 of those were already
+    # hand-claimed (independent validation of the alias), 8 are new confirms.
+    # "ARCH" dropped: over the 67 claimed papers with full text it buys exactly
+    # ONE paper the spelled-out phrase misses, and \bARCH\b matches ARCH
+    # econometric models. Signal 3 auto-confirms, so that trade is wrong.
     aliases:
-      - "Architecture for Research Computing in Healthcare"
       - "Architecture for Research Computing"
+      - "Architecture for Research Computing in Health"
       - "WCM Research Informatics"
-      - "ARCH"
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences", tracked: false }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences", tracked: false }
