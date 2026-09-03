@@ -42,6 +42,9 @@ _BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 _DEFAULT_CACHE = Path(__file__).resolve().parent.parent / "out" / "fulltext_cache"
 _NO_PMC = "\x00NO_PMC\x00"  # sentinel cached when a PMID has no PMC record
 _S3_PREFIX = "cores/fulltext/"  # under the artifacts bucket
+# The `<ref-list\b[^>]*/>` alternative is load-bearing: without it `[^>]*` eats the
+# `/` of a self-closing <ref-list/> and the body is swallowed to the next close tag.
+_REF_LIST_RE = re.compile(r"<ref-list\b[^>]*/>|<ref-list\b[^>]*>.*?</ref-list\s*>", re.I | re.S)
 
 
 def _api_key() -> str:
@@ -49,10 +52,15 @@ def _api_key() -> str:
 
 
 def to_plain_text(xml: str) -> str:
-    """Strip PMC XML to whitespace-collapsed plain text."""
+    """Strip PMC XML to whitespace-collapsed plain text, <ref-list> dropped first.
+
+    The reference list is cited-work text rather than this paper's own, and
+    signal 3 auto-confirms on an alias found anywhere in what we return here.
+    """
     if not xml:
         return ""
-    return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", xml))).strip()
+    body = _REF_LIST_RE.sub(" ", xml)
+    return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body))).strip()
 
 
 def make_s3_backend(bucket: str = None):

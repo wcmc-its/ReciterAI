@@ -101,6 +101,18 @@ def test_to_plain_text_strips_xml():
     assert to_plain_text("") == ""
 
 
+def test_to_plain_text_drops_ref_list():
+    from pipeline_cores.fulltext import to_plain_text
+    xml = (
+        '<body><p>Analysis used the WCM Research Informatics core.</p></body>'
+        '<back><ref-list id="ref1"><ref><article-title>WCM Research Informatics: a cited paper'
+        '</article-title></ref></ref-list></back>'
+    )
+    text = to_plain_text(xml)
+    assert text.count("WCM Research Informatics") == 1   # the body mention, not the citation
+    assert "a cited paper" not in text
+
+
 def test_fulltext_cache_hit_skips_network(tmp_path):
     from pipeline_cores.fulltext import PmcFullTextClient
     client = PmcFullTextClient(cache_dir=tmp_path)
