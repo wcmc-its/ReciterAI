@@ -462,7 +462,7 @@ def test_main_scans_prior_usage_once_for_all_cores(monkeypatch):
     import utils.db as db
 
     monkeypatch.setattr(db, "get_engine", lambda: MagicMock(name="engine"))
-    monkeypatch.setattr(ingest, "fetch_publications", lambda e, limit=None: [{"pmid": "1"}])
+    monkeypatch.setattr(ingest, "fetch_publications", lambda e, pmids=None, limit=None: [{"pmid": "1"}])
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(run, "run_core", lambda *a, **k: [])
     scan = MagicMock(return_value=[])
@@ -599,3 +599,38 @@ def test_pmids_naming_survives_an_ncbi_failure(monkeypatch):
 
     core = CoreDefinition(core_id="14", name="RI", aliases=["Bad Alias", "Good Alias"])
     assert pmc_search.pmids_naming(core) == {"32997716"}
+
+
+def test_read_pmids_file_ignores_blanks_and_comments(tmp_path):
+    """The pool file is hand-edited between runs — a stray comment or blank line
+    must not become a PMID the corpus query then fails to match."""
+    from pipeline_cores.run import read_pmids_file
+
+    f = tmp_path / "pool.txt"
+    f.write_text("# core 14 candidates, 2026-09-03\n39919677\n\n  38212178  \n33862230 # already claimed\n")
+    assert read_pmids_file(str(f)) == ["39919677", "38212178", "33862230"]
+
+
+def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch):
+    """A --pmids-file run scores a POOL, so every prior confirmed paper is outside
+    it. Treating those as byline-less zeroes the entire repeat-user prior."""
+    from pipeline_cores import ingest, run
+    import pipeline_cores.persist as persist
+
+    monkeypatch.setattr(persist, "scan_prior_core_usage",
+                        lambda cid: [{"pmid": "999", "core_id": "14"}])
+    fetched = []
+
+    def fake_bylines(engine, pmids):
+        fetched.append(list(pmids))
+        return {"999": ["evs2008", "thc2015"]}
+
+    monkeypatch.setattr(ingest, "fetch_author_bylines", fake_bylines)
+
+    counts = run.load_prior_user_counts("14", {"111": ["someone"]}, enabled=True, engine=object())
+    assert fetched == [["999"]]                 # the out-of-scope prior was fetched
+    assert counts["evs2008"]["14"] == 1
+    assert counts["thc2015"]["14"] == 1
+
+    # without an engine it degrades to the old behaviour rather than crashing
+    assert run.load_prior_user_counts("14", {}, enabled=True) == {}
