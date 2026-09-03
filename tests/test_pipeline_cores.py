@@ -613,6 +613,133 @@ def test_pmids_naming_survives_an_ncbi_failure(monkeypatch):
     assert pmc_search.pmids_naming(core) == {"32997716"}
 
 
+def _esearch_page(ids, count):
+    return {"esearchresult": {"count": str(count), "idlist": [str(i) for i in ids]}}
+
+
+def test_esearch_paginates_to_the_true_count(monkeypatch):
+    """esearch reports the real total in `count` and returns at most RETMAX ids.
+    Returning page 1 and calling it the answer dropped 98% of "Flow Cytometry
+    Core" (count=23544) — in NCBI's default sort order, so not even the same 98%
+    on the next run."""
+    from pipeline_cores import pmc_search
+
+    starts = []
+
+    def fake_get(url, params, timeout):
+        starts.append(params["retstart"])
+        return _esearch_page(range(params["retstart"],
+                                   min(params["retstart"] + params["retmax"], 1200)), 1200)
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    ids = pmc_search.esearch_pmc("Epigenomics Core")
+    assert starts == [0, 500, 1000]                 # walks retstart, stops at the count
+    assert len(ids) == len(set(ids)) == 1200        # every page kept, none duplicated
+
+
+def test_esearch_ceiling_trips_loudly_instead_of_looping(monkeypatch, caplog):
+    """A pathological alias must stop, and must never stop QUIETLY: the warning
+    names the alias and the count so a truncated signal 3 is visible in the log."""
+    import logging
+    from pipeline_cores import pmc_search
+
+    starts = []
+
+    def fake_get(url, params, timeout):
+        starts.append(params["retstart"])
+        return _esearch_page(range(params["retstart"], params["retstart"] + params["retmax"]), 23544)
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    monkeypatch.setattr(pmc_search, "MAX_IDS", 1000)
+    with caplog.at_level(logging.WARNING):
+        ids = pmc_search.esearch_pmc("Flow Cytometry Core")
+    assert starts == [0, 500] and len(ids) == 1000  # capped, not spinning to 23544
+    assert "Flow Cytometry Core" in caplog.text and "23544" in caplog.text
+
+
+def test_esearch_ceiling_respects_ncbis_own_retstart_limit(monkeypatch):
+    """MAX_IDS must stay at or under NCBI's hard retstart<=9998 cap.
+
+    A request past it returns HTTP 200 whose JSON body carries a raw newline, so
+    json.load raises and pmids_naming's per-alias `except Exception` discards every
+    id already collected -- 0 ids for an alias the old single-page code got 500 for.
+    This fake serves indices 0..9998 and refuses beyond, exactly as NCBI does, and
+    pins the SHIPPED MAX_IDS rather than monkeypatching it away.
+    """
+    import json as _json
+    from pipeline_cores import pmc_search
+
+    starts = []
+
+    def fake_get(url, params, timeout):
+        starts.append(params["retstart"])
+        if params["retstart"] > 9998:
+            raise _json.JSONDecodeError("Invalid control character", "", 0)
+        hi = min(params["retstart"] + params["retmax"], 9999)  # NCBI serves 0..9998
+        return _esearch_page(range(params["retstart"], hi), 23544)
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    ids = pmc_search.esearch_pmc("Flow Cytometry Core")  # real MAX_IDS, not patched
+
+    assert max(starts) <= 9998, f"asked NCBI for retstart={max(starts)}; it refuses >9998"
+    assert len(ids) == 9999, len(ids)  # everything NCBI will serve, not 0 and not 500
+
+
+def test_esearch_single_page_result_is_one_call(monkeypatch):
+    """The common case — a distinctive alias whose whole result set fits one page
+    — must still cost exactly one request."""
+    from pipeline_cores import pmc_search
+
+    starts = []
+
+    def fake_get(url, params, timeout):
+        starts.append(params["retstart"])
+        return _esearch_page(range(25), 25)
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    assert pmc_search.esearch_pmc("Architecture for Research Computing") == [str(i) for i in range(25)]
+    assert starts == [0]
+
+
+def test_pmcids_to_pmids_chunks_at_the_idconv_limit(monkeypatch):
+    """idconv takes 200 ids per request; now that esearch can hand it thousands,
+    one giant GET is a 414 that pmids_naming would swallow as "no hits"."""
+    from pipeline_cores import pmc_search
+
+    sizes = []
+
+    def fake_get(url, params, timeout):
+        ids = params["ids"].split(",")
+        sizes.append(len(ids))
+        return {"records": [{"pmid": i[len("PMC"):]} for i in ids]}
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    out = pmc_search.pmcids_to_pmids([str(i) for i in range(500)])
+    assert sizes == [200, 200, 100]
+    assert out == {str(i) for i in range(500)}
+
+
+def test_get_json_sends_the_api_key_and_paces(monkeypatch):
+    """Unpaced and unkeyed, 2 requests per alias × 57 aliases blew past NCBI's
+    3-req/s anonymous limit: 18 of 57 came back "HTTP Error 400" and each one was
+    logged as a warning and dropped."""
+    import io
+    import urllib.request
+    from pipeline_cores import pmc_search
+
+    monkeypatch.setenv("PUBMED_API_KEY", "deadbeef")
+    urls, slept = [], []
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda url, timeout=None: urls.append(url) or io.BytesIO(b'{"records": []}'))
+    monkeypatch.setattr(pmc_search.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(pmc_search, "_last_request", 0.0)
+
+    pmc_search.pmcids_to_pmids(["1"])
+    pmc_search.pmcids_to_pmids(["2"])
+    assert all("api_key=deadbeef" in u for u in urls)
+    assert slept and 0 < slept[0] <= 0.11    # the keyed 10 req/s cadence, not 0.34
+
+
 def test_read_pmids_file_ignores_blanks_and_comments(tmp_path):
     """The pool file is hand-edited between runs — a stray comment or blank line
     must not become a PMID the corpus query then fails to match."""
