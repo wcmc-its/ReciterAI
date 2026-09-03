@@ -322,11 +322,31 @@ cores:
                                  # Intended owners: evs2008 (Evan Sholle),
                                  # nik2004 (Nivedita Chang), saa3011 (Sajjad
                                  # Abedian), thc2015 (Thomas Campion).
+    # ALIAS SURVEY DONE 2026-09-03 (the "revisit once real acknowledgment text is
+    # available" note above). `pipeline_cores.suggest_aliases` over the 69 papers
+    # humans claimed for this core in SPS — 67 have PMC full text, 33 an <ack>:
+    #   alias                                        full text   refs stripped
+    #   Research Informatics                             16            11   <- DROPPED
+    #   Research Informatics Core                         0             0   <- DROPPED
+    #   Weill Cornell Medicine Research Informatics       0             0   <- DROPPED
+    #   WCM Research Informatics                          2             2
+    #   Architecture for Research Computing              12             9   <- ADDED
+    #   ARCH (word-boundary, case-sensitive)              9             9   <- ADDED
+    # The bare 2-word term is DANGEROUS, not merely collision-prone: 5 of its 16
+    # hits are the REDCap citation in the REFERENCE LIST ("…workflow process for
+    # providing translational research informatics support", Harris 2009), and
+    # signal 3 scans the whole body including <ref-list>. Since combine() AUTO-
+    # CONFIRMS on signal 3, that alias would confirm every paper on earth that
+    # cites REDCap. The rest of its hits are generic keyword-list uses of the
+    # discipline term. ARCH ("Architecture for Research Computing in Healthcare")
+    # is the actual institutional brand and is what the body text names.
+    # NB the reference-list exposure is GENERIC to signal 3, not specific to this
+    # core — any alias appearing in a commonly-cited title has it. Not fixed here.
     aliases:
-      - "Research Informatics"
-      - "Research Informatics Core"
-      - "Weill Cornell Medicine Research Informatics"
+      - "Architecture for Research Computing in Healthcare"
+      - "Architecture for Research Computing"
       - "WCM Research Informatics"
+      - "ARCH"
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences", tracked: false }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences", tracked: false }

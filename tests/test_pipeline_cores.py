@@ -487,3 +487,56 @@ def test_scan_prior_core_usage_logs_loudly_on_error(caplog):
         out = persist.scan_prior_core_usage("2", client=_BoomClient())
     assert out == []
     assert "scan_prior_core_usage failed" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# suggest_aliases — alias discovery from confirmed papers (inverse of signal 3)
+# ---------------------------------------------------------------------------
+def test_suggest_aliases_finds_the_recurring_facility_phrase():
+    from pipeline_cores.suggest_aliases import ack_text, phrases, rank
+
+    xml = (
+        "<article><body>methods here</body>"
+        "<ack><title>Acknowledgements</title><p>We thank the Research Informatics "
+        "Core (RIC) at Weill Cornell Medicine, funded by the National Institutes "
+        "of Health.</p></ack></article>"
+    )
+    text = ack_text(xml)
+    assert "Research Informatics Core" in text
+    assert "methods here" not in text          # body is NOT mined, only the <ack>
+
+    found = phrases(text)
+    assert "Research Informatics Core" in found
+    assert "RIC" in found                       # parenthesised acronym
+    assert "National Institutes of Health" not in found   # generic boilerplate dropped
+
+    # document frequency is the gate: 1 paper is boilerplate, 2 is a pattern
+    docs = {"Research Informatics Core": {"1", "2"}, "One Off Center": {"1"}}
+    ranked = rank(docs, min_docs=2, foreign_aliases=set())
+    assert [r[0] for r in ranked] == ["Research Informatics Core"]
+
+    # a phrase owned by another core in the dictionary is not this core's alias
+    assert rank(docs, 2, {"research informatics core"}) == []
+
+
+def test_suggest_aliases_collapses_nested_subspans():
+    from pipeline_cores.suggest_aliases import rank
+
+    # the miner emits every window; same doc set => only the longest survives
+    docs = {
+        "Citigroup Biomedical Imaging Center": {"1", "2", "3"},
+        "Biomedical Imaging Center": {"1", "2", "3"},
+        "Imaging Center": {"1", "2", "3", "4"},   # MORE papers: a real short form
+    }
+    out = [r[0] for r in rank(docs, 2, set())]
+    assert out == ["Imaging Center", "Citigroup Biomedical Imaging Center"]
+
+
+def test_suggest_aliases_caps_phrase_length_on_a_long_run():
+    from pipeline_cores.suggest_aliases import phrases, MAX_PHRASE_WORDS
+
+    # an <ack> that swallowed an affiliations block: one very long capitalised run
+    text = " ".join(["Center"] + [f"Word{i}" for i in range(60)])
+    out = phrases(text)
+    assert out, "should still emit something"
+    assert max(len(p.split()) for p in out) <= MAX_PHRASE_WORDS

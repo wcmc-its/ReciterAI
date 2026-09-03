@@ -156,24 +156,28 @@ class PmcFullTextClient:
         return "PMC" + m.group(1) if m else ""
 
     # -- public -----------------------------------------------------------
-    def get(self, pmid: str) -> str:
-        """Plain-text body for `pmid` (cached). "" when no PMC full text.
+    def get_xml(self, pmid: str) -> str:
+        """Raw PMC XML for `pmid` (cached). "" when no PMC full text.
 
         disk -> S3 (read-through, populates disk on hit) -> NCBI (write-through to
         both disk and S3). The _NO_PMC sentinel is cached at every tier so the
         ~10-20% of papers with no PMC record are never re-fetched.
+
+        Callers wanting the body text want `get()`. This raw form exists for
+        consumers that need the JATS STRUCTURE the tag-strip throws away — e.g.
+        `suggest_aliases`, which reads the <ack> element specifically.
         """
         cache = self.cache_dir / f"{pmid}.xml"
         if cache.exists():
             raw = cache.read_text(encoding="utf-8", errors="ignore")
-            return "" if raw == _NO_PMC else to_plain_text(raw)
+            return "" if raw == _NO_PMC else raw
 
         # S3 second tier: on a hit, populate the local disk so later reads on this
         # host are free.
         raw = self._s3_read(pmid)
         if raw is not None:
             cache.write_text(raw, encoding="utf-8")
-            return "" if raw == _NO_PMC else to_plain_text(raw)
+            return "" if raw == _NO_PMC else raw
 
         # Origin (NCBI) — write the result through to both tiers.
         pmcid = self._pmid_to_pmcid(pmid)
@@ -185,4 +189,8 @@ class PmcFullTextClient:
         content = xml or _NO_PMC
         cache.write_text(content, encoding="utf-8")
         self._s3_write(pmid, content)
-        return to_plain_text(xml)
+        return xml or ""
+
+    def get(self, pmid: str) -> str:
+        """Plain-text body for `pmid` (cached). "" when no PMC full text."""
+        return to_plain_text(self.get_xml(pmid))
