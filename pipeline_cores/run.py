@@ -44,19 +44,28 @@ def _make_fulltext_loader(enabled: bool, *, use_s3: bool = False):
     return client.get
 
 
-def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool) -> dict:
+def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine=None) -> dict:
     """cwid -> {core_id: n_confirmed_papers} from prior confirmed/claimed records.
 
     Scans DynamoDB for prior confirmed/claimed (pub, core) rows and attributes
-    each to its byline authors (the cross-run repeat-user prior). `bylines` maps
-    pmid -> [cwid]; a prior pmid outside this run's byline set contributes nothing
-    (its authors aren't in scope this run). Empty when disabled or on first run.
+    each to its byline authors (the cross-run repeat-user prior).
+
+    A prior paper is NOT necessarily in this run's `bylines` — always so for a
+    `--pmids-file` run, and possible in a full run for a paper that has since
+    left the corpus. Its bylines are fetched on demand rather than treated as
+    empty; skipping them silently zeroes the whole prior, which is a wrong
+    answer that looks like a working run (a scoped core-14 pool scored 0
+    candidates instead of 404 before this).
     """
     counts: dict = defaultdict(lambda: defaultdict(int))
     if not enabled:
         return counts
     from pipeline_cores.persist import scan_prior_core_usage  # lazy
-    for rec in scan_prior_core_usage(core_id):
+    recs = list(scan_prior_core_usage(core_id))
+    missing = sorted({r["pmid"] for r in recs} - set(bylines))
+    if missing and engine is not None:
+        bylines = {**bylines, **ingest.fetch_author_bylines(engine, missing)}
+    for rec in recs:
         for cwid in bylines.get(rec["pmid"], []):
             counts[cwid][rec["core_id"]] += 1
     return counts
@@ -113,10 +122,34 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     return out
 
 
+def read_pmids_file(path: str) -> list:
+    """PMIDs from a newline-separated file; blanks and `#` comments ignored.
+
+    Exists so an expensive signal can re-score an EXISTING candidate pool
+    instead of the whole corpus. The affinity prior produces a nearly flat
+    likelihood — core 14's 404 candidates all landed in 0.84-0.85 — so the pool
+    is unrankable until something with more resolution scores it, but running
+    the LLM over 80k publications to rank 404 of them is the wrong trade.
+    """
+    out = []
+    with open(path) as fh:
+        for line in fh:
+            tok = line.split("#", 1)[0].strip()
+            if tok:
+                out.append(tok)
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="WCM core-facility usage inference")
     ap.add_argument("--core", help="core_id to run (default: all in dictionary)")
     ap.add_argument("--test", type=int, help="limit to N publications")
+    ap.add_argument("--pmids-file",
+                    help="restrict scoring to these PMIDs (one per line, # comments ok). "
+                         "For RE-SCORING an existing candidate pool with an expensive signal "
+                         "(e.g. --with-llm over a core's candidates) rather than the corpus. "
+                         "NOTE: a scoped run writes only these rows, so it can neither surface "
+                         "a pair outside the set nor demote one — never use it to GENERATE a pool")
     ap.add_argument("--with-llm", action="store_true", help="enable Bedrock triage (signal 4)")
     ap.add_argument("--llm-workers", type=int, default=8,
                     help="concurrent Bedrock triage workers (default 8; lower if Bedrock throttles)")
@@ -143,7 +176,10 @@ def main(argv=None):
 
     cores = [load_core(args.core)] if args.core else load_cores()
     engine = get_engine()
-    pubs = ingest.fetch_publications(engine, limit=args.test)
+    pool = read_pmids_file(args.pmids_file) if args.pmids_file else None
+    pubs = ingest.fetch_publications(engine, pmids=pool, limit=args.test)
+    if pool is not None:
+        print(f"scoped run: {len(pubs)} of {len(pool)} requested PMIDs are in the corpus")
     bedrock = None
     if args.with_llm:
         from utils.bedrock_client import BedrockClient  # lazy
@@ -163,7 +199,7 @@ def main(argv=None):
     # core. The byline attribution keys on each row's own core_id, and each
     # run_core reads only its own core's slice — so passing the whole prior is
     # identical to a per-core filtered scan, at 1/len(cores) the table reads.
-    prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity)
+    prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity, engine=engine)
     all_records = []
     for core in cores:
         # --alias-search is per-core (each core has its own aliases), unlike the
