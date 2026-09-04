@@ -610,6 +610,82 @@ def test_scan_prior_core_usage_logs_loudly_on_error(caplog):
     assert "scan_prior_core_usage failed" in caplog.text
 
 
+# --- put_core_usage must not clobber the attributes batch_screen owns ------
+class _FakeUpdateDynamo:
+    """Applies SET/REMOVE UpdateExpressions to an in-memory store; explodes on a Put.
+
+    A whole-item Put is the bug under test, so the double refuses one outright rather
+    than letting the assertions below decide.
+    """
+    def __init__(self, store=None):
+        self.store = dict(store or {})
+
+    def batch_write_item(self, **kw):
+        raise AssertionError("put_core_usage must not write whole items")
+
+    put_item = batch_write_item
+
+    def update_item(self, TableName, Key, UpdateExpression,
+                    ExpressionAttributeNames, ExpressionAttributeValues):
+        item = dict(self.store.get((Key["PK"]["S"], Key["SK"]["S"]), {}))
+        sets, _, removes = UpdateExpression.partition(" REMOVE ")
+        for pair in sets[len("SET "):].split(","):
+            n, v = (s.strip() for s in pair.split("="))
+            item[ExpressionAttributeNames[n]] = ExpressionAttributeValues[v]
+        for n in (s.strip() for s in removes.split(",") if s.strip()):
+            item.pop(ExpressionAttributeNames[n], None)
+        self.store[(Key["PK"]["S"], Key["SK"]["S"])] = item
+        return {}
+
+
+_SCREENED_ROW = {
+    "PK": {"S": "PUB#7"}, "SK": {"S": "CORE#2"}, "status": {"S": STATUS_CANDIDATE},
+    "prefilter_prior": {"N": "0.31"}, "screen_confidence": {"N": "8"},
+    "screen_band": {"S": "candidate"}, "screen_version": {"S": "sv"},
+    "prefilter_version": {"S": "pv"}, "run_mode": {"S": "batch_screen"},
+}
+
+
+def _run_py_write(seed, signals):
+    from pipeline_cores.models import CoreUsageRecord
+    from pipeline_cores.persist import put_core_usage
+
+    db = _FakeUpdateDynamo({("PUB#7", "CORE#2"): dict(seed)})
+    rec = CoreUsageRecord(pmid="7", core_id="2", likelihood=0.9,
+                          status=STATUS_CONFIRMED, signals=signals, scored_at="t")
+    assert put_core_usage([rec], client=db) == 1
+    return db.store[("PUB#7", "CORE#2")]
+
+
+def test_put_core_usage_leaves_batch_screen_attributes_alone():
+    """run.py owns 12 attributes; the other six on the item belong to batch_screen.
+    While this was a BatchWriteItem PutRequest (a full-item replace) a run.py write
+    over a screened pair destroyed all six — including prefilter_prior, which SPS
+    renders as the review queue's topicalPrior chip on 8,656 live rows."""
+    item = _run_py_write(_SCREENED_ROW, SignalResult())
+    assert item["prefilter_prior"] == {"N": "0.31"}         # the chip survives
+    assert item["screen_confidence"] == {"N": "8"}
+    assert item["screen_band"] == {"S": "candidate"}
+    assert item["screen_version"] == {"S": "sv"}
+    assert item["prefilter_version"] == {"S": "pv"}
+    assert item["run_mode"] == {"S": "batch_screen"}
+    assert item["status"] == {"S": STATUS_CONFIRMED}        # ...and run.py's own land
+    assert item["likelihood"] == {"N": "0.9"}
+
+
+def test_put_core_usage_clears_an_optional_it_did_not_produce_this_run():
+    """The other half: a run.py-owned optional that is absent THIS run must go, not
+    linger. A previous run's llm_rationale left on a pair scored without the LLM is
+    stale evidence reading in the queue as fresh."""
+    seed = dict(_SCREENED_ROW, llm_score={"N": "8"},
+                llm_rationale={"S": "used 3T MRI at the core"},
+                ack_alias={"S": "CBIC"}, author_affinity={"N": "0.4"})
+    item = _run_py_write(seed, SignalResult())
+    assert "llm_score" not in item and "llm_rationale" not in item
+    assert "ack_alias" not in item and "author_affinity" not in item
+    assert item["prefilter_prior"] == {"N": "0.31"}         # still not ours to clear
+
+
 # ---------------------------------------------------------------------------
 # suggest_aliases — alias discovery from confirmed papers (inverse of signal 3)
 # ---------------------------------------------------------------------------

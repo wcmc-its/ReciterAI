@@ -13,10 +13,15 @@ from __future__ import annotations
 
 import logging
 
-from utils.dynamodb_helpers import TABLE_NAME, batch_write, get_dynamo_client, to_decimal
+from utils.dynamodb_helpers import TABLE_NAME, get_dynamo_client, to_decimal
 from utils.iso_clock import now_iso
 
-from pipeline_cores.models import STATUS_BELOW, STATUS_CANDIDATE, CoreUsageRecord
+from pipeline_cores.models import (
+    STATUS_BELOW,
+    STATUS_CANDIDATE,
+    CoreUsageRecord,
+    SignalResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +56,62 @@ def build_core_item(rec: CoreUsageRecord) -> dict:
     return item
 
 
+# Every attribute build_core_item can emit, probed from build_core_item itself with
+# all the optional signals populated rather than restated as a second list here — a
+# hand-maintained copy of the attribute set is exactly how put_core_usage came to
+# clobber attributes it does not own. PK/SK are the key, never part of an update.
+_OWNED_ATTRS = frozenset(build_core_item(CoreUsageRecord(
+    pmid="0", core_id="0", likelihood=0.0, status="", scored_at="0",
+    signals=SignalResult(ack_matched=True, ack_alias="a", ack_snippet="a",
+                         llm_score=0, llm_rationale="a", author_affinity=1.0),
+))) - {"PK", "SK"}
+
+
 def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) -> int:
-    """Batch-write (publication, core) items. Returns the count written."""
+    """Write one (publication, core) item per record. Returns the count written.
+
+    UpdateItem, not the BatchWriteItem PutRequest this used to be. put_candidate
+    below writes the SAME item from the batch_screen path, and a PutRequest is a
+    FULL ITEM REPLACE: every run.py write over a screened pair silently destroyed
+    the six attributes only batch_screen sets (prefilter_prior, screen_confidence,
+    screen_band, screen_version, prefilter_version, run_mode). SPS reads
+    prefilter_prior as `topicalPrior` — the review queue's fifth evidence chip — and
+    a 2026-09-04 table scan found it on 8,656 live rows (cores 1/2/4/5; core 14, the
+    only core ever scored through run.py, had 0).
+
+    SET what this run produced and REMOVE the run.py-owned optionals it did NOT
+    (ack_alias, ack_snippet, llm_score, llm_rationale, author_affinity): a previous
+    run's llm_rationale surviving on a pair scored without the LLM this time is
+    stale evidence reading as fresh. Everything outside _OWNED_ATTRS is left alone.
+
+    Unconditional on purpose — put_candidate's never-downgrade ConditionExpression is
+    deliberately NOT copied here, because a re-score has to be able to move a pair.
+
+    ponytail: one UpdateItem per surfaced row, no batching. Ceiling is ~16.9k
+    round-trips for a full all-cores run (~186 for core 14's last one) against the 25
+    items/call BatchWriteItem gave up — the price of not clobbering. If a full-corpus
+    run ever makes it hurt, hand the loop to a ThreadPoolExecutor.
+    """
     client = client or get_dynamo_client()
-    items = [build_core_item(r) for r in records]
-    if items:
-        batch_write(client, table_name, items)
-    return len(items)
+    for rec in records:
+        item = build_core_item(rec)
+        key = {"PK": item.pop("PK"), "SK": item.pop("SK")}
+        attrs = list(item)
+        absent = sorted(_OWNED_ATTRS - set(attrs))
+        expr = "SET " + ", ".join(f"#a{i} = :a{i}" for i in range(len(attrs)))
+        if absent:
+            expr += " REMOVE " + ", ".join(f"#r{i}" for i in range(len(absent)))
+        names = {f"#a{i}": a for i, a in enumerate(attrs)}
+        names.update({f"#r{i}": a for i, a in enumerate(absent)})
+        client.update_item(
+            TableName=table_name,
+            Key=key,
+            UpdateExpression=expr,
+            # Every name goes through a placeholder: `status` is a reserved word.
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues={f":a{i}": item[a] for i, a in enumerate(attrs)},
+        )
+    return len(records)
 
 
 def put_candidate(pmid, core_id, *, confidence, band, prior, likelihood,
