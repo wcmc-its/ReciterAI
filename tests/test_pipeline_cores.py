@@ -970,15 +970,36 @@ def test_dictionary_reads_alias_hits_and_an_explicit_partner_optout(tmp_path):
     assert c.partner_institutions == []                          # opted out, not re-defaulted
 
 
+# The nine aliases PMC cannot run as a phrase. esearch does not error on one: it
+# silently answers a term-ANDed/MeSH-expanded query and reports THAT count, which
+# measures nothing about the alias -- so refresh_alias_hits.fetch_hits leaves them
+# uncached on purpose and they read as ack.spec:unknown (weight 0.00). Pinned rather
+# than tolerated, so an alias that loses its count for any OTHER reason still fails.
+# Probed 2026-09-04 via pipeline_cores.pmc_search.esearch_count; re-probe with
+# `python3 -m pipeline_cores.refresh_alias_hits` if this list moves.
+_PMC_UNRUNNABLE = frozenset({
+    "Citigroup Biomedical Imaging Core Facility",
+    "Applied Bioinformatics Core Facility",
+    "Applied Bioinformatics Core (ABC)",
+    "Institutional Biorepository Core (IBC)",
+    "Metabolic Phenotyping Center (MPC)",
+    "Advanced Biomolecular Analysis Core (ABAC)",
+    "WCM Advanced Biomolecular Analysis Core",
+    "Ellen and Gary Davis Immune Monitoring Core",
+    "Davis Cancer Immune Monitoring Core",
+})
+
+
 def test_shipped_dictionary_carries_a_hit_count_for_every_searchable_alias():
     """`refresh_alias_hits --write` has been run, so specificity is live rather than
     everything falling back to the "unknown" bucket. Acronyms are absent by design
-    (esearch has no case-sensitive mode)."""
+    (esearch has no case-sensitive mode), and so are the _PMC_UNRUNNABLE phrases."""
     from pipeline_cores.signals import _ACRONYM
     for c in load_cores():
         assert "Rockefeller" in c.partner_institutions
         assert c.confirm_threshold is None and c.triage_threshold is None   # no core opts out yet
-        searchable = [a for a in c.aliases if not _ACRONYM.match(a)]
+        searchable = [a for a in c.aliases
+                      if not _ACRONYM.match(a) and a not in _PMC_UNRUNNABLE]
         assert sorted(c.alias_hits) == sorted(searchable), c.core_id
         assert all(n >= 0 for n in c.alias_hits.values())
 
