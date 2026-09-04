@@ -5,13 +5,23 @@
 # surname — e.g. 511 resolved "Voss" rows are the oncologist mhv9001, not CBIC's
 # hev2006). grant_ids stays empty: validation found no shared core grant.
 #
-# Two optional per-core keys, both with safe defaults (an entry without them runs):
+# Three optional per-core keys, all with safe defaults (an entry without them runs):
 #   partner_institutions: institutions that count as HOME for an alias match, beside
 #     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
 #     opts a core that is NOT shared out of partner credit.
 #   alias_hits: alias -> global PMC hit count, cached by
 #     `python3 -m pipeline_cores.refresh_alias_hits --write`. Alias specificity predicts
 #     precision (r=-0.852 vs home%); never fetched during a scoring run.
+#   clients: curated "known clients" of the core — a flat list of CWIDs, e.g.
+#     `clients: [cwid1, cwid2]`. CWIDs ONLY: no names, no fuzzy matching, and NEVER a
+#     surname (see the resolution rule above). Absent = no curated clients, which is
+#     every core today; none is shipped because a real client list is curated data.
+#     Unlike the author-affinity prior, which INFERS a core's users from prior
+#     confirmations that need a reviewer nobody has, this ASSERTS them, so it works on
+#     a core with no confirmations at all.
+#     ponytail: a YAML list, not a table — ceiling is a few dozen CWIDs per core and
+#     every edit costs a PR. The curation UI (unbuilt) writes an SPS table and can
+#     export into exactly this shape when it exists; nothing here is built for it.
 #
 # Starting list = the 13 cores in
 # "Projects/Inferring Cores and Services/Core inference prompt 0.txt".

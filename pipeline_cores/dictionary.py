@@ -41,6 +41,10 @@ def load_cores(path: Path = None) -> list:
                 partner_institutions=list(
                     c.get("partner_institutions", DEFAULT_PARTNER_INSTITUTIONS) or []),
                 alias_hits={str(k): int(v) for k, v in (c.get("alias_hits") or {}).items()},
+                # Optional like the two above, same reason: an un-updated dictionary
+                # still runs. Coerced to str so a cwid that YAML happens to read as a
+                # number still compares against a byline, which is a list of strings.
+                clients=[str(x) for x in (c.get("clients") or [])],
                 # Absent = combine()'s module default; a core only says so when it
                 # needs a different bar from everyone else.
                 confirm_threshold=_opt_float(c.get("confirm_threshold")),

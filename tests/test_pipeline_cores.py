@@ -561,6 +561,27 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     assert prolific["200"].likelihood < recs["200"].likelihood
 
 
+def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
+    """Wiring, not scoring. The weight is 0.00, so no status or likelihood assertion
+    anywhere can notice this signal never being populated — this is the only thing that
+    would catch the key being declared and never connected."""
+    from pipeline_cores import ingest, run, signals
+
+    core = load_core("2")
+    core.clients = ["cwid1"]
+    pubs = [{"pmid": "100", "title": "client paper", "abstract": ""},
+            {"pmid": "200", "title": "someone else's paper", "abstract": ""}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines",
+                        lambda e, p: {"100": ["cwid1", "cwid9"], "200": ["cwid9"]})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+
+    recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                            scored_at="t", engine=None)}
+    assert recs["100"].signals.client_cwids == ["cwid1"]     # only the curated one
+    assert recs["200"].signals.client_cwids == []
+
+
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
     """fulltext cache -> acknowledgement_signal -> combine == confirmed."""
     from pipeline_cores.fulltext import PmcFullTextClient
@@ -1058,6 +1079,7 @@ def test_dictionary_defaults_when_the_new_keys_are_absent(tmp_path):
     p = _write_dict(tmp_path, 'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n')
     c = load_cores(p)[0]
     assert c.alias_hits == {}                                   # nothing cached yet
+    assert c.clients == []                                      # no curated client list
     assert c.partner_institutions == DEFAULT_PARTNER_INSTITUTIONS
 
 
@@ -1068,6 +1090,16 @@ def test_dictionary_reads_alias_hits_and_an_explicit_partner_optout(tmp_path):
     c = load_cores(p)[0]
     assert c.alias_hits == {"Test Core": 17}
     assert c.partner_institutions == []                          # opted out, not re-defaulted
+
+
+def test_dictionary_reads_a_curated_client_list_as_cwid_strings(tmp_path):
+    """CWIDs only, never names and never surname-matched (511 resolved "Voss" rows are
+    the oncologist mhv9001, not CBIC's hev2006). Coerced to str so a cwid that YAML
+    happens to read as a number still compares against a byline."""
+    p = _write_dict(tmp_path,
+                    'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n'
+                    '    clients: [cwid1, 4242]\n')
+    assert load_cores(p)[0].clients == ["cwid1", "4242"]
 
 
 # The nine aliases PMC cannot run as a phrase. esearch does not error on one: it
@@ -1217,6 +1249,26 @@ def test_section_is_extracted_but_contributes_nothing_yet():
         assert score(_ack(20, "home", ack_section=section)) == score(base), section
     from pipeline_cores.combine import WEIGHTS
     assert {WEIGHTS[k] for k in WEIGHTS if k.startswith("sec:")} == {0.0}
+
+
+def test_a_curated_client_is_extracted_but_priced_at_nothing():
+    """The curated list ASSERTS a core's users where the affinity prior only INFERS
+    them, so it fires on a core with no confirmations at all — but its weight is
+    UNFITTED (there is no curated list to fit against yet), so like sec:* it must move
+    no score until scripts/fit_evidence_weights.py prices it, and pricing it needs the
+    client x aff:* overlap measured first. This test is what goes red the day someone
+    gives it a weight without meaning to."""
+    from pipeline_cores.combine import WEIGHTS
+    on_list = SignalResult(client_cwids=["cwid1"])
+    assert evidence_features(on_list) == ["client"]
+    assert evidence_features(SignalResult(client_cwids=["cwid1", "cwid2"])) == ["client"]
+    assert evidence_features(SignalResult()) == []          # not on the list -> no key at all
+    assert WEIGHTS["client"] == 0.0
+    assert score(on_list) == score(SignalResult())          # inert, on its own...
+    rich = SignalResult(author_affinity=0.85, llm_score=7, coauthor_cwids=["djb2001"])
+    with_client = SignalResult(author_affinity=0.85, llm_score=7, coauthor_cwids=["djb2001"],
+                               client_cwids=["cwid1"])
+    assert score(with_client) == score(rich)                # ...and beside every other signal
 
 
 def test_explain_accounts_for_the_whole_score():

@@ -48,6 +48,18 @@ class CoreDefinition:
     # hits, Pearson r = -0.852 between log10(hits) and the share of matches that mean OUR
     # core (100% home at 1 hit, 24% at 23,544). Empty until the refresh runs.
     alias_hits: dict = field(default_factory=dict)
+    # Curated "known clients": CWIDs of people this core asserts are its users.
+    # CWIDs ONLY — never names, and never surname-matched (511 resolved "Voss" rows
+    # are the oncologist mhv9001, not CBIC's hev2006). This is the only evidence in
+    # the model that is ASSERTED rather than inferred, which is the point: the
+    # affinity prior derives its users from prior confirmations, those need a
+    # reviewer, and 9 of the 10 cores with a claim queue in SPS have no owner to be
+    # that reviewer — so a curated list is the one signal that works on day one for a
+    # core with no confirmations at all. The signal it is there to relieve is thin:
+    # a 2026-09-04 scan of all 21,202 CORE# rows found the acknowledgement match —
+    # the heaviest weight in the model at +6.37 nats — firing exactly 11 times.
+    # No projection property (cf. staff_cwids): these are already bare CWIDs.
+    clients: list = field(default_factory=list)
     # Per-core overrides of combine()'s status bands. None = the module default.
     # Status is a THRESHOLD on the score now, so this is where a core that needs a
     # different bar says so — e.g. one whose aliases are all generic, or whose
@@ -68,6 +80,7 @@ class CoreDefinition:
 class SignalResult:
     """Per (publication, core) evidence from each signal layer."""
     coauthor_cwids: list = field(default_factory=list)   # matched core-staff CWIDs on the byline
+    client_cwids: list = field(default_factory=list)     # matched curated-client CWIDs on the byline
     ack_matched: bool = False
     ack_alias: str = ""
     ack_snippet: str = ""
