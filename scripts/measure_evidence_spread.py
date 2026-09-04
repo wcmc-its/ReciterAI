@@ -154,11 +154,14 @@ def label_set(engine, old):
     coauthors = signals.coauthorship_index(engine, core, pmids)
     bylines = ingest.fetch_author_bylines(engine, pmids)
     outside = [str(p) for p in json.loads(CONFIRMED.read_text())[LABEL_CORE] if str(p) not in labels]
+    outside = sorted(ingest.filter_corpus_pmids(engine, outside))   # same gate production uses
     counts: dict = collections.defaultdict(lambda: collections.defaultdict(int))
     for _pmid, cwids in ingest.fetch_author_bylines(engine, outside).items():
         for cwid in cwids:
             counts[cwid][LABEL_CORE] += 1
-    index = signals.build_affinity_index(counts)
+    # Same rate denominator production uses — an author's own corpus output — so the
+    # AFTER column is scored on the feature the shipped weights were fitted against.
+    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
     xml = fetch_xml(pmids)
 
     sigs = []

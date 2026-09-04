@@ -64,9 +64,10 @@ PRIOR_LOGIT = math.log(0.02 / 0.98)
 #      CONDITIONAL terms (`ack.spec:*`, `inst:*`) — panel A's random negatives
 #      produced only 4 alias matches, far too few to price an institution.
 #   B  the 137 human "yes" imaging-core labels vs random corpus papers (1,200, of
-#      which 400 also went through live Bedrock triage). Prices `staff` and the
-#      LLM/affinity slopes. Panel A's positives ARE signal-2 confirms, so they
-#      cannot price signal 2 itself — the circularity this split exists to avoid.
+#      which 400 also went through live Bedrock triage). Prices `staff`, the three
+#      `aff:*` buckets and the LLM slope. Panel A's positives ARE signal-2 confirms,
+#      so they cannot price signal 2 itself — the circularity this split exists to
+#      avoid.
 #
 # `ack` is MARGINAL and everything under it is CONDITIONAL on a match, so summing
 # them is the chain rule, not double counting.
@@ -109,20 +110,31 @@ WEIGHTS = {
     "sec:body": 0.00,
     # A tracked core-staff member on the byline. One feature, not a count.
     "staff": 4.89,                     # n=53/137 labelled yes vs 3/1200 corpus papers
+    # Author x core affinity, bucketed on the RATE (signals.author_affinity — the
+    # largest share of their own corpus output that any author on this byline has
+    # already given to this core). A rate, not a count: the count could not tell a
+    # regular from a passer-by, so its curve put 83.9% of a live queue on one value.
+    "aff:trace": 0.79,                 # 0 < rate < 0.05;    n=7/137 labelled yes vs 29/1200
+    "aff:regular": 3.43,               # 0.05 <= rate < 0.70; n=26/137 vs 7/1200
+    "aff:core": 4.93,                  # rate >= 0.70;       n=55/137 vs 3/1200
+    # NOT a key, on purpose: rate == 0 measures -0.99 (n=49/137 vs 1161/1200), and it is
+    # held at 0 rather than shipped as a fourth bucket because evidence_features()'s
+    # convention is that ABSENT evidence contributes no key — the same reason a
+    # never-scored llm_score adds nothing. Pricing the absence here and nowhere else
+    # would move every affinity-less pair down against features that stay silent.
 }
 
-# The two natively-graded signals do not bucket without throwing resolution away —
-# the LLM's 1-10 is real information (AUC 0.933 vs human labels) and four coarse
-# buckets would collapse a whole candidate pool onto four scores. Their weight is a
-# straight line through the same Laplace-smoothed bin log-LRs, inverse-variance
-# weighted; monotone by construction, and the per-bin residuals are in the fitting
-# script's output (weighted R2 0.78 both).
+# The LLM's 1-10 does not bucket without throwing resolution away — it is real
+# information (AUC 0.933 vs human labels) and four coarse buckets would collapse a
+# whole candidate pool onto four scores. Its weight is a straight line through the
+# same Laplace-smoothed bin log-LRs, inverse-variance weighted; monotone by
+# construction, and the per-bin residuals are in the fitting script's output
+# (weighted R2 0.78). The affinity rate went the other way — it buckets cleanly and
+# the buckets are fitted cells in WEIGHTS above, which is why there is no slope here.
 LLM_INTERCEPT = -1.86               # w(llm) = -1.86 + 0.68 * score
 LLM_PER_POINT = 0.68
 LLM_MAX_FITTED = 9                  # no paper in the panel scored 10 — do not
                                     # extrapolate the line past its own support
-AFFINITY_PER_UNIT = 4.60            # w(affinity) = 4.60 * affinity, through the
-                                    # origin: no prior, no weight
 
 # Alias-specificity buckets, on the alias's global PMC hit count. Specificity is the
 # cheapest precision signal there is: over 10 aliases spanning 1 -> 23,544 hits,
@@ -131,6 +143,14 @@ AFFINITY_PER_UNIT = 4.60            # w(affinity) = 4.60 * affinity, through the
 # `NMR Core` (926 hits, 50% home), so the generic line is drawn at 800.
 _DISTINCTIVE_MAX = 100
 _GENERIC_MIN = 800
+
+# Affinity-rate buckets. Both edges are where the fitted cells stop being one cell:
+# the panel separates "has touched this core at all" (0.79 nats) from "a working
+# relationship" (3.43) at 0.05, and that from "this is largely what they do" (4.93)
+# at 0.70. Every bucket clears MIN_PANEL=30 on the positive side and the three are
+# monotone, so the edges are supported rather than drawn to taste.
+_AFF_REGULAR_MIN = 0.05
+_AFF_CORE_MIN = 0.70
 
 # Status thresholds on the resulting probability, per SPEC decision 1: a
 # 100%-precision alias match no longer asserts a status, it earns a weight and
@@ -146,6 +166,14 @@ _GENERIC_MIN = 800
 # confirm). Below it sits the thing that must not: the LLM alone, which tops out at
 # 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
 # Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
+#
+# `aff:core` alone now clears it too, at 0.739 — its fitted 4.93 came out just above
+# staff co-authorship's 4.89 (55/137 vs 3/1200), so an author who has already given
+# 70%+ of their corpus output to this core confirms their next paper on the strength
+# of that history. Measured, not chosen; a core that does not want it can raise its
+# own `confirm_threshold`. The old constant could not do this (4.60 * 0.85 = 3.91,
+# a candidate at best), so it IS a behaviour change and the first thing to eyeball
+# in a live queue.
 DEFAULT_CONFIRM_THRESHOLD = 0.65
 # Unchanged from the old combiner (and still what run.py --threshold overrides), so
 # "what reaches the claim queue" moves for measured reasons rather than by a
@@ -157,9 +185,11 @@ def noisy_or(*probabilities: float) -> float:
     """1 - product(1 - p): the probability that at least one independent signal fires.
 
     No longer used by combine() — log-odds replaced it here precisely because it
-    saturates — but it is still the shared primitive behind the author-affinity
-    prior (signals.author_affinity), the prefilter prior and the batch_screen
-    likelihood, so it stays in one place. noisy_or() with no args returns 0.0.
+    saturates — nor by the author-affinity prior, which now takes the MAX over the
+    byline (noisy-OR there was monotone in how many authors fire, the one thing
+    measured not to separate). It remains the shared primitive behind the prefilter
+    prior and the batch_screen likelihood, so it stays in one place. noisy_or() with
+    no args returns 0.0.
     """
     complement = 1.0
     for p in probabilities:
@@ -181,6 +211,14 @@ def _alias_bucket(hits) -> str:
     if hits <= _DISTINCTIVE_MAX:
         return "distinctive"
     return "moderate" if hits < _GENERIC_MIN else "generic"
+
+
+def _affinity_bucket(rate: float) -> str:
+    """Which fitted cell an author x core affinity RATE falls in. Callers only ask
+    about a rate > 0; a rate of 0 is absent evidence and gets no key at all."""
+    if rate >= _AFF_CORE_MIN:
+        return "core"
+    return "regular" if rate >= _AFF_REGULAR_MIN else "trace"
 
 
 def evidence_features(signals: SignalResult) -> list:
@@ -216,6 +254,12 @@ def evidence_features(signals: SignalResult) -> list:
         # exists (14 positives, and its marginal fit comes out NON-monotone), so
         # scaling with how many staff appear waits for a labelling pass.
         out.append("staff")
+    if signals.author_affinity > 0:
+        # The MAX rate over the byline (signals.author_affinity), bucketed. A rate of
+        # 0 emits nothing, per the absent-evidence rule above — even though the cell
+        # measures -0.99, because pricing THIS absence and no other would bias every
+        # pair that simply has no author history.
+        out.append(f"aff:{_affinity_bucket(signals.author_affinity)}")
     return out
 
 
@@ -223,16 +267,23 @@ def explain(signals: SignalResult) -> list:
     """[(evidence, weight)] for one pair, largest contribution first.
 
     The point of naive Bayes over anything cleverer: a 3,000-row claim queue is only
-    reviewable if it can say why a paper sits where it does. The two graded signals
-    contribute a line rather than a table entry, and are labelled with their value.
+    reviewable if it can say why a paper sits where it does. The LLM score contributes
+    a line rather than a table entry, and is labelled with its value.
+
+    The affinity line is a WEIGHTS cell now, but it is still shown with the rate that
+    chose the cell ("aff:core=0.833"): the bucket is what moves the score, the rate is
+    what tells a reviewer whether this is the core's heaviest user or someone who just
+    crossed the 0.70 edge, and flattening 39 distinct values to 3 labels in the one
+    place built to answer "why" gives that resolution up for nothing. The weight still
+    comes from the bare key, so only the DISPLAY carries the value — at 3 dp, because
+    2 dp rounds 0.699 to the very edge it is on the other side of.
     """
-    pairs = [(f, WEIGHTS.get(f, 0.0)) for f in evidence_features(signals)]
+    pairs = [(f"{f}={signals.author_affinity:.3f}" if f.startswith("aff:") else f,
+              WEIGHTS.get(f, 0.0))
+             for f in evidence_features(signals)]
     if signals.llm_score:
         pairs.append((f"llm:{signals.llm_score}",
                       LLM_INTERCEPT + LLM_PER_POINT * min(signals.llm_score, LLM_MAX_FITTED)))
-    if signals.author_affinity > 0:
-        pairs.append((f"affinity:{signals.author_affinity:.2f}",
-                      AFFINITY_PER_UNIT * signals.author_affinity))
     return sorted(pairs, key=lambda kv: -abs(kv[1]))
 
 

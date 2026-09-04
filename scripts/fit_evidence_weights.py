@@ -28,7 +28,7 @@ THREE PANELS, because ONE ground truth cannot fit every feature without circular
      Conditional terms sum with the marginal `ack` by the chain rule, so nothing is
      double counted.
 
-  B. `staff`, and the LLM / affinity slopes.
+  B. `staff`, the author x core affinity RATE buckets, and the LLM slope.
      analysis/labeled_set.csv — 237 human yes/no rows for the Biomedical Imaging
      core, plus the pipeline's own two-pass triage scores for the same 237.
      Panel A's positives ARE signal-2 confirms, so fitting signal 2's own weight
@@ -165,35 +165,34 @@ def fit(pos, neg, keys, label: str, forced=()) -> dict:
     return out
 
 
-def fit_line(bins, pos_n: int, neg_n: int, label: str, through_origin: bool = False):
+def fit_line(bins, pos_n: int, neg_n: int, label: str):
     """Weighted least squares of the binned log-LRs against the bin's x value.
 
     `bins` is [(x, pos_hits, neg_hits)] over the FULL panel (so each bin's weight is
-    marginal, comparable with every other feature's). The two natively-graded signals
-    (LLM 1-10, affinity 0-1) do not bucket without throwing resolution away, so their
-    weight is a line through the same smoothed bin log-LRs. Inverse-variance weighted
-    (1/pos + 1/neg is the variance of a log odds-ratio), which is what keeps a
-    5-paper bin from out-voting a 35-paper one. Residuals are printed so the
-    linearity claim is auditable rather than asserted.
+    marginal, comparable with every other feature's). The LLM's 1-10 does not bucket
+    without throwing resolution away, so its weight is a line through the same
+    smoothed bin log-LRs. Inverse-variance weighted (1/pos + 1/neg is the variance of
+    a log odds-ratio), which is what keeps a 5-paper bin from out-voting a 35-paper
+    one. Residuals are printed so the linearity claim is auditable rather than
+    asserted.
+
+    The affinity prior used to be fitted here too, as a line through the origin. It is
+    a bucketed WEIGHTS cell now (fit() prices it like every other categorical key), so
+    the through-the-origin mode went with it rather than staying as dead flexibility.
     """
     pts = [(x, weight(ph, pos_n, nh, neg_n), 1.0 / (1.0 / (ph + ALPHA) + 1.0 / (nh + ALPHA)))
            for x, ph, nh in bins]
     sw = sum(w for _, _, w in pts)
-    if through_origin:
-        slope = sum(w * x * y for x, y, w in pts) / sum(w * x * x for x, y, w in pts)
-        intercept = 0.0
-    else:
-        mx = sum(w * x for x, _, w in pts) / sw
-        my = sum(w * y for _, y, w in pts) / sw
-        slope = (sum(w * (x - mx) * (y - my) for x, y, w in pts)
-                 / sum(w * (x - mx) ** 2 for x, _, w in pts))
-        intercept = my - slope * mx
+    mx = sum(w * x for x, _, w in pts) / sw
+    my = sum(w * y for _, y, w in pts) / sw
+    slope = (sum(w * (x - mx) * (y - my) for x, y, w in pts)
+             / sum(w * (x - mx) ** 2 for x, _, w in pts))
+    intercept = my - slope * mx
     ss_res = sum(w * (y - (intercept + slope * x)) ** 2 for x, y, w in pts)
     ss_tot = sum(w * (y - sum(w2 * y2 for _, y2, w2 in pts) / sw) ** 2 for _, y, w in pts)
 
     print(f"\n=== {label} ===")
-    print(f"  positives n={pos_n}   negatives n={neg_n}"
-          + ("   (line forced through the origin: no evidence -> no weight)" if through_origin else ""))
+    print(f"  positives n={pos_n}   negatives n={neg_n}")
     print(f"  {'x':>7}{'pos':>6}{'neg':>6}{'bin w':>9}{'fitted':>9}{'resid':>8}")
     for (x, ph, nh), (_, y, _) in zip(bins, pts):
         f = intercept + slope * x
@@ -304,13 +303,21 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     bylines = ingest.fetch_author_bylines(engine, everyone)
 
     # The affinity index is built from the core's signal-2 confirms MINUS anything in
-    # the label set, so a labelled paper never contributes to its own prior.
+    # the label set, so a labelled paper never contributes to its own prior. The rate's
+    # denominator is each author's total output in the SAME corpus these negatives are
+    # drawn from — the unrestricted author count deflates every rate ~4x and would fit
+    # the buckets against a scale production never sees.
+    # ...and gated to the corpus, exactly as production gates it (ingest.filter_corpus_pmids
+    # in run.py / batch_screen.py). A no-op on today's core-2 confirms — all are in-corpus —
+    # but without it a future out-of-corpus confirm would fit the buckets against a
+    # numerator production does not use.
     outside = [p for p in confirms()[LABEL_CORE] if p not in labels]
+    outside = sorted(ingest.filter_corpus_pmids(engine, outside))
     counts: dict = collections.defaultdict(lambda: collections.defaultdict(int))
     for _pmid, cwids in ingest.fetch_author_bylines(engine, outside).items():
         for cwid in cwids:
             counts[cwid][LABEL_CORE] += 1
-    index = signals.build_affinity_index(counts)
+    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
 
     # The negatives need LLM scores from the SAME two-pass triage that produced the
     # positives' stored ones, so they are scored live — on a subset, because this is
@@ -385,18 +392,28 @@ def main(argv=None) -> int:
                      forced=sections))
 
     pos_b, easy_b, hard_b = panel_b(engine, neg_pmids, args.llm_negatives, args.seed)
-    fit(pos_b, easy_b, ["staff"], "PANEL B foil — vs the label set's own EASY negatives (NOT SHIPPED)")
-    table.update(fit(pos_b, hard_b, ["staff"],
-                     "PANEL B — core-staff co-authorship (labelled yes vs random corpus)"))
+    # In bucket order, not alphabetical: the three must come out monotone to be shippable.
+    aff_keys = ["aff:trace", "aff:regular", "aff:core"]
+    fit(pos_b, easy_b, ["staff"] + aff_keys,
+        "PANEL B foil — vs the label set's own EASY negatives (NOT SHIPPED)")
+    table.update(fit(pos_b, hard_b, ["staff"] + aff_keys,
+                     "PANEL B — core-staff co-authorship and the author x core affinity "
+                     "RATE (labelled yes vs random corpus)"))
+    # The rate == 0 cell, printed because combine.py cites it and NOT shipped: there is no
+    # aff:none key for fit() to count, because evidence_features() emits nothing for absent
+    # evidence. Pricing this absence while every other absent feature stays silent would
+    # push down every pair whose authors simply have no history with the core.
+    zp = sum(1 for s in pos_b if not s.author_affinity)
+    zn = sum(1 for s in hard_b if not s.author_affinity)
+    print(f"  {'aff: rate == 0':<24}{zp:>6}{zn:>7}{zp / max(len(pos_b), 1):>9.4f}"
+          f"{zn / max(len(hard_b), 1):>9.4f}{weight(zp, len(pos_b), zn, len(hard_b)):>8.2f}"
+          "   NOT SHIPPED: absent evidence contributes no key")
 
     scored = [s for s in hard_b if s.llm_score]
     fit_line(graded_bins(pos_b, easy_b, lambda s: s.llm_score, list(range(1, 11))),
              len(pos_b), len(easy_b), "llm foil — vs EASY negatives (NOT SHIPPED)")
     llm_fit = fit_line(graded_bins(pos_b, scored, lambda s: s.llm_score, list(range(1, 11))),
                        len(pos_b), len(scored), "llm 1-10 dense triage score")
-    aff_fit = fit_line(graded_bins(pos_b, hard_b, lambda s: s.author_affinity,
-                                   [0.0001, 0.45, 0.6, 0.75]),
-                       len(pos_b), len(hard_b), "affinity repeat-user prior", through_origin=True)
 
     print("\n\n# --- paste into pipeline_cores/combine.py ---")
     print("WEIGHTS = {")
@@ -404,7 +421,6 @@ def main(argv=None) -> int:
         print(f'    "{k}": {w:.2f},' + (f"  # {note}" if note else ""))
     print("}")
     print(f"LLM_INTERCEPT = {llm_fit[0]:.2f}\nLLM_PER_POINT = {llm_fit[1]:.2f}")
-    print(f"AFFINITY_PER_UNIT = {aff_fit[1]:.2f}")
     return 0
 
 

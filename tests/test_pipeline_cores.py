@@ -9,6 +9,7 @@ from pipeline_cores.combine import (
     DEFAULT_TRIAGE_THRESHOLD,
     PRIOR_LOGIT,
     combine,
+    evidence_features,
     explain,
     score,
 )
@@ -23,7 +24,6 @@ from pipeline_cores.models import (
 from pipeline_cores.signals import (
     SCREEN_CUTOFF,
     acknowledgement_signal,
-    affinity_strength,
     author_affinity,
     build_affinity_index,
     llm_triage,
@@ -116,17 +116,20 @@ def test_low_signal_falls_below_threshold():
     assert rec.status == STATUS_BELOW
 
 
-def test_one_repeat_user_paper_no_longer_carries_a_weak_paper_on_its_own():
-    """A behaviour change worth pinning: the old noisy-OR handed a lone 0.45
-    affinity straight past the queue bar. Measured, one prior confirmed paper by an
-    author is ~7x the base rate and NOT enough on its own — which is what stopped
-    one confirmation flooding the queue with everything else that author wrote."""
-    weak = combine("1", "2", SignalResult(llm_score=2, author_affinity=0.45))
+def test_a_trace_user_no_longer_carries_a_weak_paper_on_its_own():
+    """A behaviour change worth pinning: the old noisy-OR handed a lone repeat-user
+    prior straight past the queue bar. An author who has given 2% of their output to
+    this core lifts a weak paper above the base rate and no further — which is what
+    stops one confirmation flooding the queue with everything else that author wrote."""
+    weak = combine("1", "2", SignalResult(llm_score=2, author_affinity=0.02))
     assert weak.status == STATUS_BELOW
     assert weak.likelihood > 1 / (1 + math.exp(-PRIOR_LOGIT))     # still above the prior
-    # ...and it compounds: enough affinity, or affinity plus a real LLM score, does.
-    assert combine("1", "2", SignalResult(author_affinity=0.85)).status == STATUS_CANDIDATE
+    # ...and it compounds: a working relationship plus a real LLM score reaches the queue.
     assert combine("1", "2", SignalResult(llm_score=4, author_affinity=0.6)).status == STATUS_CANDIDATE
+    # A rate that says this core IS most of what the author does confirms on its own —
+    # fitted at 4.93, just above a staff co-author's 4.89. That is new (the old constant
+    # topped out at 4.60 * 0.85 = 3.91, a candidate), measured, and deliberate.
+    assert combine("1", "2", SignalResult(author_affinity=0.85)).status == STATUS_CONFIRMED
 
 
 # --- full-text loader (pure + cache, no network) ---------------------------
@@ -273,33 +276,92 @@ def test_with_s3_targets_artifacts_bucket():
     assert client._s3_key("123") == "cores/fulltext/123.xml"
 
 
-# --- author affinity (signal 1, repeat-user prior) -------------------------
-def test_affinity_strength_scales_with_confirmed_count_and_caps():
-    assert affinity_strength(0) == 0.0
-    assert affinity_strength(1) == 0.45
-    assert affinity_strength(2) == 0.60
-    assert affinity_strength(99) == 0.85          # capped
-
-
-def test_build_affinity_index_and_lookup():
-    idx = build_affinity_index({"djb2001": {"2": 3}, "abc1001": {"5": 1}})
-    assert author_affinity(idx, ["djb2001"], "2") == affinity_strength(3)   # single author: noisy-OR == strength
+# --- author affinity (signal 1, repeat-user RATE) --------------------------
+def test_build_affinity_index_is_a_rate_not_a_count():
+    """The share of an author's OWN corpus output that already belongs to the core."""
+    idx = build_affinity_index({"djb2001": {"2": 3}, "abc1001": {"5": 1}},
+                               {"djb2001": 4, "abc1001": 50})
+    assert idx["djb2001"]["2"] == 0.75                        # 3 of their 4 papers
+    assert idx["abc1001"]["5"] == 0.02                        # 1 of their 50
+    assert author_affinity(idx, ["djb2001"], "2") == 0.75
     assert author_affinity(idx, ["abc1001"], "2") == 0.0      # different core
     assert author_affinity(idx, ["nobody"], "2") == 0.0       # unknown author
-    # one contributing author across the byline (the rest are zero) == that strength
-    assert author_affinity(idx, ["nobody", "djb2001"], "2") == affinity_strength(3)
+    # one contributing author across the byline (the rest are zero) == that rate
+    assert author_affinity(idx, ["nobody", "djb2001"], "2") == 0.75
 
 
-def test_author_affinity_noisy_or_combines_repeat_users():
-    idx = build_affinity_index({"a": {"2": 1}, "b": {"2": 1}})    # each affinity_strength(1) = 0.45
-    val = author_affinity(idx, ["a", "b"], "2")
-    assert abs(val - (1 - 0.55 * 0.55)) < 1e-9                    # noisy-OR(0.45, 0.45) = 0.6975
-    assert val > affinity_strength(1)                            # two repeat users beat either alone
+def test_the_corpus_denominator_separates_a_regular_from_a_passer_by():
+    """FAILS on the old curve, which read both of these as "has prior confirms" and
+    gave the passer-by 0.45 — 2.07 nats — for the one paper. The denominator is what
+    makes a single confirm mean different things for different authors."""
+    idx = build_affinity_index({"regular": {"2": 3}, "passer": {"2": 1}},
+                               {"regular": 4, "passer": 60})
+    assert evidence_features(SignalResult(author_affinity=idx["passer"]["2"])) == ["aff:trace"]
+    assert evidence_features(SignalResult(author_affinity=idx["regular"]["2"])) == ["aff:core"]
+    assert (score(SignalResult(author_affinity=idx["passer"]["2"]))
+            < score(SignalResult(author_affinity=idx["regular"]["2"])))
 
 
-def test_author_affinity_noisy_or_clamped_below_confirmer_ceiling():
-    idx = build_affinity_index({"a": {"2": 9}, "b": {"2": 9}, "c": {"2": 9}})  # each capped at 0.85
-    assert author_affinity(idx, ["a", "b", "c"], "2") == 0.85     # clamped to _AFFINITY_CAP, never >= 0.95
+def test_many_confirms_no_longer_score_the_same_as_four_single_ones():
+    """The collapse this replaced: with the cap at 4 confirmed papers, one author with
+    24 core papers and four co-authors who each used the core once both landed on 0.85
+    -> 3.91 nats, exactly. 83.9% of core 14's live queue sat on that one value."""
+    idx = build_affinity_index(
+        {"heavy": {"2": 24}, "a": {"2": 1}, "b": {"2": 1}, "c": {"2": 1}, "d": {"2": 1}},
+        {"heavy": 30, "a": 40, "b": 40, "c": 40, "d": 40})
+    heavy = author_affinity(idx, ["heavy"], "2")                  # 24/30 = 0.80
+    four_light = author_affinity(idx, ["a", "b", "c", "d"], "2")  # 1/40  = 0.025
+    assert heavy == 0.8 and four_light == 0.025
+    assert score(SignalResult(author_affinity=heavy)) > score(SignalResult(author_affinity=four_light))
+
+
+def test_author_affinity_is_the_max_not_a_noisy_or():
+    """Noisy-OR across the byline is monotone in HOW MANY authors fire, and that count
+    is the feature measured NOT to separate (AUC 0.6505). Under it, four people who
+    each used the core once out-scored one author with a real working relationship."""
+    idx = build_affinity_index(
+        {"a": {"2": 1}, "b": {"2": 1}, "c": {"2": 1}, "d": {"2": 1}, "solo": {"2": 2}},
+        {"a": 40, "b": 40, "c": 40, "d": 40, "solo": 10})
+    four = author_affinity(idx, ["a", "b", "c", "d"], "2")
+    assert four == author_affinity(idx, ["a"], "2") == 0.025      # adding bodies adds nothing
+    assert four < 1 - 0.975 ** 4                                  # what noisy-OR would have given
+    assert author_affinity(idx, ["a", "b", "c", "d", "solo"], "2") == 0.2   # the max, not the pile
+    assert author_affinity(idx, [], "2") == 0.0
+
+
+def test_affinity_bucket_edges_sit_where_the_fit_drew_them():
+    """0.05 and 0.70 are fitted cell boundaries, closed on the upper bucket."""
+    from pipeline_cores.combine import _AFF_CORE_MIN, _AFF_REGULAR_MIN
+    assert (_AFF_REGULAR_MIN, _AFF_CORE_MIN) == (0.05, 0.70)
+
+    def feat(rate):
+        return evidence_features(SignalResult(author_affinity=rate))
+
+    assert feat(0.0) == []                        # absent evidence contributes no key
+    assert feat(0.049) == ["aff:trace"]
+    assert feat(0.05) == ["aff:regular"]
+    assert feat(0.699) == ["aff:regular"]
+    assert feat(0.70) == ["aff:core"]
+    assert feat(1.0) == ["aff:core"]
+
+
+def test_an_unmeasurable_author_is_dropped_not_read_as_maximal(caplog):
+    """"We could not measure this author" and "this author is entirely a core user" are
+    OPPOSITE claims. Flooring a missing total to rate 1.0 conflated them into `aff:core`
+    (+4.93), which alone clears the confirm bar — so an unmeasurable author auto-confirmed
+    every paper they touched with no ack, no staff co-author and no LLM score. Absent
+    evidence contributes nothing, as everywhere else in the model.
+
+    A confirm count ABOVE the corpus total means the caller skipped
+    ingest.filter_corpus_pmids; it is clamped AND said out loud, never silent."""
+    import logging
+    with caplog.at_level(logging.WARNING):
+        idx = build_affinity_index({"unknown": {"2": 2}, "stale": {"2": 5}}, {"stale": 3})
+    assert "unknown" not in idx                       # dropped, NOT floored to 1.0
+    assert idx["stale"]["2"] == 1.0                   # clamped...
+    assert "no corpus paper total" in caplog.text
+    assert "were DROPPED" in caplog.text
+    assert "not gated through" in caplog.text         # ...and the skipped gate named
 
 
 # --- LLM triage two-pass logic (fake Bedrock, no network) ------------------
@@ -478,15 +540,25 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {"100": ["djb2001"]})
     # Both papers share author djb2001 on the byline.
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["djb2001"], "200": ["djb2001"]})
+    # ...and djb2001 has 20 corpus papers, so one confirm is a 5% rate: aff:regular.
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 20})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None)}
     assert recs["100"].status == STATUS_CONFIRMED
-    # 200 has no direct signal; it inherits djb2001's affinity and so scores well above
-    # the base rate. ONE confirmed sibling is measured at ~7x the prior, which is not
-    # yet queue-worthy — the compounding is intact, it is just priced now.
-    assert recs["200"].likelihood > 1 / (1 + math.exp(-PRIOR_LOGIT))
-    assert recs["200"].likelihood < recs["100"].likelihood
+    # 200 has no direct signal; it inherits djb2001's affinity. One confirm out of 20
+    # corpus papers is a 5% rate (aff:regular), so the sibling reaches the queue and
+    # still sits well below the paper that was actually confirmed.
+    assert recs["200"].status == STATUS_CANDIDATE
+    assert 1 / (1 + math.exp(-PRIOR_LOGIT)) < recs["200"].likelihood < recs["100"].likelihood
+    # ...and it is the DENOMINATOR doing that, not the count: the same single confirm by
+    # an author with 100 corpus papers is a trace and stays out of the queue. On the old
+    # curve both were 0.45 — the count knew nothing about who the author was.
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 100})
+    prolific = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                                scored_at="t", engine=None)}
+    assert prolific["200"].status == STATUS_BELOW
+    assert prolific["200"].likelihood < recs["200"].likelihood
 
 
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
@@ -836,6 +908,9 @@ def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch)
         return {"999": ["evs2008", "thc2015"]}
 
     monkeypatch.setattr(ingest, "fetch_author_bylines", fake_bylines)
+    # The numerator is gated to the corpus before anything is counted; here everything
+    # passes, so this test still measures only the out-of-scope byline fetch.
+    monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda engine, pmids: set(pmids))
 
     counts = run.load_prior_user_counts("14", {"111": ["someone"]}, enabled=True, engine=object())
     assert fetched == [["999"]]                 # the out-of-scope prior was fetched
@@ -844,6 +919,31 @@ def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch)
 
     # without an engine it degrades to the old behaviour rather than crashing
     assert run.load_prior_user_counts("14", {}, enabled=True) == {}
+
+
+def test_prior_affinity_counts_only_papers_inside_the_scored_corpus(monkeypatch):
+    """The rate's NUMERATOR and DENOMINATOR must live on the same corpus.
+
+    DynamoDB holds confirmed/claimed rows for papers this pipeline does not score
+    (pre-2020, Letter, Preprint, Erratum, Case Report, Comment — 19 of core 14's 43).
+    Counting those against a corpus-restricted total inflated the rate into `aff:core`,
+    which alone clears the confirm bar: cwid `ccole` measured 8/11 = 0.727 where the
+    same-corpus rate is 2/11 = 0.182. It also drove 7 of the 8 `aff:core` rows on the
+    live core-14 queue, so this is the gate that keeps the shipped weights meaning what
+    they were fitted to mean."""
+    from pipeline_cores import ingest, run
+    import pipeline_cores.persist as persist
+
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda cid: [
+        {"pmid": "111", "core_id": "14"},        # in the corpus
+        {"pmid": "222", "core_id": "14"},        # a 2015 Letter — scored by nothing
+    ])
+    monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda engine, pmids: {"111"})
+    monkeypatch.setattr(ingest, "fetch_author_bylines",
+                        lambda engine, pmids: {p: ["ccole"] for p in pmids})
+
+    counts = run.load_prior_user_counts("14", {}, enabled=True, engine=object())
+    assert counts["ccole"]["14"] == 1            # not 2 — the out-of-corpus row is gated out
 
 
 # ---------------------------------------------------------------------------
@@ -1129,6 +1229,17 @@ def test_explain_accounts_for_the_whole_score():
         [f for f, _ in explain(sig)], key=lambda f: -abs(dict(explain(sig))[f]))
 
 
+def test_explain_shows_the_rate_behind_the_affinity_bucket():
+    """The bucket is what moves the score; the rate is what tells a reviewer whether
+    this is the core's heaviest user or someone who just crossed the 0.70 edge. The
+    line carries both, and the WEIGHT still comes from the bare key."""
+    from pipeline_cores.combine import WEIGHTS
+    lines = dict(explain(SignalResult(author_affinity=0.833)))
+    assert lines["aff:core=0.833"] == WEIGHTS["aff:core"]
+    # 3 dp, because 2 dp would print a 0.699 rate as "0.70" — the edge it is under.
+    assert "aff:regular=0.699" in dict(explain(SignalResult(author_affinity=0.699)))
+
+
 def test_per_core_thresholds_override_the_defaults():
     """Status is a threshold now, and decision 1 made it configurable per core."""
     sig = SignalResult(llm_score=9)                       # candidate at the defaults
@@ -1154,10 +1265,15 @@ def test_the_score_spreads_where_noisy_or_saturated():
     assert max(old) - min(old) < 0.9 and min(old) > 0.09      # noisy-OR never goes near 0
     assert max(new) - min(new) > max(old) - min(old)
     # noisy-OR crowds the top — its MEDIAN combination is already 0.84, which is why
-    # the pool was unrankable. Log-odds puts the median in the middle of the range.
+    # the pool was unrankable. Log-odds keeps the median off the ceiling.
     assert statistics.median(old) > 0.8
-    assert 0.3 < statistics.median(new) < 0.7
-    # NOT asserted: that log-odds yields MORE distinct values. It does not here (40
-    # vs 51) — a product of two continuous inputs collides less often than a sum of
-    # them. Distinct-count is the wrong yardstick for spread; WHERE the mass sits is
-    # the right one, which is what the two assertions above pin.
+    assert 0.3 < statistics.median(new) < 0.8
+    # That upper bound was 0.7 (median 0.570) while affinity was a slope. Fitting the
+    # rate into buckets moved this grid's median to 0.746, because five of its six
+    # affinity values are >= 0.45 and land in the two most favourable cells — a grid of
+    # legacy STRENGTHS over-represents heavy core users relative to a live queue, where
+    # most bylines have no history with the core at all and earn no key.
+    # NOT asserted: that log-odds yields MORE distinct values. It does not here (27 vs
+    # 51) and the gap widened, because three fitted buckets deliberately collapse 39
+    # observed rates. Distinct-count is the wrong yardstick for spread; WHERE the mass
+    # sits is the right one, which is what the assertions above pin.
