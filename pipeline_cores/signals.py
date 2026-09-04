@@ -421,6 +421,30 @@ def _dense_prompt(core: CoreDefinition, title: str, abstract: str) -> str:
     )
 
 
+_RATIONALE_MAX = 80
+
+
+def _fit(text: str, width: int = _RATIONALE_MAX) -> str:
+    """`text` capped at `width`, cut on a word boundary rather than mid-word.
+
+    The prompt already asks for <=80 chars (line ~421), so this only fires when
+    the model overruns its own budget. Under the cap the string is returned
+    untouched — including its internal whitespace, which is why this is a plain
+    slice and not textwrap.shorten (shorten also drops every word after an
+    oversized token, which is the failure this guards against).
+    """
+    if len(text) <= width:
+        return text
+    cut = text[:width - 1]
+    head = cut.rpartition(" ")[0]
+    # Prefer the word boundary, but not at any price. "Uses core: <90-char URL>"
+    # has its only space at index 10, so backing up to it yields a 3-character
+    # evidence chip — strictly worse than the mid-word slice this replaced.
+    # ponytail: half the budget is the give-up line; it only has to separate
+    # "trimmed a partial word" from "threw the rationale away".
+    return (head if len(head) >= width // 2 else cut) + "…"
+
+
 def _triage_one(bedrock, core: CoreDefinition, pub: dict, screen_map: dict):
     """Score a single pub: Haiku screen (or shared screen) then Sonnet dense pass."""
     from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL, BedrockEmptyContentError  # lazy
@@ -440,7 +464,14 @@ def _triage_one(bedrock, core: CoreDefinition, pub: dict, screen_map: dict):
             dense = bedrock.call_json(model=SONNET_MODEL,
                                       messages=[{"role": "user", "content": _dense_prompt(core, title, abstract)}])
             rec["score"] = _parse_int(dense.get("score"))
-            rec["rationale"] = str(dense.get("rationale", ""))[:80]
+            # Cut on a word boundary: the bare [:80] slice this replaces left
+            # rationales ending "retrospective coho" in the live claim queue.
+            # NOT textwrap.shorten — it drops every word after an oversized
+            # token, so "Uses core: <100-char URL>" comes back as "Uses core:…",
+            # a 3-character evidence chip strictly worse than the slice it
+            # replaced. Trimming back to the last space in the slice has no such
+            # case: with no space to find it degrades to exactly the old 80 chars.
+            rec["rationale"] = _fit(str(dense.get("rationale", "")))
         except BedrockEmptyContentError:
             pass  # keep the screen score; no rationale
     return pmid, rec

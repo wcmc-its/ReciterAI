@@ -398,6 +398,42 @@ def test_triage_screened_in_runs_dense_and_keeps_rationale():
     assert out["5"]["rationale"] == "used 3T MRI at the core"
 
 
+def test_triage_rationale_is_trimmed_on_a_word_boundary():
+    """The dense prompt asks for "<=80 chars" and the model overruns anyway; the bare
+    [:80] slice that used to enforce it put rationales ending "retrospective coho" in
+    the live claim queue. _fit cuts on a word boundary instead, but never at the cost
+    of the rationale itself: an oversized unbreakable token (a URL, a DOI, an
+    accession) keeps the hard slice, because a 3-character evidence chip is worse in
+    a reviewer's queue than one cut word. That last case is why this is not
+    textwrap.shorten, which drops every word after such a token."""
+    class _Rationale(_FakeBedrock):
+        def __init__(self, text):
+            super().__init__(screen=SCREEN_CUTOFF, dense_score=8)
+            self.text = text
+
+        def call_json(self, model, messages, **kw):
+            self.call_json_count += 1
+            return {"score": self.dense_score, "rationale": self.text}
+
+    def triaged(text):
+        return llm_triage(_Rationale(text), _CORE, _PUB)["5"]["rationale"]
+
+    long = ("core-run 3T MRI acquisition and analysis for a multi-site "
+            "retrospective cohort of patients")
+    out = triaged(long)
+    assert len(out) <= 80 and out.endswith("…")
+    assert long.startswith(out[:-1].rstrip())        # a whole word, not "...coho"
+
+    assert triaged("used 3T MRI at the core") == "used 3T MRI at the core"   # fits
+
+    # One oversized token must not swallow the rationale. shorten() returns "…"
+    # here, and backing up to the last space returns "Uses core:…" — both blank
+    # the chip, so both are regressions on the [:80] slice this replaced.
+    url = "Uses core: https://example.org/" + "a" * 80
+    assert len(triaged(url)) == 80 and triaged(url).startswith("Uses core: https://")
+    assert triaged("x" * 100) == "x" * 79 + "…"      # no space at all: sliced, not blanked
+
+
 # --- one-Haiku-screens-all-cores (the 13x cost lever) ----------------------
 class _FakeAllCoresBedrock:
     """call_json returns a core-keyed screen for Haiku, a dense dict for Sonnet."""
