@@ -97,7 +97,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             sig.llm_score = tri["score"]
             sig.llm_rationale = tri.get("rationale", "")
         sigs[pmid] = sig
-        records.append(_combine.combine(pmid, core.core_id, sig, scored_at=scored_at, triage_threshold=threshold))
+        records.append(_combine.combine(pmid, core.core_id, sig, scored_at=scored_at,
+                                        core=core, triage_threshold=threshold))
 
     # Phase 2 — repeat-user affinity. Count confirmed papers per author (this run
     # + prior), build the affinity index, and re-score non-confirmed records.
@@ -118,7 +119,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             continue
         sig = sigs[rec.pmid]
         sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []), core.core_id)
-        out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at, triage_threshold=threshold))
+        out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
+                                    core=core, triage_threshold=threshold))
     return out
 
 
@@ -168,7 +170,9 @@ def main(argv=None):
                          "screen calls) but lost screen recall on the 237-pilot (TP regressions collapse "
                          "to score 1) — OFF by default until re-calibrated to per-core parity")
     ap.add_argument("--dry-run", action="store_true", help="do not write to DynamoDB")
-    ap.add_argument("--threshold", type=float, default=_combine.DEFAULT_TRIAGE_THRESHOLD)
+    ap.add_argument("--threshold", type=float, default=None,
+                    help="override the candidate threshold for every core (default: the "
+                         "core's own triage_threshold, else combine.DEFAULT_TRIAGE_THRESHOLD)")
     args = ap.parse_args(argv)
 
     from utils.db import get_engine  # lazy

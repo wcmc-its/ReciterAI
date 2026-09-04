@@ -22,12 +22,33 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 |---|---|---|---|
 | 1 | author × core affinity (repeat-user prior) | `signals.author_affinity` | recall prior |
 | 2 | core-staff co-authorship (resolved `personIdentifier`) | `signals.coauthorship_index` | deterministic recall |
-| 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | deterministic confirmer |
-| 4 | LLM triage (two-pass Bedrock) | `signals.llm_triage` | ranking only |
+| 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | strongest single weight |
+| 4 | LLM triage (two-pass Bedrock) | `signals.llm_triage` | ranking only, never confirms |
 | 5 | human claim (SPS ADR-005 override) | *(in SPS, not here)* | source of truth |
 
-`combine.combine()` auto-**confirms** on signals 2 or 3; otherwise noisy-ORs the
-LLM score and affinity into a **candidate** likelihood for the claim queue.
+**`combine.combine()` sums weights of evidence in log-odds:**
+`logit(P) = PRIOR_LOGIT + Σ wᵢ`, `P = sigmoid(logit)`, and **status is a threshold on
+P** (per-core overridable via `confirm_threshold` / `triage_threshold` in the
+dictionary). It no longer returns 0.98 for any alias match and 0.95 for any staff
+co-author: those constants could not tell `Architecture for Research Computing in
+Health` beside "Weill Cornell" (100% precision, measured) from `Flow Cytometry Core`
+beside "Stanford" (24%), and the noisy-OR under them saturated — all 404 core-14
+candidates landed in 0.84–0.85.
+
+Every weight in `combine.WEIGHTS` is fitted by `scripts/fit_evidence_weights.py`
+against real ground truth and carries the n behind it; a cell too thin to support a
+weight is 0.00 and says so. `combine.explain()` returns the per-feature contributions
+so the claim queue can show a reviewer *why* a paper ranks where it does.
+`scripts/measure_evidence_spread.py` re-measures spread and AUC against
+`origin/main`'s combiner after any change to those numbers.
+
+**Ack evidence:** an alias match records `ack_alias_hits` (the alias's global PMC hit
+count, cached in the dictionary by `python3 -m pipeline_cores.refresh_alias_hits`;
+specificity predicts precision, r=-0.852 vs home%), `ack_institution`
+(`home`/`other`/`none`, where a Tri-I partner is home and "none" is only ambiguous for
+a generic alias), and `ack_section` (`ack`/`methods`/`body`, from the raw JATS).
+Section is extracted but **weighted at zero until it is measured** — guessing it is
+forbidden. `run.py` does not yet pass the XML through, so it is `""` in production.
 
 **Repeat-user prior (signal 1):** core users are overwhelmingly repeat users, so
 `run_core` runs two phases — deterministic+LLM first, then it attributes every

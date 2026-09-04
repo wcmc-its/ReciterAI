@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 
+from pipeline_cores.fulltext import to_plain_text
 from pipeline_cores.models import CoreDefinition, SignalResult
 
 logger = logging.getLogger(__name__)
@@ -19,30 +20,123 @@ logger = logging.getLogger(__name__)
 # avoid spurious substring hits; longer names match case-insensitively.
 _ACRONYM = re.compile(r"^[A-Z0-9]{2,6}$")
 
+# The window each side of a match that the institution read looks at — 140 chars,
+# the window the alias-power measurement used.
+_WINDOW = 140
+
+# Weill Cornell itself: always home, for every core.
+_WCM = re.compile(r"Weill Cornell|Cornell Univ|Weill Medical|\bWCMC?\b", re.I)
+
+# Funders are not host institutions. An acknowledgements section names the NIH far
+# more often than it names anybody's university, so leaving these in would read
+# almost every ack window as "a DIFFERENT institution".
+_FUNDER = re.compile(
+    r"National Institutes? of Health|National Cancer Institute|National Science Foundation"
+    r"|Howard Hughes Medical Institute|Department of (?:Defense|Veterans Affairs)"
+    r"|Rockefeller Foundation"   # the FUNDER, not the Tri-I university
+    r"|\bNIH\b|\bNCI\b|\bNSF\b|\bHHMI\b", re.I)
+
+# Some OTHER institution is named in the window (21-53% of today's matches).
+_OTHER_INSTITUTION = re.compile(
+    r"\bUniversit(?:y|ies|at|\u00e4t|e|\u00e9)\b|\bCollege\b|\bInstitut(?:e|es|o|ut)\b"
+    r"|\bHospital\b|\bMedical Cent(?:er|re)\b|\bCancer Cent(?:er|re)\b"
+    r"|\bSchool of Medicine\b|\bHealth System\b|\bClinic\b|\bAcademy of Sciences\b", re.I)
+
+# JATS blocks for the match-location read. Same block idiom (and the same nesting
+# caveat) as suggest_aliases.ack_text.
+_ACK_BLOCK = re.compile(r"<ack\b.*?</ack\s*>", re.I | re.S)
+_TITLED_SEC = re.compile(
+    r"<sec\b[^>]*>\s*(?:<label>.*?</label>\s*)?<title>([^<]*)</title>(.*?)</sec>", re.I | re.S)
+_ACK_TITLE = re.compile(r"acknowledg|funding|financial support", re.I)
+_METHODS_TITLE = re.compile(r"method|material|experimental|procedure", re.I)
+
+
+def _alias_pattern(name: str):
+    """Acronym -> case-sensitive word boundary; anything longer -> case-insensitive."""
+    if _ACRONYM.match(name):
+        return re.compile(rf"\b{re.escape(name)}\b")
+    return re.compile(re.escape(name), re.IGNORECASE)
+
+
+def classify_institution(text: str, match, core: CoreDefinition) -> str:
+    """"home" | "other" | "none" for the institution named around an alias match.
+
+    Three states, and the third is the subtle one (2026-09-03 audit): naming WCM or
+    a Tri-I partner is strong POSITIVE evidence, naming a different institution is
+    strong NEGATIVE, and naming NOBODY is only ambiguous for a GENERIC alias — a
+    specific name needs no qualifier (ARCH is 43% "none" with 0% "other"). So this
+    reports the state and lets the weighting condition it on alias specificity;
+    it is deliberately NOT a gate.
+    """
+    lo, hi = max(0, match.start() - _WINDOW), min(len(text), match.end() + _WINDOW)
+    before, after = text[lo:match.start()], text[match.end():hi]
+    window = _FUNDER.sub(" ", before + match.group(0) + after)
+    if _WCM.search(window) or any(_alias_pattern(p).search(window)
+                                  for p in core.partner_institutions):
+        return "home"
+    # The NEGATIVE read drops the matched alias: a core whose own name carries an
+    # institution word ("Institute for Precision Medicine Biobank") is not evidence
+    # of somebody else's institution. The positive read above keeps it, because an
+    # alias that spells out "… Weill Cornell Medicine" IS the home affiliation.
+    outside = _FUNDER.sub(" ", before + " " + after)
+    return "other" if _OTHER_INSTITUTION.search(outside) else "none"
+
+
+def match_section(xml: str, alias: str) -> str:
+    """Which JATS block names `alias`: "ack" | "methods" | "body" ("" without XML).
+
+    EXTRACTED, NOT WEIGHTED. <ack> vs methods vs a passing body mention are plainly
+    not equal evidence, but nobody has measured by how much, so combine() must not
+    price this until a labelling pass does (SPEC feature 3).
+
+    Caveat inherited from the block idiom: a <sec> containing SUBSECTIONS is cut at
+    the first </sec>, so an alias deep inside a subsection of Methods reads as
+    "body". Harmless while the weight is zero; measure before trusting it.
+    """
+    if not xml:
+        return ""                                   # plain text only: no structure to read
+    pattern = _alias_pattern(alias)
+    blocks = [("ack", b) for b in _ACK_BLOCK.findall(xml)]
+    for title, body in _TITLED_SEC.findall(xml):
+        if _ACK_TITLE.search(title):
+            blocks.append(("ack", body))
+        elif _METHODS_TITLE.search(title):
+            blocks.append(("methods", body))
+    for label, block in blocks:
+        if pattern.search(to_plain_text(block)):
+            return label
+    return "body"
+
 
 # ---------------------------------------------------------------------------
 # Signal 3 — acknowledgement / alias name-match (deterministic confirmer)
 # ---------------------------------------------------------------------------
-def acknowledgement_signal(full_text: str, core: CoreDefinition) -> SignalResult:
+def acknowledgement_signal(full_text: str, core: CoreDefinition, xml: str = "") -> SignalResult:
     """High-precision confirmer: did the full text name this core?
 
     ~100% precision but near-zero recall in the wild (most real users never name
     the core) — a confirmer, not a discoverer. Coverage is the PMC full-text
     subset only. `full_text` is the plain-text body (empty when unavailable).
+
+    Also records the evidence a flat confirmer would throw away — the alias's
+    global PMC hit count, the institution named around the match, and which JATS
+    block it sits in. `xml` is the RAW PMC XML for the same paper (fulltext.get_xml;
+    get() is just to_plain_text of it, so passing both costs no extra fetch);
+    without it the section degrades to "" and everything else still works.
     """
     res = SignalResult()
     if not full_text:
         return res
     for alias in core.aliases:
-        if _ACRONYM.match(alias):
-            m = re.search(rf"\b{re.escape(alias)}\b", full_text)  # case-sensitive acronym
-        else:
-            m = re.search(re.escape(alias), full_text, re.IGNORECASE)
+        m = _alias_pattern(alias).search(full_text)
         if m:
             s, e = max(0, m.start() - 70), min(len(full_text), m.end() + 70)
             res.ack_matched = True
             res.ack_alias = alias
             res.ack_snippet = full_text[s:e].strip()
+            res.ack_alias_hits = core.alias_hits.get(alias)
+            res.ack_institution = classify_institution(full_text, m, core)
+            res.ack_section = match_section(xml, alias)
             break
     return res
 

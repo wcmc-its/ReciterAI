@@ -17,6 +17,19 @@ class CoreStaff:
     tracked: bool = True
 
 
+# Tri-Institutional partners (+ NYP). An alias found next to one of these is HOME
+# evidence, not a miss: these cores are genuinely shared, and requiring a Weill
+# Cornell affiliation in the window would discard ~47% of core 4's legitimate hits
+# (2026-09-03 institution audit). A core that is NOT shared opts out with an
+# explicit `partner_institutions: []` in the dictionary. Weill Cornell itself is
+# always home and is not listed here.
+DEFAULT_PARTNER_INSTITUTIONS = [
+    "NewYork-Presbyterian", "New York-Presbyterian", "New York Presbyterian", "NYP",
+    "Rockefeller", "Memorial Sloan Kettering", "Memorial Sloan-Kettering", "MSKCC", "MSK",
+    "Hospital for Special Surgery", "HSS",
+]
+
+
 @dataclass
 class CoreDefinition:
     core_id: str
@@ -27,6 +40,20 @@ class CoreDefinition:
     staff: list = field(default_factory=list)          # list[CoreStaff], signal 2
     grant_ids: list = field(default_factory=list)      # usually empty; no shared core grant
     llm_description: str = ""                           # signal 4 prompt context
+    # Institutions that count as HOME for this core's alias matches (above).
+    partner_institutions: list = field(
+        default_factory=lambda: list(DEFAULT_PARTNER_INSTITUTIONS))
+    # alias -> global PMC hit count, cached by `python3 -m pipeline_cores.refresh_alias_hits`.
+    # Alias SPECIFICITY predicts precision: over 10 aliases spanning 1 -> 23,544 global
+    # hits, Pearson r = -0.852 between log10(hits) and the share of matches that mean OUR
+    # core (100% home at 1 hit, 24% at 23,544). Empty until the refresh runs.
+    alias_hits: dict = field(default_factory=dict)
+    # Per-core overrides of combine()'s status bands. None = the module default.
+    # Status is a THRESHOLD on the score now, so this is where a core that needs a
+    # different bar says so — e.g. one whose aliases are all generic, or whose
+    # affinity index has saturated to the point of carrying no information.
+    confirm_threshold: Optional[float] = None
+    triage_threshold: Optional[float] = None
 
     @property
     def staff_cwids(self) -> list:
@@ -47,6 +74,10 @@ class SignalResult:
     llm_score: Optional[int] = None                       # 1-10 dense triage (None = not scored)
     llm_rationale: str = ""                               # short Sonnet rationale (<=80 chars)
     author_affinity: float = 0.0                          # 0-1 prior from claims/ack/coauthorship
+    # --- ack evidence, EXTRACTED but not yet priced (evidence-scoring SPEC phase 1) ---
+    ack_alias_hits: Optional[int] = None   # matched alias's global PMC hits (None = uncached)
+    ack_institution: str = ""              # "home" | "other" | "none"  ("" = no ack match)
+    ack_section: str = ""                  # "ack" | "methods" | "body" ("" = no XML/no match)
 
 
 # Status lifecycle for a (publication, core) pair.

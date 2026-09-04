@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from pipeline_cores.models import CoreDefinition, CoreStaff
+from pipeline_cores.models import DEFAULT_PARTNER_INSTITUTIONS, CoreDefinition, CoreStaff
 
 _DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "core_dictionary.yaml"
 
@@ -35,6 +35,16 @@ def load_cores(path: Path = None) -> list:
                 staff=staff,
                 grant_ids=list(c.get("grant_ids", [])),
                 llm_description=(c.get("llm_description", "") or "").strip(),
+                # Both optional: an un-updated dictionary still runs. An ABSENT
+                # partner list means the shared Tri-I default; an explicitly EMPTY
+                # one is a core opting out of shared-institution credit.
+                partner_institutions=list(
+                    c.get("partner_institutions", DEFAULT_PARTNER_INSTITUTIONS) or []),
+                alias_hits={str(k): int(v) for k, v in (c.get("alias_hits") or {}).items()},
+                # Absent = combine()'s module default; a core only says so when it
+                # needs a different bar from everyone else.
+                confirm_threshold=_opt_float(c.get("confirm_threshold")),
+                triage_threshold=_opt_float(c.get("triage_threshold")),
             )
         )
     _validate(cores)
@@ -46,6 +56,10 @@ def load_core(core_id: str, path: Path = None) -> CoreDefinition:
         if c.core_id == str(core_id):
             return c
     raise KeyError(f"core_id {core_id!r} not in dictionary")
+
+
+def _opt_float(value):
+    return None if value is None else float(value)
 
 
 def _validate(cores: list) -> None:

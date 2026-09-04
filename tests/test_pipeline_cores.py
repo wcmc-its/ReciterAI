@@ -1,9 +1,16 @@
 """Unit tests for the deterministic, dependency-light parts of pipeline_cores:
 dictionary load, the acknowledgement matcher, and the combiner. No DB/Bedrock/AWS.
 """
+import math
+import statistics
+
 from pipeline_cores.combine import (
+    DEFAULT_CONFIRM_THRESHOLD,
     DEFAULT_TRIAGE_THRESHOLD,
+    PRIOR_LOGIT,
     combine,
+    explain,
+    score,
 )
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import (
@@ -20,6 +27,7 @@ from pipeline_cores.signals import (
     author_affinity,
     build_affinity_index,
     llm_triage,
+    match_section,
 )
 
 
@@ -63,35 +71,62 @@ def test_ack_empty_text_is_no_match():
 
 
 # --- combiner --------------------------------------------------------------
-def test_acknowledgement_auto_confirms():
-    sig = SignalResult(ack_matched=True, ack_alias="CBIC", llm_score=1)
+# Status is a THRESHOLD on the score now, not a deterministic flag (SPEC decision 1),
+# so these assert bands rather than the old 0.98/0.95 constants.
+def test_acknowledgement_at_home_still_confirms():
+    """A distinctive alias next to a home institution is the strongest evidence
+    there is — it clears CONFIRM by a mile, but because it EARNED it."""
+    sig = SignalResult(ack_matched=True, ack_alias="Citigroup Biomedical Imaging Center",
+                       ack_alias_hits=197, ack_institution="home", llm_score=1)
     rec = combine("1", "2", sig)
-    assert rec.status == STATUS_CONFIRMED and rec.likelihood >= 0.95
+    assert rec.status == STATUS_CONFIRMED and rec.likelihood > 0.99
 
 
-def test_staff_coauthor_auto_confirms():
-    sig = SignalResult(coauthor_cwids=["djb2001"], llm_score=1)
-    rec = combine("1", "2", sig)
+def test_staff_coauthor_still_confirms_on_its_own():
+    """The other historically 100%-precision confirmer. The default confirm
+    threshold is set BELOW a lone staff co-author on purpose, so signal 2 keeps
+    confirming by itself."""
+    rec = combine("1", "2", SignalResult(coauthor_cwids=["djb2001"]))
     assert rec.status == STATUS_CONFIRMED
+    assert rec.likelihood > DEFAULT_CONFIRM_THRESHOLD
 
 
-def test_llm_only_is_candidate_via_noisy_or():
-    sig = SignalResult(llm_score=9)
-    rec = combine("1", "2", sig)
+def test_a_dismissive_llm_score_can_now_hold_a_staff_paper_back():
+    """The other half of decision 1, worth pinning because it IS a behaviour change:
+    nothing has precedence any more, so an LLM 1 ("clearly unrelated") subtracts from
+    a staff co-authorship instead of being overridden by it. The pair still ranks
+    high in the claim queue — it just stops short of auto-confirm."""
+    rec = combine("1", "2", SignalResult(coauthor_cwids=["djb2001"], llm_score=1))
     assert rec.status == STATUS_CANDIDATE
-    assert abs(rec.likelihood - 0.9) < 1e-9
+    assert rec.likelihood > DEFAULT_TRIAGE_THRESHOLD
+
+
+def test_the_llm_alone_never_confirms():
+    """The one piece of the old hard-coded precedence worth keeping: the LLM ranks
+    the queue, it does not label. Even a 10 tops out below the confirm bar, because
+    its weight is clamped to the top score the fitting panel actually contained."""
+    for score in (7, 8, 9, 10):
+        rec = combine("1", "2", SignalResult(llm_score=score))
+        assert rec.status != STATUS_CONFIRMED, score
+    assert combine("1", "2", SignalResult(llm_score=9)).status == STATUS_CANDIDATE
 
 
 def test_low_signal_falls_below_threshold():
-    sig = SignalResult(llm_score=2)            # 0.2 < default 0.30
-    rec = combine("1", "2", sig)
+    rec = combine("1", "2", SignalResult(llm_score=2))
     assert rec.status == STATUS_BELOW
 
 
-def test_affinity_lifts_a_weak_llm_score_over_threshold():
-    sig = SignalResult(llm_score=2, author_affinity=0.5)   # noisy-OR(0.2,0.5)=0.6
-    rec = combine("1", "2", sig)
-    assert rec.status == STATUS_CANDIDATE and rec.likelihood > DEFAULT_TRIAGE_THRESHOLD
+def test_one_repeat_user_paper_no_longer_carries_a_weak_paper_on_its_own():
+    """A behaviour change worth pinning: the old noisy-OR handed a lone 0.45
+    affinity straight past the queue bar. Measured, one prior confirmed paper by an
+    author is ~7x the base rate and NOT enough on its own — which is what stopped
+    one confirmation flooding the queue with everything else that author wrote."""
+    weak = combine("1", "2", SignalResult(llm_score=2, author_affinity=0.45))
+    assert weak.status == STATUS_BELOW
+    assert weak.likelihood > 1 / (1 + math.exp(-PRIOR_LOGIT))     # still above the prior
+    # ...and it compounds: enough affinity, or affinity plus a real LLM score, does.
+    assert combine("1", "2", SignalResult(author_affinity=0.85)).status == STATUS_CANDIDATE
+    assert combine("1", "2", SignalResult(llm_score=4, author_affinity=0.6)).status == STATUS_CANDIDATE
 
 
 # --- full-text loader (pure + cache, no network) ---------------------------
@@ -447,9 +482,11 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None)}
     assert recs["100"].status == STATUS_CONFIRMED
-    # 200 had no direct signal, but inherits djb2001's confirmed affinity (0.45 >= 0.30).
-    assert recs["200"].status == STATUS_CANDIDATE
-    assert recs["200"].likelihood >= 0.45
+    # 200 has no direct signal; it inherits djb2001's affinity and so scores well above
+    # the base rate. ONE confirmed sibling is measured at ~7x the prior, which is not
+    # yet queue-worthy — the compounding is intact, it is just priced now.
+    assert recs["200"].likelihood > 1 / (1 + math.exp(-PRIOR_LOGIT))
+    assert recs["200"].likelihood < recs["100"].likelihood
 
 
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
@@ -657,6 +694,40 @@ def test_esearch_ceiling_trips_loudly_instead_of_looping(monkeypatch, caplog):
     assert "Flow Cytometry Core" in caplog.text and "23544" in caplog.text
 
 
+def test_esearch_count_refuses_a_phrase_pmc_could_not_run(monkeypatch):
+    """esearch does not error on an unfindable phrase — it silently answers a
+    term-ANDed/MeSH-expanded query instead and reports THAT count. Scoring it as
+    alias specificity mispriced 9 of 55 real aliases, pushing 4 into `generic`
+    (-5.07) and 5 into `distinctive` (+4.35) on a number measuring nothing.
+    """
+    from pipeline_cores import pmc_search
+
+    def fake_get(url, params, timeout):
+        return {"esearchresult": {"count": "7221", "warninglist": {
+            "quotedphrasesnotfound": ['"Davis Cancer Immune Monitoring Core"']}}}
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    assert pmc_search.esearch_count("Davis Cancer Immune Monitoring Core") is None
+
+
+def test_esearch_count_returns_a_real_phrase_count(monkeypatch):
+    from pipeline_cores import pmc_search
+    monkeypatch.setattr(pmc_search, "_get_json",
+                        lambda u, p, t: {"esearchresult": {"count": "197", "warninglist": {}}})
+    assert pmc_search.esearch_count("Citigroup Biomedical Imaging Center") == 197
+
+
+def test_refresh_alias_hits_leaves_an_unrunnable_phrase_uncached():
+    """An uncached alias reads as ack.spec:unknown (0.00), not as a fabricated bucket."""
+    from pipeline_cores import refresh_alias_hits
+    from pipeline_cores.models import CoreDefinition
+
+    core = CoreDefinition(core_id="9", name="X", aliases=["Real Core Name", "Unrunnable Core"])
+    hits = refresh_alias_hits.fetch_hits(
+        core, counter=lambda a: 42 if a == "Real Core Name" else None)
+    assert hits == {"Real Core Name": 42}
+
+
 def test_esearch_ceiling_respects_ncbis_own_retstart_limit(monkeypatch):
     """MAX_IDS must stay at or under NCBI's hard retstart<=9998 cap.
 
@@ -773,3 +844,299 @@ def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch)
 
     # without an engine it degrades to the old behaviour rather than crashing
     assert run.load_prior_user_counts("14", {}, enabled=True) == {}
+
+
+# ---------------------------------------------------------------------------
+# Ack EVIDENCE — alias specificity / institution / section (SPEC phase 1).
+# Extracted here, deliberately unpriced: combine() must score the same either way
+# until the weights are fitted.
+# ---------------------------------------------------------------------------
+_SHARED = CoreDefinition(
+    core_id="4", name="Flow Cytometry",
+    aliases=["Flow Cytometry Core"],
+    alias_hits={"Flow Cytometry Core": 23544},
+)
+
+
+def test_ack_records_alias_specificity_from_the_dictionary():
+    """An alias's global PMC hit count predicts precision (r=-0.852 vs home%), so
+    the match carries it. An uncached alias stays None — never a made-up number."""
+    r = acknowledgement_signal("sorted in the Flow Cytometry Core at Weill Cornell", _SHARED)
+    assert r.ack_alias_hits == 23544
+    assert acknowledgement_signal("scanned at the CBIC core", _CORE).ack_alias_hits is None
+
+
+def test_institution_home_for_wcm_and_for_a_tri_i_partner():
+    """Cores are genuinely SHARED: requiring a Weill Cornell affiliation would
+    discard ~47% of core 4's legitimate hits, so a partner name is home."""
+    for text in (
+        "...used the Flow Cytometry Core at Weill Cornell Medicine for sorting",
+        "...used the Flow Cytometry Core of the Rockefeller University for sorting",
+        "...used the Flow Cytometry Core at NYP for sorting",
+    ):
+        assert acknowledgement_signal(text, _SHARED).ack_institution == "home", text
+
+
+def test_institution_partner_optout_makes_the_same_window_other():
+    """The allowlist is per core, so a core that is NOT shared opts out with []."""
+    solo = CoreDefinition(core_id="4", name="Flow", aliases=["Flow Cytometry Core"],
+                          partner_institutions=[])
+    text = "...used the Flow Cytometry Core of the Rockefeller University for sorting"
+    assert acknowledgement_signal(text, solo).ack_institution == "other"
+
+
+def test_institution_other_when_a_different_institution_is_named():
+    text = "Cells were sorted at the Flow Cytometry Core, Stanford University School of Medicine."
+    assert acknowledgement_signal(text, _SHARED).ack_institution == "other"
+
+
+def test_institution_none_when_nobody_is_named():
+    """'none' is NOT a synonym for 'other': ARCH is 43% none with 0% other, so the
+    weighting conditions this bucket on alias specificity rather than flat-rating it."""
+    text = "Samples were acquired on the Flow Cytometry Core sorter."
+    assert acknowledgement_signal(text, _SHARED).ack_institution == "none"
+
+
+def test_institution_ignores_funder_boilerplate():
+    """The NIH is a funder, not a host. Counting it would read almost every
+    acknowledgements window as 'a DIFFERENT institution'."""
+    text = ("The Flow Cytometry Core is supported by the National Institutes of Health "
+            "and the National Cancer Institute under award P30CA000000.")
+    assert acknowledgement_signal(text, _SHARED).ack_institution == "none"
+
+
+def test_institution_home_when_the_alias_itself_names_wcm():
+    """Several cores list a spelled-out alias; that alias IS the affiliation."""
+    core = CoreDefinition(core_id="4", name="Flow",
+                          aliases=["Flow Cytometry Core Facility, Weill Cornell Medicine"])
+    text = "Sorting used the Flow Cytometry Core Facility, Weill Cornell Medicine."
+    assert acknowledgement_signal(text, core).ack_institution == "home"
+
+
+def test_institution_ignores_institution_words_inside_the_alias_itself():
+    """The core's own name is not somebody else's institution."""
+    core = CoreDefinition(core_id="7", name="IPM", aliases=["Institute for Precision Medicine Biobank"])
+    text = "Specimens came from the Institute for Precision Medicine Biobank."
+    assert acknowledgement_signal(text, core).ack_institution == "none"
+
+
+_JATS = (
+    "<article><body>"
+    "<sec><title>Materials and Methods</title>"
+    "<p>Cells were sorted in the Flow Cytometry Core.</p></sec>"
+    "<sec><title>Results</title><p>Data from the Epigenomics Core agreed.</p></sec>"
+    "</body><back><ack><p>We thank the Genomics Core.</p></ack></back></article>"
+)
+
+
+def test_section_reads_ack_methods_and_body_out_of_jats():
+    assert match_section(_JATS, "Genomics Core") == "ack"
+    assert match_section(_JATS, "Flow Cytometry Core") == "methods"
+    assert match_section(_JATS, "Epigenomics Core") == "body"
+
+
+def test_section_degrades_to_blank_without_xml_and_changes_no_score():
+    """Feature 3 is EXTRACTED, not priced — plain text alone leaves it unknown, and
+    the likelihood is identical with and without the structure."""
+    plain = "We thank the Flow Cytometry Core at Weill Cornell Medicine."
+    xml = f"<article><back><ack><p>{plain}</p></ack></back></article>"
+    assert acknowledgement_signal(plain, _SHARED).ack_section == ""
+    assert acknowledgement_signal(plain, _SHARED, xml=xml).ack_section == "ack"
+    assert (combine("1", "4", acknowledgement_signal(plain, _SHARED)).likelihood
+            == combine("1", "4", acknowledgement_signal(plain, _SHARED, xml=xml)).likelihood)
+
+
+# --- dictionary: both new keys are optional --------------------------------
+def _write_dict(tmp_path, body: str):
+    p = tmp_path / "core_dictionary.yaml"
+    p.write_text(body)
+    return p
+
+
+def test_dictionary_defaults_when_the_new_keys_are_absent(tmp_path):
+    from pipeline_cores.models import DEFAULT_PARTNER_INSTITUTIONS
+    p = _write_dict(tmp_path, 'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n')
+    c = load_cores(p)[0]
+    assert c.alias_hits == {}                                   # nothing cached yet
+    assert c.partner_institutions == DEFAULT_PARTNER_INSTITUTIONS
+
+
+def test_dictionary_reads_alias_hits_and_an_explicit_partner_optout(tmp_path):
+    p = _write_dict(tmp_path,
+                    'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n'
+                    '    partner_institutions: []\n    alias_hits:\n      "Test Core": 17\n')
+    c = load_cores(p)[0]
+    assert c.alias_hits == {"Test Core": 17}
+    assert c.partner_institutions == []                          # opted out, not re-defaulted
+
+
+def test_shipped_dictionary_carries_a_hit_count_for_every_searchable_alias():
+    """`refresh_alias_hits --write` has been run, so specificity is live rather than
+    everything falling back to the "unknown" bucket. Acronyms are absent by design
+    (esearch has no case-sensitive mode)."""
+    from pipeline_cores.signals import _ACRONYM
+    for c in load_cores():
+        assert "Rockefeller" in c.partner_institutions
+        assert c.confirm_threshold is None and c.triage_threshold is None   # no core opts out yet
+        searchable = [a for a in c.aliases if not _ACRONYM.match(a)]
+        assert sorted(c.alias_hits) == sorted(searchable), c.core_id
+        assert all(n >= 0 for n in c.alias_hits.values())
+
+
+# --- refresh_alias_hits — cache the specificity counts, no network ---------
+def test_fetch_hits_skips_acronyms_and_survives_a_bad_alias():
+    """esearch has no case-sensitive mode, so an acronym's count would be the very
+    noise the matcher's word-boundary rule exists to exclude."""
+    from pipeline_cores import refresh_alias_hits as rah
+
+    asked = []
+
+    def counter(alias):
+        asked.append(alias)
+        if alias == "Bad Alias":
+            raise TimeoutError("ncbi hiccup")
+        return 42
+
+    core = CoreDefinition(core_id="14", name="RI", aliases=["Good Alias", "ARCH", "Bad Alias"])
+    assert rah.fetch_hits(core, counter=counter) == {"Good Alias": 42}
+    assert asked == ["Good Alias", "Bad Alias"]      # the acronym was never searched
+
+
+def test_refresh_writes_the_block_in_place_and_keeps_every_comment(tmp_path):
+    """safe_dump would strip the dictionary's comments — the project's IP — so the
+    write is a surgical line edit, and re-running replaces rather than stacks."""
+    from pipeline_cores import refresh_alias_hits as rah
+
+    text = ('# header comment\n'
+            'cores:\n'
+            '  - core_id: "4"\n'
+            '    name: Flow Cytometry\n'
+            '    aliases:\n'
+            '      - "Flow Cytometry Core"\n'
+            '    # a comment inside the entry\n'
+            '    staff: []\n')
+    out = rah.write_hits(text, {"4": {"Flow Cytometry Core": 23544}})
+    assert "# header comment" in out and "# a comment inside the entry" in out
+    assert load_cores(_write_dict(tmp_path, out))[0].alias_hits == {"Flow Cytometry Core": 23544}
+
+    again = rah.write_hits(out, {"4": {"Flow Cytometry Core": 25000}})
+    assert again.count("alias_hits:") == 1                       # replaced, not stacked
+    assert load_cores(_write_dict(tmp_path, again))[0].alias_hits == {"Flow Cytometry Core": 25000}
+
+
+def test_refresh_leaves_a_core_with_no_counts_untouched():
+    from pipeline_cores import refresh_alias_hits as rah
+
+    text = 'cores:\n  - core_id: "4"\n    name: Flow\n    aliases:\n      - "FCC"\n'
+    assert rah.write_hits(text, {"4": {}}) == text                # all-acronym core: nothing to cache
+
+
+def test_esearch_count_is_one_request_with_no_id_list(monkeypatch):
+    from pipeline_cores import pmc_search
+
+    calls = []
+
+    def fake_get(url, params, timeout):
+        calls.append(params)
+        return {"esearchresult": {"count": "23544", "idlist": []}}
+
+    monkeypatch.setattr(pmc_search, "_get_json", fake_get)
+    assert pmc_search.esearch_count("Flow Cytometry Core") == 23544
+    assert len(calls) == 1 and calls[0]["retmax"] == 0            # count only, no paging
+
+
+# ---------------------------------------------------------------------------
+# The log-odds combiner (evidence-scoring SPEC phase 2). What the weights BUY:
+# an ordering the 0.98/0.95 constants could not express, and a score that spreads.
+# ---------------------------------------------------------------------------
+def _ack(hits, institution, **kw):
+    return SignalResult(ack_matched=True, ack_alias="x", ack_alias_hits=hits,
+                        ack_institution=institution, **kw)
+
+
+def test_score_is_monotone_in_the_evidence():
+    """More evidence, and better evidence, both score higher — the property the
+    constants destroyed (0.98 for any match at all, whatever it said)."""
+    nothing = score(SignalResult())
+    llm_only = score(SignalResult(llm_score=6))
+    llm_plus_affinity = score(SignalResult(llm_score=6, author_affinity=0.85))
+    plus_staff = score(SignalResult(llm_score=6, author_affinity=0.85, coauthor_cwids=["a"]))
+    plus_ack = score(_ack(20, "home", llm_score=6, author_affinity=0.85, coauthor_cwids=["a"]))
+    assert nothing < llm_only < llm_plus_affinity < plus_staff < plus_ack
+
+    # ...and monotone WITHIN a signal, not only across signals.
+    assert score(SignalResult(llm_score=3)) < score(SignalResult(llm_score=7))
+    assert score(SignalResult(author_affinity=0.45)) < score(SignalResult(author_affinity=0.85))
+    assert score(_ack(23544, "home")) < score(_ack(20, "home"))          # specificity
+    assert score(_ack(20, "other")) < score(_ack(20, "none")) < score(_ack(20, "home"))
+
+
+def test_a_specific_alias_at_home_outranks_a_generic_one_elsewhere():
+    """The headline case the old combiner scored IDENTICALLY at 0.98: an
+    `Architecture for Research Computing in Health` (20 global PMC hits, 100%
+    precision measured) match beside Weill Cornell, against a `Flow Cytometry Core`
+    (23,544 hits, 24%) match beside a different institution."""
+    ours = combine("1", "14", _ack(20, "home"))
+    theirs = combine("2", "4", _ack(23544, "other"))
+    assert ours.likelihood > 0.99 and ours.status == STATUS_CONFIRMED
+    assert theirs.likelihood < 0.01 and theirs.status == STATUS_BELOW
+    # ...and a generic alias is not condemned FOR being generic. Beside a home
+    # institution it survives (measured: -5.07 for the alias, +3.47 for the window),
+    # which is the shared-core case a hard WCM gate would have thrown away.
+    assert score(_ack(23544, "home")) > score(_ack(23544, "none")) > 0
+    assert combine("3", "4", _ack(23544, "home")).status == STATUS_CONFIRMED
+    assert combine("4", "4", _ack(23544, "none")).status == STATUS_BELOW
+
+
+def test_section_is_extracted_but_contributes_nothing_yet():
+    """SPEC decision 3: <ack> vs methods vs body is unmeasured, so it must move no
+    score until a labelling pass prices it. Delete this test when it is fitted."""
+    base = _ack(20, "home")
+    for section in ("ack", "methods", "body", ""):
+        assert score(_ack(20, "home", ack_section=section)) == score(base), section
+    from pipeline_cores.combine import WEIGHTS
+    assert {WEIGHTS[k] for k in WEIGHTS if k.startswith("sec:")} == {0.0}
+
+
+def test_explain_accounts_for_the_whole_score():
+    """The queue has to be able to say WHY, so the parts must sum to the whole."""
+    sig = _ack(20, "home", ack_section="ack", llm_score=8, author_affinity=0.85,
+               coauthor_cwids=["a", "b"])
+    total = PRIOR_LOGIT + sum(w for _, w in explain(sig))
+    assert abs(score(sig) - 1 / (1 + math.exp(-total))) < 1e-12
+    assert [f for f, _ in explain(sig)] == sorted(
+        [f for f, _ in explain(sig)], key=lambda f: -abs(dict(explain(sig))[f]))
+
+
+def test_per_core_thresholds_override_the_defaults():
+    """Status is a threshold now, and decision 1 made it configurable per core."""
+    sig = SignalResult(llm_score=9)                       # candidate at the defaults
+    assert combine("1", "9", sig).status == STATUS_CANDIDATE
+    strict = CoreDefinition(core_id="9", name="T", aliases=["T Core"], triage_threshold=0.99)
+    assert combine("1", "9", sig, core=strict).status == STATUS_BELOW
+    loose = CoreDefinition(core_id="9", name="T", aliases=["T Core"], confirm_threshold=0.5)
+    assert combine("1", "9", sig, core=loose).status == STATUS_CONFIRMED
+    # an explicit argument still beats the core's own override
+    assert combine("1", "9", sig, core=strict, triage_threshold=0.1).status == STATUS_CANDIDATE
+
+
+def test_the_score_spreads_where_noisy_or_saturated():
+    """The whole point. The evidence a candidate pool actually varies on — an LLM
+    score and a repeat-user prior — piles up against the top of the range under
+    noisy-OR (that is how core 14's 347 candidates all landed in 0.802-0.985). In
+    log-odds the same combinations use the whole range instead."""
+    from pipeline_cores.combine import noisy_or
+    combos = [SignalResult(llm_score=s, author_affinity=a)
+              for s in range(1, 10) for a in (0.0, 0.45, 0.6, 0.6975, 0.78, 0.85)]
+    old = sorted(round(noisy_or((c.llm_score or 0) / 10.0, c.author_affinity), 4) for c in combos)
+    new = sorted(round(score(c), 4) for c in combos)
+    assert max(old) - min(old) < 0.9 and min(old) > 0.09      # noisy-OR never goes near 0
+    assert max(new) - min(new) > max(old) - min(old)
+    # noisy-OR crowds the top — its MEDIAN combination is already 0.84, which is why
+    # the pool was unrankable. Log-odds puts the median in the middle of the range.
+    assert statistics.median(old) > 0.8
+    assert 0.3 < statistics.median(new) < 0.7
+    # NOT asserted: that log-odds yields MORE distinct values. It does not here (40
+    # vs 51) — a product of two continuous inputs collides less often than a sum of
+    # them. Distinct-count is the wrong yardstick for spread; WHERE the mass sits is
+    # the right one, which is what the two assertions above pin.

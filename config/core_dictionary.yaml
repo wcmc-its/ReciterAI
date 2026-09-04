@@ -5,6 +5,14 @@
 # surname — e.g. 511 resolved "Voss" rows are the oncologist mhv9001, not CBIC's
 # hev2006). grant_ids stays empty: validation found no shared core grant.
 #
+# Two optional per-core keys, both with safe defaults (an entry without them runs):
+#   partner_institutions: institutions that count as HOME for an alias match, beside
+#     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
+#     opts a core that is NOT shared out of partner credit.
+#   alias_hits: alias -> global PMC hit count, cached by
+#     `python3 -m pipeline_cores.refresh_alias_hits --write`. Alias specificity predicts
+#     precision (r=-0.852 vs home%); never fetched during a scoring run.
+#
 # Starting list = the 13 cores in
 # "Projects/Inferring Cores and Services/Core inference prompt 0.txt".
 # Only Biomedical Imaging is resolved so far.
@@ -19,6 +27,9 @@ cores:
       - "Citigroup Biomedical Imaging Core Facility"
       - "Biomedical Imaging Core Facility"
       - "CBIC"                  # acronym — matched on word boundary only
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Citigroup Biomedical Imaging Center": 197
+      "Biomedical Imaging Core Facility": 62
     staff:
       - { cwid: djb2001, name: "Douglas J. Ballon",  dept: Radiology, tracked: true }
       - { cwid: jpd2001, name: "Jonathan P. Dyke",   dept: Radiology, tracked: true }
@@ -55,6 +66,9 @@ cores:
       - "Applied Bioinformatics Core Facility"
       - "Applied Bioinformatics Core (ABC)"
       - "Applied Bioinformatics Core at Weill Cornell Medicine"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Applied Bioinformatics Core": 88
+      "Applied Bioinformatics Core at Weill Cornell Medicine": 4
     staff:
       - { cwid: dob2014, name: "Doron Betel",     dept: Medicine, tracked: true }
       - { cwid: paz2005, name: "Paul Zumbo",      dept: "Systems and Computational Biomedicine", tracked: true }
@@ -76,6 +90,11 @@ cores:
       - "Epigenomics Core Facility"
       - "Weill Cornell Medicine Epigenomics Core"
       - "Epigenomics Core of Weill Cornell Medicine"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Epigenomics Core": 666
+      "Epigenomics Core Facility": 294
+      "Weill Cornell Medicine Epigenomics Core": 34
+      "Epigenomics Core of Weill Cornell Medicine": 23
     staff:
       - { cwid: dob2014, name: "Doron Betel",      dept: Medicine, tracked: true }
       - { cwid: kab3004, name: "Kalpita Banerjee", dept: Ophthalmology, tracked: true }
@@ -97,6 +116,11 @@ cores:
       - "Flow Cytometry Core Facility, Weill Cornell Medicine"
       - "Weill Cornell Medicine Flow Cytometry Core"
       - "Flow Cytometry Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Flow Cytometry Core Facility": 10739
+      "Flow Cytometry Core Facility, Weill Cornell Medicine": 11
+      "Weill Cornell Medicine Flow Cytometry Core": 32
+      "Flow Cytometry Core": 23546
     # Managers McCormick/Baumgartner + staff Byrne/Romero are NOT ReCiter target
     # persons -> no signal-2 coverage. Aliases-only until added to the target feed.
     staff: []
@@ -114,6 +138,10 @@ cores:
       - "Genomics Resources Core Facility at Weill Cornell Medicine"
       - "Weill Cornell Medicine Genomics Resources Core Facility"
       - "GRCF"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Genomics Resources Core Facility": 366
+      "Genomics Resources Core Facility at Weill Cornell Medicine": 45
+      "Weill Cornell Medicine Genomics Resources Core Facility": 34
     staff:
       - { cwid: jzx2002, name: "Jenny Xiang",         dept: "Microbiology and Immunology", tracked: true }
       - { cwid: taz2008, name: "Tuo Zhang",           dept: "", tracked: true }
@@ -136,6 +164,10 @@ cores:
       - "Weill Cornell Institutional Biorepository Core"
       - "Institutional Biorepository Core (IBC)"
       - "WCM Institutional Biorepository Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Institutional Biorepository Core": 6
+      "Weill Cornell Institutional Biorepository Core": 2
+      "WCM Institutional Biorepository Core": 1
     # Director Salpietro + technicians are not ReCiter target persons. This core is
     # typically ACKNOWLEDGED by name (e.g. PMC8564891), so signal-3 alias text-match
     # is the operative signal; co-authorship (signal 2) is unavailable.
@@ -156,6 +188,11 @@ cores:
       - "Weill Cornell Metabolic Phenotyping Center"
       - "WCM Metabolic Phenotyping Center"
       - "Metabolic Phenotyping Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Metabolic Phenotyping Center": 1407
+      "Weill Cornell Metabolic Phenotyping Center": 2
+      "WCM Metabolic Phenotyping Center": 2
+      "Metabolic Phenotyping Core": 853
     # Core Manager Debarba + Technician Lama are not ReCiter target persons; the
     # five faculty are an ADVISORY BOARD (own labs) and are excluded to protect
     # precision. Aliases-only until core staff are added to the target feed.
@@ -176,6 +213,12 @@ cores:
       - "Weill Cornell Microbiome Core"
       - "WCM Microbiome Core"
       - "Microbiome Sequencing Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Microbiome Core": 1160
+      "Weill Cornell Medicine Microbiome Core": 8
+      "Weill Cornell Microbiome Core": 4
+      "WCM Microbiome Core": 2
+      "Microbiome Sequencing Core": 19
     # Operational staff (manager Gandara, bioinformatician Grier) are not ReCiter
     # target persons. The co-founders below ARE tracked but run large independent
     # labs -> tracked: false to avoid over-confirming their non-core papers.
@@ -197,6 +240,8 @@ cores:
       - "Advanced Biomolecular Analysis Core (ABAC)"
       - "ABAC"
       - "WCM Advanced Biomolecular Analysis Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Advanced Biomolecular Analysis Core": 1
     staff:
       - { cwid: qic2005, name: "Qiuying Chen",  dept: Pharmacology, tracked: true }
       # Director; no resolved-author rows (0 pubs in analysis_summary_author) and may
@@ -217,6 +262,9 @@ cores:
       - "Human Immune Monitoring Core (HIMC)"
       - "Ellen and Gary Davis Immune Monitoring Core"
       - "Davis Cancer Immune Monitoring Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Human Immune Monitoring Core": 238
+      "Human Immune Monitoring Core (HIMC)": 39
     # hir4001 = mass-cytometry specialist but no resolved-author rows (upstream gap);
     # nia9069 = possible faculty director with a large own lab (over-confirm risk).
     # Both tracked: false -> this core is aliases-only for now.
@@ -238,6 +286,11 @@ cores:
       - "Microscopy and Image Analysis Core Facility"
       - "Weill Cornell Medicine Microscopy and Image Analysis Core Facility"
       - "Optical Microscopy Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Microscopy and Image Analysis Core": 206
+      "Microscopy and Image Analysis Core Facility": 66
+      "Weill Cornell Medicine Microscopy and Image Analysis Core Facility": 7
+      "Optical Microscopy Core": 318
     staff:
       - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics", tracked: true }
       - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry, tracked: true }
@@ -259,6 +312,11 @@ cores:
       - "Nuclear Magnetic Resonance Core Facility"
       - "NMR Core Facility"
       - "NMR Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Nuclear Magnetic Resonance (NMR) Core Facility": 8
+      "Nuclear Magnetic Resonance Core Facility": 34
+      "NMR Core Facility": 545
+      "NMR Core": 926
     staff:
       # "W. Clay Bracken" = William Bracken in identity; sole director of this core.
       - { cwid: wcb2001, name: "William Bracken", dept: "", tracked: true }
@@ -278,6 +336,12 @@ cores:
       - "Meyer Cancer Center Proteomics and Metabolomics Core Facility"
       - "Proteomics & Metabolomics Core"
       - "Weill Cornell Proteomics & Metabolomics Core Facility"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Proteomics & Metabolomics Core Facility": 106
+      "Proteomics and Metabolomics Core Facility": 646
+      "Meyer Cancer Center Proteomics and Metabolomics Core Facility": 3
+      "Proteomics & Metabolomics Core": 192
+      "Weill Cornell Proteomics & Metabolomics Core Facility": 3
     # Director Guoan Zhang + scientists Zhu/Yang/Lei are NOT in ReCiter identity;
     # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
     # Aliases-only for now. Distinct from #9 ABAC (do not merge).
@@ -335,9 +399,9 @@ cores:
     # The bare 2-word term is DANGEROUS, not merely collision-prone: 5 of its 16
     # hits are the REDCap citation in the REFERENCE LIST ("…workflow process for
     # providing translational research informatics support", Harris 2009), and
-    # signal 3 scans the whole body including <ref-list>. Since combine() AUTO-
-    # CONFIRMS on signal 3, that alias would confirm every paper on earth that
-    # cites REDCap. The rest of its hits are generic keyword-list uses of the
+    # signal 3 scans the whole body including <ref-list>. Signal 3 carries +6.37
+    # nats in combine(), enough to confirm on its own, so that alias would confirm
+    # every paper on earth that cites REDCap. The rest of its hits are generic keyword-list uses of the
     # discipline term. ARCH ("Architecture for Research Computing in Healthcare")
     # is the actual institutional brand and is what the body text names.
     # NB the reference-list exposure is GENERIC to signal 3, not specific to this
@@ -351,11 +415,16 @@ cores:
     # hand-claimed (independent validation of the alias), 8 are new confirms.
     # "ARCH" dropped: over the 67 claimed papers with full text it buys exactly
     # ONE paper the spelled-out phrase misses, and \bARCH\b matches ARCH
-    # econometric models. Signal 3 auto-confirms, so that trade is wrong.
+    # econometric models. Signal 3 alone can carry a pair to confirmed, so that
+    # trade is wrong.
     aliases:
       - "Architecture for Research Computing"
       - "Architecture for Research Computing in Health"
       - "WCM Research Informatics"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Architecture for Research Computing": 25
+      "Architecture for Research Computing in Health": 20
+      "WCM Research Informatics": 2
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences", tracked: false }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences", tracked: false }
