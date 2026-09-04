@@ -110,6 +110,30 @@ WEIGHTS = {
     "sec:body": 0.00,
     # A tracked core-staff member on the byline. One feature, not a count.
     "staff": 4.89,                     # n=53/137 labelled yes vs 3/1200 corpus papers
+    # A curated client of this core on the byline (dictionary `clients:`). One feature,
+    # not a count, exactly like `staff`.
+    #
+    # UNFITTED, not refused. There is no curated list in the dictionary yet, so there is
+    # no n on either side and nothing to fit. It gets priced on panel B the way `staff`
+    # was (n=53/137 labelled yes vs 3/1200 corpus papers) by
+    # scripts/fit_evidence_weights.py — that script is the provenance for every other
+    # cell here and it is the only thing that may move this one. `client` is wired into
+    # its panel-B key list TODAY, so a refresh run prints the cell and REFUSES it (0
+    # hits on either side) rather than omitting the key from its paste-ready block.
+    # Until a list exists the feature is INERT: extracted, visible in explain(), and
+    # worth exactly nothing to the score.
+    #
+    # "A curated list is high-precision BY CONSTRUCTION" is not a fit. That argument is
+    # what produced the hand-picked 0.45/0.15/0.85 constants #382 deleted.
+    #
+    # PREREQUISITE for any non-zero value, not a nice-to-have: measure the overlap
+    # between `client` and the three `aff:*` buckets first. Signal 1 INFERS a core's
+    # users from prior confirmations while this key ASSERTS them, so wherever curation
+    # and confirmation history agree the two fire on the same rows and summing both
+    # double-counts — the same correlation the `ack` / `ack.spec:*` / `inst:*` family
+    # handles with the chain rule. A weight fitted on `client` marginally, without that
+    # overlap in hand, is a second copy of the affinity prior.
+    "client": 0.00,
     # Author x core affinity, bucketed on the RATE (signals.author_affinity — the
     # largest share of their own corpus output that any author on this byline has
     # already given to this core). A rate, not a count: the count could not tell a
@@ -254,6 +278,12 @@ def evidence_features(signals: SignalResult) -> list:
         # exists (14 positives, and its marginal fit comes out NON-monotone), so
         # scaling with how many staff appear waits for a labelling pass.
         out.append("staff")
+    if signals.client_cwids:
+        # One feature, not a count, exactly like `staff` — the dictionary asserts these
+        # people use the core, and a second asserted client on one byline is not a
+        # second independent claim. Weight 0.00 until it is fitted, so this key is
+        # carried and shown by explain() while moving no score.
+        out.append("client")
     if signals.author_affinity > 0:
         # The MAX rate over the byline (signals.author_affinity), bucketed. A rate of
         # 0 emits nothing, per the absent-evidence rule above — even though the cell

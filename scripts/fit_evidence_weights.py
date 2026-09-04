@@ -333,9 +333,18 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     live_llm = signals.llm_triage(BedrockClient(read_timeout=120), core,
                                   ingest.fetch_publications(engine, pmids=llm_negs))
 
+    # The curated client list, intersected with each byline exactly as run_core does
+    # it. Empty today (no core carries a `clients:` key yet), so fit() sees 0 hits on
+    # both sides and REFUSES the cell at 0.00 — which is the correct answer and the
+    # reason this is wired now rather than when a list appears: otherwise the next
+    # refresh emits a WEIGHTS block with `client` missing entirely and pasting it
+    # silently drops the key.
+    clients = set(core.clients)
+
     def sig(pmid, llm_source):
         return SignalResult(
             coauthor_cwids=coauthors.get(pmid, []),
+            client_cwids=[c for c in bylines.get(pmid, []) if c in clients],
             llm_score=llm_source.get(pmid, {}).get("score"),
             author_affinity=signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE),
         )
@@ -394,11 +403,11 @@ def main(argv=None) -> int:
     pos_b, easy_b, hard_b = panel_b(engine, neg_pmids, args.llm_negatives, args.seed)
     # In bucket order, not alphabetical: the three must come out monotone to be shippable.
     aff_keys = ["aff:trace", "aff:regular", "aff:core"]
-    fit(pos_b, easy_b, ["staff"] + aff_keys,
+    fit(pos_b, easy_b, ["staff", "client"] + aff_keys,
         "PANEL B foil — vs the label set's own EASY negatives (NOT SHIPPED)")
-    table.update(fit(pos_b, hard_b, ["staff"] + aff_keys,
-                     "PANEL B — core-staff co-authorship and the author x core affinity "
-                     "RATE (labelled yes vs random corpus)"))
+    table.update(fit(pos_b, hard_b, ["staff", "client"] + aff_keys,
+                     "PANEL B — core-staff co-authorship, curated clients and the "
+                     "author x core affinity RATE (labelled yes vs random corpus)"))
     # The rate == 0 cell, printed because combine.py cites it and NOT shipped: there is no
     # aff:none key for fit() to count, because evidence_features() emits nothing for absent
     # evidence. Pricing this absence while every other absent feature stays silent would
