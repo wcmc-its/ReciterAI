@@ -177,58 +177,83 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None) -> dict
 
 
 # ---------------------------------------------------------------------------
-# Signal 1 — author x core affinity (repeat-user prior; compounding)
+# Signal 1 — author x core affinity (repeat-user RATE)
 # ---------------------------------------------------------------------------
-# Affinity strength as a function of how many confirmed/claimed papers an author
-# has for a core. Core users are overwhelmingly repeat users, so even one prior
-# confirmed paper is a meaningful prior; more confirmed papers -> stronger, with
-# a cap below the deterministic-confirmer likelihoods.
-_AFFINITY_BASE = 0.45      # one confirmed paper by this author for this core
-_AFFINITY_STEP = 0.15      # per additional confirmed paper
-_AFFINITY_CAP = 0.85
+# How much of an author's OWN output already belongs to this core, not how many
+# papers of theirs do. Core users are overwhelmingly repeat users, but a raw
+# confirmed-paper count cannot tell a core's regular from someone who passed
+# through it four times: the hand-picked curve this replaced (0.45 + 0.15 per
+# extra paper, capped at 0.85) put a single author with 4 confirms at the ceiling,
+# left 83.9% of core 14's live 347-row queue on that one value, and took 6 distinct
+# values in total. The rate separates where the count could not — panel B
+# conditional AUC 0.8770 vs 0.8091, 39 distinct values on those same 347 rows with
+# a largest tie of 19.3% (vs 83.3%) — which is what lets combine.WEIGHTS price it
+# as three fitted buckets instead of a slope through a made-up curve.
 
 
-def affinity_strength(confirmed_count: int) -> float:
-    if confirmed_count <= 0:
-        return 0.0
-    return min(_AFFINITY_CAP, _AFFINITY_BASE + _AFFINITY_STEP * (confirmed_count - 1))
-
-
-def build_affinity_index(user_paper_counts: dict) -> dict:
-    """cwid -> {core_id: strength} from per-(cwid, core) confirmed-paper counts.
+def build_affinity_index(user_paper_counts: dict, author_totals: dict) -> dict:
+    """cwid -> {core_id: rate}: each author's SHARE of their own corpus output
+    that already belongs to the core.
 
     `user_paper_counts` maps cwid -> {core_id: n_confirmed_papers}, aggregated
     from this run's confirmations plus prior confirmed/claimed records.
+    `author_totals` maps cwid -> that author's TOTAL papers in the scoreable WCM
+    corpus (ingest.fetch_author_totals). The denominator is the CORPUS (80,203
+    pubs / 13,960 resolved authors), NOT all of analysis_summary_author (392,769
+    pmids): the unrestricted form deflates every rate by ~4x, which walks real
+    core regulars down out of the top bucket.
+
+    An author with NO corpus total is DROPPED, not floored. "We could not measure this
+    author's output" and "this author's entire output is this core's work" are opposite
+    claims, and flooring conflated them into rate 1.0 = `aff:core` = +4.93 nats, which
+    alone clears DEFAULT_CONFIRM_THRESHOLD — so an unmeasurable author auto-confirmed
+    every paper they touched, with no acknowledgement, no staff co-author and no LLM
+    score behind it. Absent evidence contributes nothing here, as everywhere else.
+
+    n > total should be impossible once the caller gates its numerator through
+    ingest.filter_corpus_pmids (both sides of the ratio on the corpus), so it is clamped
+    AND logged rather than silently floored: it means a caller skipped the gate.
     """
     index: dict = {}
+    missing, over = [], []
     for cwid, by_core in user_paper_counts.items():
-        index[cwid] = {core_id: affinity_strength(n) for core_id, n in by_core.items()}
+        total = author_totals.get(cwid, 0)
+        if not total:
+            missing.append(cwid)
+            continue
+        if any(n > total for n in by_core.values()):
+            over.append(cwid)
+        index[cwid] = {core_id: min(n / total, 1.0) for core_id, n in by_core.items()}
+    if missing:
+        logger.warning("build_affinity_index: %d authors have no corpus paper total and "
+                       "were DROPPED from the affinity index (rate unknown, not maximal)",
+                       len(missing))
+    if over:
+        logger.warning("build_affinity_index: %d authors have more core confirms than "
+                       "corpus papers — the numerator was not gated through "
+                       "ingest.filter_corpus_pmids; rates clamped to 1.0", len(over))
     return index
 
 
 def author_affinity(affinity_index: dict, byline_cwids: list, core_id: str) -> float:
-    """Prior that THIS paper used the core, from its authors' confirmed history.
+    """Prior that THIS paper used the core: the MAX rate across its byline.
 
-    Noisy-OR across the byline's per-author strengths — two repeat users of the
-    core on one paper are stronger combined evidence than either alone:
-    1 - Π(1 - strength_i). Clamped to _AFFINITY_CAP so the prior never reaches the
-    deterministic-confirmer ceiling (a real acknowledgement/staff-coauthor must
-    still outrank any stack of priors). `affinity_index` is the output of
-    build_affinity_index (cwid -> {core_id: strength}).
+    MAX, not noisy-OR. Noisy-OR over the byline is a monotone function of HOW MANY
+    authors fire, and that count is the one thing measured NOT to separate here
+    (panel B AUC 0.6505, and its curve turns over past k=2). One author whose work
+    is largely this core's work is the evidence; four people who each used the core
+    once are not four times that, and under noisy-OR they outscored the core's
+    heaviest single user. Returns 0.0 when no author on the byline has any history
+    with the core. `affinity_index` is the output of build_affinity_index
+    (cwid -> {core_id: rate}).
 
     TODO(calibration): per-author time decay — weight each confirmation by recency
     so a 2014 paper counts less than a 2024 one. Deferred: needs the publication
     year carried into persist.scan_prior_core_usage and a half-life tuned on
     analysis/labeled_set.csv before it can be trusted.
     """
-    complement = 1.0
-    for cwid in byline_cwids:
-        strength = affinity_index.get(cwid, {}).get(core_id, 0.0)
-        if strength > 0.0:
-            complement *= (1.0 - strength)
-    if complement >= 1.0:                       # no author contributed any affinity
-        return 0.0
-    return min(_AFFINITY_CAP, 1.0 - complement)
+    return max((affinity_index.get(cwid, {}).get(core_id, 0.0) for cwid in byline_cwids),
+               default=0.0)
 
 
 # ---------------------------------------------------------------------------

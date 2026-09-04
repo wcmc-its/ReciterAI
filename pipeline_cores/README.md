@@ -54,8 +54,11 @@ forbidden. `run.py` does not yet pass the XML through, so it is `""` in producti
 `run_core` runs two phases — deterministic+LLM first, then it attributes every
 confirmed/claimed paper (this run + prior runs via DynamoDB) to its byline
 authors and re-scores the rest. One confirmation thus lifts all of that author's
-other papers. `affinity_strength(n)` scales 0.45→0.85 with the author's confirmed
-count for the core.
+other papers. The strength of that lift is a **rate**, not a count:
+`build_affinity_index(counts, totals)` divides each author's confirmed papers for the
+core by their total papers in the scoreable corpus, and `author_affinity` takes the
+**max** over the byline. `combine.WEIGHTS` prices it in three fitted buckets
+(`aff:trace` / `aff:regular` / `aff:core`, edges at 0.05 and 0.70).
 
 ## Data flow
 ```
@@ -102,9 +105,12 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
     93.4%, while ~doubling dense fan-out). The screen must be recall-first, so the
     **per-core screen carries the full run** until the all-cores path re-calibrates to
     parity. Re-run that script before flipping it on.
-  - **noisy-OR author affinity** — `signals.author_affinity` combines a paper's
-    repeat-user co-authors with 1−Π(1−sᵢ) (was: max), clamped below the
-    deterministic-confirmer ceiling.
+  - **author-affinity RATE** — `signals.author_affinity` is the max over the byline
+    of each author's *share* of their own corpus output already confirmed for the
+    core. Replaced the hand-picked count curve (0.45→0.85, capped) **and** its
+    noisy-OR aggregation: the count put 83.9% of core 14's live 347-row queue on one
+    value, and noisy-OR is a monotone function of how many authors fire — the one
+    feature measured *not* to separate (AUC 0.6505 vs 0.8770 for the rate).
 
 ### LLM-triage calibration (237-paper pilot, Bedrock Haiku 4.5 + Sonnet 4.6)
 - Haiku screen at `SCREEN_CUTOFF=2` → **100% recall** (no true positives lost before dense scoring).

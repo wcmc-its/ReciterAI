@@ -73,7 +73,9 @@ class SignalResult:
     ack_snippet: str = ""
     llm_score: Optional[int] = None                       # 1-10 dense triage (None = not scored)
     llm_rationale: str = ""                               # short Sonnet rationale (<=80 chars)
-    author_affinity: float = 0.0                          # 0-1 prior from claims/ack/coauthorship
+    author_affinity: float = 0.0                          # 0-1 repeat-user RATE: the largest share
+                                                          # of their own corpus output any author on
+                                                          # this byline has already given to this core
     # --- ack evidence, EXTRACTED but not yet priced (evidence-scoring SPEC phase 1) ---
     ack_alias_hits: Optional[int] = None   # matched alias's global PMC hits (None = uncached)
     ack_institution: str = ""              # "home" | "other" | "none"  ("" = no ack match)

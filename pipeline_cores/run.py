@@ -62,6 +62,13 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
         return counts
     from pipeline_cores.persist import scan_prior_core_usage  # lazy
     recs = list(scan_prior_core_usage(core_id))
+    # Gate the NUMERATOR to the same corpus as the denominator. DynamoDB holds
+    # confirmed/claimed rows for papers this pipeline does not score, and counting
+    # those against a corpus-restricted total inflates the rate into the strongest
+    # bucket — 19 of core 14's 43 prior rows are outside the corpus.
+    if engine is not None:
+        in_corpus = ingest.filter_corpus_pmids(engine, {r["pmid"] for r in recs})
+        recs = [r for r in recs if r["pmid"] in in_corpus]
     missing = sorted({r["pmid"] for r in recs} - set(bylines))
     if missing and engine is not None:
         bylines = {**bylines, **ingest.fetch_author_bylines(engine, missing)}
@@ -76,9 +83,10 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
-    aggregates this run's confirmations (+ prior_user_counts) to author level and
-    re-scores the not-yet-confirmed records with the affinity prior. Confirmed
-    records are untouched (already at ceiling)."""
+    aggregates this run's confirmations (+ prior_user_counts) to author level, divides
+    each author's count by their TOTAL corpus output to get the affinity rate, and
+    re-scores the not-yet-confirmed records with it. Confirmed records are untouched
+    (already at ceiling)."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
@@ -110,7 +118,11 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         if rec.status == STATUS_CONFIRMED:
             for cwid in bylines.get(rec.pmid, []):
                 counts[cwid][core.core_id] += 1
-    affinity_index = signals.build_affinity_index(counts)
+    # The rate's denominator, for the authors that actually have confirmations. Scoped
+    # to those cwids rather than the whole corpus: it is the same number either way,
+    # and this run may only be scoring a pool.
+    author_totals = ingest.fetch_author_totals(engine, list(counts))
+    affinity_index = signals.build_affinity_index(counts, author_totals)
 
     out = []
     for rec in records:
@@ -128,10 +140,10 @@ def read_pmids_file(path: str) -> list:
     """PMIDs from a newline-separated file; blanks and `#` comments ignored.
 
     Exists so an expensive signal can re-score an EXISTING candidate pool
-    instead of the whole corpus. The affinity prior produces a nearly flat
-    likelihood — core 14's 404 candidates all landed in 0.84-0.85 — so the pool
-    is unrankable until something with more resolution scores it, but running
-    the LLM over 80k publications to rank 404 of them is the wrong trade.
+    instead of the whole corpus: running the LLM over 80k publications to rank
+    404 of them is the wrong trade. (The cheap signals no longer leave the pool
+    unrankable on their own — the affinity RATE took core 14's 347 rows from 6
+    distinct values to 39 — but the LLM is still the resolution that ranks it.)
     """
     out = []
     with open(path) as fh:

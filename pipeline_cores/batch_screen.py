@@ -112,16 +112,23 @@ def screen_core(core, pubs, *, bedrock, mesh_pmids: set, author_pmids: set,
     return out
 
 
-def _prior_signals(core, pmids: list, bylines: dict, *, with_affinity: bool = True) -> tuple:
+def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: bool = True) -> tuple:
     """One scan of this core's prior confirmed/claimed rows -> (confirmed_pmids, author_pmids).
 
     A single `scan_prior_core_usage(core_id)` feeds BOTH the confirmed-set (pubs to skip
     re-screening) and the repeat-user affinity prior (pubs whose byline has a prior user of
     this core), rather than scanning the table twice per core. `bylines` is hoisted by the
-    caller (shared across cores). author_pmids is empty when with_affinity is False or on the
-    first run / a scan error (degrades to the MeSH-only prior).
+    caller (shared across cores); `engine` is only used to read the affinity rate's
+    denominator (each author's total corpus output). author_pmids is empty when
+    with_affinity is False or on the first run / a scan error (degrades to the MeSH-only
+    prior).
+
+    The set is unchanged by the count -> rate switch: this consumer asks only whether the
+    prior fires at all, and any positive count still gives a positive rate. It is the
+    WEIGHT that the rate changed, in combine().
     """
     from collections import defaultdict
+    from pipeline_cores import ingest  # lazy
     from pipeline_cores.persist import scan_prior_core_usage  # lazy
 
     prior = scan_prior_core_usage(core.core_id)
@@ -129,10 +136,13 @@ def _prior_signals(core, pmids: list, bylines: dict, *, with_affinity: bool = Tr
     if not with_affinity:
         return confirmed, set()
     counts = defaultdict(lambda: defaultdict(int))
+    in_corpus = ingest.filter_corpus_pmids(engine, {str(r["pmid"]) for r in prior})
     for rec in prior:
+        if str(rec["pmid"]) not in in_corpus:      # numerator on the same corpus as the total
+            continue
         for cwid in bylines.get(str(rec["pmid"]), []):
             counts[cwid][rec["core_id"]] += 1
-    index = signals.build_affinity_index(counts)
+    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
     author = {str(p) for p in pmids
               if signals.author_affinity(index, bylines.get(str(p), []), core.core_id) > 0.0}
     return confirmed, author
@@ -179,7 +189,8 @@ def main(argv=None):
     total_written = total_candidate = total_curator = total_drop = 0
     for core in cores:
         mesh_pmids = prefilter.core_mesh_tree_pmids(engine, core.core_id, pmids)
-        confirmed, author_pmids = _prior_signals(core, pmids, bylines, with_affinity=not args.no_affinity)
+        confirmed, author_pmids = _prior_signals(core, pmids, bylines, engine,
+                                                 with_affinity=not args.no_affinity)
         results = screen_core(
             core, pubs, bedrock=bedrock, mesh_pmids=mesh_pmids, author_pmids=author_pmids,
             confirmed_pmids=confirmed, batch_size=args.batch_size,
