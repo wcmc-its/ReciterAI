@@ -581,6 +581,15 @@ def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
     assert recs["100"].signals.client_cwids == ["cwid1"]     # only the curated one
     assert recs["200"].signals.client_cwids == []
 
+    # CWID casing is not stable across sources, and the curated list is hand-typed,
+    # so the match is case-insensitive on both sides (load_cores lowercases the list;
+    # run_core lowercases the byline).
+    core.clients = ["cwid1"]
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["CWID1"], "200": []})
+    recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                            scored_at="t", engine=None)}
+    assert recs["100"].signals.client_cwids == ["CWID1"]     # byline casing preserved
+
 
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
     """fulltext cache -> acknowledgement_signal -> combine == confirmed."""
@@ -1099,7 +1108,17 @@ def test_dictionary_reads_a_curated_client_list_as_cwid_strings(tmp_path):
     p = _write_dict(tmp_path,
                     'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n'
                     '    clients: [cwid1, 4242]\n')
-    assert load_cores(p)[0].clients == ["cwid1", "4242"]
+    assert load_cores(p)[0].clients == ["4242", "cwid1"]
+
+
+def test_dictionary_normalises_hand_typed_client_cwids(tmp_path):
+    """Unlike `staff`, this list is hand-typed into YAML, so a stray capital or a
+    trailing space would match no byline, fire no signal, and raise nothing anywhere.
+    Case-folded, stripped, de-duplicated and empties dropped at load."""
+    p = _write_dict(tmp_path,
+                    'cores:\n  - core_id: "9"\n    name: Test\n    aliases: ["Test Core"]\n'
+                    '    clients: ["ABC1234", " abc1234 ", "abc1234", "", "  ", "XyZ9"]\n')
+    assert load_cores(p)[0].clients == ["abc1234", "xyz9"]
 
 
 # The nine aliases PMC cannot run as a phrase. esearch does not error on one: it

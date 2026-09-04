@@ -97,7 +97,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     # Curated clients, intersected with each byline below. Asserted rather than
     # inferred, so this fires on a core with zero prior confirmations — the case the
     # phase-2 affinity prior cannot reach.
-    clients = set(core.clients)
+    clients = set(core.clients)  # already lowercased/stripped by load_cores
 
     # Phase 1 — deterministic + LLM signals.
     sigs, records = {}, []
@@ -105,7 +105,10 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         pmid = pub["pmid"]
         sig = signals.acknowledgement_signal(full_text(pmid), core)
         sig.coauthor_cwids = coauthors.get(pmid, [])
-        sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid in clients]
+        # Lowercased on both sides: CWID casing is not stable across sources (SPS
+        # compares them case-insensitively throughout for the same reason), and the
+        # curated list is hand-typed.
+        sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid.lower() in clients]
         tri = llm_scores.get(pmid)
         if tri:
             sig.llm_score = tri["score"]

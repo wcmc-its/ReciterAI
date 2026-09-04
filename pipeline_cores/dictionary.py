@@ -43,8 +43,13 @@ def load_cores(path: Path = None) -> list:
                 alias_hits={str(k): int(v) for k, v in (c.get("alias_hits") or {}).items()},
                 # Optional like the two above, same reason: an un-updated dictionary
                 # still runs. Coerced to str so a cwid that YAML happens to read as a
-                # number still compares against a byline, which is a list of strings.
-                clients=[str(x) for x in (c.get("clients") or [])],
+                # number still compares against a byline, which is a list of strings —
+                # and CASE-FOLDED + stripped, because unlike `staff` (resolved by a DB
+                # join) this list is hand-typed into YAML. A stray "ABC1234 " would
+                # otherwise match no byline, fire no signal, and raise no error
+                # anywhere: an undiagnosable silent no-op. Bylines are lowercased at
+                # the comparison in run.py to match.
+                clients=sorted({str(x).strip().lower() for x in (c.get("clients") or []) if str(x).strip()}),
                 # Absent = combine()'s module default; a core only says so when it
                 # needs a different bar from everyone else.
                 confirm_threshold=_opt_float(c.get("confirm_threshold")),

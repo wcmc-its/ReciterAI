@@ -117,8 +117,11 @@ WEIGHTS = {
     # no n on either side and nothing to fit. It gets priced on panel B the way `staff`
     # was (n=53/137 labelled yes vs 3/1200 corpus papers) by
     # scripts/fit_evidence_weights.py — that script is the provenance for every other
-    # cell here and it is the only thing that may move this one. Until then the feature
-    # is INERT: extracted, visible in explain(), and worth exactly nothing to the score.
+    # cell here and it is the only thing that may move this one. `client` is wired into
+    # its panel-B key list TODAY, so a refresh run prints the cell and REFUSES it (0
+    # hits on either side) rather than omitting the key from its paste-ready block.
+    # Until a list exists the feature is INERT: extracted, visible in explain(), and
+    # worth exactly nothing to the score.
     #
     # "A curated list is high-precision BY CONSTRUCTION" is not a fit. That argument is
     # what produced the hand-picked 0.45/0.15/0.85 constants #382 deleted.
