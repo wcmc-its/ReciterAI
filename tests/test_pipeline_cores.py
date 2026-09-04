@@ -398,6 +398,42 @@ def test_triage_screened_in_runs_dense_and_keeps_rationale():
     assert out["5"]["rationale"] == "used 3T MRI at the core"
 
 
+def test_triage_rationale_is_trimmed_on_a_word_boundary():
+    """The dense prompt asks for "<=80 chars" and the model overruns anyway; the bare
+    [:80] slice that used to enforce it put rationales ending "retrospective coho" in
+    the live claim queue. _fit cuts on a word boundary instead, but never at the cost
+    of the rationale itself: an oversized unbreakable token (a URL, a DOI, an
+    accession) keeps the hard slice, because a 3-character evidence chip is worse in
+    a reviewer's queue than one cut word. That last case is why this is not
+    textwrap.shorten, which drops every word after such a token."""
+    class _Rationale(_FakeBedrock):
+        def __init__(self, text):
+            super().__init__(screen=SCREEN_CUTOFF, dense_score=8)
+            self.text = text
+
+        def call_json(self, model, messages, **kw):
+            self.call_json_count += 1
+            return {"score": self.dense_score, "rationale": self.text}
+
+    def triaged(text):
+        return llm_triage(_Rationale(text), _CORE, _PUB)["5"]["rationale"]
+
+    long = ("core-run 3T MRI acquisition and analysis for a multi-site "
+            "retrospective cohort of patients")
+    out = triaged(long)
+    assert len(out) <= 80 and out.endswith("…")
+    assert long.startswith(out[:-1].rstrip())        # a whole word, not "...coho"
+
+    assert triaged("used 3T MRI at the core") == "used 3T MRI at the core"   # fits
+
+    # One oversized token must not swallow the rationale. shorten() returns "…"
+    # here, and backing up to the last space returns "Uses core:…" — both blank
+    # the chip, so both are regressions on the [:80] slice this replaced.
+    url = "Uses core: https://example.org/" + "a" * 80
+    assert len(triaged(url)) == 80 and triaged(url).startswith("Uses core: https://")
+    assert triaged("x" * 100) == "x" * 79 + "…"      # no space at all: sliced, not blanked
+
+
 # --- one-Haiku-screens-all-cores (the 13x cost lever) ----------------------
 class _FakeAllCoresBedrock:
     """call_json returns a core-keyed screen for Haiku, a dense dict for Sonnet."""
@@ -608,6 +644,82 @@ def test_scan_prior_core_usage_logs_loudly_on_error(caplog):
         out = persist.scan_prior_core_usage("2", client=_BoomClient())
     assert out == []
     assert "scan_prior_core_usage failed" in caplog.text
+
+
+# --- put_core_usage must not clobber the attributes batch_screen owns ------
+class _FakeUpdateDynamo:
+    """Applies SET/REMOVE UpdateExpressions to an in-memory store; explodes on a Put.
+
+    A whole-item Put is the bug under test, so the double refuses one outright rather
+    than letting the assertions below decide.
+    """
+    def __init__(self, store=None):
+        self.store = dict(store or {})
+
+    def batch_write_item(self, **kw):
+        raise AssertionError("put_core_usage must not write whole items")
+
+    put_item = batch_write_item
+
+    def update_item(self, TableName, Key, UpdateExpression,
+                    ExpressionAttributeNames, ExpressionAttributeValues):
+        item = dict(self.store.get((Key["PK"]["S"], Key["SK"]["S"]), {}))
+        sets, _, removes = UpdateExpression.partition(" REMOVE ")
+        for pair in sets[len("SET "):].split(","):
+            n, v = (s.strip() for s in pair.split("="))
+            item[ExpressionAttributeNames[n]] = ExpressionAttributeValues[v]
+        for n in (s.strip() for s in removes.split(",") if s.strip()):
+            item.pop(ExpressionAttributeNames[n], None)
+        self.store[(Key["PK"]["S"], Key["SK"]["S"])] = item
+        return {}
+
+
+_SCREENED_ROW = {
+    "PK": {"S": "PUB#7"}, "SK": {"S": "CORE#2"}, "status": {"S": STATUS_CANDIDATE},
+    "prefilter_prior": {"N": "0.31"}, "screen_confidence": {"N": "8"},
+    "screen_band": {"S": "candidate"}, "screen_version": {"S": "sv"},
+    "prefilter_version": {"S": "pv"}, "run_mode": {"S": "batch_screen"},
+}
+
+
+def _run_py_write(seed, signals):
+    from pipeline_cores.models import CoreUsageRecord
+    from pipeline_cores.persist import put_core_usage
+
+    db = _FakeUpdateDynamo({("PUB#7", "CORE#2"): dict(seed)})
+    rec = CoreUsageRecord(pmid="7", core_id="2", likelihood=0.9,
+                          status=STATUS_CONFIRMED, signals=signals, scored_at="t")
+    assert put_core_usage([rec], client=db) == 1
+    return db.store[("PUB#7", "CORE#2")]
+
+
+def test_put_core_usage_leaves_batch_screen_attributes_alone():
+    """run.py owns 12 attributes; the other six on the item belong to batch_screen.
+    While this was a BatchWriteItem PutRequest (a full-item replace) a run.py write
+    over a screened pair destroyed all six — including prefilter_prior, which SPS
+    renders as the review queue's topicalPrior chip on 8,656 live rows."""
+    item = _run_py_write(_SCREENED_ROW, SignalResult())
+    assert item["prefilter_prior"] == {"N": "0.31"}         # the chip survives
+    assert item["screen_confidence"] == {"N": "8"}
+    assert item["screen_band"] == {"S": "candidate"}
+    assert item["screen_version"] == {"S": "sv"}
+    assert item["prefilter_version"] == {"S": "pv"}
+    assert item["run_mode"] == {"S": "batch_screen"}
+    assert item["status"] == {"S": STATUS_CONFIRMED}        # ...and run.py's own land
+    assert item["likelihood"] == {"N": "0.9"}
+
+
+def test_put_core_usage_clears_an_optional_it_did_not_produce_this_run():
+    """The other half: a run.py-owned optional that is absent THIS run must go, not
+    linger. A previous run's llm_rationale left on a pair scored without the LLM is
+    stale evidence reading in the queue as fresh."""
+    seed = dict(_SCREENED_ROW, llm_score={"N": "8"},
+                llm_rationale={"S": "used 3T MRI at the core"},
+                ack_alias={"S": "CBIC"}, author_affinity={"N": "0.4"})
+    item = _run_py_write(seed, SignalResult())
+    assert "llm_score" not in item and "llm_rationale" not in item
+    assert "ack_alias" not in item and "author_affinity" not in item
+    assert item["prefilter_prior"] == {"N": "0.31"}         # still not ours to clear
 
 
 # ---------------------------------------------------------------------------
