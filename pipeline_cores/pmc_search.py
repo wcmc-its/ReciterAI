@@ -103,6 +103,32 @@ def esearch_pmc(phrase: str, *, timeout: int = DEFAULT_TIMEOUT) -> list:
     return ids
 
 
+def esearch_count(phrase: str, *, timeout: int = DEFAULT_TIMEOUT):
+    """How many PMC papers name `phrase`, in ONE request (retmax=0, no id list).
+
+    The alias-SPECIFICITY feature: esearch reports the true total in `count` whether
+    or not it returns any ids, so the number that predicts an alias's precision
+    (r=-0.852 vs home%) costs one paced request per alias. Cached into the dictionary
+    by `python3 -m pipeline_cores.refresh_alias_hits`, never fetched during a run.
+
+    Returns None when PMC could not run the phrase at all. esearch does NOT error on
+    an unfindable phrase — it silently falls back to a term-ANDed/MeSH-expanded query
+    and reports THAT count, so "Davis Cancer Immune Monitoring Core" comes back as
+    ("davies" OR "davis" ...) AND ("cancer s" OR ...) = 7221. Scoring that number as
+    specificity pushed 4 genuine WCM aliases into the `generic` bucket (-5.07) and 5
+    into `distinctive` (+4.35) on a quantity that measures nothing. The warning list
+    is the only signal that it happened; None routes them to `ack.spec:unknown` (0.00),
+    which is the honest answer.
+    """
+    body = _get_json(ESEARCH, {"db": "pmc", "term": f'"{phrase}"', "retmode": "json",
+                               "retmax": 0}, timeout)
+    result = body.get("esearchresult", {})
+    if result.get("warninglist", {}).get("quotedphrasesnotfound"):
+        logger.warning("PMC could not run %r as a phrase — no specificity count", phrase)
+        return None
+    return int(result.get("count") or 0)
+
+
 def pmcids_to_pmids(pmcids: list, *, timeout: int = DEFAULT_TIMEOUT) -> set:
     """Map PMC ids to PMIDs. Records without a PMID (rare) are dropped."""
     pmcids = list(pmcids)

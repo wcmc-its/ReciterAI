@@ -55,7 +55,8 @@ def to_plain_text(xml: str) -> str:
     """Strip PMC XML to whitespace-collapsed plain text, <ref-list> dropped first.
 
     The reference list is cited-work text rather than this paper's own, and
-    signal 3 auto-confirms on an alias found anywhere in what we return here.
+    signal 3 weighs an alias found anywhere in what we return here, heavily enough
+    to confirm a pair on its own.
     """
     if not xml:
         return ""

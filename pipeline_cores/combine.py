@@ -1,14 +1,40 @@
 """Merge signal layers into one (publication, core) likelihood + status.
 
-Precedence:
-  * deterministic confirmers (core named in text, OR a core-staff co-author) ->
-    auto-CONFIRMED, high likelihood. Both were 100%-precision in validation.
-  * otherwise probabilistic: noisy-OR of the LLM triage score and the author
-    affinity prior -> CANDIDATE if it clears the triage threshold, else dropped.
+Every signal is EVIDENCE carrying a weight, and the score is one line of log-odds:
 
-Confirmers never come from the LLM. The LLM only ranks the candidate queue.
+    logit(P) = PRIOR_LOGIT + sum(w_i for each piece of evidence present)
+    P        = 1 / (1 + exp(-logit))
+
+Naive Bayes on purpose. It is one line, every feature's contribution is separately
+inspectable (`explain()` — the claim queue can show a reviewer WHY a paper ranks
+where it does), and it spreads by construction. Correlated features are handled by
+not double-counting them, not by a fancier model.
+
+WHAT THIS REPLACED, and why. `combine()` used to return the constant 0.98 for any
+acknowledgement match and 0.95 for any staff co-authorship, then noisy-OR the LLM
+score and affinity for everything else. Both mechanisms destroyed spread:
+
+  * the constants could not tell "Architecture for Research Computing in Health,
+    Weill Cornell" (measured 100% precision) from "Flow Cytometry Core ... Stanford"
+    (24%). They scored identically.
+  * noisy-OR over values already near 1 saturates — all 404 core-14 candidates
+    landed in 0.84-0.85, i.e. an unrankable queue.
+
+Log-odds keeps each increment visible instead.
+
+STATUS IS NOW A THRESHOLD ON THE SCORE (approved 2026-09-03), not a deterministic
+flag: a 100%-precision alias match simply earns a very large weight and clears
+CONFIRM_THRESHOLD on its own. Both thresholds are per-core overridable from
+`core_dictionary.yaml`, because a core whose aliases are all generic deserves a
+higher bar than one with a proper name nobody else uses.
+
+RESCORING AN EXISTING POOL still needs a reconcile-by-timestamp pass: `run_core`
+never emits below_threshold, so a re-run cannot demote anything already written to
+DynamoDB. Not built here, and nothing here makes it harder.
 """
 from __future__ import annotations
+
+import math
 
 from pipeline_cores.models import (
     STATUS_BELOW,
@@ -18,24 +44,202 @@ from pipeline_cores.models import (
     SignalResult,
 )
 
-# Likelihoods for the deterministic confirmers (validation: both 100% precision).
-_ACK_LIKELIHOOD = 0.98
-_STAFF_COAUTHOR_LIKELIHOOD = 0.95
-# A candidate must clear this to be surfaced to the claim queue.
+# Prior odds that a random corpus paper used any ONE given core. The 2026-06 random
+# WCM sample put a core's base rate at 1-5% of papers (0/267 named the imaging core);
+# 2% is the middle of that. logit(0.02) = -3.89. Everything above is evidence moving
+# these odds, so this constant is the only place the base rate lives.
+PRIOR_LOGIT = math.log(0.02 / 0.98)
+
+# ---------------------------------------------------------------------------
+# The weights. w = log( P(e | used the core) / P(e | did not) ), FITTED by
+# scripts/fit_evidence_weights.py — that script is the provenance and re-running it
+# is how these refresh. Every entry carries the n behind it; a cell nobody can
+# support is 0.00 and says so instead of being invented.
+#
+# THREE PANELS, because one ground truth cannot fit all of it without circularity:
+#   A  278 per-core SIGNAL-2 confirms (core staff on the byline) vs 8,397 random
+#      corpus pairs. Prices `ack` — signal 3 is independent of signal 2.
+#   C  the same confirms' 87 alias matches vs 115 alias matches in papers with NO
+#      WCM author, drawn in proportion to each alias's global PMC hits. Prices the
+#      CONDITIONAL terms (`ack.spec:*`, `inst:*`) — panel A's random negatives
+#      produced only 4 alias matches, far too few to price an institution.
+#   B  the 137 human "yes" imaging-core labels vs random corpus papers (1,200, of
+#      which 400 also went through live Bedrock triage). Prices `staff` and the
+#      LLM/affinity slopes. Panel A's positives ARE signal-2 confirms, so they
+#      cannot price signal 2 itself — the circularity this split exists to avoid.
+#
+# `ack` is MARGINAL and everything under it is CONDITIONAL on a match, so summing
+# them is the chain rule, not double counting.
+#
+# Fitted 2026-09-04. Every weight is in nats; +3.9 exactly cancels the prior.
+# ---------------------------------------------------------------------------
+WEIGHTS = {
+    # An alias matched at all. The single largest piece of evidence there is.
+    "ack": 6.37,                       # n=87/278 confirms vs 4/8397 random pairs
+    # ...and how specific the alias that matched was (conditional on the match).
+    # This is measured fact 1 entering the score: a generic alias is a NET LOSS of
+    # 5 nats against the +6.37 above, because 104 of the 115 alias matches in papers
+    # with no WCM author came from one, and none of the 87 true ones did.
+    "ack.spec:distinctive": 4.35,      # <=100 global PMC hits; n=29/87 vs 0/115 (bound)
+    "ack.spec:moderate": 1.90,         # 100-800 hits;          n=58/87 vs 11/115
+    "ack.spec:generic": -5.07,         # >=800 hits;            n=0/87 vs 104/115 (bound)
+    "ack.spec:unknown": 0.00,          # REFUSED: never observed on either side. Only an
+                                       # ACRONYM alias lands here — esearch has no
+                                       # case-sensitive mode, so those are deliberately
+                                       # never counted. Neutral, not penalised.
+    # Which institution the match sits next to. NEVER a gate: these cores are genuinely
+    # shared across Tri-Institutional partners, so a partner counts as home, and
+    # requiring a Weill Cornell affiliation would discard ~47% of core 4's real hits.
+    "inst:home": 3.47,                 # WCM or a partner;      n=85/87 vs 3/115
+    "inst:other": -3.62,               # a DIFFERENT institution; n=1/87 vs 73/115
+    # "no institution named" is conditioned on specificity, because a specific enough
+    # name needs no qualifier (ARCH is 43% "none" with 0% "other") while a generic one
+    # is genuinely ambiguous. The measurement bears that out: -0.57 vs -4.01.
+    "inst:none@distinctive": 0.00,     # REFUSED: never observed on either side
+    "inst:none@moderate": -0.57,       # n=1/87 vs 3/115
+    "inst:none@generic": -4.01,        # n=0/87 vs 36/115 (bound)
+    "inst:none@unknown": 0.00,         # REFUSED: never observed on either side
+    # Where the match sits. HELD AT ZERO BY DECISION 3: unmeasured, and guessing it is
+    # how a confident wrong prior gets in. The counts are collected (12 ack / 3 methods
+    # / 72 body among the positives, 85 / 1 / 29 among the negatives) but the two panels
+    # differ in JATS coverage, not in what a section MEANS, so they cannot price it.
+    # Needs a labelling pass. Delete these three lines when one happens.
+    "sec:ack": 0.00,
+    "sec:methods": 0.00,
+    "sec:body": 0.00,
+    # A tracked core-staff member on the byline. One feature, not a count.
+    "staff": 4.89,                     # n=53/137 labelled yes vs 3/1200 corpus papers
+}
+
+# The two natively-graded signals do not bucket without throwing resolution away —
+# the LLM's 1-10 is real information (AUC 0.933 vs human labels) and four coarse
+# buckets would collapse a whole candidate pool onto four scores. Their weight is a
+# straight line through the same Laplace-smoothed bin log-LRs, inverse-variance
+# weighted; monotone by construction, and the per-bin residuals are in the fitting
+# script's output (weighted R2 0.78 both).
+LLM_INTERCEPT = -1.86               # w(llm) = -1.86 + 0.68 * score
+LLM_PER_POINT = 0.68
+LLM_MAX_FITTED = 9                  # no paper in the panel scored 10 — do not
+                                    # extrapolate the line past its own support
+AFFINITY_PER_UNIT = 4.60            # w(affinity) = 4.60 * affinity, through the
+                                    # origin: no prior, no weight
+
+# Alias-specificity buckets, on the alias's global PMC hit count. Specificity is the
+# cheapest precision signal there is: over 10 aliases spanning 1 -> 23,544 hits,
+# Pearson r = -0.852 between log10(hits) and the share of matches that mean OUR core.
+# The measured inflection sits between `Epigenomics Core` (666 hits, 89% home) and
+# `NMR Core` (926 hits, 50% home), so the generic line is drawn at 800.
+_DISTINCTIVE_MAX = 100
+_GENERIC_MIN = 800
+
+# Status thresholds on the resulting probability, per SPEC decision 1: a
+# 100%-precision alias match no longer asserts a status, it earns a weight and
+# clears a bar. Both are per-core overridable from `confirm_threshold` /
+# `triage_threshold` in core_dictionary.yaml — a core whose aliases are all generic,
+# or whose affinity index has saturated, deserves a different bar without a code
+# change.
+#
+# 0.65 is bracketed by the weights, not chosen. Above it sit the things that should
+# confirm: a lone staff co-author (0.731, one of the two 100%-precision confirmers in
+# validation) and even the weakest alias evidence worth confirming, a GENERIC alias
+# beside a home institution (0.707 — the branch the institution audit said should
+# confirm). Below it sits the thing that must not: the LLM alone, which tops out at
+# 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
+# Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
+DEFAULT_CONFIRM_THRESHOLD = 0.65
+# Unchanged from the old combiner (and still what run.py --threshold overrides), so
+# "what reaches the claim queue" moves for measured reasons rather than by a
+# constant quietly changing underneath it.
 DEFAULT_TRIAGE_THRESHOLD = 0.30
 
 
 def noisy_or(*probabilities: float) -> float:
-    """1 - Π(1 - p): the probability that at least one independent signal fires.
+    """1 - product(1 - p): the probability that at least one independent signal fires.
 
-    The shared primitive behind this combiner, the author-affinity prior, the
-    prefilter prior, and the batch_screen likelihood — kept in one place so a future
-    tuning can't drift across copies. noisy_or() with no args returns 0.0.
+    No longer used by combine() — log-odds replaced it here precisely because it
+    saturates — but it is still the shared primitive behind the author-affinity
+    prior (signals.author_affinity), the prefilter prior and the batch_screen
+    likelihood, so it stays in one place. noisy_or() with no args returns 0.0.
     """
     complement = 1.0
     for p in probabilities:
         complement *= (1.0 - p)
     return 1.0 - complement
+
+
+def _alias_bucket(hits) -> str:
+    """How specific was the matched alias?
+
+    `None` means the count was never cached — in practice an ACRONYM alias, which
+    `refresh_alias_hits` skips on purpose because esearch has no case-sensitive mode.
+    That lands in "unknown", which carries weight 0.00: unmeasured, so neutral, and
+    NOT a penalty (the acronym matcher's own word-boundary rule is what keeps those
+    matches honest).
+    """
+    if hits is None:
+        return "unknown"
+    if hits <= _DISTINCTIVE_MAX:
+        return "distinctive"
+    return "moderate" if hits < _GENERIC_MIN else "generic"
+
+
+def evidence_features(signals: SignalResult) -> list:
+    """The CATEGORICAL evidence keys on one (publication, core) pair, for WEIGHTS.
+
+    Pure, and the single definition of what counts as evidence — the fitting script
+    imports THIS, so the weights can never be fitted against a different feature set
+    than the one that scores production.
+
+    `ack` is the marginal "an alias matched at all"; the keys under it are all
+    conditional on that match, so the sum is the chain rule rather than three
+    correlated features each claiming the same credit.
+
+    Absent evidence contributes nothing (no key). Deliberate for llm_score: `None`
+    means "never scored", which is not the claim "scored 1".
+    """
+    out = []
+    if signals.ack_matched:
+        bucket = _alias_bucket(signals.ack_alias_hits)
+        out += ["ack", f"ack.spec:{bucket}"]
+        # The institution named around the match. "none" is conditioned on alias
+        # specificity because a specific enough name needs no qualifier (ARCH is
+        # 43% "none" with 0% "other") while a generic one is genuinely ambiguous —
+        # a flat rule on this bucket is wrong in one direction or the other.
+        if signals.ack_institution == "none":
+            out.append(f"inst:none@{bucket}")
+        elif signals.ack_institution:
+            out.append(f"inst:{signals.ack_institution}")
+        if signals.ack_section:
+            out.append(f"sec:{signals.ack_section}")
+    if signals.coauthor_cwids:
+        # One feature, not a count. The 1-vs-2+ split is not fittable from what
+        # exists (14 positives, and its marginal fit comes out NON-monotone), so
+        # scaling with how many staff appear waits for a labelling pass.
+        out.append("staff")
+    return out
+
+
+def explain(signals: SignalResult) -> list:
+    """[(evidence, weight)] for one pair, largest contribution first.
+
+    The point of naive Bayes over anything cleverer: a 3,000-row claim queue is only
+    reviewable if it can say why a paper sits where it does. The two graded signals
+    contribute a line rather than a table entry, and are labelled with their value.
+    """
+    pairs = [(f, WEIGHTS.get(f, 0.0)) for f in evidence_features(signals)]
+    if signals.llm_score:
+        pairs.append((f"llm:{signals.llm_score}",
+                      LLM_INTERCEPT + LLM_PER_POINT * min(signals.llm_score, LLM_MAX_FITTED)))
+    if signals.author_affinity > 0:
+        pairs.append((f"affinity:{signals.author_affinity:.2f}",
+                      AFFINITY_PER_UNIT * signals.author_affinity))
+    return sorted(pairs, key=lambda kv: -abs(kv[1]))
+
+
+def score(signals: SignalResult) -> float:
+    """P(this publication used this core) = sigmoid(prior + sum of the weights)."""
+    logit = PRIOR_LOGIT + sum(w for _, w in explain(signals))
+    return 1.0 / (1.0 + math.exp(-logit))
 
 
 def combine(
@@ -44,15 +248,25 @@ def combine(
     signals: SignalResult,
     *,
     scored_at: str = "",
-    triage_threshold: float = DEFAULT_TRIAGE_THRESHOLD,
+    core=None,
+    triage_threshold: float = None,
+    confirm_threshold: float = None,
 ) -> CoreUsageRecord:
-    if signals.ack_matched:
-        return CoreUsageRecord(pmid, core_id, _ACK_LIKELIHOOD, STATUS_CONFIRMED, signals, scored_at)
-    if signals.coauthor_cwids:
-        return CoreUsageRecord(pmid, core_id, _STAFF_COAUTHOR_LIKELIHOOD, STATUS_CONFIRMED, signals, scored_at)
+    """Score one (publication, core) pair and band it into a status.
 
-    llm_norm = (signals.llm_score / 10.0) if signals.llm_score else 0.0
-    affinity = max(0.0, min(1.0, signals.author_affinity))
-    likelihood = noisy_or(llm_norm, affinity)
-    status = STATUS_CANDIDATE if likelihood >= triage_threshold else STATUS_BELOW
+    Thresholds resolve explicit argument -> `core`'s dictionary override -> module
+    default, so a caller that knows better still wins and a core with only generic
+    aliases can demand a higher bar without a code change.
+    """
+    triage = _threshold(triage_threshold, core, "triage_threshold", DEFAULT_TRIAGE_THRESHOLD)
+    confirm = _threshold(confirm_threshold, core, "confirm_threshold", DEFAULT_CONFIRM_THRESHOLD)
+    likelihood = score(signals)
+    status = (STATUS_CONFIRMED if likelihood >= confirm
+              else STATUS_CANDIDATE if likelihood >= triage else STATUS_BELOW)
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)
+
+
+def _threshold(explicit, core, attr: str, default: float) -> float:
+    if explicit is not None:
+        return explicit
+    return getattr(core, attr, None) if getattr(core, attr, None) is not None else default
