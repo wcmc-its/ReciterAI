@@ -4,13 +4,25 @@ corpus and grepping it.
 `--with-fulltext` fetches full text for every scored publication so signal 3 can
 look for an alias in it. At WCM scale that is ~80k NCBI round trips (~12h on a
 cold cache) to find, typically, a couple of dozen papers — PMC has already
-indexed that text, so the same answer is one esearch per alias:
+indexed that text, so the same answer is a handful of searches per alias:
 
     esearch(db=pmc, term='"Architecture for Research Computing"')  ->  25 PMC ids
     idconv                                                         ->  25 PMIDs
 
 Full text is then fetched for those PMIDs ONLY, which keeps the ack_snippet the
 claim queue shows as evidence. 25 fetches instead of 80,203.
+
+SEARCHES PAGINATE. esearch returns at most RETMAX ids per call but reports the
+true total in `count`, so `esearch_pmc` walks retstart until it has them all. A
+single page silently dropped 98% of a generic alias ("Flow Cytometry Core":
+count=23544, idlist=500) in NCBI's default sort order — not even the same 500
+twice. MAX_IDS caps a pathological alias, and tripping it logs a warning naming
+the alias and its count, so a truncated set is never silent again.
+
+REQUESTS ARE PACED and carry PUBMED_API_KEY / NCBI_API_KEY when set, exactly as
+fulltext.py does. Unpaced, the 2 requests per alias across 57 aliases ran past
+NCBI's 3-req/s anonymous limit and 18 of them came back "HTTP Error 400", each
+swallowed by the per-alias fail-soft below as "no hits".
 
 Coverage is identical to `--with-fulltext`: both see the PMC subset and nothing
 else, so this trades no recall for the speedup.
@@ -26,6 +38,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import time
 import urllib.parse
 import urllib.request
 
@@ -36,29 +50,68 @@ logger = logging.getLogger(__name__)
 ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 DEFAULT_TIMEOUT = 45
-RETMAX = 500
+RETMAX = 500        # ids per esearch page
+MAX_IDS = 9999      # NCBI's OWN ceiling: retstart must be <= 9998, and a request past it
+                    # returns a 200 whose JSON carries a raw newline, so json.load raises
+                    # and pmids_naming's per-alias catch would discard every id collected.
+IDCONV_CHUNK = 200  # idconv's documented per-request id limit (a bigger GET is a 414)
+
+_last_request = 0.0
+
+
+def _api_key() -> str:
+    """Same env vars fulltext.py reads; never required, never logged."""
+    return os.getenv("PUBMED_API_KEY") or os.getenv("NCBI_API_KEY") or ""
 
 
 def _get_json(url: str, params: dict, timeout: int) -> dict:
+    """One paced, keyed NCBI request. Every call in this module goes through here."""
+    global _last_request
+    key = _api_key()
+    if key:
+        params = {**params, "api_key": key}
+    # NCBI: 10 req/s with a key, 3 without — same cadence as PmcFullTextClient.
+    gap = (0.11 if key else 0.34) - (time.monotonic() - _last_request)
+    if gap > 0:
+        time.sleep(gap)
+    _last_request = time.monotonic()
     q = urllib.parse.urlencode(params)
     with urllib.request.urlopen(f"{url}?{q}", timeout=timeout) as resp:
         return json.load(resp)
 
 
 def esearch_pmc(phrase: str, *, timeout: int = DEFAULT_TIMEOUT) -> list:
-    """PMC ids whose full text contains `phrase` (quoted as one phrase)."""
-    body = _get_json(ESEARCH, {"db": "pmc", "term": f'"{phrase}"',
-                               "retmode": "json", "retmax": RETMAX}, timeout)
-    return list(body.get("esearchresult", {}).get("idlist", []))
+    """Every PMC id whose full text contains `phrase` (quoted as one phrase).
+
+    Pages on retstart until `count` ids are in hand or MAX_IDS trips; a short
+    set is always warned about, never returned silently.
+    """
+    ids: list = []
+    count = 0
+    while True:
+        body = _get_json(ESEARCH, {"db": "pmc", "term": f'"{phrase}"', "retmode": "json",
+                                   "retmax": RETMAX, "retstart": len(ids)}, timeout)
+        result = body.get("esearchresult", {})
+        count = int(result.get("count") or 0)
+        page = list(result.get("idlist", []))
+        ids += page
+        if not page or len(ids) >= count or len(ids) >= MAX_IDS:
+            break
+    if count > len(ids):
+        logger.warning("alias %r has %d PMC hits but only %d were retrieved (MAX_IDS=%d) — "
+                       "signal 3 sees a TRUNCATED set for this alias", phrase, count, len(ids), MAX_IDS)
+    return ids
 
 
 def pmcids_to_pmids(pmcids: list, *, timeout: int = DEFAULT_TIMEOUT) -> set:
     """Map PMC ids to PMIDs. Records without a PMID (rare) are dropped."""
-    if not pmcids:
-        return set()
-    body = _get_json(IDCONV, {"ids": ",".join("PMC" + str(i) for i in pmcids),
-                              "format": "json", "tool": "pipeline_cores"}, timeout)
-    return {str(r["pmid"]) for r in body.get("records", []) if r.get("pmid")}
+    pmcids = list(pmcids)
+    out: set = set()
+    for i in range(0, len(pmcids), IDCONV_CHUNK):
+        body = _get_json(IDCONV, {"ids": ",".join("PMC" + str(p) for p in pmcids[i:i + IDCONV_CHUNK]),
+                                  "format": "json", "tool": "pipeline_cores"}, timeout)
+        out |= {str(r["pmid"]) for r in body.get("records", []) if r.get("pmid")}
+    return out
 
 
 def pmids_naming(core, *, timeout: int = DEFAULT_TIMEOUT) -> set:
