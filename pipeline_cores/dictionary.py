@@ -90,6 +90,13 @@ def _labels(seq) -> list:
     evidence sentence of the FIRST family that fires inside the winning tier. Sorting
     would hand that slot to whichever label happens to come first alphabetically.
     """
+    if isinstance(seq, str):
+        # `strong: "Regression modeling"` instead of a one-item LIST. Without this a
+        # string iterates CHARACTER by character and loads 10 one-letter labels that
+        # match nothing, fire nothing and raise nothing — a green load carrying curation
+        # that can never work. The same silent-no-op this function's stripping and
+        # casefolding exist to prevent, one level up in the YAML shape.
+        raise ValueError(f"method_families tier must be a list, got a string: {seq!r}")
     out = []
     for raw in seq or []:
         label = str(raw).strip().casefold()

@@ -27,9 +27,10 @@ and that is not a style preference: `persist.put_core_usage` REMOVEs every attri
 in `_OWNED_ATTRS` that the run did not produce, so an empty index would strip
 method_families / method_tier / method_tool / method_snippet off every row a previous
 run wrote — silently, on a green run. A degraded read on a path that WRITES is a wipe,
-not a degradation. Same rule as `scan_core_llm_scores` and `scan_prior_core_usage`
-under strict=True; the fail-soft S3 tier in `fulltext.py` is safe only because a miss
-there costs one paper's signal rather than every row's attributes.
+not a degradation. Same rule as `scan_core_llm_scores` (which raises unconditionally)
+and `scan_prior_core_usage` under strict=True; the fail-soft S3 tier in `fulltext.py` is
+safe only because a miss there costs one paper's signal rather than every row's
+attributes.
 """
 from __future__ import annotations
 
@@ -64,8 +65,8 @@ def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: st
     Reads S3 by default; `tools_path` / `context_path` override with local files for
     tests and dev. ~26 MB of JSON, so load it ONCE per run — never per publication.
 
-    RAISES on any read or parse failure, including a missing top-level key. See the
-    module docstring: this index feeds a write path, and `put_core_usage` turns an
+    RAISES on any read or parse failure, including a missing top-level key AND a
+    well-formed artifact that yields no rows at all. See the module docstring: this index feeds a write path, and `put_core_usage` turns an
     empty read into a REMOVE of the method_* attributes on every previously-scored
     row. There is deliberately no try/except anywhere in here — an operator seeing a
     traceback and re-running loses nothing, where a green run over an empty index
@@ -96,7 +97,24 @@ def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: st
     # the same one, so dedupe identical triples and give the list a stable order —
     # method_family_signal re-ranks by TIER, and a tie inside a tier must not depend on
     # dict iteration order.
-    return {pmid: sorted(set(rows)) for pmid, rows in index.items()}
+    out = {pmid: sorted(set(rows)) for pmid, rows in index.items()}
+    if not out:
+        # The one degraded read the raises above do not catch: a WELL-FORMED artifact
+        # carrying no usable rows — `{"tools": []}`, a half-written republish, a schema
+        # change that renames method_family_label. Every read error raises, and then the
+        # empty result of a successful read would have walked straight past all of it
+        # into the REMOVE clause in `put_core_usage` and stripped method_* off every row
+        # a previous run wrote. A floor at "not empty" rather than a fitted minimum: the
+        # failure being guarded is a republish that produced nothing, not a slow drift in
+        # corpus size, and a real threshold would need re-tuning every time the corpus
+        # grows. v2026-06-23 indexes 6,953 PMIDs, so zero is unambiguous.
+        raise ValueError(
+            f"method-family index is EMPTY (tools={len(tools)}, tool_context={len(context)}) — "
+            "refusing to return it: an empty index written by run.py REMOVEs the method_* "
+            "attributes from every previously scored row. Check the artifact at "
+            f"{TOOLS_KEY} / {TOOL_CONTEXT_KEY}."
+        )
+    return out
 
 
 def _read_json(key: str, path, s3, bucket: str) -> dict:

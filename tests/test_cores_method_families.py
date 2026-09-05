@@ -88,6 +88,26 @@ def test_a_failed_read_raises_instead_of_returning_an_empty_index(tmp_path):
         load_family_index(tools_path=tmp_path / "tools.json", context_path=tmp_path / "ctx.json")
 
 
+def test_a_well_formed_but_empty_artifact_raises_too(tmp_path):
+    """The read succeeded, the schema is right, and the result is still unusable.
+
+    This is the case a plain try/except would never see: no error to catch, just zero
+    rows. run.py would write that empty index straight into put_core_usage's REMOVE
+    clause and strip method_* off every previously scored row, on a green run.
+    """
+    # Written directly rather than through _index(): its `tools or _TOOLS` default
+    # would swap an intentionally empty list back for the fixture.
+    (tmp_path / "tools.json").write_text(json.dumps({"tools": []}), encoding="utf-8")
+    (tmp_path / "ctx.json").write_text(json.dumps(_CONTEXT), encoding="utf-8")
+    with pytest.raises(ValueError, match="EMPTY"):
+        load_family_index(tools_path=tmp_path / "tools.json", context_path=tmp_path / "ctx.json")
+    # ...and a full tool list whose context is empty is the same failure.
+    (tmp_path / "tools.json").write_text(json.dumps(_TOOLS), encoding="utf-8")
+    (tmp_path / "ctx.json").write_text(json.dumps({"tool_context": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="EMPTY"):
+        load_family_index(tools_path=tmp_path / "tools.json", context_path=tmp_path / "ctx.json")
+
+
 def test_index_reads_s3_by_default_through_a_duck_typed_backend():
     """Default path is S3 — duck-typed on get_object_bytes, exactly like fulltext's."""
     class _S3:
@@ -206,6 +226,17 @@ def test_load_cores_raises_on_an_unknown_tier(tmp_path):
         'cores:\n  - core_id: "14"\n    name: RI\n    aliases: ["ARCH x"]\n'
         '    method_families:\n      medium: ["Regression modeling"]\n', encoding="utf-8")
     with pytest.raises(ValueError, match="medium"):
+        load_cores(tmp_path / "d.yaml")
+
+
+def test_load_cores_raises_on_a_tier_written_as_a_string(tmp_path):
+    """`strong: "Regression modeling"` instead of a one-item list. A string ITERATES,
+    so without the guard this loads ten one-character labels, matches nothing, and
+    raises nothing — curation that can never fire, on a green load."""
+    (tmp_path / "d.yaml").write_text(
+        'cores:\n  - core_id: "14"\n    name: RI\n    aliases: ["ARCH x"]\n'
+        '    method_families:\n      strong: "Regression modeling"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="must be a list"):
         load_cores(tmp_path / "d.yaml")
 
 

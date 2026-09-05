@@ -466,6 +466,15 @@ cores:
     # exist so that when one is fitted, "used a clinical data warehouse" and "ran a
     # regression" cannot be priced as the same claim.
     #
+    # THE DENOMINATOR IS LOAD-BEARING, so it is stated above rather than implied. Over
+    # all 240 surfaced rows instead of the 94 in-corpus ones, every lift falls by the
+    # same 2.55x (399x -> 156x, 32x -> 12.5x) and BOTH weak families invert to BELOW
+    # background (1.7x -> 0.7x, 1.6x -> 0.6x) — a core-14 positive is then LESS likely
+    # than a random corpus paper to carry them. Neither denominator is wrong; the
+    # in-corpus one is the honest measure of what the signal can do on the papers it
+    # can see, and the 2.55x is the price of the 146 positives outside the 2020+
+    # first/last-author corpus. Quoting a lift without its denominator is meaningless.
+    #
     # READ THE LIFTS AS AN UPPER BOUND. Part of them is agreement, not evidence: the
     # A2 extractor and signal 4 both read this paper's title+abstract, and a share of
     # these positives were surfaced by the LLM doing so. Do not lift a weight off this

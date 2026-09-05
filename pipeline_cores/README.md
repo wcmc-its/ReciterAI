@@ -133,9 +133,39 @@ both. For scale, `aff:regular` was fitted at ~32x and carries +3.43 — so a fit
 **Why 0.00 and not 399x.** The positives above are core-14 *engine* rows, and many were
 surfaced by an LLM reading the **same title+abstract the A2 extractor read**. Some of that
 lift is two systems agreeing about one piece of text, which is one piece of evidence, not
-two. The fitted number will be lower — nobody can say how much lower without measuring the
-overlap between `method:strong`, `llm_score` and the `aff:*` buckets first. That
-measurement is the **prerequisite** for any non-zero value, in the same shape as `client`'s.
+two. The fitted number will be lower than the raw lift.
+
+**The overlap measurement (2026-09-05).** `client`'s comment names this as the prerequisite
+for a price; for `method:*` it has been run, over all 4,647 core-14 rows. Rates are
+corpus-restricted to the 1,627 core-14 PMIDs that appear in the A2 corpus at all — the
+other 3,020 cannot carry a family in either direction.
+
+| held against | finding |
+|---|---|
+| `aff:*` | **Not a copy.** `method:strong` fires on 6.5% of `aff:regular` rows (n=1,139) and 10.7% of `aff:core` (n=459) — flat-to-inverse across the prior, not monotone. Settled. |
+| `llm_score` | **Correlated, hard, and asymmetric.** Strong rate by bucket: 5.6% absent (n=1,474) → 16.7% at 1–3 (n=72) → 35.8% at 6–7 (n=53) → **76.9% at 8–10** (n=26). An LLM yes implies `method:strong` three times in four. |
+| `llm_score`, held out | 32 of the 52 scored strong rows (62%) are **not** an LLM yes; holding the LLM out alone leaves 114 strong in 1,601 rows — 7.1% vs 1.53% background, **4.6x**, on a panel that clears `MIN_PANEL`. |
+
+So the signal is independent of the affinity prior, substantially but not wholly redundant
+with signal 4, and its residual is real but an order of magnitude below the 32–399x
+headline.
+
+**What still blocks a price, and why re-running will not clear it.** Holding out *both*
+signals — the actual question — leaves **45 rows carrying 5 `method:strong` events** (12
+rows once corpus presence is required, as the background side requires by construction).
+The naive ratio is 7.3x or 27.2x depending only on which denominator you pick, against a
+`MIN_PANEL` of 30. That cell is small **by construction**: only 46 of 4,647 core-14 rows
+have affinity 0, because candidate generation is affinity-driven, and 43 of those 45 are
+already confirmed/claimed on staff or acknowledgement evidence. Re-running this pipeline
+cannot grow it. Pricing needs a sampling frame that yields ≥30 affinity-zero, LLM-negative
+positives.
+
+**And the lift table's denominator is load-bearing.** The figures above use the 94 of core
+14's 240 surfaced rows that are in the A2 corpus. Over all 240, every lift falls by the
+same 2.55x (399x → 156x, 32x → 12.5x) and both `weak` families invert to *below* background
+(1.7x → 0.7x, 1.6x → 0.6x). Neither denominator is wrong — the in-corpus one measures what
+the signal can do on papers it can see — but a lift quoted without its denominator is
+meaningless.
 
 **And the fitter cannot price these keys today.** `scripts/fit_evidence_weights.py` prices
 `staff` / `client` / `aff:*` on **panel B**, which is `analysis/labeled_set.csv` —
@@ -529,8 +559,9 @@ Four refusals worth preserving, because each is a place someone will be tempted 
 `sec:ack`/`sec:methods`/`sec:body` are 0.00 (collected but the two panels differ in JATS
 coverage, not in what a section *means*); `ack.spec:unknown` and `inst:none@*unknown*` are
 0.00 (never observed on either side — neutral, not penalised); `client` is 0.00 (#383); and
-`method:strong`/`:moderate`/`:weak` are 0.00 (#394 — measured at 399x/6.2x/1.7x on core 14,
-but panel B is the *imaging* core, so the fitter cannot price them at all yet).
+`method:strong`/`:moderate`/`:weak` are 0.00 (#394 — 399x/6.2x/1.7x on core 14's 94
+in-corpus positives, and independent of `aff:*`, but the both-signals-held-out panel is 5
+events and panel B is the *imaging* core, so the fitter cannot price them at all yet).
 
 ## File map
 
@@ -557,7 +588,7 @@ Infra and the nightly: `infra/README.md`, "Cores daily run launch path".
 | # | what |
 |---|---|
 | #383 | fit the `client` weight — it is 0.00 and `client_cwids` is not persisted |
-| #394 | fit the `method:*` weights — blocked twice over: the overlap with `llm_score`/`aff:*` is unmeasured, **and** the fitter's panel B is core 2 while the curation is core 14 |
+| #394 | fit the `method:*` weights — overlap MEASURED 2026-09-05 (independent of `aff:*`; 4.6x residual over `llm_score` alone), but still blocked twice: the both-signals-held-out panel is 5 events against `MIN_PANEL`=30 and cannot grow, **and** the fitter's panel B is core 2 while the curation is core 14 |
 | #388 | the nightly Bedrock budget; a corpus-wide `--with-llm` is ~80k Haiku screens |
 | — | `batch_screen` and `run.py` write `likelihood` on different scales (above) |
 | — | per-author **time decay** in affinity: needs publication year carried through `scan_prior_core_usage` and a half-life calibrated on `analysis/labeled_set.csv`. Do not guess the decay |
