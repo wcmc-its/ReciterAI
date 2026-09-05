@@ -1221,13 +1221,13 @@ def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch)
     # passes, so this test still measures only the out-of-scope byline fetch.
     monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda engine, pmids: set(pmids))
 
-    counts = run.load_prior_user_counts("14", {"111": ["someone"]}, enabled=True, engine=object())
+    prior = run.load_prior_user_pmids("14", {"111": ["someone"]}, enabled=True, engine=object())
     assert fetched == [["999"]]                 # the out-of-scope prior was fetched
-    assert counts["evs2008"]["14"] == 1
-    assert counts["thc2015"]["14"] == 1
+    assert prior["evs2008"]["14"] == {"999"}
+    assert prior["thc2015"]["14"] == {"999"}
 
     # without an engine it degrades to the old behaviour rather than crashing
-    assert run.load_prior_user_counts("14", {}, enabled=True) == {}
+    assert run.load_prior_user_pmids("14", {}, enabled=True) == {}
 
 
 def test_prior_affinity_counts_only_papers_inside_the_scored_corpus(monkeypatch):
@@ -1251,8 +1251,8 @@ def test_prior_affinity_counts_only_papers_inside_the_scored_corpus(monkeypatch)
     monkeypatch.setattr(ingest, "fetch_author_bylines",
                         lambda engine, pmids: {p: ["ccole"] for p in pmids})
 
-    counts = run.load_prior_user_counts("14", {}, enabled=True, engine=object())
-    assert counts["ccole"]["14"] == 1            # not 2 — the out-of-corpus row is gated out
+    prior = run.load_prior_user_pmids("14", {}, enabled=True, engine=object())
+    assert prior["ccole"]["14"] == {"111"}       # not {"111","222"} — out-of-corpus gated out
 
 
 # ---------------------------------------------------------------------------
@@ -1923,7 +1923,7 @@ def test_scan_prior_core_usage_strict_raises_for_the_caller_that_writes():
         persist.scan_prior_core_usage("14", strict=True, client=_BoomScan())
 
 
-def test_load_prior_user_counts_reads_the_affinity_prior_strictly():
+def test_load_prior_user_pmids_reads_the_affinity_prior_strictly():
     """The wiring, not just the capability: the writing caller has to actually pass
     strict=True or the guard above is decoration."""
     from pipeline_cores import persist, run
@@ -1937,7 +1937,7 @@ def test_load_prior_user_counts_reads_the_affinity_prior_strictly():
     original = persist.scan_prior_core_usage
     persist.scan_prior_core_usage = _spy
     try:
-        run.load_prior_user_counts("14", {}, enabled=True, engine=None)
+        run.load_prior_user_pmids("14", {}, enabled=True, engine=None)
     finally:
         persist.scan_prior_core_usage = original
     assert seen.get("strict") is True
@@ -1981,3 +1981,66 @@ def test_the_llm_line_prints_even_when_carry_forward_is_off(capsys):
     finally:
         monkeypatch.undo()
     assert "llm: carry-forward OFF" in capsys.readouterr().out
+
+
+# --- #391: a paper confirmed in BOTH the prior and this run is ONE paper ---
+
+
+def test_a_paper_in_both_the_prior_and_this_run_is_counted_once(monkeypatch):
+    """The #391 regression. On any corpus-wide run the prior set and this run's
+    confirmations are largely the SAME PAPERS — a pair confirmed last night is
+    confirmed again tonight — so a counter double-credited every one of them to every
+    author on its byline. The rate's denominator is a real paper count, so a doubled
+    numerator is not a smaller error at the margin: it moves an author a whole bucket,
+    and `aff:core` (>= 0.70) alone clears DEFAULT_CONFIRM_THRESHOLD.
+
+    One author, one paper, two sources, corpus total 2 -> the rate must be 0.5
+    (`aff:regular`), not 1.0 (`aff:core`)."""
+    from pipeline_cores import ingest, run, signals
+
+    core = load_core("14")
+    pubs = [{"pmid": "999", "title": "t", "abstract": "a"}]
+    monkeypatch.setattr(signals, "coauthorship_index",
+                        lambda *a, **k: {"999": core.tracked_staff_cwids[:1]})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda *a, **k: {"999": ["abc1234"]})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda *a, **k: {"abc1234": 2})
+
+    seen = {}
+    real_index = signals.build_affinity_index
+    def spy(counts, totals):
+        seen.update({k: dict(v) for k, v in counts.items()})
+        return real_index(counts, totals)
+    monkeypatch.setattr(signals, "build_affinity_index", spy)
+
+    recs = run.run_core(core, pubs, bedrock=None, threshold=None, scored_at="t",
+                        engine=None, dry_run=True,
+                        # the SAME pmid this run will confirm via the staff co-author
+                        prior_user_pmids={"abc1234": {"14": {"999"}}})
+
+    assert recs[0].status == STATUS_CONFIRMED, "staff co-author should confirm it"
+    assert seen["abc1234"]["14"] == 1, (
+        f"one paper from two sources must count once, got {seen['abc1234']['14']}")
+
+
+def test_distinct_papers_from_prior_and_this_run_still_add_up(monkeypatch):
+    """The other half: the union must not swallow genuinely different papers."""
+    from pipeline_cores import ingest, run, signals
+
+    core = load_core("14")
+    pubs = [{"pmid": "999", "title": "t", "abstract": "a"}]
+    monkeypatch.setattr(signals, "coauthorship_index",
+                        lambda *a, **k: {"999": core.tracked_staff_cwids[:1]})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda *a, **k: {"999": ["abc1234"]})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda *a, **k: {"abc1234": 4})
+
+    seen = {}
+    real_index = signals.build_affinity_index
+    def spy(counts, totals):
+        seen.update({k: dict(v) for k, v in counts.items()})
+        return real_index(counts, totals)
+    monkeypatch.setattr(signals, "build_affinity_index", spy)
+
+    run.run_core(core, pubs, bedrock=None, threshold=None, scored_at="t",
+                 engine=None, dry_run=True,
+                 prior_user_pmids={"abc1234": {"14": {"111", "222"}}})  # neither is 999
+    assert seen["abc1234"]["14"] == 3, f"2 prior + 1 new = 3, got {seen['abc1234']['14']}"
