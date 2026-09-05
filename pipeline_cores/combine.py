@@ -191,7 +191,7 @@ _AFF_CORE_MIN = 0.70
 # 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
 # Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
 #
-# `aff:core` alone now clears it too, at 0.739 — its fitted 4.93 came out just above
+# `aff:core` alone now clears it too, at 0.738 — its fitted 4.93 came out just above
 # staff co-authorship's 4.89 (55/137 vs 3/1200), so an author who has already given
 # 70%+ of their corpus output to this core confirms their next paper on the strength
 # of that history. Measured, not chosen; a core that does not want it can raise its
