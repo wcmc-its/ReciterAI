@@ -326,6 +326,34 @@ scope tomorrow morning with no deploy.
 
 ### One-time deploy (in order)
 
+0. **Build and push an image that actually contains the command.** There is no
+   image-building CI in this repo — `.github/workflows/` is `pytest.yml` and
+   `axis2-producer-gate.yml`, neither of which touches ECR — so **merging changes
+   nothing in ECR**, and the newest tag can be months older than `main`. Check
+   before anything else:
+
+   ```bash
+   aws ecr describe-images --repository-name reciterai-enrichment \
+     --query 'reverse(sort_by(imageDetails,&imagePushedAt))[0].{tag:imageTags[0],pushed:imagePushedAt}'
+   ```
+
+   If that tag predates the commit carrying the flags in the task-def command,
+   build and push first (from a checkout at the commit you intend to run):
+
+   ```bash
+   aws ecr get-login-password --region us-east-1 \
+     | docker login --username AWS --password-stdin <acct>.dkr.ecr.us-east-1.amazonaws.com
+   docker build --platform linux/amd64 -t <acct>.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:<sha> .
+   docker push <acct>.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:<sha>
+   ```
+
+   `--platform linux/amd64` is not optional: the task is `X86_64` and a Mac
+   defaults to arm64, which will not run on Fargate. Skipping this step produces
+   the worst failure shape available — a green EventBridge rule firing a task that
+   dies instantly every night on `error: unrecognized arguments:
+   --llm-carry-forward`, with nothing but the log group to say so. The other
+   families' launch paths bury this in an "Image:" paragraph; it is step 0 here
+   because it is the step that was actually missed on the first cores deploy.
 1. **Pre-create the log group** — `aws logs create-log-group --log-group-name /ecs/reciterai-cores`.
    `ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, so the task def omits
    `awslogs-create-group` and the group must exist first (otherwise the task fails
@@ -391,12 +419,15 @@ scope tomorrow morning with no deploy.
      scheduled command `<m>` must be **0** (no `--with-llm`, so no Bedrock call),
      and `<n>` is the number of TONIGHT'S CORPUS PUBLICATIONS that had a stored
      score — `len(pubs) - len(todo)`, i.e. the intersection, not `len(carry_forward)`.
-     Expect it to sit ABOVE core 14's 62 open rows and BELOW its ~133 confirmed +
-     open total: `scan_core_llm_scores` filters on `attribute_exists(llm_score)` with
-     no status predicate, so claimed/rejected rows count too, while a stored pmid that
-     has since left the scoreable corpus does not (19 of core 14's 43 prior affinity
-     rows are outside the corpus, for scale). Do not read a mismatch against 62 as a
-     fault. `<n>` of 0 on the first tick IS the alarm to stop on: it means
+     **Do not compare it to what SPS displays.** The `scan_core_llm_scores` line just
+     above it prints the store's own total, and on 2026-09-05 that measured
+     `347 stored LLM scores across 1 core(s)` for core 14 while SPS showed 195 rows
+     (62 open + 133 confirmed). The gap is not a fault: the `publication_core` prune
+     is MySQL-side and never deleted the DynamoDB `CORE#` rows, and
+     `scan_core_llm_scores` filters only on `attribute_exists(llm_score)` with no
+     status predicate, so claimed/rejected//superseded rows all count. `<n>` is then
+     that total intersected with tonight's corpus, which trims it again (19 of core
+     14's 43 prior affinity rows are outside the corpus, for scale). `<n>` of 0 on the first tick IS the alarm to stop on: it means
      carry-forward found nothing to re-emit and `put_core_usage` is about to strip
      the review queue's LLM chips. A 0 here is always a real 0 — unlike the other
      two reads, `scan_core_llm_scores` RAISES rather than degrading to empty, so a
