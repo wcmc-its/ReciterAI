@@ -487,10 +487,10 @@ log group swapped:
 ```bash
 aws logs put-metric-filter \
   --log-group-name /ecs/reciterai-cores \
-  --filter-name reciterai-cores-errors \
+  --filter-name reciterai-cores-error-lines \
   --filter-pattern '?ERROR ?Traceback ?"affinity prior degraded" ?"treating as no curated clients" ?"unreadable shape" ?"alias search failed"' \
   --metric-transformations \
-    metricName=CoresRunErrors,metricNamespace=ReciterAI,metricValue=1,defaultValue=0
+    metricName=CoresRunErrorLines,metricNamespace=ReciterAI/Cores,metricValue=1,defaultValue=0
 ```
 
 …plus the twin `put-metric-alarm` from the grants section (`--period 86400`,
