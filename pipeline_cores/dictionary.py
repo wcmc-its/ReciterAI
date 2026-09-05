@@ -5,7 +5,12 @@ from pathlib import Path
 
 import yaml
 
-from pipeline_cores.models import DEFAULT_PARTNER_INSTITUTIONS, CoreDefinition, CoreStaff
+from pipeline_cores.models import (
+    DEFAULT_PARTNER_INSTITUTIONS,
+    METHOD_FAMILY_TIERS,
+    CoreDefinition,
+    CoreStaff,
+)
 
 _DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "core_dictionary.yaml"
 
@@ -50,6 +55,16 @@ def load_cores(path: Path = None) -> list:
                 # anywhere: an undiagnosable silent no-op. Bylines are lowercased at
                 # the comparison in run.py to match.
                 clients=sorted({str(x).strip().lower() for x in (c.get("clients") or []) if str(x).strip()}),
+                # Optional on the same contract as `clients` above — absent = {}, and a
+                # dictionary written before this key existed still loads. Stripped and
+                # CASEFOLDED for the same reason too: these labels are hand-typed into
+                # YAML against a 816-entry published taxonomy, and "Regression Modeling "
+                # would match no family, fire no signal and raise nothing anywhere. The
+                # artifact side is casefolded at the comparison in signals to match, and
+                # the label that reaches DynamoDB is the ARTIFACT's, so casefolding here
+                # costs no display fidelity. A typo'd TIER raises in _validate.
+                method_families={str(tier).strip().lower(): _labels(labels)
+                                 for tier, labels in (c.get("method_families") or {}).items()},
                 # Absent = combine()'s module default; a core only says so when it
                 # needs a different bar from everyone else.
                 confirm_threshold=_opt_float(c.get("confirm_threshold")),
@@ -67,6 +82,22 @@ def load_core(core_id: str, path: Path = None) -> CoreDefinition:
     raise KeyError(f"core_id {core_id!r} not in dictionary")
 
 
+def _labels(seq) -> list:
+    """Hand-typed family labels: stripped, casefolded, de-duplicated, ORDER KEPT.
+
+    Order is kept (unlike `clients`, which sorts) because the tier lists are written
+    strongest-lift-first, and `signals.method_family_signal` reports the tool and
+    evidence sentence of the FIRST family that fires inside the winning tier. Sorting
+    would hand that slot to whichever label happens to come first alphabetically.
+    """
+    out = []
+    for raw in seq or []:
+        label = str(raw).strip().casefold()
+        if label and label not in out:
+            out.append(label)
+    return out
+
+
 def _opt_float(value):
     return None if value is None else float(value)
 
@@ -81,3 +112,11 @@ def _validate(cores: list) -> None:
         seen.add(c.core_id)
         if not c.aliases:
             raise ValueError(f"core {c.core_id} has no aliases (signal 3 disabled)")
+        # A tier nobody scores is another silent no-op: combine() would look up
+        # "method:medium", find nothing, and the core would carry curation that can
+        # never fire. Raise here so a typo costs a failed load, not a dark signal.
+        for tier in c.method_families:
+            if tier not in METHOD_FAMILY_TIERS:
+                raise ValueError(
+                    f"core {c.core_id} method_families tier {tier!r} is not one of "
+                    f"{METHOD_FAMILY_TIERS}")

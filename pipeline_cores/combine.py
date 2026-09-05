@@ -134,6 +134,55 @@ WEIGHTS = {
     # handles with the chain rule. A weight fitted on `client` marginally, without that
     # overlap in hand, is a second copy of the affinity prior.
     "client": 0.00,
+    # An A2 METHOD FAMILY this core curated, bucketed by measured lift (dictionary
+    # `method_families:`). One key — the STRONGEST tier that fired — never one per tier
+    # and never one per family.
+    #
+    # Measured on core 14 (2026-09-05) with its 94 surfaced rows that are in the A2
+    # corpus as positives, against the 5,354 A2-corpus PMIDs with no core-14 row:
+    #
+    #   strong   (>=30x)
+    #     Clinical data warehouse/cohort platforms   399x  n=7    7.4% vs 0.02%
+    #     Clinical text mining                        34x  n=10  10.6% vs 0.3%
+    #     Electronic health record datasets           32x  n=36  38.3% vs 1.2%
+    #   moderate (~4-7x)
+    #     Machine learning classification            6.2x  n=15  16.0% vs 2.6%
+    #     Predictive model validation                4.9x  n=15  16.0% vs 3.2%
+    #   weak     (<2x, i.e. background)
+    #     Regression modeling                        1.7x  n=26  27.7% vs 16.6%
+    #     Observational study design                 1.6x  n=20  21.3% vs 13.4%
+    #
+    # For scale: `aff:regular` was fitted at 26/137 vs 7/1200 — ~32x — and carries
+    # +3.43. So `method:strong` is in the range where a fitted weight would MATTER, and
+    # that is exactly why it ships at 0.00 rather than at a plausible-looking number.
+    #
+    # WHY THE 399x IS NOT THE WEIGHT. Those positives are core-14 ENGINE rows, and a
+    # large share of them were produced by an LLM reading the SAME title+abstract the
+    # A2 extractor read (`signals.llm_triage` and `pipeline_tools/extract.py` differ in
+    # what they ask for, not in what they see). Part of that lift is therefore two
+    # systems agreeing about one piece of text, which is not two pieces of evidence.
+    # The fitted number will be lower than the raw lift, possibly much lower, and
+    # nobody can say how much lower without the measurement below.
+    #
+    # PREREQUISITE for any non-zero value, in the same shape as `client`'s: measure the
+    # overlap between `method:strong` and BOTH `llm_score` and the `aff:*` buckets
+    # first. If `method:strong` fires on exactly the papers the LLM already scored 8+,
+    # it is a second copy of signal 4 and summing them double-counts the same read of
+    # the same abstract. Only scripts/fit_evidence_weights.py may move these cells —
+    # and see the README: panel B is the IMAGING core (LABEL_CORE = "2") while this
+    # curation is on core 14, so the fitter cannot price these keys at all until a
+    # core-14 panel exists. That is one obstacle more than `client` has.
+    #
+    # AND IT MUST NOT BECOME A DISCOVERY SIGNAL. The A2 artifact covers 8.7% of the
+    # corpus (6,981 of 80,203 PMIDs) and that 8.7% is not a random slice — it is the
+    # faculty FIRST/LAST-author, 2020+, Academic Article slice the tools pipeline
+    # sweeps. A weight big enough to surface a paper on a family alone would silently
+    # rank that population up and everyone else down, on a queue whose whole job is to
+    # find a core's users. Keep it below the triage bar on its own, the way the LLM is
+    # deliberately kept below the confirm bar (0.591 against 0.65).
+    "method:strong": 0.00,
+    "method:moderate": 0.00,
+    "method:weak": 0.00,
     # Author x core affinity, bucketed on the RATE (signals.author_affinity — the
     # largest share of their own corpus output that any author on this byline has
     # already given to this core). A rate, not a count: the count could not tell a
@@ -284,6 +333,14 @@ def evidence_features(signals: SignalResult) -> list:
         # second independent claim. Weight 0.00 until it is fitted, so this key is
         # carried and shown by explain() while moving no score.
         out.append("client")
+    if signals.method_tier:
+        # EXACTLY ONE key, the strongest tier that fired — not one per tier, not one
+        # per family. The tiers are correlated (a paper carrying a 399x family usually
+        # also does regression), so emitting both would sum two views of the same
+        # evidence; and 816 families would make WEIGHTS an 816-row table nobody can
+        # fit, most of whose cells no panel would ever observe. One feature, not a
+        # count — the same rule as `staff` and `client`.
+        out.append(f"method:{signals.method_tier}")
     if signals.author_affinity > 0:
         # The MAX rate over the byline (signals.author_affinity), bucketed. A rate of
         # 0 emits nothing, per the absent-evidence rule above — even though the cell

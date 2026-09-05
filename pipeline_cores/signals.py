@@ -12,7 +12,7 @@ import logging
 import re
 
 from pipeline_cores.fulltext import to_plain_text
-from pipeline_cores.models import CoreDefinition, SignalResult
+from pipeline_cores.models import METHOD_FAMILY_TIERS, CoreDefinition, SignalResult
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +139,48 @@ def acknowledgement_signal(full_text: str, core: CoreDefinition, xml: str = "") 
             res.ack_section = match_section(xml, alias)
             break
     return res
+
+
+# ---------------------------------------------------------------------------
+# Signal 3b — A2 method families (deterministic join, no I/O)
+# ---------------------------------------------------------------------------
+def method_family_signal(family_index: dict, pmid: str, core: CoreDefinition):
+    """(families, tier, tool, snippet) for one (publication, core) pair.
+
+    Pure. `family_index` is `method_families.load_family_index()` — the whole join is
+    already done, so this is a dict lookup and a tier walk; nothing here reads S3, a
+    DB or Bedrock, which is what lets the index be loaded once per run.
+
+    A LIST, ranked, not a single value: papers carry several families at once (one real
+    core-14 paper carries four, and the artifact's ceiling is nine), and collapsing them
+    would throw away the reviewer's whole picture of what the paper did. Ranked
+    strongest-tier-first, then in the order the dictionary lists them inside that tier —
+    which is measured-lift order, so the tool and evidence sentence returned belong to
+    the strongest family that actually fired rather than to whichever one the taxonomy
+    happened to emit first.
+
+    Returns the STRONGEST tier only. combine() emits one `method:*` key from it: the
+    tiers co-occur (a paper with a 399x family usually also does regression), so
+    reporting every tier that fired would invite summing correlated evidence.
+    """
+    rows = family_index.get(str(pmid)) or []
+    if not rows or not core.method_families:
+        return [], "", "", ""
+    ranked = []
+    for tier in METHOD_FAMILY_TIERS:                     # strongest first
+        for label in core.method_families.get(tier, []):  # curator order = lift order
+            # Casefolded on both sides: the dictionary side by load_cores, the artifact
+            # side here. The label KEPT is the artifact's, so the canonical display form
+            # is what reaches DynamoDB.
+            hit = next((r for r in rows if r[0].casefold() == label), None)
+            if hit:
+                ranked.append((hit[0], tier, hit[1], hit[2]))
+    if not ranked:
+        return [], "", "", ""
+    _family, tier, tool, snippet = ranked[0]
+    # dict.fromkeys de-duplicates while keeping rank order — a label a curator listed
+    # under two tiers would otherwise appear twice.
+    return list(dict.fromkeys(r[0] for r in ranked)), tier, tool, snippet
 
 
 # ---------------------------------------------------------------------------

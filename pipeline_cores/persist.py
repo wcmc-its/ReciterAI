@@ -55,6 +55,14 @@ def build_core_item(rec: CoreUsageRecord) -> dict:
         item["llm_rationale"] = {"S": s.llm_rationale}
     if s.author_affinity:
         item["author_affinity"] = _n(s.author_affinity)
+    if s.method_families:
+        # All four together, or none: the tier, tool and sentence are only meaningful
+        # as the top of the ranked list, and a tier with no families behind it would
+        # read as evidence nobody can check.
+        item["method_families"] = {"L": [{"S": f} for f in s.method_families]}
+        item["method_tier"] = {"S": s.method_tier}
+        item["method_tool"] = {"S": s.method_tool}
+        item["method_snippet"] = {"S": s.method_snippet[:500]}   # capped like ack_snippet
     return item
 
 
@@ -65,7 +73,14 @@ def build_core_item(rec: CoreUsageRecord) -> dict:
 _OWNED_ATTRS = frozenset(build_core_item(CoreUsageRecord(
     pmid="0", core_id="0", likelihood=0.0, status="", scored_at="0",
     signals=SignalResult(ack_matched=True, ack_alias="a", ack_snippet="a",
-                         llm_score=0, llm_rationale="a", author_affinity=1.0),
+                         llm_score=0, llm_rationale="a", author_affinity=1.0,
+                         # Populated for the same reason as everything else here: an
+                         # attribute build_core_item can emit but this probe cannot see
+                         # falls OUTSIDE _OWNED_ATTRS, so put_core_usage never sweeps it
+                         # into REMOVE and a stale method family survives on a row the
+                         # run no longer supports.
+                         method_families=["a"], method_tier="strong",
+                         method_tool="a", method_snippet="a"),
 ))) - {"PK", "SK"}
 
 
@@ -111,9 +126,10 @@ def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) 
     only core ever scored through run.py, had 0).
 
     SET what this run produced and REMOVE the run.py-owned optionals it did NOT
-    (ack_alias, ack_snippet, llm_score, llm_rationale, author_affinity): a previous
-    run's llm_rationale surviving on a pair scored without the LLM this time is
-    stale evidence reading as fresh. Everything outside _OWNED_ATTRS is left alone.
+    (ack_alias, ack_snippet, llm_score, llm_rationale, author_affinity, and the four
+    method_* attributes): a previous run's llm_rationale surviving on a pair scored
+    without the LLM this time is stale evidence reading as fresh. Everything outside
+    _OWNED_ATTRS is left alone.
 
     The write is conditional on the row NOT holding a HUMAN status (ReciterAI #386
     recommendation 1). Nothing about a re-score is frozen by that: an engine
