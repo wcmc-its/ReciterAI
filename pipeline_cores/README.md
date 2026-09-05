@@ -25,6 +25,7 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 | 1b | curated known clients (asserted, not inferred) | `run_core`, `persist.get_curated_clients` | recall on cores with no history | `client` **0.00 — unfitted** |
 | 2 | core-staff co-authorship (resolved `personIdentifier`) | `signals.coauthorship_index` | deterministic recall | `staff` +4.89 |
 | 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | strongest single weight | `ack` +6.37, plus conditional terms |
+| 3b | A2 method families (curated, tiered) | `method_families.load_family_index`, `signals.method_family_signal` | a better *representation* of the abstract | `method:strong` / `:moderate` / `:weak` **0.00 — unfitted** |
 | 4 | LLM triage (two-pass Bedrock) | `signals.llm_triage` | ranking only, never confirms | line: −1.86 + 0.68 × min(score, 9) |
 | 5 | human claim (SPS ADR-005 override) | *(in SPS, not here)* | source of truth | n/a — read-time precedence |
 
@@ -62,6 +63,7 @@ after any weight change:
 | LLM 9 or 10 | 0.591 | candidate |
 | aff:regular (rate 0.30) | 0.387 | candidate |
 | **curated client** | **0.020** | **below_threshold** |
+| **curated method family, any tier** | **0.020** | **below_threshold** |
 | generic alias beside another institution | 0.002 | below_threshold |
 
 Two things to read off it. **The LLM alone never confirms** — it tops out at 0.591
@@ -71,7 +73,9 @@ already given ≥70% of their corpus output to this core confirms their next pap
 strength of that history. That is measured, not chosen (55/137 labelled-yes vs 3/1200
 corpus), but it makes the affinity numerator's correctness load-bearing — see #391 below.
 
-### The `client` signal is wired but inert
+### Two signals are wired but inert
+
+#### `client`
 
 `WEIGHTS["client"]` is **0.00** and `client_cwids` is **not in `persist.build_core_item`**,
 so a curated known client on a byline is extracted, unioned from YAML + DynamoDB, visible
@@ -84,6 +88,102 @@ argument is what produced the hand-picked constants #382 deleted. The prerequisi
 measuring the overlap between `client` and the `aff:*` buckets first: signal 1 *infers* a
 core's users from prior confirmations while this key *asserts* them, so wherever curation
 and history agree they fire on the same rows and summing both double-counts.
+
+#### `method:*` — the A2 method families
+
+`WEIGHTS["method:strong"]`, `["method:moderate"]` and `["method:weak"]` are all **0.00**,
+so a curated method family on a paper is extracted, ranked, persisted (unlike `client`)
+and worth exactly zero nats. A paper whose only evidence is a method
+family scores 0.020 and is never surfaced.
+
+`pipeline_tools` already mines every faculty first/last-authored abstract since 2020 into
+816 canonical **method families**, published at
+`s3://wcmc-reciterai-artifacts/tools/latest/`. `method_families.load_family_index()` joins
+`tools.json` (tool → family label + display name) to `tool_context.json`
+(tool → {pmid: evidence sentence}) into `{pmid: [(family, tool, sentence)]}` once per run —
+26 MB, not a fetch per pub — and `signals.method_family_signal` matches it against a core's
+curated `method_families:` list.
+
+**This is not a new source of evidence, and the difference matters for pricing it.**
+`pipeline_tools/extract.py` sends one Haiku call the paper's **title + abstract** (plus
+journal and year) — verifiably the same two fields `signals.llm_triage` reads, and full
+text reaches only the deterministic alias matcher in either pipeline. What the artifact
+buys is a better *representation* of that text: canonical labels instead of surface forms,
+deduplicated across 18,405 tools, comparable across papers, with a quotable sentence
+attached. It does not buy the model anything it could not already see.
+
+Tiers, measured on core 14 (2026-09-05) with its 94 surfaced rows that are in the A2
+corpus as positives against the 5,354 A2-corpus PMIDs with no core-14 row:
+
+| tier | family | lift | n | positives | background |
+|---|---|---|---|---|---|
+| `strong` | Clinical data warehouse/cohort platforms | **399x** | 7 | 7.4% | 0.02% |
+| `strong` | Clinical text mining | 34x | 10 | 10.6% | 0.3% |
+| `strong` | Electronic health record datasets | 32x | 36 | 38.3% | 1.2% |
+| `moderate` | Machine learning classification | 6.2x | 15 | 16.0% | 2.6% |
+| `moderate` | Predictive model validation | 4.9x | 15 | 16.0% | 3.2% |
+| `weak` | Regression modeling | 1.7x | 26 | 27.7% | 16.6% |
+| `weak` | Observational study design | 1.6x | 20 | 21.3% | 13.4% |
+
+That spread is the whole reason the dictionary key is **per family, not a flat "a curated
+tool was mentioned" boolean**: 399x and 1.7x priced as one feature would be wrong about
+both. For scale, `aff:regular` was fitted at ~32x and carries +3.43 — so a fitted
+`method:strong` would move real weight, which is exactly why it is not guessed.
+
+**Why 0.00 and not 399x.** The positives above are core-14 *engine* rows, and many were
+surfaced by an LLM reading the **same title+abstract the A2 extractor read**. Some of that
+lift is two systems agreeing about one piece of text, which is one piece of evidence, not
+two. The fitted number will be lower than the raw lift.
+
+**The overlap measurement (2026-09-05).** `client`'s comment names this as the prerequisite
+for a price; for `method:*` it has been run, over all 4,647 core-14 rows. Rates are
+corpus-restricted to the 1,627 core-14 PMIDs that appear in the A2 corpus at all — the
+other 3,020 cannot carry a family in either direction.
+
+| held against | finding |
+|---|---|
+| `aff:*` | **Not a copy.** `method:strong` fires on 6.5% of `aff:regular` rows (n=1,139) and 10.7% of `aff:core` (n=459) — flat-to-inverse across the prior, not monotone. Settled. |
+| `llm_score` | **Correlated, hard, and asymmetric.** Strong rate by bucket: 5.6% absent (n=1,474) → 16.7% at 1–3 (n=72) → 35.8% at 6–7 (n=53) → **76.9% at 8–10** (n=26). An LLM yes implies `method:strong` three times in four. |
+| `llm_score`, held out | 32 of the 52 scored strong rows (62%) are **not** an LLM yes; holding the LLM out alone leaves 114 strong in 1,601 rows — 7.1% vs 1.53% background, **4.6x**, on a panel that clears `MIN_PANEL`. |
+
+So the signal is independent of the affinity prior, substantially but not wholly redundant
+with signal 4, and its residual is real but an order of magnitude below the 32–399x
+headline.
+
+**What still blocks a price, and why re-running will not clear it.** Holding out *both*
+signals — the actual question — leaves **45 rows carrying 5 `method:strong` events** (12
+rows once corpus presence is required, as the background side requires by construction).
+The naive ratio is 7.3x or 27.2x depending only on which denominator you pick, against a
+`MIN_PANEL` of 30. That cell is small **by construction**: only 46 of 4,647 core-14 rows
+have affinity 0, because candidate generation is affinity-driven, and 43 of those 45 are
+already confirmed/claimed on staff or acknowledgement evidence. Re-running this pipeline
+cannot grow it. Pricing needs a sampling frame that yields ≥30 affinity-zero, LLM-negative
+positives.
+
+**And the lift table's denominator is load-bearing.** The figures above use the 94 of core
+14's 240 surfaced rows that are in the A2 corpus. Over all 240, every lift falls by the
+same 2.55x (399x → 156x, 32x → 12.5x) and both `weak` families invert to *below* background
+(1.7x → 0.7x, 1.6x → 0.6x). Neither denominator is wrong — the in-corpus one measures what
+the signal can do on papers it can see — but a lift quoted without its denominator is
+meaningless.
+
+**And the fitter cannot price these keys today.** `scripts/fit_evidence_weights.py` prices
+`staff` / `client` / `aff:*` on **panel B**, which is `analysis/labeled_set.csv` —
+`LABEL_CORE = "2"`, the **imaging** core. This curation is on **core 14**. Even if the keys
+were wired into panel B's key list, `load_core("2").method_families` is `{}`, so every cell
+would come back `REFUSED: never observed on either side` — not because the evidence is
+absent from the data, but because the panel is about a different core. Pricing them needs a
+core-14 labelled panel (or the same curation asserted on core 2, which nobody has measured).
+That is one obstacle more than `client` has, and it is an honest blocker rather than a
+refusal. The fitting script is deliberately unchanged here.
+
+**It must never become a discovery signal.** The artifact covers **8.7% of the corpus**
+(6,981 PMIDs, 6,953 of them once null-family tools are dropped, against 80,203) and
+**39% of core 14's surfaced rows** (94 of 240) — and that 8.7% is *not* a random slice. It
+is the faculty **first/last-author, 2020+, Academic Article** population the tools pipeline
+sweeps. A weight big enough to surface a paper on a family alone would silently rank that
+population up on a queue whose entire job is finding a core's users. Keep it below the
+triage bar on its own, the way the LLM is kept below the confirm bar.
 
 **Ack evidence:** an alias match records `ack_alias_hits` (the alias's global PMC hit
 count, cached by `python3 -m pipeline_cores.refresh_alias_hits`; specificity predicts
@@ -123,7 +223,7 @@ them honest:
 ### A worked example
 
 One pair, every signal firing, computed from the shipped weights
-(`combine.explain()` returns the seven evidence rows below, in that order and with those
+(`combine.explain()` returns the eight evidence rows below, in that order and with those
 labels — it is what the claim queue renders; the prior, logit and P rows are `score()`'s
 arithmetic around them):
 
@@ -137,6 +237,7 @@ arithmetic around them):
 | `llm:7` — Sonnet dense score 7 → −1.86 + 0.68×7 | +2.90 |
 | `ack.spec:moderate` — "Epigenomics Core", 666 global PMC hits | +1.90 |
 | `client` — a curated known client on the byline | +0.00 |
+| `method:strong` — an Electronic-health-record-datasets tool named in the abstract | +0.00 |
 | **= logit** | **+19.07** |
 | **= P** | **1.000 → confirmed** |
 
@@ -218,10 +319,10 @@ the screen alone.
 
 The least obvious part of this pipeline, and the part that has caused every data-loss
 incident in it. `persist.put_core_usage` is an **UpdateItem that SETs what this run
-produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 12
-attributes `build_core_item` can emit; the five *optional* ones are the only members that
+produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 14
+attributes `build_core_item` can emit; the seven *optional* ones are the only members that
 can ever land in REMOVE: `ack_alias`, `ack_snippet`, `llm_score`, `llm_rationale`,
-`author_affinity`. The other seven (`pmid`, `core_id`, `likelihood`, `status`,
+`author_affinity`, `method_tier` and `method_evidence`. The other seven (`pmid`, `core_id`, `likelihood`, `status`,
 `scored_at`, `signal_coauthors`, `signal_ack`) are written on every record, so they are
 always in SET.
 
@@ -231,7 +332,11 @@ without the LLM this time is stale evidence reading as fresh. Three consequences
 1. **A run without `--with-llm` strips the LLM evidence** off every row it re-surfaces,
    and exits green doing it. `--llm-carry-forward` exists for exactly this: it reads the
    stored `llm_score`/`llm_rationale` back and re-emits them, so they land in SET rather
-   than REMOVE. The scheduled nightly depends on it.
+   than REMOVE. The scheduled nightly depends on it. **`--with-method-families` has the
+   same property and no carry-forward**: a run without the flag REMOVEs the four
+   `method_*` attributes from every row a run with it wrote, so once it is enabled the
+   nightly must carry it. There is deliberately no read-back path — nothing consumes
+   those attributes yet, and re-deriving them from the artifact is free.
 2. **A degraded read becomes a wipe.** Any upstream read that fails soft to empty gets its
    emptiness *written*. So the two reads on the write path raise instead:
    `scan_core_llm_scores` unconditionally, and `scan_prior_core_usage` under `strict=True`
@@ -391,6 +496,11 @@ python3 -m pipeline_cores.run --core 2 --with-llm             # Bedrock + Dynamo
 # put_core_usage would otherwise REMOVE from every row it re-surfaces.
 python3 -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward
 
+# A2 method families (#394). One 26 MB S3 read per run, no Bedrock, every weight 0.00 —
+# it writes the method_* attributes and changes no score or status. CARRY IT once
+# enabled: a run without it REMOVEs those attributes (#384).
+python3 -m pipeline_cores.run --core 14 --with-method-families --dry-run
+
 # full corpus, all cores, on the warm S3 cache. Triage is threaded (--llm-workers,
 # default 8) so the run finishes in reasonable wall-clock; lower it if Bedrock throttles.
 python3 -m pipeline_cores.run --with-llm --with-fulltext --fulltext-s3 --with-affinity
@@ -444,17 +554,20 @@ a cell too thin to support a weight is `0.00` **and says so** rather than being 
    beside a home institution at 0.706, Δ0.056). A weight change can quietly move a piece
    of evidence across it.
 
-Three refusals worth preserving, because each is a place someone will be tempted to guess:
+Four refusals worth preserving, because each is a place someone will be tempted to guess:
 `sec:ack`/`sec:methods`/`sec:body` are 0.00 (collected but the two panels differ in JATS
 coverage, not in what a section *means*); `ack.spec:unknown` and `inst:none@*unknown*` are
-0.00 (never observed on either side — neutral, not penalised); `client` is 0.00 (#383).
+0.00 (never observed on either side — neutral, not penalised); `client` is 0.00 (#383); and
+`method:strong`/`:moderate`/`:weak` are 0.00 (#394 — 399x/6.2x/1.7x on core 14's 94
+in-corpus positives, and independent of `aff:*`, but the both-signals-held-out panel is 5
+events and panel B is the *imaging* core, so the fitter cannot price them at all yet).
 
 ## File map
 
 | file | what it owns |
 |---|---|
 | `models.py` | `CoreDefinition`, `SignalResult`, `CoreUsageRecord`, the status constants |
-| `dictionary.py` | loads `config/core_dictionary.yaml` (aliases, staff, clients, per-core thresholds) |
+| `dictionary.py` | loads `config/core_dictionary.yaml` (aliases, staff, clients, method families, per-core thresholds) |
 | `ingest.py` | ReciterDB reads: corpus, bylines, author totals, corpus gating |
 | `signals.py` | ack matcher, co-authorship, affinity index, LLM triage, screens |
 | `combine.py` | `WEIGHTS`, `evidence_features`, `explain`, `score`, `combine` — **the model** |
@@ -462,6 +575,7 @@ coverage, not in what a section *means*); `ack.spec:unknown` and `inst:none@*unk
 | `persist.py` | DynamoDB writes and the three reads; `_OWNED_ATTRS`; the #386 guard |
 | `prefilter.py` | the free `prefilter_prior` (author-affinity OR MeSH E-tree) |
 | `batch_screen.py` | the candidate-generation run-mode |
+| `method_families.py` | joins the A2 tools artifact into `{pmid: [(family, tool, sentence)]}`; **raises**, never degrades |
 | `pmc_search.py`, `fulltext.py` | alias search + PMC full-text, disk→S3→NCBI cache |
 | `refresh_alias_hits.py` | caches each alias's global PMC hit count (drives specificity) |
 | `suggest_aliases.py`, `suggest_staff.py` | curation helpers, not part of scoring |
@@ -473,6 +587,7 @@ Infra and the nightly: `infra/README.md`, "Cores daily run launch path".
 | # | what |
 |---|---|
 | #383 | fit the `client` weight — it is 0.00 and `client_cwids` is not persisted |
+| #394 | fit the `method:*` weights — overlap MEASURED 2026-09-05 (independent of `aff:*`; 4.6x residual over `llm_score` alone), but still blocked twice: the both-signals-held-out panel is 5 events against `MIN_PANEL`=30 and cannot grow, **and** the fitter's panel B is core 2 while the curation is core 14 |
 | #388 | the nightly Bedrock budget; a corpus-wide `--with-llm` is ~80k Haiku screens |
 | — | `batch_screen` and `run.py` write `likelihood` on different scales (above) |
 | — | per-author **time decay** in affinity: needs publication year carried through `scan_prior_core_usage` and a half-life calibrated on `analysis/labeled_set.csv`. Do not guess the decay |

@@ -5,7 +5,7 @@
 # surname — e.g. 511 resolved "Voss" rows are the oncologist mhv9001, not CBIC's
 # hev2006). grant_ids stays empty: validation found no shared core grant.
 #
-# Three optional per-core keys, all with safe defaults (an entry without them runs):
+# Four optional per-core keys, all with safe defaults (an entry without them runs):
 #   partner_institutions: institutions that count as HOME for an alias match, beside
 #     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
 #     opts a core that is NOT shared out of partner credit.
@@ -22,6 +22,19 @@
 #     ponytail: a YAML list, not a table — ceiling is a few dozen CWIDs per core and
 #     every edit costs a PR. The curation UI (unbuilt) writes an SPS table and can
 #     export into exactly this shape when it exists; nothing here is built for it.
+#   method_families: curated A2 METHOD FAMILIES whose presence in a paper is evidence
+#     for this core, as `{strong|moderate|weak: [family label, ...]}`. Absent = no
+#     curated families, which is every core but 14. Labels are the published
+#     pipeline_tools taxonomy's own (s3://wcmc-reciterai-artifacts/tools/latest/
+#     tools.json, .tools[].method_family_label, 816 of them at v2026-06-23); they are
+#     stripped + casefolded at load, and an unknown TIER name RAISES rather than
+#     silently matching nothing. Like `clients:` this ASSERTS something rather than
+#     inferring it — a person decided which families mean this core's work.
+#     PER FAMILY, never a flat "a curated tool was mentioned" boolean: the measured
+#     lifts inside one core's own list span 399x down to 1.6x (see core 14 below), so a
+#     single boolean would price the near-proof and the background together and be
+#     wrong about both. Tiers, and the lifts under them, were measured 2026-09-05
+#     against core 14's surfaced rows; re-measure before adding a core.
 #
 # Starting list = the 13 cores in
 # "Projects/Inferring Cores and Services/Core inference prompt 0.txt".
@@ -446,3 +459,39 @@ cores:
       extraction, clinical trial support, secure environments for analysis of
       research data sets, and access to high-performance/scientific computing
       resources for the research enterprise
+    # A2 METHOD FAMILIES, tiered by MEASURED LIFT, 2026-09-05. Positives = the 94 of
+    # core 14's 240 surfaced (confirmed/claimed/candidate) rows that are in the A2
+    # corpus; background = the 5,354 A2-corpus PMIDs with no core-14 row. Every weight
+    # in combine.WEIGHTS is 0.00, so nothing below moves a score today — the tiers
+    # exist so that when one is fitted, "used a clinical data warehouse" and "ran a
+    # regression" cannot be priced as the same claim.
+    #
+    # THE DENOMINATOR IS LOAD-BEARING, so it is stated above rather than implied. Over
+    # all 240 surfaced rows instead of the 94 in-corpus ones, every lift falls by the
+    # same 2.55x (399x -> 156x, 32x -> 12.5x) and BOTH weak families invert to BELOW
+    # background (1.7x -> 0.7x, 1.6x -> 0.6x) — a core-14 positive is then LESS likely
+    # than a random corpus paper to carry them. Neither denominator is wrong; the
+    # in-corpus one is the honest measure of what the signal can do on the papers it
+    # can see, and the 2.55x is the price of the 146 positives outside the 2020+
+    # first/last-author corpus. Quoting a lift without its denominator is meaningless.
+    #
+    # READ THE LIFTS AS AN UPPER BOUND. Part of them is agreement, not evidence: the
+    # A2 extractor and signal 4 both read this paper's title+abstract, and a share of
+    # these positives were surfaced by the LLM doing so. Do not lift a weight off this
+    # comment; scripts/fit_evidence_weights.py is the only thing that may.
+    #
+    # salience_tier from the artifact is deliberately NOT used here or rendered: it is
+    # a per-TOOL distinctiveness measure from the tools pipeline, not a cores-relevance
+    # one, and it disagrees with this ordering (the 399x family has no S-tier tool at
+    # all, while 6.2x "Machine learning classification" has 11).
+    method_families:
+      strong:                                        # >=30x lift on core 14
+        - "Clinical data warehouse/cohort platforms" # 399x  n=7    7.4% vs 0.02%
+        - "Clinical text mining"                     #  34x  n=10  10.6% vs 0.3%
+        - "Electronic health record datasets"        #  32x  n=36  38.3% vs 1.2%
+      moderate:                                      # ~4-7x
+        - "Machine learning classification"          # 6.2x  n=15  16.0% vs 2.6%
+        - "Predictive model validation"              # 4.9x  n=15  16.0% vs 3.2%
+      weak:                                          # <2x — near background
+        - "Regression modeling"                      # 1.7x  n=26  27.7% vs 16.6%
+        - "Observational study design"               # 1.6x  n=20  21.3% vs 13.4%

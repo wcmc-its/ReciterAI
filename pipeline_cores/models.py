@@ -60,6 +60,20 @@ class CoreDefinition:
     # the heaviest weight in the model at +6.37 nats — firing exactly 11 times.
     # No projection property (cf. staff_cwids): these are already bare CWIDs.
     clients: list = field(default_factory=list)
+    # Curated A2 method families this core's work is characterised by, as
+    # {tier: [family_label]} over METHOD_FAMILY_TIERS. Absent = {} and the core simply
+    # never fires the signal. ASSERTED curation like `clients` above — a person decided
+    # that "used a clinical data warehouse" means Research Informatics — and the
+    # families come from pipeline_tools' published taxonomy, so the labels are the
+    # artifact's, not free text.
+    #
+    # PER FAMILY, on purpose. A flat "some curated tool was mentioned" boolean would
+    # repeat the `client`-weight mistake in a new costume: measured on core 14
+    # (2026-09-05), "used a clinical data warehouse" runs at 399x the background rate
+    # and "does regression" at 1.7x — one is nearly proof and the other is barely
+    # distinguishable from any quantitative paper at WCM. Averaged into one feature
+    # they price each other wrong in both directions.
+    method_families: dict = field(default_factory=dict)
     # Per-core overrides of combine()'s status bands. None = the module default.
     # Status is a THRESHOLD on the score now, so this is where a core that needs a
     # different bar says so — e.g. one whose aliases are all generic, or whose
@@ -93,6 +107,23 @@ class SignalResult:
     ack_alias_hits: Optional[int] = None   # matched alias's global PMC hits (None = uncached)
     ack_institution: str = ""              # "home" | "other" | "none"  ("" = no ack match)
     ack_section: str = ""                  # "ack" | "methods" | "body" ("" = no XML/no match)
+    # --- A2 method families, EXTRACTED but not yet priced (ReciterAI #394) ---
+    # [(family_label, tool_display_name, sentence), ...] — one per curated family that
+    # fired, STRONGEST tier first then measured-lift order inside the tier. Every family
+    # carries its OWN tool and quote: a label whose sentence belongs to a different
+    # family is one the reviewer cannot check, and the join already holds all three.
+    # `method_families` (the labels alone) and the top family's tool/snippet are both
+    # derivable from this, so neither is stored a second time.
+    method_evidence: list = field(default_factory=list)
+    method_tier: str = ""                  # "strong" | "moderate" | "weak" ("" = nothing fired)
+
+
+# Method-family tiers, STRONGEST FIRST — the order is load-bearing (signals picks the
+# first tier that fired) and it is the vocabulary dictionary._validate checks a core's
+# `method_families:` keys against, so a typo'd tier raises instead of silently matching
+# nothing. Three bands rather than a per-family weight because 816 families cannot be
+# fitted; see combine.WEIGHTS.
+METHOD_FAMILY_TIERS = ("strong", "moderate", "weak")
 
 
 # Status lifecycle for a (publication, core) pair.

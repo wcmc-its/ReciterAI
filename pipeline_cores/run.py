@@ -18,12 +18,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from pipeline_cores import combine as _combine
-from pipeline_cores import ingest, pmc_search, signals
+from pipeline_cores import ingest, method_families, pmc_search, signals
 from pipeline_cores.dictionary import load_core, load_cores
-from pipeline_cores.models import STATUS_CONFIRMED
+from pipeline_cores.models import METHOD_FAMILY_TIERS, STATUS_CONFIRMED
 
 # Triage Bedrock calls are tiny generations (a screen int / a short JSON), so a
 # 120s read timeout is ample headroom while bounding a hung connection far below
@@ -103,7 +103,7 @@ def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              engine, prior_user_pmids=None, screen_map=None, llm_workers=8,
-             dry_run: bool = False, carry_forward: dict = None):
+             dry_run: bool = False, carry_forward: dict = None, family_index: dict = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -122,7 +122,12 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     conflated: {} is the flag ON for a core that simply has nothing stored yet, and it
     still takes the carry-forward path — with bedrock that triages every pub (correctly,
     there is nothing to reuse), without bedrock it prints "0 carried forward" so an
-    operator can see the core is empty rather than guess the flag failed."""
+    operator can see the core is empty rather than guess the flag failed.
+
+    family_index is main()'s once-per-run A2 method-family index (26 MB of JSON) or
+    None when --with-method-families is off. Looking a pmid up in it is a dict access,
+    so phase 1 asks for every pub either way and an absent index simply answers with
+    nothing."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
@@ -180,6 +185,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         # compares them case-insensitively throughout for the same reason), and the
         # curated list is hand-typed.
         sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid.lower() in clients]
+        sig.method_evidence, sig.method_tier = signals.method_family_signal(
+            family_index or {}, pmid, core)
         tri = llm_scores.get(str(pmid))
         if tri:
             sig.llm_score = tri["score"]
@@ -187,6 +194,12 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         sigs[pmid] = sig
         records.append(_combine.combine(pmid, core.core_id, sig, scored_at=scored_at,
                                         core=core, triage_threshold=threshold))
+    if family_index is not None:
+        fired = Counter(s.method_tier for s in sigs.values() if s.method_tier)
+        print(f"[{core.core_id} {core.name}] method families: {len(family_index)} pmids "
+              f"indexed + {sum(len(v) for v in core.method_families.values())} curated "
+              f"labels -> {sum(fired.values())} of {len(pubs)} pubs "
+              f"({', '.join(f'{t} {fired[t]}' for t in METHOD_FAMILY_TIERS)})")
 
     # Phase 2 — repeat-user affinity. Collect the confirmed PAPERS per author (this run
     # + prior), build the affinity index, and re-score non-confirmed records.
@@ -271,6 +284,18 @@ def main(argv=None):
                          "Acronym aliases are skipped (esearch has no case-sensitive mode)")
     ap.add_argument("--fulltext-s3", action="store_true",
                     help="back the full-text cache with the shared S3 cache (warm with -m pipeline_cores.prefetch_fulltext)")
+    ap.add_argument("--with-method-families", action="store_true",
+                    help="join the A2 method-family taxonomy (s3://<artifacts>/tools/latest/) "
+                         "onto each pub and match it against the core's curated "
+                         "`method_families:`. One 26 MB read per RUN, no per-pub cost, no "
+                         "Bedrock. Every weight is 0.00 today, so this changes no score and "
+                         "no status — it only writes the method_* attributes. "
+                         "CARRY IT ONCE IT IS ENABLED: exactly like --llm-carry-forward's "
+                         "evidence, these four attributes are in _OWNED_ATTRS, so a run "
+                         "WITHOUT this flag REMOVEs them from every row a run WITH it wrote "
+                         "(#384). There is deliberately no carry-forward analogue — nothing "
+                         "reads these attributes yet, so re-deriving them from the artifact "
+                         "is free and a second read-back path is not worth owning")
     ap.add_argument("--with-affinity", action="store_true",
                     help="seed the repeat-user prior from prior DynamoDB confirmations (signal 1 cross-run)")
     ap.add_argument("--all-cores-screen", action="store_true",
@@ -306,6 +331,10 @@ def main(argv=None):
         bedrock = BedrockClient(read_timeout=_TRIAGE_READ_TIMEOUT)
 
     full_text = _make_fulltext_loader(args.with_fulltext, use_s3=args.fulltext_s3)
+    # ONCE per run, before any per-publication work: 26 MB of JSON off S3, shared by
+    # every core. load_family_index RAISES rather than degrading to {} — an empty index
+    # here would be WRITTEN as a REMOVE of the method_* attributes on every row.
+    family_index = method_families.load_family_index() if args.with_method_families else None
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
@@ -350,7 +379,8 @@ def main(argv=None):
                         # core) mean different things to run_core — .get's default
                         # keeps them apart.
                         carry_forward=(None if carry_forward is None
-                                       else carry_forward.get(core.core_id, {})))
+                                       else carry_forward.get(core.core_id, {})),
+                        family_index=family_index)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")

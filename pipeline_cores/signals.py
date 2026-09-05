@@ -12,7 +12,7 @@ import logging
 import re
 
 from pipeline_cores.fulltext import to_plain_text
-from pipeline_cores.models import CoreDefinition, SignalResult
+from pipeline_cores.models import METHOD_FAMILY_TIERS, CoreDefinition, SignalResult
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +139,59 @@ def acknowledgement_signal(full_text: str, core: CoreDefinition, xml: str = "") 
             res.ack_section = match_section(xml, alias)
             break
     return res
+
+
+# ---------------------------------------------------------------------------
+# Signal 3b — A2 method families (deterministic join, no I/O)
+# ---------------------------------------------------------------------------
+def method_family_signal(family_index: dict, pmid: str, core: CoreDefinition):
+    """(evidence, tier) for one (publication, core) pair.
+
+    `evidence` is [(family_label, tool_display_name, sentence), ...] — ONE entry per
+    curated family that fired, ranked strongest tier first and, inside a tier, in the
+    order the dictionary lists them, which is measured-lift order.
+
+    Pure. `family_index` is `method_families.load_family_index()` — the whole join is
+    already done, so this is a dict lookup and a tier walk; nothing here reads S3, a DB
+    or Bedrock, which is what lets the index be loaded once per run.
+
+    EVERY family keeps its own tool and sentence, not just the top one. Papers carry
+    several families at once (median 2 on core 14's live queue, max 4; the artifact's
+    ceiling is 9), and the reviewer-facing question is what the paper DID — a bare
+    "Regression modeling" with the quote belonging to a different family is a label the
+    reviewer cannot check. The join already holds all three fields for every family, so
+    carrying them costs a list comprehension; dropping them would cost a full re-scoring
+    run to recover, on an engine with no schedule.
+
+    ONE entry per family, not per (family, tool): several tools can sit in the same
+    family (up to 6 tool rows behind 4 families on the live queue) and a second tool in a
+    family the paper already claims is not a second claim. The tool kept is the first in
+    the index's stable sort.
+
+    The TIER returned is the strongest that fired, and only that one. combine() emits a
+    single `method:*` key from it: the tiers co-occur (a paper with a 399x family usually
+    also does regression), so reporting every tier would invite summing correlated
+    evidence.
+    """
+    rows = family_index.get(str(pmid)) or []
+    if not rows or not core.method_families:
+        return [], ""
+    ranked, seen = [], set()
+    for tier in METHOD_FAMILY_TIERS:                      # strongest first
+        for label in core.method_families.get(tier, []):  # curator order = lift order
+            # Casefolded on both sides: the dictionary side by load_cores, the artifact
+            # side here. The label KEPT is the artifact's, so the canonical display form
+            # is what reaches DynamoDB.
+            hit = next((r for r in rows if r[0].casefold() == label), None)
+            # `seen` guards the one duplicate the curator can create: the same label
+            # listed under two tiers. It keeps the STRONGER placement, since tiers are
+            # walked strongest-first.
+            if hit and hit[0] not in seen:
+                seen.add(hit[0])
+                ranked.append(((hit[0], hit[1], hit[2]), tier))
+    if not ranked:
+        return [], ""
+    return [ev for ev, _tier in ranked], ranked[0][1]
 
 
 # ---------------------------------------------------------------------------
