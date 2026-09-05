@@ -47,11 +47,25 @@ def _make_fulltext_loader(enabled: bool, *, use_s3: bool = False):
     return client.get
 
 
-def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine=None) -> dict:
-    """cwid -> {core_id: n_confirmed_papers} from prior confirmed/claimed records.
+def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=None) -> dict:
+    """cwid -> {core_id: {pmid, ...}} from prior confirmed/claimed records.
 
     Scans DynamoDB for prior confirmed/claimed (pub, core) rows and attributes
     each to its byline authors (the cross-run repeat-user prior).
+
+    SETS OF PMIDS, not counts, and that is the point (#391). This used to return
+    `{cwid: {core_id: n}}`, which `run_core` phase 2 then ADDED this run's confirmations
+    to — and on a corpus-wide run those are largely the SAME PAPERS, since a pair
+    confirmed by a previous run is confirmed again by this one. Every such paper was
+    credited twice to every author on its byline, doubling the numerator of a rate whose
+    denominator is a real paper count. `build_affinity_index` only warns when the
+    doubled value exceeds the author's corpus total (2 authors on the 2026-09-05
+    full-corpus run); everyone still under their total was inflated SILENTLY, and
+    `aff:core` (rate >= 0.70, +4.93 nats) clears DEFAULT_CONFIRM_THRESHOLD on its own —
+    so an inflated author's next paper auto-confirms with no acknowledgement, no staff
+    co-author and no LLM score behind it. A set unions instead of adding, so the same
+    paper arriving from both sources counts once by construction rather than by a
+    subtraction someone has to remember to keep correct.
 
     A prior paper is NOT necessarily in this run's `bylines` — always so for a
     `--pmids-file` run, and possible in a full run for a paper that has since
@@ -60,9 +74,9 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
     answer that looks like a working run (a scoped core-14 pool scored 0
     candidates instead of 404 before this).
     """
-    counts: dict = defaultdict(lambda: defaultdict(int))
+    pmids: dict = defaultdict(lambda: defaultdict(set))
     if not enabled:
-        return counts
+        return pmids
     from pipeline_cores.persist import scan_prior_core_usage  # lazy
     # strict=True because THIS caller writes. scan_prior_core_usage degrades to [] for
     # its two analysis callers, where a missing prior only costs a worse report — but
@@ -83,17 +97,17 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
         bylines = {**bylines, **ingest.fetch_author_bylines(engine, missing)}
     for rec in recs:
         for cwid in bylines.get(rec["pmid"], []):
-            counts[cwid][rec["core_id"]] += 1
-    return counts
+            pmids[cwid][rec["core_id"]].add(rec["pmid"])
+    return pmids
 
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
-             engine, prior_user_counts=None, screen_map=None, llm_workers=8,
+             engine, prior_user_pmids=None, screen_map=None, llm_workers=8,
              dry_run: bool = False, carry_forward: dict = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
-    aggregates this run's confirmations (+ prior_user_counts) to author level, divides
+    aggregates this run's confirmations (+ prior_user_pmids) to author level, divides
     each author's count by their TOTAL corpus output to get the affinity rate, and
     re-scores the not-yet-confirmed records with it. Confirmed records are untouched
     (already at ceiling).
@@ -174,16 +188,24 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         records.append(_combine.combine(pmid, core.core_id, sig, scored_at=scored_at,
                                         core=core, triage_threshold=threshold))
 
-    # Phase 2 — repeat-user affinity. Count confirmed papers per author (this run
+    # Phase 2 — repeat-user affinity. Collect the confirmed PAPERS per author (this run
     # + prior), build the affinity index, and re-score non-confirmed records.
-    counts = defaultdict(lambda: defaultdict(int))
-    for cwid, by_core in (prior_user_counts or {}).items():
-        for cid, n in by_core.items():
-            counts[cwid][cid] += n
+    #
+    # Sets, not counters (#391). A pair confirmed by an earlier run arrives from BOTH
+    # prior_user_pmids and this run's records on any corpus-wide run; `add` makes that
+    # one paper, `+= 1` made it two. The numerator has to mean the same thing as the
+    # denominator — a count of that author's papers — or the rate is not a rate.
+    papers = defaultdict(lambda: defaultdict(set))
+    for cwid, by_core in (prior_user_pmids or {}).items():
+        for cid, pmid_set in by_core.items():
+            papers[cwid][cid] |= set(pmid_set)
     for rec in records:
         if rec.status == STATUS_CONFIRMED:
             for cwid in bylines.get(rec.pmid, []):
-                counts[cwid][core.core_id] += 1
+                papers[cwid][core.core_id].add(rec.pmid)
+    # len() at the boundary: build_affinity_index takes counts, and keeping the sets on
+    # this side of it means the dedupe cannot be undone by a caller that builds its own.
+    counts = {cwid: {cid: len(p) for cid, p in by_core.items()} for cwid, by_core in papers.items()}
     # The rate's denominator, for the authors that actually have confirmations. Scoped
     # to those cwids rather than the whole corpus: it is the same number either way,
     # and this run may only be scoring a pool.
@@ -297,7 +319,7 @@ def main(argv=None):
     # core. The byline attribution keys on each row's own core_id, and each
     # run_core reads only its own core's slice — so passing the whole prior is
     # identical to a per-core filtered scan, at 1/len(cores) the table reads.
-    prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity, engine=engine)
+    prior_pmids = load_prior_user_pmids(args.core, bylines, enabled=args.with_affinity, engine=engine)
     # Stored LLM evidence: the same trade as the affinity prior above — ONE Scan
     # grouped by core_id in memory rather than one Scan per core, since each run_core
     # reads only its own core's slice.
@@ -322,7 +344,7 @@ def main(argv=None):
         )
         recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
-                        prior_user_counts=prior_counts, screen_map=screen_map,
+                        prior_user_pmids=prior_pmids, screen_map=screen_map,
                         llm_workers=args.llm_workers, dry_run=args.dry_run,
                         # None (flag off) and {} (flag on, nothing stored for this
                         # core) mean different things to run_core — .get's default
