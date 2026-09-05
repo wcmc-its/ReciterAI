@@ -2,6 +2,7 @@
 dictionary load, the acknowledgement matcher, and the combiner. No DB/Bedrock/AWS.
 """
 import math
+import re
 import statistics
 
 from pipeline_cores.combine import (
@@ -17,7 +18,9 @@ from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import (
     STATUS_BELOW,
     STATUS_CANDIDATE,
+    STATUS_CLAIMED,
     STATUS_CONFIRMED,
+    STATUS_REJECTED,
     CoreDefinition,
     SignalResult,
 )
@@ -807,9 +810,24 @@ class _FakeUpdateDynamo:
 
     A whole-item Put is the bug under test, so the double refuses one outright rather
     than letting the assertions below decide.
+
+    Models put_core_usage's human-status ConditionExpression (#386 rec 1) rather than
+    accepting and ignoring it: a double that silently swallowed the condition would let
+    every guard assertion below pass against a write that never guarded anything.
+
+    Also enforces DynamoDB's own rule that an ExpressionAttributeNames/Values entry no
+    expression references is a validation ERROR, not a harmless extra. That is exactly
+    the failure mode the fallback write invites — it drops `status` from the SET clause
+    and has to drop the placeholder and the two condition values with it — and a
+    permissive double would call that write a success that production would reject.
     """
+    class exceptions:
+        class ConditionalCheckFailedException(Exception):
+            pass
+
     def __init__(self, store=None):
         self.store = dict(store or {})
+        self.calls = []                    # every UpdateItem, in order
 
     def batch_write_item(self, **kw):
         raise AssertionError("put_core_usage must not write whole items")
@@ -817,8 +835,25 @@ class _FakeUpdateDynamo:
     put_item = batch_write_item
 
     def update_item(self, TableName, Key, UpdateExpression,
-                    ExpressionAttributeNames, ExpressionAttributeValues):
+                    ExpressionAttributeNames, ExpressionAttributeValues,
+                    ConditionExpression=None):
+        self.calls.append({"UpdateExpression": UpdateExpression,
+                           "ExpressionAttributeNames": dict(ExpressionAttributeNames),
+                           "ConditionExpression": ConditionExpression})
+        expressions = UpdateExpression + " " + (ConditionExpression or "")
+        unused = (sorted(set(ExpressionAttributeNames) - set(re.findall(r"#\w+", expressions)))
+                  + sorted(set(ExpressionAttributeValues) - set(re.findall(r":\w+", expressions))))
+        if unused:
+            raise AssertionError(f"unused expression placeholders {unused} — DynamoDB "
+                                 f"rejects the whole UpdateItem for these")
+
         item = dict(self.store.get((Key["PK"]["S"], Key["SK"]["S"]), {}))
+        if ConditionExpression is not None:
+            protected = {ExpressionAttributeValues[":claimed"]["S"],
+                         ExpressionAttributeValues[":rejected"]["S"]}
+            if item.get("status", {}).get("S") in protected:
+                raise self.exceptions.ConditionalCheckFailedException("human status")
+
         sets, _, removes = UpdateExpression.partition(" REMOVE ")
         for pair in sets[len("SET "):].split(","):
             n, v = (s.strip() for s in pair.split("="))
@@ -827,6 +862,13 @@ class _FakeUpdateDynamo:
             item.pop(ExpressionAttributeNames[n], None)
         self.store[(Key["PK"]["S"], Key["SK"]["S"])] = item
         return {}
+
+
+def _set_attrs(call: dict) -> list:
+    """The attribute names one recorded UpdateItem's SET clause writes."""
+    sets, _, _ = call["UpdateExpression"].partition(" REMOVE ")
+    return [call["ExpressionAttributeNames"][pair.split("=")[0].strip()]
+            for pair in sets[len("SET "):].split(",")]
 
 
 _SCREENED_ROW = {
@@ -1167,7 +1209,7 @@ def test_prior_affinity_fetches_bylines_for_papers_outside_this_run(monkeypatch)
     import pipeline_cores.persist as persist
 
     monkeypatch.setattr(persist, "scan_prior_core_usage",
-                        lambda cid: [{"pmid": "999", "core_id": "14"}])
+                        lambda cid, **kw: [{"pmid": "999", "core_id": "14"}])
     fetched = []
 
     def fake_bylines(engine, pmids):
@@ -1201,7 +1243,7 @@ def test_prior_affinity_counts_only_papers_inside_the_scored_corpus(monkeypatch)
     from pipeline_cores import ingest, run
     import pipeline_cores.persist as persist
 
-    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda cid: [
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda cid, **kw: [
         {"pmid": "111", "core_id": "14"},        # in the corpus
         {"pmid": "222", "core_id": "14"},        # a 2015 Letter — scored by nothing
     ])
@@ -1585,3 +1627,357 @@ def test_the_score_spreads_where_noisy_or_saturated():
     # 51) and the gap widened, because three fitted buckets deliberately collapse 39
     # observed rates. Distinct-count is the wrong yardstick for spread; WHERE the mass
     # sits is the right one, which is what the assertions above pin.
+
+
+# ---------------------------------------------------------------------------
+# --llm-carry-forward: the zero-Bedrock nightly (#386 / the core-14 daily run)
+# ---------------------------------------------------------------------------
+def _carry_forward_pubs():
+    return [{"pmid": "100", "title": "REDCap-backed registry study", "abstract": ""},
+            {"pmid": "200", "title": "Unrelated bench paper", "abstract": ""}]
+
+
+def _stub_core_reads(monkeypatch, bylines=None):
+    """The three DB reads every run_core makes, stubbed to empty. No DB, no AWS."""
+    from pipeline_cores import ingest, signals
+
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: bylines or {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+
+
+def _never_triage(*a, **k):
+    raise AssertionError("llm_triage must not be called on a zero-Bedrock run")
+
+
+def test_carry_forward_without_bedrock_keeps_the_stored_llm_evidence(monkeypatch, capsys):
+    """The nightly's whole reason to exist. put_core_usage REMOVES every owned optional
+    the run did not produce (#384), so a plain re-run strips llm_score/llm_rationale off
+    every row it re-surfaces — on core 14 that is the chip all 62 open review-queue rows
+    carry. Carrying the stored entry forward re-produces it, at zero Bedrock cost."""
+    from pipeline_cores import run, signals
+
+    _stub_core_reads(monkeypatch)
+    monkeypatch.setattr(signals, "llm_triage", _never_triage)
+
+    core = load_core("14")
+    carry = {"100": {"score": 8, "rationale": "built the study's REDCap instance"}}
+    recs = {r.pmid: r for r in run.run_core(core, _carry_forward_pubs(), bedrock=None,
+                                            threshold=0.30, scored_at="t", engine=None,
+                                            dry_run=True, carry_forward=carry)}
+    assert recs["100"].signals.llm_score == 8
+    assert recs["100"].signals.llm_rationale == "built the study's REDCap instance"
+    assert recs["200"].signals.llm_score is None      # nothing stored, nothing invented
+    # ...and the score is not merely carried, it still RANKS: 8 points of LLM evidence
+    # is worth enough to hold the pair in the claim queue on its own.
+    assert recs["100"].status == STATUS_CANDIDATE and recs["200"].status == STATUS_BELOW
+    assert "llm: 1 carried forward, 0 triaged" in capsys.readouterr().out
+
+
+
+def test_carry_forward_cli_run_never_constructs_a_bedrock_client(monkeypatch):
+    """End to end through main(): `--llm-carry-forward` WITHOUT `--with-llm` is the
+    shipped nightly command, and the guarantee it makes to the deferred spend decision
+    is that it costs nothing. Asserted at the client CONSTRUCTOR, not at the call —
+    "we only build it, we never use it" is not a zero-cost run anyone should have to
+    audit twice."""
+    from unittest.mock import MagicMock
+
+    import utils.bedrock_client as bedrock_client
+    import utils.db as db
+    from pipeline_cores import ingest, run, signals
+    import pipeline_cores.persist as persist
+
+    class _NoBedrock:
+        def __init__(self, *a, **k):
+            raise AssertionError("a zero-Bedrock run must not construct a BedrockClient")
+
+    monkeypatch.setattr(bedrock_client, "BedrockClient", _NoBedrock)
+    monkeypatch.setattr(db, "get_engine", lambda: MagicMock(name="engine"))
+    monkeypatch.setattr(ingest, "fetch_publications",
+                        lambda e, pmids=None, limit=None: _carry_forward_pubs())
+    _stub_core_reads(monkeypatch)
+    monkeypatch.setattr(signals, "llm_triage", _never_triage)
+    monkeypatch.setattr(persist, "get_curated_clients", lambda core_id: set())
+
+    scan = MagicMock(return_value={"14": {"100": {"score": 8, "rationale": "REDCap build"}}})
+    monkeypatch.setattr(persist, "scan_core_llm_scores", scan)
+    written = []
+    monkeypatch.setattr(persist, "put_core_usage",
+                        lambda recs: written.extend(recs) or len(recs))
+
+    run.main(["--core", "14", "--llm-carry-forward"])
+    # One Scan for the whole run, grouped by core_id in memory — the same trade the
+    # affinity prior makes, and scoped to the core that was asked for.
+    assert scan.call_args == (("14",), {})
+    assert [r.pmid for r in written] == ["100"]
+    assert written[0].signals.llm_score == 8
+    assert written[0].signals.llm_rationale == "REDCap build"
+
+
+def test_carry_forward_with_llm_triages_only_the_pubs_with_no_stored_score(monkeypatch):
+    """The --llm-new-only half: one flag covers the nightly and the incremental top-up.
+    A stored pub costs nothing; an unscored one gets the full Haiku screen + Sonnet pass.
+    Over core 14 that is the difference between ~340 Bedrock calls and 2."""
+    from pipeline_cores import run
+
+    _stub_core_reads(monkeypatch)
+    fb = _FakeBedrock(screen=SCREEN_CUTOFF, dense_score=3)
+    carry = {"100": {"score": 8, "rationale": "built the study's REDCap instance"}}
+    recs = {r.pmid: r for r in run.run_core(load_core("14"), _carry_forward_pubs(),
+                                            bedrock=fb, threshold=0.30, scored_at="t",
+                                            engine=None, dry_run=True, carry_forward=carry)}
+    assert fb.call_count == 1 and fb.call_json_count == 1     # 200 only, not both pubs
+    assert recs["100"].signals.llm_score == 8                 # stored, never re-scored
+    assert recs["100"].signals.llm_rationale == "built the study's REDCap instance"
+    assert recs["200"].signals.llm_score == 3                 # freshly triaged
+    assert recs["200"].signals.llm_rationale == "used 3T MRI at the core"
+
+
+def test_carry_forward_empty_dict_is_not_the_flag_being_off(monkeypatch, capsys):
+    """`None` (flag off) and `{}` (flag on, this core has nothing stored) are different
+    answers. Conflating them is how a nightly over a core with no LLM history would
+    silently look identical to one where the read failed — the empty case still takes
+    the carry-forward path and still prints its measurement."""
+    from pipeline_cores import run
+
+    _stub_core_reads(monkeypatch)
+    fb = _FakeBedrock(screen=SCREEN_CUTOFF, dense_score=3)
+    run.run_core(load_core("14"), _carry_forward_pubs(), bedrock=fb, threshold=0.30,
+                 scored_at="t", engine=None, dry_run=True, carry_forward={})
+    assert fb.call_count == 2                                 # nothing to reuse: both go
+    assert "llm: 0 carried forward, 2 triaged" in capsys.readouterr().out
+
+
+# --- scan_core_llm_scores: the read the carry-forward rests on -------------
+class _FakeScanDynamo:
+    """Paginated Scan double: hands back one page per configured page, then stops."""
+    def __init__(self, pages, raise_exc=None):
+        self.pages, self._raise_exc = pages, raise_exc
+        self.kwargs = []
+
+    def scan(self, **kwargs):
+        if self._raise_exc is not None:
+            raise self._raise_exc
+        self.kwargs.append(dict(kwargs))
+        page = self.pages[len(self.kwargs) - 1]
+        resp = {"Items": page}
+        if len(self.kwargs) < len(self.pages):
+            resp["LastEvaluatedKey"] = {"PK": {"S": "cursor"}}
+        return resp
+
+
+def _llm_row(pmid, core_id, score, rationale="why"):
+    return {"pmid": {"S": pmid}, "core_id": {"S": core_id},
+            "llm_score": {"N": str(score)}, "llm_rationale": {"S": rationale}}
+
+
+def test_scan_core_llm_scores_groups_by_core_and_follows_pagination():
+    """Grouped by core_id so ONE Scan serves every core in the run, in the shape
+    llm_triage returns — a carried entry and a freshly triaged one have to be
+    interchangeable where run_core reads `score` / `rationale`."""
+    from pipeline_cores import persist
+
+    db = _FakeScanDynamo([[_llm_row("100", "14", 8, "REDCap build")],
+                          [_llm_row("200", "14", 3), _llm_row("300", "2", 9)]])
+    out = persist.scan_core_llm_scores(client=db)
+    assert out == {
+        "14": {"100": {"score": 8, "rationale": "REDCap build"},
+               "200": {"score": 3, "rationale": "why"}},
+        "2": {"300": {"score": 9, "rationale": "why"}},
+    }
+    assert len(db.kwargs) == 2                                    # both pages read
+    assert db.kwargs[1]["ExclusiveStartKey"] == {"PK": {"S": "cursor"}}
+    # Narrowing is SERVER-side; a client-side filter would still pay for the whole table.
+    filt = db.kwargs[0]["FilterExpression"]
+    assert "begins_with(SK, :sk)" in filt and "attribute_exists(llm_score)" in filt
+    assert ":cid" not in filt                                     # no --core, no narrowing
+
+
+def test_scan_core_llm_scores_narrows_to_one_core_when_given_one():
+    from pipeline_cores import persist
+
+    db = _FakeScanDynamo([[_llm_row("100", "14", 8)]])
+    assert persist.scan_core_llm_scores("14", client=db) == {
+        "14": {"100": {"score": 8, "rationale": "why"}}}
+    assert "core_id = :cid" in db.kwargs[0]["FilterExpression"]
+    assert db.kwargs[0]["ExpressionAttributeValues"][":cid"] == {"S": "14"}
+
+
+def test_scan_core_llm_scores_raises_instead_of_degrading_to_empty():
+    """The one place in this module where failing the run is the SAFE outcome.
+    scan_prior_core_usage returns [] on error because an empty affinity prior only
+    degrades ranking. {} here is not degraded, it is WRONG: the caller reads it as "no
+    row has an LLM score", carries nothing forward, and put_core_usage then REMOVES
+    llm_score/llm_rationale from every row it rewrites — a throttled Scan would wipe
+    the evidence this function exists to preserve."""
+    import pytest
+    from pipeline_cores import persist
+
+    db = _FakeScanDynamo([], raise_exc=RuntimeError("throttled"))
+    with pytest.raises(RuntimeError, match="throttled"):
+        persist.scan_core_llm_scores("14", client=db)
+
+
+# --- #386 rec 1: the nightly must not overwrite a human decision -----------
+def _put_over(existing_status, *, new_status, likelihood=0.9):
+    """Write one run.py record over a row already holding `existing_status`."""
+    from pipeline_cores.models import CoreUsageRecord
+    from pipeline_cores.persist import put_core_usage
+
+    seed = dict(_SCREENED_ROW, status={"S": existing_status},
+                likelihood={"N": "0.4"}, scored_at={"S": "yesterday"})
+    db = _FakeUpdateDynamo({("PUB#7", "CORE#2"): seed})
+    rec = CoreUsageRecord(pmid="7", core_id="2", likelihood=likelihood,
+                          status=new_status, signals=SignalResult(), scored_at="t")
+    assert put_core_usage([rec], client=db) == 1
+    return db, db.store[("PUB#7", "CORE#2")]
+
+
+def test_put_core_usage_keeps_a_human_claim_and_still_refreshes_the_evidence(caplog):
+    """A nightly re-score must not forget yesterday's reviewer. SPS's own display is
+    unaffected (core_claim takes read-time precedence), but the cross-run affinity prior
+    reads status straight out of DynamoDB, so a wiped 'claimed' degrades the prior with
+    nothing visible to say so. The decision survives; everything under it still moves —
+    a reviewer's claim should not also freeze the likelihood and scored_at beneath it."""
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        db, item = _put_over(STATUS_CLAIMED, new_status=STATUS_CONFIRMED)
+    assert item["status"] == {"S": STATUS_CLAIMED}          # the human decision stands
+    assert item["likelihood"] == {"N": "0.9"}               # ...and the score refreshed
+    assert item["scored_at"] == {"S": "t"}
+    # Exactly one guarded re-issue, and it does not touch `status` — not even to write
+    # back the value it read, which would be a lost-update race against a live reviewer.
+    assert len(db.calls) == 2 and db.calls[1]["ConditionExpression"] is None
+    assert "status" not in _set_attrs(db.calls[1])
+    assert "status" in _set_attrs(db.calls[0])              # the guarded attempt did try
+    assert "already held a human status" in caplog.text
+
+
+def test_put_core_usage_does_not_re_promote_a_human_rejection():
+    """The other human status, and the more damaging direction: re-promoting a rejected
+    pair puts it back in the queue the reviewer just cleared it out of, every night."""
+    db, item = _put_over(STATUS_REJECTED, new_status=STATUS_CANDIDATE)
+    assert item["status"] == {"S": STATUS_REJECTED}
+    assert item["likelihood"] == {"N": "0.9"}
+    assert len(db.calls) == 2
+
+
+def test_put_core_usage_can_still_move_an_engine_status():
+    """The guard protects the TWO human statuses, not the engine's own. A re-score has
+    to be able to walk a 'confirmed' back down to 'candidate' — that is why
+    put_candidate's broader never-downgrade condition is still not copied here. One
+    call, no fallback: the guard never fired."""
+    db, item = _put_over(STATUS_CONFIRMED, new_status=STATUS_CANDIDATE)
+    assert item["status"] == {"S": STATUS_CANDIDATE}
+    assert len(db.calls) == 1 and db.calls[0]["ConditionExpression"] is not None
+
+
+def test_put_core_usage_guard_does_not_remove_the_status_it_protected():
+    """The subtle way this change could have destroyed exactly what it protects. The
+    REMOVE clause is built from the attributes this run PRODUCED; deriving it from the
+    (status-less) SET list on the fallback write would sweep `status` into REMOVE and
+    delete the human decision outright — a worse outcome than the overwrite #386 asked
+    us to prevent."""
+    db, item = _put_over(STATUS_CLAIMED, new_status=STATUS_CONFIRMED)
+    assert "status" in item                                 # not merely "not overwritten"
+    removes = db.calls[1]["UpdateExpression"].partition(" REMOVE ")[2]
+    assert "status" not in [db.calls[1]["ExpressionAttributeNames"][n.strip()]
+                            for n in removes.split(",") if n.strip()]
+
+
+# --- hardening the reads the nightly WRITES back (blind-verifier findings) ----
+
+
+def test_scan_prior_core_usage_still_degrades_for_its_analysis_callers(caplog):
+    """batch_screen and suggest_aliases only REPORT what they read, so a throttled
+    Scan there costs a worse report and nothing else. Default stays fail-soft."""
+    import logging
+
+    from pipeline_cores import persist
+
+    class _BoomScan:
+        def scan(self, **kwargs):
+            raise RuntimeError("throttled")
+
+    with caplog.at_level(logging.ERROR):
+        assert persist.scan_prior_core_usage("14", client=_BoomScan()) == []
+
+
+def test_scan_prior_core_usage_strict_raises_for_the_caller_that_writes():
+    """run.py PERSISTS what it reads here. An empty prior is not a worse ranking, it
+    is a wrong one that gets written: author_affinity computes to 0.0, build_core_item
+    omits a falsy affinity, put_core_usage sweeps it into REMOVE, and a row carried by
+    affinity alone demotes confirmed -> candidate. On a nightly cadence a single
+    throttle would quietly rewrite the queue."""
+    import pytest
+
+    from pipeline_cores import persist
+
+    class _BoomScan:
+        def scan(self, **kwargs):
+            raise RuntimeError("throttled")
+
+    with pytest.raises(RuntimeError):
+        persist.scan_prior_core_usage("14", strict=True, client=_BoomScan())
+
+
+def test_load_prior_user_counts_reads_the_affinity_prior_strictly():
+    """The wiring, not just the capability: the writing caller has to actually pass
+    strict=True or the guard above is decoration."""
+    from pipeline_cores import persist, run
+
+    seen = {}
+
+    def _spy(core_id, **kw):
+        seen.update(kw)
+        return []
+
+    original = persist.scan_prior_core_usage
+    persist.scan_prior_core_usage = _spy
+    try:
+        run.load_prior_user_counts("14", {}, enabled=True, engine=None)
+    finally:
+        persist.scan_prior_core_usage = original
+    assert seen.get("strict") is True
+
+
+def test_scan_core_llm_scores_raises_on_an_unreadable_row_rather_than_skipping_it():
+    """A per-row `continue` would let the function return {} without raising — the
+    same wrong-not-degraded answer its docstring refuses, one level down. Every row
+    this Scan can see was written by build_core_item, which always emits pmid,
+    core_id and llm_score as N, so an unreadable one means something else is writing
+    CORE# rows and a partial carry-forward would mass-REMOVE the rest."""
+    import pytest
+
+    from pipeline_cores import persist
+
+    no_pmid = {"core_id": {"S": "14"}, "llm_score": {"N": "8"}}
+    with pytest.raises(ValueError, match="unreadable shape"):
+        persist.scan_core_llm_scores("14", client=_FakeScanDynamo([[no_pmid]]))
+
+    stringy = {"pmid": {"S": "200"}, "core_id": {"S": "14"}, "llm_score": {"S": "8"}}
+    with pytest.raises(ValueError, match="unreadable shape"):
+        persist.scan_core_llm_scores("14", client=_FakeScanDynamo([[stringy]]))
+
+
+def test_the_llm_line_prints_even_when_carry_forward_is_off(capsys):
+    """The failure the runbook has to catch is --llm-carry-forward going missing from
+    the task-def command. If this line only existed on the carry-forward branch that
+    failure would print NOTHING, and a missing line in `logs tail --follow` is far
+    easier to miss than a 0."""
+    import pytest
+
+    from pipeline_cores import ingest, run, signals
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda *a, **k: {})
+    try:
+        run.run_core(load_core("14"), [], bedrock=None, threshold=None, scored_at="t",
+                     engine=None, carry_forward=None, dry_run=True)
+    finally:
+        monkeypatch.undo()
+    assert "llm: carry-forward OFF" in capsys.readouterr().out
