@@ -25,8 +25,8 @@ no family, no chip, and nothing downstream should have to carry a None through.
 THIS FUNCTION RAISES ON A FAILED READ OR PARSE. It never degrades to an empty index,
 and that is not a style preference: `persist.put_core_usage` REMOVEs every attribute
 in `_OWNED_ATTRS` that the run did not produce, so an empty index would strip
-method_families / method_tier / method_tool / method_snippet off every row a previous
-run wrote — silently, on a green run. A degraded read on a path that WRITES is a wipe,
+method_tier / method_evidence off every row a previous run wrote — silently, on a green
+run. A degraded read on a path that WRITES is a wipe,
 not a degradation. Same rule as `scan_core_llm_scores` (which raises unconditionally)
 and `scan_prior_core_usage` under strict=True; the fail-soft S3 tier in `fulltext.py` is
 safe only because a miss there costs one paper's signal rather than every row's

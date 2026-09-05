@@ -92,8 +92,8 @@ and history agree they fire on the same rows and summing both double-counts.
 #### `method:*` — the A2 method families
 
 `WEIGHTS["method:strong"]`, `["method:moderate"]` and `["method:weak"]` are all **0.00**,
-so a curated method family on a paper is extracted, ranked, persisted (four attributes,
-unlike `client`) and worth exactly zero nats. A paper whose only evidence is a method
+so a curated method family on a paper is extracted, ranked, persisted (unlike `client`)
+and worth exactly zero nats. A paper whose only evidence is a method
 family scores 0.020 and is never surfaced.
 
 `pipeline_tools` already mines every faculty first/last-authored abstract since 2020 into
@@ -319,11 +319,10 @@ the screen alone.
 
 The least obvious part of this pipeline, and the part that has caused every data-loss
 incident in it. `persist.put_core_usage` is an **UpdateItem that SETs what this run
-produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 16
-attributes `build_core_item` can emit; the nine *optional* ones are the only members that
+produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 14
+attributes `build_core_item` can emit; the seven *optional* ones are the only members that
 can ever land in REMOVE: `ack_alias`, `ack_snippet`, `llm_score`, `llm_rationale`,
-`author_affinity`, and the four method-family attributes (`method_families`,
-`method_tier`, `method_tool`, `method_snippet`). The other seven (`pmid`, `core_id`, `likelihood`, `status`,
+`author_affinity`, `method_tier` and `method_evidence`. The other seven (`pmid`, `core_id`, `likelihood`, `status`,
 `scored_at`, `signal_coauthors`, `signal_ack`) are written on every record, so they are
 always in SET.
 

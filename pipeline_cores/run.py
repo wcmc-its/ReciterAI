@@ -185,8 +185,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         # compares them case-insensitively throughout for the same reason), and the
         # curated list is hand-typed.
         sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid.lower() in clients]
-        (sig.method_families, sig.method_tier, sig.method_tool,
-         sig.method_snippet) = signals.method_family_signal(family_index or {}, pmid, core)
+        sig.method_evidence, sig.method_tier = signals.method_family_signal(
+            family_index or {}, pmid, core)
         tri = llm_scores.get(str(pmid))
         if tri:
             sig.llm_score = tri["score"]

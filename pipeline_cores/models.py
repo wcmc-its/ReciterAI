@@ -108,10 +108,14 @@ class SignalResult:
     ack_institution: str = ""              # "home" | "other" | "none"  ("" = no ack match)
     ack_section: str = ""                  # "ack" | "methods" | "body" ("" = no XML/no match)
     # --- A2 method families, EXTRACTED but not yet priced (ReciterAI #394) ---
-    method_families: list = field(default_factory=list)  # matched labels, STRONGEST tier first
+    # [(family_label, tool_display_name, sentence), ...] — one per curated family that
+    # fired, STRONGEST tier first then measured-lift order inside the tier. Every family
+    # carries its OWN tool and quote: a label whose sentence belongs to a different
+    # family is one the reviewer cannot check, and the join already holds all three.
+    # `method_families` (the labels alone) and the top family's tool/snippet are both
+    # derivable from this, so neither is stored a second time.
+    method_evidence: list = field(default_factory=list)
     method_tier: str = ""                  # "strong" | "moderate" | "weak" ("" = nothing fired)
-    method_tool: str = ""                  # the tool naming the top-ranked family
-    method_snippet: str = ""               # that tool's evidence sentence, quoted from the abstract
 
 
 # Method-family tiers, STRONGEST FIRST — the order is load-bearing (signals picks the

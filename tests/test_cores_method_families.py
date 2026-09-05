@@ -126,33 +126,44 @@ def test_index_reads_s3_by_default_through_a_duck_typed_backend():
 # --- the signal ------------------------------------------------------------
 def test_strongest_tier_wins_when_a_paper_carries_several(tmp_path):
     """PMID 100 carries a strong, a moderate and a weak family. The reported tier is
-    the strongest, and the tool + sentence belong to the family that won."""
-    families, tier, tool, snippet = method_family_signal(_index(tmp_path), "100", _CORE)
+    the strongest, and evidence[0] is the family that won."""
+    ev, tier = method_family_signal(_index(tmp_path), "100", _CORE)
     assert tier == "strong"
-    assert families[0] == "Electronic health record datasets"
-    assert set(families) == {"Electronic health record datasets", "Regression modeling",
-                             "Machine learning classification"}
-    assert tool == "Epic Clarity" and "Epic Clarity" in snippet
+    assert [f for f, _t, _s in ev] == ["Electronic health record datasets",
+                                       "Machine learning classification",
+                                       "Regression modeling"]
+    assert ev[0][1] == "Epic Clarity" and "Epic Clarity" in ev[0][2]
+
+
+def test_every_family_keeps_its_own_tool_and_sentence(tmp_path):
+    """The point of method_evidence: a label whose quote belongs to a DIFFERENT family
+    is one the reviewer cannot check. Each entry is self-contained."""
+    ev, _tier = method_family_signal(_index(tmp_path), "100", _CORE)
+    assert len(ev) == 3
+    for family, tool, sentence in ev:
+        assert family and tool and sentence
+        assert tool in sentence          # each quote actually mentions its own tool
+    assert len({tool for _f, tool, _s in ev}) == 3
 
 
 def test_a_weak_only_paper_reports_weak(tmp_path):
-    families, tier, tool, _s = method_family_signal(_index(tmp_path), "200", _CORE)
-    assert (families, tier, tool) == (["Regression modeling"], "weak", "logistic regression")
+    ev, tier = method_family_signal(_index(tmp_path), "200", _CORE)
+    assert tier == "weak"
+    assert [(f, t) for f, t, _s in ev] == [("Regression modeling", "logistic regression")]
 
 
 def test_no_curation_and_no_index_entry_both_fire_nothing(tmp_path):
     idx = _index(tmp_path)
-    assert method_family_signal(idx, "999", _CORE) == ([], "", "", "")
-    assert method_family_signal(idx, "100", load_core("2")) == ([], "", "", "")
+    assert method_family_signal(idx, "999", _CORE) == ([], "")
+    assert method_family_signal(idx, "100", load_core("2")) == ([], "")
 
 
 # --- the one-key rule and the inertness claim ------------------------------
 def test_evidence_features_emits_exactly_one_method_key(tmp_path):
     """One key, not one per tier and not one per family: the tiers are correlated, and
     816 families would be an unfittable weight table."""
-    families, tier, tool, snippet = method_family_signal(_index(tmp_path), "100", _CORE)
-    keys = evidence_features(SignalResult(method_families=families, method_tier=tier,
-                                          method_tool=tool, method_snippet=snippet))
+    ev, tier = method_family_signal(_index(tmp_path), "100", _CORE)
+    keys = evidence_features(SignalResult(method_evidence=ev, method_tier=tier))
     assert [k for k in keys if k.startswith("method:")] == ["method:strong"]
 
 
@@ -164,47 +175,51 @@ def test_every_tier_has_a_weights_cell():
 def test_the_signal_is_inert(tmp_path):
     """The claim, mechanically checked: at weight 0.00 the score is identical with and
     without the method fields, for a pair with other evidence and one with none."""
-    families, tier, tool, snippet = method_family_signal(_index(tmp_path), "100", _CORE)
+    ev, tier = method_family_signal(_index(tmp_path), "100", _CORE)
     for base in (SignalResult(),
                  SignalResult(ack_matched=True, ack_alias="a", ack_alias_hits=25,
                               ack_institution="home", coauthor_cwids=["abc1001"],
                               llm_score=7, author_affinity=0.42)):
-        withm = SignalResult(**{**base.__dict__, "method_families": families,
-                                "method_tier": tier, "method_tool": tool,
-                                "method_snippet": snippet})
+        withm = SignalResult(**{**base.__dict__, "method_evidence": ev,
+                                "method_tier": tier})
         assert score(withm) == score(base)
 
 
 # --- persistence -----------------------------------------------------------
-def test_build_core_item_emits_the_four_attributes_and_owns_them(tmp_path):
+def test_build_core_item_emits_both_attributes_and_owns_them(tmp_path):
     from pipeline_cores.models import CoreUsageRecord
     from pipeline_cores.persist import _OWNED_ATTRS, build_core_item
 
-    families, tier, tool, snippet = method_family_signal(_index(tmp_path), "100", _CORE)
-    sig = SignalResult(method_families=families, method_tier=tier, method_tool=tool,
-                       method_snippet=snippet)
+    ev, tier = method_family_signal(_index(tmp_path), "100", _CORE)
+    sig = SignalResult(method_evidence=ev, method_tier=tier)
     item = build_core_item(CoreUsageRecord("100", "14", 0.4, "candidate", sig, "t"))
     assert item["method_tier"] == {"S": "strong"}
-    assert item["method_families"]["L"][0] == {"S": "Electronic health record datasets"}
-    assert item["method_tool"] == {"S": "Epic Clarity"}
-    assert "Epic Clarity" in item["method_snippet"]["S"]
+    assert item["method_evidence"]["L"][0]["M"]["family"] == {
+        "S": "Electronic health record datasets"}
+    assert item["method_evidence"]["L"][0]["M"]["tool"] == {"S": "Epic Clarity"}
+    assert "Epic Clarity" in item["method_evidence"]["L"][0]["M"]["sentence"]["S"]
+    # Every entry is self-contained in DynamoDB too, not just in memory.
+    assert all(set(e["M"]) == {"family", "tool", "sentence"}
+               for e in item["method_evidence"]["L"])
     # Outside _OWNED_ATTRS an attribute is never swept into REMOVE, so a stale family
     # would survive on a row the run no longer supports.
-    assert {"method_families", "method_tier", "method_tool", "method_snippet"} <= _OWNED_ATTRS
-    # ...and a pair with no family emits none of the four.
+    assert {"method_evidence", "method_tier"} <= _OWNED_ATTRS
+    # ...and a pair with no family emits neither.
     bare = build_core_item(CoreUsageRecord("200", "14", 0.1, "candidate", SignalResult(), "t"))
     assert not [k for k in bare if k.startswith("method_")]
 
 
-def test_method_snippet_is_truncated_like_ack_snippet(tmp_path):
+def test_every_sentence_is_truncated_like_ack_snippet(tmp_path):
     from pipeline_cores.models import CoreUsageRecord
     from pipeline_cores.persist import build_core_item
 
-    sig = SignalResult(method_families=["Electronic health record datasets"],
-                       method_tier="strong", method_tool="Epic Clarity",
-                       method_snippet="x" * 900)
+    sig = SignalResult(method_tier="strong", method_evidence=[
+        ("Electronic health record datasets", "Epic Clarity", "x" * 900),
+        ("Regression modeling", "logistic regression", "y" * 900)])
     item = build_core_item(CoreUsageRecord("100", "14", 0.4, "candidate", sig, "t"))
-    assert len(item["method_snippet"]["S"]) == 500
+    # EVERY entry is capped, not just the first — a long quote on family 3 would
+    # otherwise sail past the guard the top family gets.
+    assert [len(e["M"]["sentence"]["S"]) for e in item["method_evidence"]["L"]] == [500, 500]
 
 
 # --- the dictionary --------------------------------------------------------
@@ -269,9 +284,9 @@ def test_run_core_sets_the_method_fields(monkeypatch, tmp_path):
                                             scored_at="t", engine=None, dry_run=True,
                                             family_index=_index(tmp_path))}
     assert recs["100"].signals.method_tier == "strong"
-    assert recs["100"].signals.method_tool == "Epic Clarity"
-    assert recs["999"].signals.method_families == []
+    assert recs["100"].signals.method_evidence[0][1] == "Epic Clarity"
+    assert recs["999"].signals.method_evidence == []
     # ...and without the flag (no index) nothing is set, on the same pubs.
     off = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                            scored_at="t", engine=None, dry_run=True)}
-    assert off["100"].signals.method_families == [] and off["100"].signals.method_tier == ""
+    assert off["100"].signals.method_evidence == [] and off["100"].signals.method_tier == ""

@@ -55,14 +55,15 @@ def build_core_item(rec: CoreUsageRecord) -> dict:
         item["llm_rationale"] = {"S": s.llm_rationale}
     if s.author_affinity:
         item["author_affinity"] = _n(s.author_affinity)
-    if s.method_families:
-        # All four together, or none: the tier, tool and sentence are only meaningful
-        # as the top of the ranked list, and a tier with no families behind it would
-        # read as evidence nobody can check.
-        item["method_families"] = {"L": [{"S": f} for f in s.method_families]}
+    if s.method_evidence:
+        # Both together or neither: a tier with no evidence behind it would read as a
+        # claim nobody can check. The list is already ranked; consumers render it in
+        # array order and take [0] when they want just the strongest.
         item["method_tier"] = {"S": s.method_tier}
-        item["method_tool"] = {"S": s.method_tool}
-        item["method_snippet"] = {"S": s.method_snippet[:500]}   # capped like ack_snippet
+        item["method_evidence"] = {"L": [
+            {"M": {"family": {"S": fam}, "tool": {"S": tool},
+                   "sentence": {"S": sent[:500]}}}          # capped like ack_snippet
+            for fam, tool, sent in s.method_evidence]}
     return item
 
 
@@ -79,8 +80,7 @@ _OWNED_ATTRS = frozenset(build_core_item(CoreUsageRecord(
                          # falls OUTSIDE _OWNED_ATTRS, so put_core_usage never sweeps it
                          # into REMOVE and a stale method family survives on a row the
                          # run no longer supports.
-                         method_families=["a"], method_tier="strong",
-                         method_tool="a", method_snippet="a"),
+                         method_evidence=[("a", "a", "a")], method_tier="strong"),
 ))) - {"PK", "SK"}
 
 
