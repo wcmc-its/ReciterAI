@@ -10,6 +10,7 @@ Signals layer in by cost/precision:
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from pipeline_cores import combine as _combine
 from pipeline_cores import ingest, pmc_search, signals
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import STATUS_CONFIRMED
+
+logger = logging.getLogger(__name__)
 
 # Triage Bedrock calls are tiny generations (a screen int / a short JSON), so a
 # 120s read timeout is ample headroom while bounding a hung connection far below
@@ -79,14 +82,19 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
 
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
-             engine, prior_user_counts=None, screen_map=None, llm_workers=8):
+             engine, prior_user_counts=None, screen_map=None, llm_workers=8,
+             dry_run: bool = False):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
     aggregates this run's confirmations (+ prior_user_counts) to author level, divides
     each author's count by their TOTAL corpus output to get the affinity rate, and
     re-scores the not-yet-confirmed records with it. Confirmed records are untouched
-    (already at ceiling)."""
+    (already at ceiling).
+
+    dry_run mirrors main()'s --dry-run (README: "no AWS needed" for a dry run) —
+    it skips the DynamoDB curated-clients read below the same way it skips the
+    final DynamoDB write, so a --dry-run invocation still touches no AWS."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
@@ -96,8 +104,23 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
 
     # Curated clients, intersected with each byline below. Asserted rather than
     # inferred, so this fires on a core with zero prior confirmations — the case the
-    # phase-2 affinity prior cannot reach.
-    clients = set(core.clients)  # already lowercased/stripped by load_cores
+    # phase-2 affinity prior cannot reach. Union of the YAML-curated list (already
+    # lowercased/stripped by load_cores) and whatever SPS's "Known clients" panel has
+    # written to DynamoDB for this core (#383's engine half).
+    yaml_clients = set(core.clients)
+    if dry_run:
+        logger.info(
+            "core %s: dry-run — skipping DynamoDB curated-client read", core.core_id,
+        )
+        dynamo_clients = set()
+    else:
+        from pipeline_cores.persist import get_curated_clients  # lazy
+        dynamo_clients = get_curated_clients(core.core_id)
+    clients = yaml_clients | dynamo_clients
+    logger.info(
+        "core %s: %d YAML-curated + %d DynamoDB-curated clients -> %d union",
+        core.core_id, len(yaml_clients), len(dynamo_clients), len(clients),
+    )
 
     # Phase 1 — deterministic + LLM signals.
     sigs, records = {}, []
@@ -236,7 +259,7 @@ def main(argv=None):
         recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
                         prior_user_counts=prior_counts, screen_map=screen_map,
-                        llm_workers=args.llm_workers)
+                        llm_workers=args.llm_workers, dry_run=args.dry_run)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")

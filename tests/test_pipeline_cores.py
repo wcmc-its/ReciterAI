@@ -580,7 +580,7 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 20})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                            scored_at="t", engine=None)}
+                                            scored_at="t", engine=None, dry_run=True)}
     assert recs["100"].status == STATUS_CONFIRMED
     # 200 has no direct signal; it inherits djb2001's affinity. One confirm out of 20
     # corpus papers is a 5% rate (aff:regular), so the sibling reaches the queue and
@@ -592,7 +592,7 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     # curve both were 0.45 — the count knew nothing about who the author was.
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 100})
     prolific = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                                scored_at="t", engine=None)}
+                                                scored_at="t", engine=None, dry_run=True)}
     assert prolific["200"].status == STATUS_BELOW
     assert prolific["200"].likelihood < recs["200"].likelihood
 
@@ -613,7 +613,7 @@ def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                            scored_at="t", engine=None)}
+                                            scored_at="t", engine=None, dry_run=True)}
     assert recs["100"].signals.client_cwids == ["cwid1"]     # only the curated one
     assert recs["200"].signals.client_cwids == []
 
@@ -623,8 +623,56 @@ def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
     core.clients = ["cwid1"]
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["CWID1"], "200": []})
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                            scored_at="t", engine=None)}
+                                            scored_at="t", engine=None, dry_run=True)}
     assert recs["100"].signals.client_cwids == ["CWID1"]     # byline casing preserved
+
+
+def test_run_core_dry_run_skips_the_dynamodb_curated_client_read(monkeypatch):
+    """--dry-run needs no AWS (README): the curated-client GetItem must not fire,
+    let alone be allowed to fail the run, when dry_run=True."""
+    from pipeline_cores import ingest, run, signals
+    import pipeline_cores.persist as persist
+
+    core = load_core("2")
+    core.clients = ["cwid1"]
+    pubs = [{"pmid": "100", "title": "client paper", "abstract": ""}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["cwid1"]})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+
+    def _boom(*a, **k):
+        raise AssertionError("get_curated_clients must not be called under dry_run")
+    monkeypatch.setattr(persist, "get_curated_clients", _boom)
+
+    recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                            scored_at="t", engine=None, dry_run=True)}
+    # The YAML-only client still marks — dry_run only removes the DynamoDB half.
+    assert recs["100"].signals.client_cwids == ["cwid1"]
+
+
+def test_run_core_unions_yaml_and_dynamodb_curated_clients(monkeypatch):
+    """The engine half of #383: a CWID SPS curated into DynamoDB (not YAML) still
+    marks the byline, alongside a YAML-curated one."""
+    from pipeline_cores import ingest, run, signals
+    import pipeline_cores.persist as persist
+
+    core = load_core("2")
+    core.clients = ["cwid1"]
+    pubs = [{"pmid": "100", "title": "yaml client paper", "abstract": ""},
+            {"pmid": "200", "title": "dynamo client paper", "abstract": ""},
+            {"pmid": "300", "title": "nobody's paper", "abstract": ""}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {
+        "100": ["cwid1"], "200": ["cwid2"], "300": ["cwid9"],
+    })
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+    monkeypatch.setattr(persist, "get_curated_clients", lambda core_id: {"cwid2"})
+
+    recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
+                                            scored_at="t", engine=None, dry_run=False)}
+    assert recs["100"].signals.client_cwids == ["cwid1"]     # YAML-curated
+    assert recs["200"].signals.client_cwids == ["cwid2"]     # DynamoDB-curated
+    assert recs["300"].signals.client_cwids == []            # in neither list
 
 
 def test_ack_signal_end_to_end_from_cached_fulltext(tmp_path):
@@ -674,6 +722,46 @@ def test_scan_prior_core_usage_logs_loudly_on_error(caplog):
         out = persist.scan_prior_core_usage("2", client=_BoomClient())
     assert out == []
     assert "scan_prior_core_usage failed" in caplog.text
+
+
+# --- get_curated_clients: SPS's "Known clients" panel, read from DynamoDB --
+class _FakeGetItemDynamo:
+    def __init__(self, item=None, raise_exc=None):
+        self._item = item
+        self._raise_exc = raise_exc
+
+    def get_item(self, **kwargs):
+        if self._raise_exc is not None:
+            raise self._raise_exc
+        return {"Item": self._item} if self._item is not None else {}
+
+
+def test_get_curated_clients_returns_the_lowercased_dynamo_set():
+    from pipeline_cores import persist
+
+    item = {"client_cwids": {"L": [{"S": "CWID1"}, {"S": "cwid2"}]}}
+    out = persist.get_curated_clients("2", client=_FakeGetItemDynamo(item=item))
+    assert out == {"cwid1", "cwid2"}
+
+
+def test_get_curated_clients_returns_empty_set_with_no_item():
+    from pipeline_cores import persist
+
+    out = persist.get_curated_clients("2", client=_FakeGetItemDynamo(item=None))
+    assert out == set()
+
+
+def test_get_curated_clients_returns_empty_set_and_warns_on_error(caplog):
+    import logging
+    from pipeline_cores import persist
+
+    with caplog.at_level(logging.WARNING):
+        out = persist.get_curated_clients(
+            "2", client=_FakeGetItemDynamo(raise_exc=RuntimeError("throttled")),
+        )
+    assert out == set()
+    assert "get_curated_clients" in caplog.text
+    assert "RuntimeError" in caplog.text
 
 
 # --- put_core_usage must not clobber the attributes batch_screen owns ------

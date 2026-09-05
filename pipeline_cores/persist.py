@@ -165,6 +165,55 @@ def put_candidate(pmid, core_id, *, confidence, band, prior, likelihood,
         return False
 
 
+def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NAME) -> set:
+    """CWIDs SPS's "Known clients" panel has curated for this core, lowercased.
+
+    GetItem on PK=CORE#{core_id}, SK=CLIENTS, attribute client_cwids (a DynamoDB
+    List of String the SPS DocumentClient writes already lowercased and sorted).
+
+    SK is "CLIENTS", not "CORE#{core_id}": both scan_prior_core_usage (above) and
+    the SPS ETL select (pub, core) usage rows with begins_with(SK, "CORE#") — if
+    this config item used that prefix it would surface as a fake usage row (a
+    phantom publication) in both places instead of the per-core setting it is.
+
+    Resilient by design, never fatal to the run: a missing item (no clients
+    curated for this core yet), a missing/empty client_cwids attribute, or any
+    botocore ClientError or other exception while reading all degrade to an
+    empty set with one warning log line, and the caller proceeds unaffected.
+    """
+    client = client or get_dynamo_client()
+    try:
+        resp = client.get_item(
+            TableName=table_name,
+            Key={"PK": {"S": f"CORE#{core_id}"}, "SK": {"S": "CLIENTS"}},
+            ProjectionExpression="client_cwids",
+        )
+    except Exception as exc:
+        logger.warning(
+            "get_curated_clients(core_id=%s) failed (%s: %s) — treating as no "
+            "curated clients for this run", core_id, type(exc).__name__, exc,
+        )
+        return set()
+
+    item = resp.get("Item")
+    if not item:
+        logger.warning(
+            "get_curated_clients(core_id=%s): no CORE#%s/CLIENTS item found — "
+            "treating as no curated clients for this run", core_id, core_id,
+        )
+        return set()
+
+    raw = item.get("client_cwids", {}).get("L")
+    if not raw:
+        logger.warning(
+            "get_curated_clients(core_id=%s): item has no client_cwids attribute — "
+            "treating as no curated clients for this run", core_id,
+        )
+        return set()
+
+    return {v["S"].strip().lower() for v in raw if v.get("S", "").strip()}
+
+
 # Statuses that establish a (pub, core) usage for the affinity prior. 'claimed'
 # (human-confirmed in SPS) and engine 'confirmed' both count; candidates do not.
 _USER_STATUSES = {"confirmed", "claimed"}
