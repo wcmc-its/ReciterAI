@@ -2,6 +2,8 @@
 
     python3 -m pipeline_cores.run --core 2 --test 200 --dry-run
     python3 -m pipeline_cores.run --core 2 --with-llm        # full run (Bedrock + DynamoDB)
+    python3 -m pipeline_cores.run --core 14 --llm-carry-forward   # nightly: ZERO Bedrock calls,
+                                                                  # stored LLM evidence preserved
 
 Signals layer in by cost/precision:
   coauthorship (free, deterministic) + acknowledgement (full text, deterministic)
@@ -10,6 +12,7 @@ Signals layer in by cost/precision:
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -61,7 +64,13 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
     if not enabled:
         return counts
     from pipeline_cores.persist import scan_prior_core_usage  # lazy
-    recs = list(scan_prior_core_usage(core_id))
+    # strict=True because THIS caller writes. scan_prior_core_usage degrades to [] for
+    # its two analysis callers, where a missing prior only costs a worse report — but
+    # here an empty prior is persisted: author_affinity becomes 0.0, build_core_item
+    # omits it, put_core_usage sweeps it into REMOVE, and the row's status demotes
+    # confirmed -> candidate. A throttled Scan would quietly rewrite the queue. On a
+    # nightly that is not a degraded run, it is a wrong one; fail and let it re-run.
+    recs = list(scan_prior_core_usage(core_id, strict=True))
     # Gate the NUMERATOR to the same corpus as the denominator. DynamoDB holds
     # confirmed/claimed rows for papers this pipeline does not score, and counting
     # those against a corpus-restricted total inflates the rate into the strongest
@@ -80,7 +89,7 @@ def load_prior_user_counts(core_id: str, bylines: dict, *, enabled: bool, engine
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              engine, prior_user_counts=None, screen_map=None, llm_workers=8,
-             dry_run: bool = False):
+             dry_run: bool = False, carry_forward: dict = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -91,13 +100,45 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
 
     dry_run mirrors main()'s --dry-run (README: "no AWS needed" for a dry run) —
     so the curated-client read, like the final write, is skipped under
-    --dry-run (note --with-affinity still scans DynamoDB for the prior)."""
+    --dry-run (note --with-affinity still scans DynamoDB for the prior).
+
+    carry_forward is THIS core's slice of the stored LLM evidence
+    ({pmid: {"score", "rationale"}}, from persist.scan_core_llm_scores) and None means
+    --llm-carry-forward is off. None and {} are different answers and must not be
+    conflated: {} is the flag ON for a core that simply has nothing stored yet, and it
+    still takes the carry-forward path — with bedrock that triages every pub (correctly,
+    there is nothing to reuse), without bedrock it prints "0 carried forward" so an
+    operator can see the core is empty rather than guess the flag failed."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
     bylines = ingest.fetch_author_bylines(engine, pmids)
-    llm_scores = signals.llm_triage(bedrock, core, pubs, screen_map=screen_map,
-                                    max_workers=llm_workers) if bedrock else {}
+    if carry_forward is None:
+        llm_scores = signals.llm_triage(bedrock, core, pubs, screen_map=screen_map,
+                                        max_workers=llm_workers) if bedrock else {}
+        # Printed on BOTH branches on purpose. The failure the runbook has to catch is
+        # --llm-carry-forward going missing from the task-def command, and if this line
+        # only existed on the other branch that failure would print nothing at all — a
+        # missing line in `logs tail --follow` is far easier to miss than a 0.
+        print(f"[{core.core_id} {core.name}] llm: carry-forward OFF, "
+              f"{len(pubs) if bedrock else 0} triaged")
+    else:
+        # Triage only what has no stored score, then merge the stored entries back in.
+        # Without bedrock this is the zero-Bedrock nightly: nothing is triaged and the
+        # merge alone is what keeps llm_score/llm_rationale on the row, because
+        # put_core_usage REMOVES every owned optional the run did not produce (#384).
+        # str() on both sides: the lookup at the bottom of phase 1 keys on the raw
+        # pub["pmid"], so a caller passing int pmids would exclude every pub from `todo`
+        # AND miss every carry-forward lookup — nothing triaged, nothing carried, and
+        # put_core_usage REMOVEs the evidence while this line still reports it carried.
+        # ingest.fetch_publications str()s them today; this keeps that from being load-bearing.
+        carry_forward = {str(k): v for k, v in carry_forward.items()}
+        todo = [p for p in pubs if str(p["pmid"]) not in carry_forward]
+        llm_scores = signals.llm_triage(bedrock, core, todo, screen_map=screen_map,
+                                        max_workers=llm_workers) if bedrock else {}
+        llm_scores.update(carry_forward)
+        print(f"[{core.core_id} {core.name}] llm: {len(pubs) - len(todo)} carried forward, "
+              f"{len(todo) if bedrock else 0} triaged")
 
     # Curated clients, intersected with each byline below. Asserted rather than
     # inferred, so this fires on a core with zero prior confirmations — the case the
@@ -125,7 +166,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         # compares them case-insensitively throughout for the same reason), and the
         # curated list is hand-typed.
         sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid.lower() in clients]
-        tri = llm_scores.get(pmid)
+        tri = llm_scores.get(str(pmid))
         if tri:
             sig.llm_score = tri["score"]
             sig.llm_rationale = tri.get("rationale", "")
@@ -190,6 +231,14 @@ def main(argv=None):
                          "NOTE: a scoped run writes only these rows, so it can neither surface "
                          "a pair outside the set nor demote one — never use it to GENERATE a pool")
     ap.add_argument("--with-llm", action="store_true", help="enable Bedrock triage (signal 4)")
+    ap.add_argument("--llm-carry-forward", action="store_true",
+                    help="reuse the llm_score / llm_rationale already stored in DynamoDB for "
+                         "this core instead of re-scoring it. WITHOUT --with-llm this is a "
+                         "ZERO-Bedrock run that still keeps the stored LLM evidence alive — "
+                         "put_core_usage would otherwise REMOVE it as an optional this run did "
+                         "not produce (#384), stripping the chip the review queue rests on. "
+                         "WITH --with-llm it triages only the pubs that have no stored score, "
+                         "so the same flag covers both the nightly and an incremental top-up")
     ap.add_argument("--llm-workers", type=int, default=8,
                     help="concurrent Bedrock triage workers (default 8; lower if Bedrock throttles)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
@@ -211,6 +260,14 @@ def main(argv=None):
                     help="override the candidate threshold for every core (default: the "
                          "core's own triage_threshold, else combine.DEFAULT_TRIAGE_THRESHOLD)")
     args = ap.parse_args(argv)
+
+    # Without this the module loggers are silent: the root logger defaults to WARNING
+    # with only lastResort, so persist.py's logger.info lines — the #386 guard's count
+    # and the carry-forward row count, the two numbers the first-tick runbook tells an
+    # operator to read — never reach the log group. Same line every pipeline_grants
+    # entrypoint carries, and it matters more here: this one runs unattended nightly.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%H:%M:%S")
 
     from utils.db import get_engine  # lazy
     from utils.iso_clock import now_iso  # lazy
@@ -241,6 +298,20 @@ def main(argv=None):
     # run_core reads only its own core's slice — so passing the whole prior is
     # identical to a per-core filtered scan, at 1/len(cores) the table reads.
     prior_counts = load_prior_user_counts(args.core, bylines, enabled=args.with_affinity, engine=engine)
+    # Stored LLM evidence: the same trade as the affinity prior above — ONE Scan
+    # grouped by core_id in memory rather than one Scan per core, since each run_core
+    # reads only its own core's slice.
+    #
+    # Read under --dry-run too, unlike the curated-client GetItem. --with-affinity
+    # already scans DynamoDB on a dry run and says so, and skipping this one would make
+    # a dry run measure the wrong thing in the expensive direction: with --with-llm it
+    # would report triaging the WHOLE corpus where the real run triages a few hundred.
+    # A dry run that under-reports Bedrock spend by two orders of magnitude is a footgun,
+    # not a saving.
+    carry_forward = None
+    if args.llm_carry_forward:
+        from pipeline_cores.persist import scan_core_llm_scores  # lazy
+        carry_forward = scan_core_llm_scores(args.core)
     all_records = []
     for core in cores:
         # --alias-search is per-core (each core has its own aliases), unlike the
@@ -252,7 +323,12 @@ def main(argv=None):
         recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
                         prior_user_counts=prior_counts, screen_map=screen_map,
-                        llm_workers=args.llm_workers, dry_run=args.dry_run)
+                        llm_workers=args.llm_workers, dry_run=args.dry_run,
+                        # None (flag off) and {} (flag on, nothing stored for this
+                        # core) mean different things to run_core — .get's default
+                        # keeps them apart.
+                        carry_forward=(None if carry_forward is None
+                                       else carry_forward.get(core.core_id, {})))
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")

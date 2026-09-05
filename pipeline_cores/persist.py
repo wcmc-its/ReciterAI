@@ -19,6 +19,8 @@ from utils.iso_clock import now_iso
 from pipeline_cores.models import (
     STATUS_BELOW,
     STATUS_CANDIDATE,
+    STATUS_CLAIMED,
+    STATUS_REJECTED,
     CoreUsageRecord,
     SignalResult,
 )
@@ -67,6 +69,35 @@ _OWNED_ATTRS = frozenset(build_core_item(CoreUsageRecord(
 ))) - {"PK", "SK"}
 
 
+# The two statuses a human owns. Everything else on a CORE# row is engine-owned and
+# stays fully mutable — see put_core_usage's guard.
+_HUMAN_STATUSES = (STATUS_CLAIMED, STATUS_REJECTED)
+
+
+def _update_args(item: dict, attrs: list) -> tuple:
+    """(UpdateExpression, ExpressionAttributeNames, ExpressionAttributeValues) for `attrs`.
+
+    Split out of put_core_usage because the human-status guard has to build the SAME
+    UpdateItem twice — once with `status` in the SET list, once without — and DynamoDB
+    rejects an ExpressionAttributeNames entry no expression references, so the second
+    build has to drop the placeholder, not merely the assignment.
+
+    The REMOVE list is derived from `item` (everything build_core_item produced this
+    run), NEVER from `attrs`: on the second build `attrs` is missing `status`, and
+    deriving from it would move `status` into the REMOVE clause — deleting the very
+    human decision the guard just protected.
+    """
+    absent = sorted(_OWNED_ATTRS - set(item))
+    expr = "SET " + ", ".join(f"#a{i} = :a{i}" for i in range(len(attrs)))
+    if absent:
+        expr += " REMOVE " + ", ".join(f"#r{i}" for i in range(len(absent)))
+    # Every name goes through a placeholder: `status` is a reserved word.
+    names = {f"#a{i}": a for i, a in enumerate(attrs)}
+    names.update({f"#r{i}": a for i, a in enumerate(absent)})
+    values = {f":a{i}": item[a] for i, a in enumerate(attrs)}
+    return expr, names, values
+
+
 def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) -> int:
     """Write one (publication, core) item per record. Returns the count written.
 
@@ -84,32 +115,75 @@ def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) 
     run's llm_rationale surviving on a pair scored without the LLM this time is
     stale evidence reading as fresh. Everything outside _OWNED_ATTRS is left alone.
 
-    Unconditional on purpose — put_candidate's never-downgrade ConditionExpression is
-    deliberately NOT copied here, because a re-score has to be able to move a pair.
+    The write is conditional on the row NOT holding a HUMAN status (ReciterAI #386
+    recommendation 1). Nothing about a re-score is frozen by that: an engine
+    'confirmed' can still be walked back to 'candidate' or 'below_threshold', which is
+    exactly why put_candidate's broader never-downgrade condition is still not copied
+    here. Only 'claimed' and 'rejected' — the two statuses the engine never writes and
+    a reviewer in SPS does — are off limits.
 
-    ponytail: one UpdateItem per surfaced row, no batching. Ceiling is ~16.9k
-    round-trips for a full all-cores run (~186 for core 14's last one) against the 25
-    items/call BatchWriteItem gave up — the price of not clobbering. If a full-corpus
-    run ever makes it hurt, hand the loop to a ThreadPoolExecutor.
+    This matters because of the CADENCE, not the semantics. As an operator-run job the
+    old unconditional write was harmless; on a NIGHTLY schedule it means the engine
+    forgets every claim and rejection made that day, every night, on core 14 — the only
+    core that has reviewers. SPS's own display is unaffected either way (its `core_claim`
+    table is authoritative and takes read-time precedence), but the cross-run affinity
+    prior reads status straight out of DynamoDB, so a wiped 'claimed' silently degrades
+    the prior with nothing visible to say so.
+
+    On ConditionalCheckFailedException the same UpdateItem is re-issued with `status`
+    dropped from the SET list: likelihood, scored_at and the evidence attributes still
+    refresh on a claimed/rejected row (a reviewer's decision should not also freeze the
+    evidence under it), only the decision itself survives.
+
+    ponytail: one UpdateItem per surfaced row, no batching, and a guarded row costs
+    TWO (the failed conditional write plus the retry). Worst-case ceiling is therefore
+    ~33.8k round-trips for a full all-cores run and ~372 for core 14, against the 25
+    items/call BatchWriteItem gave up — the price of not clobbering. Note the guarded
+    path becomes the COMMON path on the one core with reviewers, not the exception:
+    claimed/rejected rows only accumulate, and every one of them pays both writes every
+    night. If a full-corpus run ever makes it hurt, hand the loop to a ThreadPoolExecutor.
     """
     client = client or get_dynamo_client()
+    guarded = 0
     for rec in records:
         item = build_core_item(rec)
         key = {"PK": item.pop("PK"), "SK": item.pop("SK")}
         attrs = list(item)
-        absent = sorted(_OWNED_ATTRS - set(attrs))
-        expr = "SET " + ", ".join(f"#a{i} = :a{i}" for i in range(len(attrs)))
-        if absent:
-            expr += " REMOVE " + ", ".join(f"#r{i}" for i in range(len(absent)))
-        names = {f"#a{i}": a for i, a in enumerate(attrs)}
-        names.update({f"#r{i}": a for i, a in enumerate(absent)})
-        client.update_item(
-            TableName=table_name,
-            Key=key,
-            UpdateExpression=expr,
-            # Every name goes through a placeholder: `status` is a reserved word.
-            ExpressionAttributeNames=names,
-            ExpressionAttributeValues={f":a{i}": item[a] for i, a in enumerate(attrs)},
+        expr, names, values = _update_args(item, attrs)
+        # Reuse the placeholder the SET clause already minted for `status` rather than
+        # binding a second name to the same attribute.
+        st = next(n for n, a in names.items() if a == "status")
+        try:
+            client.update_item(
+                TableName=table_name,
+                Key=key,
+                UpdateExpression=expr,
+                ConditionExpression=f"attribute_not_exists({st}) OR NOT {st} IN (:claimed, :rejected)",
+                ExpressionAttributeNames=names,
+                ExpressionAttributeValues={
+                    **values,
+                    ":claimed": {"S": STATUS_CLAIMED},
+                    ":rejected": {"S": STATUS_REJECTED},
+                },
+            )
+        except client.exceptions.ConditionalCheckFailedException:
+            guarded += 1
+            keep = [a for a in attrs if a != "status"]
+            expr, names, values = _update_args(item, keep)
+            client.update_item(
+                TableName=table_name,
+                Key=key,
+                UpdateExpression=expr,
+                ExpressionAttributeNames=names,
+                ExpressionAttributeValues=values,
+            )
+    if guarded:
+        # One line, at the end: an operator reading the first nightly tick has to be
+        # able to see the guard firing at all, and a per-row log would bury it.
+        logger.info(
+            "put_core_usage: %d of %d rows already held a human status (%s) — refreshed "
+            "their evidence but left the decision alone",
+            guarded, len(records), "/".join(_HUMAN_STATUSES),
         )
     return len(records)
 
@@ -221,13 +295,15 @@ def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NA
 _USER_STATUSES = {"confirmed", "claimed"}
 
 
-def scan_prior_core_usage(core_id: str = None, *, client=None, table_name: str = TABLE_NAME) -> list:
+def scan_prior_core_usage(core_id: str = None, *, strict: bool = False, client=None,
+                          table_name: str = TABLE_NAME) -> list:
     """Return prior [{pmid, core_id, status}] for confirmed/claimed CORE# rows.
 
     Full-table paginated Scan with a server-side FilterExpression (same pattern as
     scan_invalid_pmids). Used to seed the cross-run repeat-user affinity prior.
     Returns [] on any error (e.g. table absent on first run) so the pipeline still
-    runs on this run's own confirmations.
+    runs on this run's own confirmations — UNLESS `strict`, which re-raises instead.
+    Pass strict=True from any caller that PERSISTS what it read; see the raise below.
     """
     client = client or get_dynamo_client()
     statuses = list(_USER_STATUSES)
@@ -266,5 +342,87 @@ def scan_prior_core_usage(core_id: str = None, *, client=None, table_name: str =
             "scan_prior_core_usage failed (core_id=%s) — affinity prior degraded "
             "to empty for this run", core_id,
         )
+        if strict:
+            # strict=True is for the callers that WRITE what they read. An empty prior
+            # is not a worse ranking there, it is a wrong one that gets persisted:
+            # author_affinity computes to 0.0, build_core_item omits a falsy affinity,
+            # put_core_usage sweeps it into REMOVE, and every row carried by affinity
+            # alone demotes confirmed -> candidate. Degrading is fine for the two
+            # analysis callers (batch_screen, suggest_aliases) whose output nobody
+            # stores; run.py opts in to failing instead. Same reasoning as
+            # scan_core_llm_scores below, which has only the writing caller and so
+            # raises unconditionally.
+            raise
         return []
+    return out
+
+
+def scan_core_llm_scores(core_id: str = None, *, client=None, table_name: str = TABLE_NAME) -> dict:
+    """Return {core_id: {pmid: {"score": int, "rationale": str}}} for stored LLM evidence.
+
+    Full-table paginated Scan, same shape as scan_prior_core_usage above: server-side
+    FilterExpression on the CORE# rows, narrowed to core_id when one is given, and only
+    the four attributes the carry-forward needs projected. The value shape matches what
+    signals.llm_triage returns for the keys run_core reads (`score`, `rationale`), so a
+    carried-forward entry and a freshly triaged one are interchangeable at the call site.
+
+    RAISES on error. It does NOT degrade to {} — and that is the whole difference from
+    scan_prior_core_usage, which returns [] on failure because an empty affinity prior
+    only degrades RANKING. An empty result here is not a degraded answer, it is a WRONG
+    one: the caller would read it as "no row has an LLM score", pass nothing forward,
+    and put_core_usage would then REMOVE llm_score/llm_rationale from every row it
+    rewrites (#384's owned-attribute sweep). A throttled Scan would silently WIPE the
+    evidence this function exists to preserve — on core 14 that is the chip all 62 open
+    review-queue rows carry. Failing the run is the cheap outcome; the operator re-runs.
+    """
+    client = client or get_dynamo_client()
+    eav = {":sk": {"S": "CORE#"}}
+    filt = "begins_with(SK, :sk) AND attribute_exists(llm_score)"
+    if core_id is not None:
+        filt += " AND core_id = :cid"
+        eav[":cid"] = {"S": str(core_id)}
+    kwargs = {
+        "TableName": table_name,
+        "ProjectionExpression": "pmid, core_id, llm_score, llm_rationale",
+        "FilterExpression": filt,
+        "ExpressionAttributeValues": eav,
+    }
+    out: dict = {}
+    rows = 0
+    while True:
+        resp = client.scan(**kwargs)
+        for it in resp.get("Items", []):
+            pmid = it.get("pmid", {}).get("S", "")
+            cid = it.get("core_id", {}).get("S", "")
+            raw = it.get("llm_score", {}).get("N")
+            if not (pmid and cid and raw is not None):
+                # RAISE, do not skip. Every row this Scan can see was written by
+                # build_core_item, which always emits pmid, core_id and llm_score as N —
+                # so a row that matched `attribute_exists(llm_score)` and still fails
+                # this check means something ELSE is writing CORE# rows in a shape this
+                # function cannot read. Skipping it silently is how a full table of
+                # unreadable rows becomes an empty carry-forward and then a mass REMOVE:
+                # the same wrong-not-degraded answer the docstring above refuses, one
+                # level down. `rows` counts accepted rows only, so a per-row skip would
+                # not even be visible in the summary line.
+                raise ValueError(
+                    f"scan_core_llm_scores: CORE# row {it.get('pmid')} / "
+                    f"{it.get('core_id')} carries llm_score in an unreadable shape "
+                    f"({it.get('llm_score')}) — refusing to return a partial carry-forward"
+                )
+            # Stored through to_decimal, so a whole number arrives as "8" — but read it
+            # through float first, because a Decimal that ever round-trips as "8.0"
+            # would make int() raise mid-scan and take the run down for a formatting
+            # detail, on the one code path whose job is to not lose data.
+            out.setdefault(cid, {})[pmid] = {
+                "score": int(float(raw)),
+                "rationale": it.get("llm_rationale", {}).get("S", ""),
+            }
+            rows += 1
+        lek = resp.get("LastEvaluatedKey")
+        if not lek:
+            break
+        kwargs["ExclusiveStartKey"] = lek
+    logger.info("scan_core_llm_scores(core_id=%s): %d stored LLM scores across %d core(s)",
+                core_id, rows, len(out))
     return out
