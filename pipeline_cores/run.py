@@ -10,7 +10,6 @@ Signals layer in by cost/precision:
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -22,8 +21,6 @@ from pipeline_cores import combine as _combine
 from pipeline_cores import ingest, pmc_search, signals
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import STATUS_CONFIRMED
-
-logger = logging.getLogger(__name__)
 
 # Triage Bedrock calls are tiny generations (a screen int / a short JSON), so a
 # 120s read timeout is ample headroom while bounding a hung connection far below
@@ -93,8 +90,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     (already at ceiling).
 
     dry_run mirrors main()'s --dry-run (README: "no AWS needed" for a dry run) —
-    it skips the DynamoDB curated-clients read below the same way it skips the
-    final DynamoDB write, so a --dry-run invocation still touches no AWS."""
+    so the curated-client read, like the final write, is skipped under
+    --dry-run (note --with-affinity still scans DynamoDB for the prior)."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
@@ -109,18 +106,14 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     # written to DynamoDB for this core (#383's engine half).
     yaml_clients = set(core.clients)
     if dry_run:
-        logger.info(
-            "core %s: dry-run — skipping DynamoDB curated-client read", core.core_id,
-        )
+        print(f"[{core.core_id} {core.name}] dry-run: skipping DynamoDB curated-client read")
         dynamo_clients = set()
     else:
         from pipeline_cores.persist import get_curated_clients  # lazy
         dynamo_clients = get_curated_clients(core.core_id)
     clients = yaml_clients | dynamo_clients
-    logger.info(
-        "core %s: %d YAML-curated + %d DynamoDB-curated clients -> %d union",
-        core.core_id, len(yaml_clients), len(dynamo_clients), len(clients),
-    )
+    print(f"[{core.core_id} {core.name}] curated clients: {len(yaml_clients)} yaml + "
+          f"{len(dynamo_clients)} dynamodb -> {len(clients)} union")
 
     # Phase 1 — deterministic + LLM signals.
     sigs, records = {}, []

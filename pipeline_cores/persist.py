@@ -177,9 +177,11 @@ def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NA
     phantom publication) in both places instead of the per-core setting it is.
 
     Resilient by design, never fatal to the run: a missing item (no clients
-    curated for this core yet), a missing/empty client_cwids attribute, or any
-    botocore ClientError or other exception while reading all degrade to an
-    empty set with one warning log line, and the caller proceeds unaffected.
+    curated for this core yet — the normal state for 9 of 10 cores), a
+    missing/empty client_cwids attribute, or any botocore ClientError or other
+    exception while reading all degrade to an empty set, and the caller
+    proceeds unaffected. Only the exception path is unusual enough to warrant a
+    warning log line; a missing item or attribute is silent (logger.debug).
     """
     client = client or get_dynamo_client()
     try:
@@ -197,7 +199,7 @@ def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NA
 
     item = resp.get("Item")
     if not item:
-        logger.warning(
+        logger.debug(
             "get_curated_clients(core_id=%s): no CORE#%s/CLIENTS item found — "
             "treating as no curated clients for this run", core_id, core_id,
         )
@@ -205,7 +207,7 @@ def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NA
 
     raw = item.get("client_cwids", {}).get("L")
     if not raw:
-        logger.warning(
+        logger.debug(
             "get_curated_clients(core_id=%s): item has no client_cwids attribute — "
             "treating as no curated clients for this run", core_id,
         )

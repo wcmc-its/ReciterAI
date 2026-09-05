@@ -744,11 +744,30 @@ def test_get_curated_clients_returns_the_lowercased_dynamo_set():
     assert out == {"cwid1", "cwid2"}
 
 
-def test_get_curated_clients_returns_empty_set_with_no_item():
+def test_get_curated_clients_returns_empty_set_with_no_item(caplog):
+    """No curated-clients item is the NORMAL state for 9 of 10 cores — it must
+    not warn."""
+    import logging
     from pipeline_cores import persist
 
-    out = persist.get_curated_clients("2", client=_FakeGetItemDynamo(item=None))
+    with caplog.at_level(logging.WARNING):
+        out = persist.get_curated_clients("2", client=_FakeGetItemDynamo(item=None))
     assert out == set()
+    assert not [r for r in caplog.records if "get_curated_clients" in r.message]
+
+
+def test_get_curated_clients_returns_empty_set_with_missing_attribute(caplog):
+    """An item with no (or an empty) client_cwids attribute is also normal —
+    it must not warn either."""
+    import logging
+    from pipeline_cores import persist
+
+    with caplog.at_level(logging.WARNING):
+        out = persist.get_curated_clients(
+            "2", client=_FakeGetItemDynamo(item={"client_cwids": {"L": []}}),
+        )
+    assert out == set()
+    assert not [r for r in caplog.records if "get_curated_clients" in r.message]
 
 
 def test_get_curated_clients_returns_empty_set_and_warns_on_error(caplog):
@@ -762,6 +781,24 @@ def test_get_curated_clients_returns_empty_set_and_warns_on_error(caplog):
     assert out == set()
     assert "get_curated_clients" in caplog.text
     assert "RuntimeError" in caplog.text
+
+
+def test_get_curated_clients_returns_empty_set_and_warns_on_client_error(caplog):
+    """A botocore ClientError (e.g. throttling) is the same error path as any
+    other exception: warn and degrade to an empty set."""
+    import logging
+    from botocore.exceptions import ClientError
+    from pipeline_cores import persist
+
+    exc = ClientError(
+        {"Error": {"Code": "ProvisionedThroughputExceededException", "Message": "x"}},
+        "GetItem",
+    )
+    with caplog.at_level(logging.WARNING):
+        out = persist.get_curated_clients("2", client=_FakeGetItemDynamo(raise_exc=exc))
+    assert out == set()
+    assert "get_curated_clients" in caplog.text
+    assert "ClientError" in caplog.text
 
 
 # --- put_core_usage must not clobber the attributes batch_screen owns ------
