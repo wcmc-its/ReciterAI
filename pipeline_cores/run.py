@@ -333,8 +333,10 @@ def main(argv=None):
     full_text = _make_fulltext_loader(args.with_fulltext, use_s3=args.fulltext_s3)
     # ONCE per run, before any per-publication work: 26 MB of JSON off S3, shared by
     # every core. load_family_index RAISES rather than degrading to {} — an empty index
-    # here would be WRITTEN as a REMOVE of the method_* attributes on every row.
-    family_index = method_families.load_family_index() if args.with_method_families else None
+    # here would be WRITTEN as a REMOVE of the method_* attributes on every row. Passing
+    # `cores` also fails the run loud on a curated label the artifact has renamed away,
+    # which is otherwise curation that fires nothing and says nothing.
+    family_index = method_families.load_family_index(cores=cores) if args.with_method_families else None
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])

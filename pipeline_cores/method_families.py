@@ -59,7 +59,8 @@ def make_s3_backend(bucket: str = None):
     return S3HierarchyClient(bucket=bucket or ARTIFACTS_BUCKET)
 
 
-def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: str = None) -> dict:
+def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: str = None,
+                      cores=()) -> dict:
     """{pmid: [(family_label, tool_display_name, sentence), ...]} from the A2 artifact.
 
     Reads S3 by default; `tools_path` / `context_path` override with local files for
@@ -76,6 +77,11 @@ def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: st
     the canonical display form (the YAML side is casefolded for matching), so what
     reaches DynamoDB is the taxonomy's own string rather than however a curator typed
     it.
+
+    Pass `cores` to also check their curated labels against this artifact's taxonomy
+    (see validate_curated_labels). It happens here because this is the only place the
+    full label list exists — parsing tools.json a second time to check 7 strings would
+    cost a second multi-MB read for nothing.
     """
     tools = _read_json(TOOLS_KEY, tools_path, s3, bucket)["tools"]
     context = _read_json(TOOL_CONTEXT_KEY, context_path, s3, bucket)["tool_context"]
@@ -114,7 +120,50 @@ def load_family_index(*, tools_path=None, context_path=None, s3=None, bucket: st
             "attributes from every previously scored row. Check the artifact at "
             f"{TOOLS_KEY} / {TOOL_CONTEXT_KEY}."
         )
+    # After the EMPTY guard: on a half-written artifact every curated label is missing,
+    # and "the artifact is empty" is the honest error to show for that, not "your
+    # curation drifted".
+    validate_curated_labels((family for family, _display in families.values()), cores)
     return out
+
+
+def validate_curated_labels(family_labels, cores) -> None:
+    """RAISE if a core curates a `method_families:` label this artifact no longer has.
+
+    config/core_dictionary.yaml curates families BY LABEL STRING, and a label is `cls`
+    — the canonical class an LLM reconcile picks in `pipeline_tools.family_rebuild`,
+    non-deterministic on a cache miss and cached all-or-nothing. So a tools rebuild can
+    RENAME a family, after which the curation matches nothing, fires nothing and raises
+    nothing: the same silent no-op the tier and YAML-shape guards in `dictionary._validate`
+    exist to prevent, one layer further out — they can only see the YAML, and drift is
+    only visible with the artifact in hand. 7 labels, once per run.
+
+    `family_labels` is the artifact's FULL taxonomy — every `method_family_label` in
+    tools.json — NOT the families that reached a PMID in the joined index. A family
+    whose tools carry no context sentence in this artifact version is absent from the
+    index but perfectly present in the taxonomy: curation that fires nothing this run,
+    which is normal and not a rename. Validating against the index would raise on it,
+    and a guard that cries wolf is worse than no guard.
+
+    Casefolded on the artifact side only, because that is exactly what
+    `signals.method_family_signal` does: `load_cores` already casefolded the YAML side.
+    Matching on any other convention here would invent failures the signal does not have.
+    """
+    known = {str(label).casefold() for label in family_labels}
+    missing = {c.core_id: [label for labels in c.method_families.values()
+                           for label in labels if label not in known]
+               for c in cores}
+    missing = {core_id: labels for core_id, labels in missing.items() if labels}
+    if missing:
+        detail = "; ".join(f"core {core_id}: {', '.join(repr(x) for x in labels)}"
+                           for core_id, labels in sorted(missing.items()))
+        raise ValueError(
+            f"curated method_families label(s) are NOT in the artifact taxonomy ({detail}) — "
+            "refusing to score with them: a family label is an LLM-reconciled class, so a "
+            "tools rebuild can RENAME one, and curation naming the old string matches "
+            f"nothing, fires nothing and raises nothing. Re-curate against the {len(known)} "
+            f"labels in {TOOLS_KEY}."
+        )
 
 
 def _read_json(key: str, path, s3, bucket: str) -> dict:
