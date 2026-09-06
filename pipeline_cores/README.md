@@ -540,7 +540,7 @@ Run deterministic-only for a fast, AWS-cheap pass: co-authorship confirms staff 
 the repeat-user affinity prior surfaces their siblings as candidates — but pair it with
 `--llm-carry-forward` against the live table, or it strips the queue's LLM chips.
 
-### Operational reads
+### Operational reads, and the one `CORE#` write
 
 - `scan_prior_core_usage(core_id, strict=True)` — the affinity prior. `strict` is for
   callers that persist what they read; it raises rather than degrading to `[]`.
@@ -552,6 +552,20 @@ the repeat-user affinity prior surfaces their siblings as candidates — but pai
   `scan_prior_core_usage` and the SPS ETL select usage rows with
   `begins_with(SK, "CORE#")`, so the config item would surface as a phantom publication in
   both.
+- `put_core_staff_dict_counts(core_id, count, tracked_count)` — the one **write** into a
+  `CORE#{id}` partition: `SK=STAFF_DICT`, carrying `staff_count` (the people the
+  dictionary lists under `staff:`) **and** `staff_tracked_count` (the subset
+  `signals.coauthorship_index` can actually match — untracked staff are not ReCiter
+  target persons, so their author rows carry `personIdentifier` NULL). Both, because the
+  smaller one is the load-bearing one: core 14 lists 4 and can match 1, and cores 8, 10
+  and 13 list 3, 2 and 1 and can match *none*, so a chip captioned with the listed count
+  alone asserts co-author evidence that cannot exist. Published for **every core in the
+  dictionary on every run**, `--core` or not — the counts describe the dictionary, not
+  the scoring pass, and publishing only the scored subset would leave thirteen of the
+  fourteen items absent under the nightly's `--core 14`. Fail-soft like the reads above,
+  and the same `CORE#`-prefix rule applies to its SK. `SK=STAFF` is deliberately left
+  free for a future SPS-curated staff list, which by the `CLIENTS` precedent (SPS writes,
+  this repo reads) would want exactly that key; this item runs the other way.
 
 ## Changing a weight
 
