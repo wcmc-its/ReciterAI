@@ -26,6 +26,7 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 | 2 | core-staff co-authorship (resolved `personIdentifier`) | `signals.coauthorship_index` | deterministic recall | `staff` +4.89 |
 | 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | strongest single weight | `ack` +6.37, plus conditional terms |
 | 3b | A2 method families (curated, tiered) | `method_families.load_family_index`, `signals.method_family_signal` | a better *representation* of the abstract | `method:strong` / `:moderate` / `:weak` **0.00 — unfitted** |
+| 3c | MeSH E-tree descriptors (bare descriptors, per-core prefixes) | `prefilter.core_mesh_tree_descriptors` | the topical hint, finally *recorded* | `mesh:tree` **0.00 — unfitted** |
 | 4 | LLM triage (two-pass Bedrock) | `signals.llm_triage` | ranking only, never confirms | line: −1.86 + 0.68 × min(score, 9) |
 | 5 | human claim (SPS ADR-005 override) | *(in SPS, not here)* | source of truth | n/a — read-time precedence |
 
@@ -64,6 +65,7 @@ after any weight change:
 | aff:regular (rate 0.30) | 0.387 | candidate |
 | **curated client** | **0.020** | **below_threshold** |
 | **curated method family, any tier** | **0.020** | **below_threshold** |
+| **MeSH descriptor under the core's E-tree branch** | **0.020** | **below_threshold** |
 | generic alias beside another institution | 0.002 | below_threshold |
 
 Two things to read off it. **The LLM alone never confirms** — it tops out at 0.591
@@ -223,7 +225,7 @@ them honest:
 ### A worked example
 
 One pair, every signal firing, computed from the shipped weights
-(`combine.explain()` returns the eight evidence rows below, in that order and with those
+(`combine.explain()` returns the nine evidence rows below, in that order and with those
 labels — it is what the claim queue renders; the prior, logit and P rows are `score()`'s
 arithmetic around them):
 
@@ -238,6 +240,7 @@ arithmetic around them):
 | `ack.spec:moderate` — "Epigenomics Core", 666 global PMC hits | +1.90 |
 | `client` — a curated known client on the byline | +0.00 |
 | `method:strong` — an Electronic-health-record-datasets tool named in the abstract | +0.00 |
+| `mesh:tree` — a bare MeSH descriptor under the core's E-tree branch | +0.00 |
 | **= logit** | **+19.07** |
 | **= P** | **1.000 → confirmed** |
 
@@ -319,10 +322,10 @@ the screen alone.
 
 The least obvious part of this pipeline, and the part that has caused every data-loss
 incident in it. `persist.put_core_usage` is an **UpdateItem that SETs what this run
-produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 14
-attributes `build_core_item` can emit; the seven *optional* ones are the only members that
+produced and REMOVEs every `_OWNED_ATTRS` attribute it did not**. `_OWNED_ATTRS` is all 15
+attributes `build_core_item` can emit; the eight *optional* ones are the only members that
 can ever land in REMOVE: `ack_alias`, `ack_snippet`, `llm_score`, `llm_rationale`,
-`author_affinity`, `method_tier` and `method_evidence`. The other seven (`pmid`, `core_id`, `likelihood`, `status`,
+`author_affinity`, `method_tier`, `method_evidence` and `mesh_evidence`. The other seven (`pmid`, `core_id`, `likelihood`, `status`,
 `scored_at`, `signal_coauthors`, `signal_ack`) are written on every record, so they are
 always in SET.
 
@@ -337,6 +340,13 @@ without the LLM this time is stale evidence reading as fresh. Three consequences
    `method_*` attributes from every row a run with it wrote, so once it is enabled the
    nightly must carry it. There is deliberately no read-back path — nothing consumes
    those attributes yet, and re-deriving them from the artifact is free.
+   **`mesh_evidence` sidesteps this entirely by having no flag**: `run.py` builds the
+   descriptor index for every core on every run, so the attribute is always produced and
+   can never strip itself. That is affordable because it is one indexed reciterdb query
+   per core with a mapped prefix (and zero for the six without) — a flag would have
+   bought nothing and added a way to lose data.
+   For a pub that genuinely carries no descriptor under the core's branch, REMOVE is the
+   correct answer, not a wipe.
 2. **A degraded read becomes a wipe.** Any upstream read that fails soft to empty gets its
    emptiness *written*. So the two reads on the write path raise instead:
    `scan_core_llm_scores` unconditionally, and `scan_prior_core_usage` under `strict=True`
@@ -465,7 +475,13 @@ pool = corpus pubs (minus this core's already-confirmed pubs)
   imaging only, redundant there, and a gate would lose ~half the corpus to MEDLINE indexing
   lag. The bare-descriptor E-tree signal is reciterdb-native (no out-of-band fetch) and
   fires on ~21% of confirmed imaging pubs (concentrated in the imaging/equipment families;
-  genomics relies on author-affinity + the screen).
+  genomics relies on author-affinity + the screen). The same join now also records **which
+  descriptor** fired (`core_mesh_tree_descriptors` → `mesh_evidence`, weight 0.00): the
+  prior itself is a boolean folded into one float, so until this nothing anywhere in
+  ReciterAI could say what a `topicalPrior` chip was made of, or measure a per-descriptor
+  lift. The prior is unchanged: `core_mesh_tree_pmids` is untouched, and the two queries
+  are kept separate on purpose — the membership set is `batch_screen`'s corpus-wide hot
+  path and must not be derived from the wider per-descriptor rows.
 - **Calibrated bands.** The Option-3 Sonnet pass (`analysis/calibrate_batch_screen.py`) set
   `curator-min=2` (recall-safe drop floor — held-out recall 91–100% at ≥2 across the
   well-powered cores) and `candidate-min=5` (auto-surface at ~91% pilot precision). Writes are
@@ -560,7 +576,13 @@ coverage, not in what a section *means*); `ack.spec:unknown` and `inst:none@*unk
 0.00 (never observed on either side — neutral, not penalised); `client` is 0.00 (#383); and
 `method:strong`/`:moderate`/`:weak` are 0.00 (#394 — 399x/6.2x/1.7x on core 14's 94
 in-corpus positives, and independent of `aff:*`, but the both-signals-held-out panel is 5
-events and panel B is the *imaging* core, so the fitter cannot price them at all yet).
+events and panel B is the *imaging* core, so the fitter cannot price them at all yet);
+and `mesh:tree` is 0.00 (extracted for the first time here, so the per-descriptor lift
+that would price it has not been computed yet — and a non-zero value would also have to
+be reconciled against the 0.4 the *prefilter* already charges for the same signal).
+Corpus-rarity/IDF weighting of descriptors is not the way out: it was built, measured and
+deleted in SPS, where rarity anti-correlated with topical centrality and the sweep paid
+for nothing (0.6610 vs 0.6612).
 
 ## File map
 
@@ -573,7 +595,7 @@ events and panel B is the *imaging* core, so the fitter cannot price them at all
 | `combine.py` | `WEIGHTS`, `evidence_features`, `explain`, `score`, `combine` — **the model** |
 | `run.py` | the entry point: two-phase `run_core`, CLI flags, orchestration |
 | `persist.py` | DynamoDB writes and the three reads; `_OWNED_ATTRS`; the #386 guard |
-| `prefilter.py` | the free `prefilter_prior` (author-affinity OR MeSH E-tree) |
+| `prefilter.py` | the free `prefilter_prior` (author-affinity OR MeSH E-tree), and `core_mesh_tree_descriptors` — the per-(pub, core) descriptor record behind `mesh:tree` |
 | `batch_screen.py` | the candidate-generation run-mode |
 | `method_families.py` | joins the A2 tools artifact into `{pmid: [(family, tool, sentence)]}`; **raises**, never degrades |
 | `pmc_search.py`, `fulltext.py` | alias search + PMC full-text, disk→S3→NCBI cache |
@@ -588,6 +610,7 @@ Infra and the nightly: `infra/README.md`, "Cores daily run launch path".
 |---|---|
 | #383 | fit the `client` weight — it is 0.00 and `client_cwids` is not persisted |
 | #394 | fit the `method:*` weights — overlap MEASURED 2026-09-05 (independent of `aff:*`; 4.6x residual over `llm_score` alone), but still blocked twice: the both-signals-held-out panel is 5 events against `MIN_PANEL`=30 and cannot grow, **and** the fitter's panel B is core 2 while the curation is core 14 |
+| — | fit `mesh:tree`: compute lift **per descriptor UI** over the accumulated known pubs exactly as the `method:*` table was computed (its denominator lesson included), then measure the overlap with `aff:*`/`llm` and reconcile with the prefilter's own 0.4. **Nothing accrues on its own, so this has to be started deliberately.** The only scheduled run is `python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward` (`infra/README.md`), and core 14 has **no key in `CORE_MESH_TREE_PREFIXES`** — so the nightly builds an empty mesh index and records no descriptor, ever. `batch_screen` supplies none either: it writes through `persist.put_candidate`, which never emits `mesh_evidence` — only `run.py`'s `run_core` does. Descriptors accrue **only** when an operator hand-runs `pipeline_cores.run` for one of the eight mapped cores. Do not close that gap by mapping core 14: `CORE_MESH_TREE_PREFIXES` drives `prefilter_prior`, so adding a core is a scoring change |
 | #388 | the nightly Bedrock budget; a corpus-wide `--with-llm` is ~80k Haiku screens |
 | — | `batch_screen` and `run.py` write `likelihood` on different scales (above) |
 | — | per-author **time decay** in affinity: needs publication year carried through `scan_prior_core_usage` and a half-life calibrated on `analysis/labeled_set.csv`. Do not guess the decay |

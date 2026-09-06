@@ -116,6 +116,15 @@ class SignalResult:
     # derivable from this, so neither is stored a second time.
     method_evidence: list = field(default_factory=list)
     method_tier: str = ""                  # "strong" | "moderate" | "weak" ("" = nothing fired)
+    # --- MeSH E-tree descriptors, EXTRACTED but not yet priced (HANDOFF-7 section 3) ---
+    # [(descriptor_ui, descriptor_label, tree_prefix), ...] under this core's
+    # `prefilter.CORE_MESH_TREE_PREFIXES`. Self-contained like `method_evidence`: the UI is
+    # what a per-descriptor lift is computed over, the label makes the chip checkable, the
+    # prefix says which branch it hit. The ONLY place a MeSH descriptor is recorded anywhere
+    # in ReciterAI — the prefilter has only ever kept a boolean of the same join, blended
+    # into one float. No tier field on purpose: tiering is a specificity scheme, and none is
+    # justified before the lift table exists.
+    mesh_evidence: list = field(default_factory=list)
 
 
 # Method-family tiers, STRONGEST FIRST — the order is load-bearing (signals picks the

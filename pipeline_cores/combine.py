@@ -209,6 +209,18 @@ WEIGHTS = {
     "method:strong": 0.00,
     "method:moderate": 0.00,
     "method:weak": 0.00,
+    # A bare MeSH descriptor on this pub sits under one of the core's E-tree prefixes
+    # (`prefilter.CORE_MESH_TREE_PREFIXES`). ONE key, like `staff`/`client`/`method:*`.
+    # 0.00 because the descriptor is only now being RECORDED: the prefilter collapses this
+    # join to a boolean and noisy-ORs it into one float, so a per-descriptor lift — the
+    # measurement that made `method:*` decidable — has never been computable. Price it
+    # after the known pubs land, and reconcile then against the 0.4 the prefilter already
+    # charges for this same signal on `batch_screen` rows.
+    # NOT the route there: corpus-rarity / IDF over descriptors. Built, measured and
+    # DELETED in the sibling SPS repo — in a hierarchical vocabulary rarity ANTI-correlates
+    # with topical centrality and the bounded-band sweep paid for nothing (0.6610 vs
+    # 0.6612). The alias-specificity pattern above does not transfer; do not re-derive it.
+    "mesh:tree": 0.00,
     # Author x core affinity, bucketed on the RATE (signals.author_affinity — the
     # largest share of their own corpus output that any author on this byline has
     # already given to this core). A rate, not a count: the count could not tell a
@@ -367,6 +379,10 @@ def evidence_features(signals: SignalResult) -> list:
         # fit, most of whose cells no panel would ever observe. One feature, not a
         # count — the same rule as `staff` and `client`.
         out.append(f"method:{signals.method_tier}")
+    if signals.mesh_evidence:
+        # One key however many descriptors matched and however deep they sit — same rule
+        # as `staff`/`client`. The descriptors ride along on `mesh_evidence`.
+        out.append("mesh:tree")
     if signals.author_affinity > 0:
         # The MAX rate over the byline (signals.author_affinity), bucketed. A rate of
         # 0 emits nothing, per the absent-evidence rule above — even though the cell

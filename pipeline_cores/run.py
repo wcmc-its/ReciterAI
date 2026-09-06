@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from collections import Counter, defaultdict
 
 from pipeline_cores import combine as _combine
-from pipeline_cores import ingest, method_families, pmc_search, signals
+from pipeline_cores import ingest, method_families, pmc_search, prefilter, signals
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import METHOD_FAMILY_TIERS, STATUS_CONFIRMED
 
@@ -103,7 +103,11 @@ def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=
 
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              engine, prior_user_pmids=None, screen_map=None, llm_workers=8,
-             dry_run: bool = False, carry_forward: dict = None, family_index: dict = None):
+             dry_run: bool = False, carry_forward: dict = None, family_index: dict = None,
+             # TRAP: mesh_index=None records NO mesh_evidence, and mesh_evidence is in
+             # _OWNED_ATTRS — a second caller that forgets this kwarg makes put_core_usage
+             # REMOVE it from every row an earlier run wrote. One caller today: main().
+             mesh_index: dict = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -127,7 +131,18 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     family_index is main()'s once-per-run A2 method-family index (26 MB of JSON) or
     None when --with-method-families is off. Looking a pmid up in it is a dict access,
     so phase 1 asks for every pub either way and an absent index simply answers with
-    nothing."""
+    nothing.
+
+    mesh_index is the same shape for MeSH descriptors
+    (prefilter.core_mesh_tree_descriptors), but built PER CORE — the E-tree prefixes are
+    per-core, so there is nothing to share across cores — and there is deliberately NO
+    FLAG guarding it: main() always builds it. That is the answer to the trap the method
+    families had to document instead: put_core_usage REMOVEs every _OWNED_ATTRS
+    attribute a run did not produce, so an optional-by-flag attribute strips itself off
+    rows a previous run wrote. Always-on cannot do that, and it costs nothing to be
+    always-on here — one indexed reciterdb query per core with mapped prefixes, zero
+    queries for the 6 cores without, no S3 and no Bedrock. A caller that passes nothing
+    (the tests, today) simply records no descriptors."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
     coauthors = signals.coauthorship_index(engine, core, pmids)
@@ -187,6 +202,10 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         sig.client_cwids = [cwid for cwid in bylines.get(pmid, []) if cwid.lower() in clients]
         sig.method_evidence, sig.method_tier = signals.method_family_signal(
             family_index or {}, pmid, core)
+        # Already joined and prefix-attributed by the per-core query; a dict access, and
+        # no per-core matching step, because the core's prefixes ARE the curation and the
+        # SQL applied them. str() on the key: the index is built from DB pmids.
+        sig.mesh_evidence = (mesh_index or {}).get(str(pmid)) or []
         tri = llm_scores.get(str(pmid))
         if tri:
             sig.llm_score = tri["score"]
@@ -200,6 +219,11 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
               f"indexed + {sum(len(v) for v in core.method_families.values())} curated "
               f"labels -> {sum(fired.values())} of {len(pubs)} pubs "
               f"({', '.join(f'{t} {fired[t]}' for t in METHOD_FAMILY_TIERS)})")
+    if mesh_index is not None:
+        prefixes = prefilter.CORE_MESH_TREE_PREFIXES.get(str(core.core_id), [])
+        print(f"[{core.core_id} {core.name}] mesh descriptors: {len(prefixes)} E-tree "
+              f"prefix(es) -> {sum(1 for s in sigs.values() if s.mesh_evidence)} of "
+              f"{len(pubs)} pubs")
 
     # Phase 2 — repeat-user affinity. Collect the confirmed PAPERS per author (this run
     # + prior), build the affinity index, and re-score non-confirmed records.
@@ -373,6 +397,15 @@ def main(argv=None):
             pmc_search.make_alias_loader(core, use_s3=args.fulltext_s3)
             if args.alias_search else full_text
         )
+        # Per-core, always on, free: the E-tree prefixes differ per core so there is
+        # nothing to hoist, and a core with no mapped prefix returns {} without touching
+        # the DB. No flag on purpose — see run_core's docstring: an attribute that is
+        # only sometimes produced strips itself out of DynamoDB on the runs that skip it.
+        # `if pubs` because an EMPTY pmid list means "scan all of person_article_keyword"
+        # to the query builder, and a --pmids-file whose PMIDs are all out of corpus
+        # lands exactly there — an unbounded join for a run with nothing to score.
+        mesh_index = prefilter.core_mesh_tree_descriptors(
+            engine, core.core_id, [p["pmid"] for p in pubs]) if pubs else {}
         recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
                         threshold=args.threshold, scored_at=scored_at, engine=engine,
                         prior_user_pmids=prior_pmids, screen_map=screen_map,
@@ -382,7 +415,7 @@ def main(argv=None):
                         # keeps them apart.
                         carry_forward=(None if carry_forward is None
                                        else carry_forward.get(core.core_id, {})),
-                        family_index=family_index)
+                        family_index=family_index, mesh_index=mesh_index)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")
