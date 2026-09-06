@@ -120,3 +120,80 @@ def test_cli_limit_caps_corpus(tmp_path):
     )
     assert rc == 0
     assert json.loads(out.read_text())["telemetry"]["n_extracted"] == 2
+
+
+# --- externalised (S3) checkpoint: the scheduled-run path -------------------
+class _FakeS3:
+    """Duck-typed S3HierarchyClient (key_exists / get_object_bytes / put_object)."""
+
+    def __init__(self, bucket="fake-artifacts"):
+        self.bucket = bucket
+        self.store = {}
+        self.writes = 0
+
+    def key_exists(self, key):
+        return key in self.store
+
+    def get_object_bytes(self, key):
+        return self.store[key]
+
+    def put_object(self, key, body, content_type=None):
+        self.writes += 1
+        self.store[key] = body
+
+
+def test_cli_checkpoint_s3_resumes_across_a_fresh_container(tmp_path):
+    # A scheduled Fargate run: run 2 gets a new container with an EMPTY disk, so
+    # only the S3 log can tell it what run 1 already extracted.
+    corpus = _corpus(tmp_path, n=3)
+    s3 = _FakeS3()
+    key = "tools/_checkpoint/cli-test.jsonl"
+
+    rc = main(
+        ["--input", str(corpus), "--out", str(tmp_path / "m1.json"),
+         "--checkpoint", str(tmp_path / "run1" / "ckpt.jsonl"), "--checkpoint-s3", key],
+        call_llm=_stub(), s3=s3,
+    )
+    assert rc == 0
+    assert key in s3.store                                   # the log went to S3…
+    assert not (tmp_path / "run1" / "ckpt.jsonl").exists()   # …and not to disk
+
+    out2 = tmp_path / "m2.json"
+    rc2 = main(
+        ["--input", str(corpus), "--out", str(out2),
+         "--checkpoint", str(tmp_path / "run2" / "ckpt.jsonl"), "--checkpoint-s3", key],
+        call_llm=_stub(), s3=s3,
+    )
+    assert rc2 == 0
+    telemetry = json.loads(out2.read_text())["telemetry"]
+    assert telemetry["n_skipped_resumed"] == 3   # all three resumed — no re-extraction
+    assert telemetry["n_extracted"] == 0
+
+
+def test_cli_bare_checkpoint_s3_flag_uses_the_default_key(tmp_path):
+    from pipeline_tools.checkpoint import DEFAULT_S3_KEY
+
+    s3 = _FakeS3()
+    rc = main(
+        ["--input", str(_corpus(tmp_path, n=2)), "--out", str(tmp_path / "m.json"),
+         "--checkpoint", str(tmp_path / "ckpt.jsonl"), "--checkpoint-s3"],
+        call_llm=_stub(), s3=s3,
+    )
+    assert rc == 0 and DEFAULT_S3_KEY in s3.store
+
+
+def test_cli_flushes_the_checkpoint_when_the_ceiling_halts_the_sweep(tmp_path):
+    # A halted sweep must still leave its progress durable, or the next tick pays
+    # for the same PMIDs again.
+    s3 = _FakeS3()
+    key = "tools/_checkpoint/halt.jsonl"
+    rc = main(
+        ["--input", str(_corpus(tmp_path, n=5)), "--out", str(tmp_path / "m.json"),
+         "--checkpoint", str(tmp_path / "ckpt.jsonl"), "--checkpoint-s3", key,
+         "--checkpoint-flush-every", "1000",     # nothing flushes on the record path
+         "--full", "--hard-cap-usd", "1.50"],
+        call_llm=_stub(input_tokens=1_000_000, output_tokens=0), s3=s3,
+    )
+    assert rc == 3                               # halted on the ceiling
+    assert s3.writes == 1                        # the exit flush ran anyway
+    assert len(s3.store[key].decode("utf-8").splitlines()) == 2   # both paid-for PMIDs durable
