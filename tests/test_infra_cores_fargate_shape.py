@@ -197,8 +197,17 @@ def test_default_command_is_the_nightly_invocation(container):
         "sh",
         "-c",
         "python -m pipeline_cores.run --core 14 --with-affinity --alias-search "
-        "--llm-carry-forward",
+        "--llm-carry-forward --with-method-families",
     ]
+
+
+def test_the_nightly_asks_for_the_method_family_signal(command):
+    """#395 ships the signal; without this flag run.py never produces `method_tier`
+    or `method_evidence`, so the merged signal is dark and SPS's queue can never
+    show a method chip. Worse than dark: both attributes are run.py-owned, so a run
+    WITHOUT the flag REMOVEs them from every row it re-surfaces — the #384 trap
+    `--llm-carry-forward` exists to close, with no carry-forward of its own here."""
+    assert "--with-method-families" in command
 
 
 def test_the_nightly_is_scoped_to_core_14(command):
