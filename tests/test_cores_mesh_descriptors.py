@@ -95,7 +95,7 @@ def test_a_pub_with_no_matching_descriptors_is_simply_absent():
 
 
 def test_a_core_with_no_mapped_prefix_never_touches_the_engine():
-    """5 of 13 cores have no clean technique branch — including core 14, the only core
+    """6 of 14 cores have no clean technique branch — including core 14, the only core
     on a nightly. They must cost zero, not an empty query."""
     assert "14" not in CORE_MESH_TREE_PREFIXES
     assert core_mesh_tree_descriptors(None, "14", ["100"]) == {}

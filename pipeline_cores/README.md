@@ -343,7 +343,7 @@ without the LLM this time is stale evidence reading as fresh. Three consequences
    **`mesh_evidence` sidesteps this entirely by having no flag**: `run.py` builds the
    descriptor index for every core on every run, so the attribute is always produced and
    can never strip itself. That is affordable because it is one indexed reciterdb query
-   per core with a mapped prefix (and zero for the five without) — a flag would have
+   per core with a mapped prefix (and zero for the six without) — a flag would have
    bought nothing and added a way to lose data.
    For a pub that genuinely carries no descriptor under the core's branch, REMOVE is the
    correct answer, not a wipe.

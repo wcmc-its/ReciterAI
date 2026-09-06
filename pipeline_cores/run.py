@@ -141,7 +141,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     attribute a run did not produce, so an optional-by-flag attribute strips itself off
     rows a previous run wrote. Always-on cannot do that, and it costs nothing to be
     always-on here — one indexed reciterdb query per core with mapped prefixes, zero
-    queries for the 5 cores without, no S3 and no Bedrock. A caller that passes nothing
+    queries for the 6 cores without, no S3 and no Bedrock. A caller that passes nothing
     (the tests, today) simply records no descriptors."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]

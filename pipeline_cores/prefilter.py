@@ -37,9 +37,10 @@ from __future__ import annotations
 # Techniques and Equipment"). Validated against reciterdb.mesh_tree_numbers
 # (64,883 rows) 2026-06-21 — each prefix resolves to real tree rows. Only the
 # technique families that the empirical probe found genuinely discriminative are
-# mapped; cores with no clean MeSH technique branch (1 Bioinformatics, 6
-# Biorepository, 7 Metabolic Phenotyping, 8 Microbiome, 10 Immune Monitoring) rely
-# on the author-affinity signal + the Sonnet screen alone. Deliberate overlaps
+# mapped; the SIX cores with no clean MeSH technique branch (1 Bioinformatics, 6
+# Biorepository, 7 Metabolic Phenotyping, 8 Microbiome, 10 Immune Monitoring, 14
+# Research Informatics) rely on the author-affinity signal + the Sonnet screen
+# alone. Core 14 is the one on the nightly, so the deployed run maps nothing. Deliberate overlaps
 # (3 & 5 share the sequencing branch; 9 & 13 share the chemistry/MS branch) are
 # fine for a soft prior — author-affinity and the per-core Sonnet screen disambiguate.
 CORE_MESH_TREE_PREFIXES: dict = {
