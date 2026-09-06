@@ -27,10 +27,18 @@ Conventions per CLAUDE.md: lazy AWS/DB construction (no creds at import),
 credentials from env only (never logged), no model-ID literals here (the live
 seam imports its model id from utils.bedrock_client).
 
+The checkpoint is on disk by default (operator runs). A SCHEDULED run must pass
+``--checkpoint-s3``: a Fargate task gets a fresh container every tick, so a
+disk-backed log resumes from nothing and the sweep re-extracts all ≈8,146 papers
+every night — the incremental property is the entire cost argument for putting
+this on a schedule.
+
 Usage:
     python -m cli.extract_tool_mentions --input corpus.json --limit 100
     python -m cli.extract_tool_mentions --from-db --source both --limit 100   # probe
     python -m cli.extract_tool_mentions --from-db --source both --full         # full
+    python -m cli.extract_tool_mentions --from-db --source both --full \
+        --checkpoint-s3                                                        # scheduled
 """
 
 from __future__ import annotations
@@ -38,6 +46,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -45,6 +54,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from pipeline_tools import checkpoint as checkpoint_mod  # noqa: E402
 from pipeline_tools import cost_guard  # noqa: E402
 from pipeline_tools.checkpoint import ExtractionCheckpoint  # noqa: E402
 from pipeline_tools.cost_guard import CostCeiling  # noqa: E402
@@ -89,6 +99,28 @@ def load_corpus(args) -> list[dict]:
     return rows
 
 
+def _open_checkpoint(args, *, s3=None) -> ExtractionCheckpoint:
+    """Open the resume log — on disk (default) or in S3 (--checkpoint-s3).
+
+    Local is the operator default and is untouched by this branch. S3 is what a
+    SCHEDULED run needs: a Fargate task gets a fresh container every tick, so a
+    disk-backed log is always empty and the incremental property — the whole cost
+    argument for scheduling — is lost.
+    """
+    if not args.checkpoint_s3:
+        return ExtractionCheckpoint.load(args.checkpoint)
+    store = checkpoint_mod.make_s3_store(
+        args.checkpoint_s3,
+        bucket=args.checkpoint_bucket,
+        s3=s3,                                     # injected in tests; else built lazily (boto3)
+        flush_every=args.checkpoint_flush_every,
+        flush_seconds=args.checkpoint_flush_seconds,
+    )
+    logger.info("checkpoint: S3-backed at %s (flush every %d record(s) / %.0fs)",
+                store.location, store.flush_every, store.flush_seconds)
+    return ExtractionCheckpoint.load(store=store)
+
+
 def _print_summary(result, ceiling: CostCeiling, est, cap_usd: Decimal, out_path: Path) -> None:
     t = result.telemetry
     print("\n=== A2 extraction summary ===")
@@ -107,13 +139,16 @@ def _print_summary(result, ceiling: CostCeiling, est, cap_usd: Decimal, out_path
         print(f"  failed PMIDs (retried on resume): {sample}{' …' if len(result.failed) > 10 else ''}")
 
 
-def main(argv: list[str] | None = None, *, call_llm=None) -> int:
+def main(argv: list[str] | None = None, *, call_llm=None, s3=None) -> int:
     """Run the A2 extraction sweep.
 
     ``call_llm`` is injectable so the wiring (preflight → ceiling → checkpoint →
     output) can be smoke-tested offline with a stub; left None, the live
     Haiku→OpenAI seam is built just before the sweep (and only then are AWS/OpenAI
-    credentials touched).
+    credentials touched). ``s3`` is the same seam for --checkpoint-s3: a
+    duck-typed client (key_exists / get_object_bytes / put_object) exercises the
+    externalised checkpoint offline; left None, boto3 is imported lazily and only
+    when --checkpoint-s3 is actually asked for.
     """
     parser = argparse.ArgumentParser(description="Phase 8 A2 corpus tool/method extraction.")
     src = parser.add_mutually_exclusive_group(required=True)
@@ -123,6 +158,21 @@ def main(argv: list[str] | None = None, *, call_llm=None) -> int:
                         help="--from-db signal scope: publications, NIH RePORTER grants, or both (default: pubs)")
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT,
                         help="resumable checkpoint JSONL (default: out/tools/a2_extraction_checkpoint.jsonl)")
+    parser.add_argument("--checkpoint-s3", metavar="KEY", nargs="?", const=checkpoint_mod.DEFAULT_S3_KEY,
+                        default=os.getenv("TOOLS_CHECKPOINT_S3_KEY") or None,
+                        help="keep the checkpoint in S3 instead of on disk, at KEY under the artifacts "
+                             f"bucket (bare flag = {checkpoint_mod.DEFAULT_S3_KEY}; env TOOLS_CHECKPOINT_S3_KEY). "
+                             "Required for a SCHEDULED run: a fresh container has no disk to resume from, "
+                             "so without this every tick re-extracts the whole corpus. --checkpoint is "
+                             "ignored when this is set.")
+    parser.add_argument("--checkpoint-bucket", default=os.getenv("TOOLS_CHECKPOINT_BUCKET") or None,
+                        help="override the S3 artifacts bucket for --checkpoint-s3")
+    parser.add_argument("--checkpoint-flush-every", type=int, default=checkpoint_mod.DEFAULT_FLUSH_EVERY,
+                        help=f"S3 checkpoint: PUT the log every N recorded PMIDs (default "
+                             f"{checkpoint_mod.DEFAULT_FLUSH_EVERY}). A hard kill re-extracts at most this many.")
+    parser.add_argument("--checkpoint-flush-seconds", type=float, default=checkpoint_mod.DEFAULT_FLUSH_SECONDS,
+                        help=f"S3 checkpoint: also PUT the log this many seconds after the last flush "
+                             f"(default {checkpoint_mod.DEFAULT_FLUSH_SECONDS})")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT,
                         help="mentions output JSON (default: out/tools/a2_mentions.json)")
     parser.add_argument("--limit", type=int, default=None, help="cap to N PMIDs (probe before the full fan-out)")
@@ -144,7 +194,7 @@ def main(argv: list[str] | None = None, *, call_llm=None) -> int:
         return 1
 
     # Resume: skip already-done PMIDs; the preflight guards THIS run's NEW spend.
-    checkpoint = ExtractionCheckpoint.load(args.checkpoint)
+    checkpoint = _open_checkpoint(args, s3=s3)
     remaining = [r for r in corpus if not checkpoint.is_done(str(r.get("pmid", "")))]
     n_total, n_remaining = len(corpus), len(remaining)
     logger.info("corpus=%d, already done=%d, remaining=%d", n_total, len(checkpoint), n_remaining)
@@ -179,8 +229,11 @@ def main(argv: list[str] | None = None, *, call_llm=None) -> int:
         from pipeline_tools.extract import make_extractor_call_llm
         call_llm = make_extractor_call_llm(max_tokens=args.max_tokens)
 
-    # 4. Sweep.
-    result = run_extraction(corpus, call_llm=call_llm, checkpoint=checkpoint, ceiling=ceiling)
+    # 4. Sweep. The context manager flushes a buffered (S3) checkpoint however the
+    #    sweep ends — cleanly, halted on the ceiling, or on an exception — so the
+    #    only work a crash can cost is the last un-flushed window.
+    with checkpoint:
+        result = run_extraction(corpus, call_llm=call_llm, checkpoint=checkpoint, ceiling=ceiling)
 
     # 5. Persist the mentions artifact (full corpus from the checkpoint) + telemetry.
     args.out.parent.mkdir(parents=True, exist_ok=True)
