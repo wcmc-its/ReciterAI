@@ -210,39 +210,16 @@ WEIGHTS = {
     "method:moderate": 0.00,
     "method:weak": 0.00,
     # A bare MeSH descriptor on this pub sits under one of the core's E-tree prefixes
-    # (`prefilter.CORE_MESH_TREE_PREFIXES`). ONE key, exactly like `staff`, `client` and
-    # `method:*` — not one per descriptor, not one per prefix, not one per tree depth.
-    #
-    # UNFITTED AND UNFITTABLE TODAY, and the reason is the point of the key existing.
-    # Nothing in ReciterAI has ever recorded WHICH descriptor fired: `prefilter` turns the
-    # join into a boolean, `_PRIOR_MESH_TREE` turns the boolean into 0.4, and
-    # `prefilter_prior` noisy-ORs that with author-affinity into one float persisted as
-    # `prefilter_prior` (SPS's `topicalPrior` chip, live on 8,656 rows). A per-descriptor
-    # lift — the measurement that made `method:*` decidable — cannot be computed from a
-    # blended float, so it has never been possible to say whether MeSH is worth anything
-    # here. `SignalResult.mesh_evidence` is that record, and this key is what makes it
-    # visible in explain() and persisted while moving no score.
-    #
-    # WHAT MUST HAPPEN BEFORE THIS MOVES, in order:
-    #   1. accumulate known pubs, then compute lift PER DESCRIPTOR UI over them exactly as
-    #      the method-family table above was computed — including its lesson that the
-    #      DENOMINATOR is load-bearing (over all 240 surfaced rows rather than the 94
-    #      in-corpus ones, every method lift fell 2.55x and both weak families inverted
-    #      below background);
-    #   2. measure the overlap with `aff:*` and `llm`, the prerequisite `client` and
-    #      `method:*` both carry, since a descriptor an LLM also read off the abstract is
-    #      not a second piece of evidence;
-    #   3. AND resolve the double-count with the prefilter: on the `batch_screen` path this
-    #      same signal is ALREADY priced at 0.4 into `prefilter_prior`. A non-zero weight
-    #      here without that reconciliation counts one descriptor twice on rows that went
-    #      through both paths.
-    #
-    # NOT A ROUTE TO A WEIGHT: corpus-rarity / IDF over descriptors. It was built, measured
-    # and deleted in the sibling SPS repo. In a hierarchical vocabulary rarity
-    # ANTI-correlates with topical centrality — a disease's own mechanisms outrank the
-    # disease itself — and the bounded-band sweep paid for nothing (0.6610 vs 0.6612). The
-    # alias-specificity pattern above (r = -0.852 on global PMC hits) does NOT transfer to
-    # MeSH; do not re-derive it from first principles.
+    # (`prefilter.CORE_MESH_TREE_PREFIXES`). ONE key, like `staff`/`client`/`method:*`.
+    # 0.00 because the descriptor is only now being RECORDED: the prefilter collapses this
+    # join to a boolean and noisy-ORs it into one float, so a per-descriptor lift — the
+    # measurement that made `method:*` decidable — has never been computable. Price it
+    # after the known pubs land, and reconcile then against the 0.4 the prefilter already
+    # charges for this same signal on `batch_screen` rows.
+    # NOT the route there: corpus-rarity / IDF over descriptors. Built, measured and
+    # DELETED in the sibling SPS repo — in a hierarchical vocabulary rarity ANTI-correlates
+    # with topical centrality and the bounded-band sweep paid for nothing (0.6610 vs
+    # 0.6612). The alias-specificity pattern above does not transfer; do not re-derive it.
     "mesh:tree": 0.00,
     # Author x core affinity, bucketed on the RATE (signals.author_affinity — the
     # largest share of their own corpus output that any author on this byline has
@@ -403,11 +380,8 @@ def evidence_features(signals: SignalResult) -> list:
         # count — the same rule as `staff` and `client`.
         out.append(f"method:{signals.method_tier}")
     if signals.mesh_evidence:
-        # ONE key for "a descriptor under this core's E-tree branch", regardless of how
-        # many descriptors matched or how deep they sit. A count would repeat the mistake
-        # `staff` and `client` avoid, and anything graded by depth or rarity would be a
-        # specificity scheme invented before the per-descriptor lift that would justify
-        # one exists. The descriptors themselves ride along on `mesh_evidence`.
+        # One key however many descriptors matched and however deep they sit — same rule
+        # as `staff`/`client`. The descriptors ride along on `mesh_evidence`.
         out.append("mesh:tree")
     if signals.author_affinity > 0:
         # The MAX rate over the byline (signals.author_affinity), bucketed. A rate of

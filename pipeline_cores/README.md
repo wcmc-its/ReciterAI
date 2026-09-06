@@ -479,7 +479,9 @@ pool = corpus pubs (minus this core's already-confirmed pubs)
   descriptor** fired (`core_mesh_tree_descriptors` → `mesh_evidence`, weight 0.00): the
   prior itself is a boolean folded into one float, so until this nothing anywhere in
   ReciterAI could say what a `topicalPrior` chip was made of, or measure a per-descriptor
-  lift. The prior is unchanged — both callers now share one query builder.
+  lift. The prior is unchanged: `core_mesh_tree_pmids` is untouched, and the two queries
+  are kept separate on purpose — the membership set is `batch_screen`'s corpus-wide hot
+  path and must not be derived from the wider per-descriptor rows.
 - **Calibrated bands.** The Option-3 Sonnet pass (`analysis/calibrate_batch_screen.py`) set
   `curator-min=2` (recall-safe drop floor — held-out recall 91–100% at ≥2 across the
   well-powered cores) and `candidate-min=5` (auto-surface at ~91% pilot precision). Writes are
@@ -608,7 +610,7 @@ Infra and the nightly: `infra/README.md`, "Cores daily run launch path".
 |---|---|
 | #383 | fit the `client` weight — it is 0.00 and `client_cwids` is not persisted |
 | #394 | fit the `method:*` weights — overlap MEASURED 2026-09-05 (independent of `aff:*`; 4.6x residual over `llm_score` alone), but still blocked twice: the both-signals-held-out panel is 5 events against `MIN_PANEL`=30 and cannot grow, **and** the fitter's panel B is core 2 while the curation is core 14 |
-| — | fit `mesh:tree`: compute lift **per descriptor UI** over the accumulated known pubs exactly as the `method:*` table was computed (its denominator lesson included), then measure the overlap with `aff:*`/`llm` and reconcile with the prefilter's own 0.4. Note core 14 — the only core on a nightly — has **no mapped E-tree prefix**, so the evidence accrues on the `batch_screen` cores until one is mapped |
+| — | fit `mesh:tree`: compute lift **per descriptor UI** over the accumulated known pubs exactly as the `method:*` table was computed (its denominator lesson included), then measure the overlap with `aff:*`/`llm` and reconcile with the prefilter's own 0.4. **Nothing accrues on its own, so this has to be started deliberately.** The only scheduled run is `python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward` (`infra/README.md`), and core 14 has **no key in `CORE_MESH_TREE_PREFIXES`** — so the nightly builds an empty mesh index and records no descriptor, ever. `batch_screen` supplies none either: it writes through `persist.put_candidate`, which never emits `mesh_evidence` — only `run.py`'s `run_core` does. Descriptors accrue **only** when an operator hand-runs `pipeline_cores.run` for one of the eight mapped cores. Do not close that gap by mapping core 14: `CORE_MESH_TREE_PREFIXES` drives `prefilter_prior`, so adding a core is a scoring change |
 | #388 | the nightly Bedrock budget; a corpus-wide `--with-llm` is ~80k Haiku screens |
 | — | `batch_screen` and `run.py` write `likelihood` on different scales (above) |
 | — | per-author **time decay** in affinity: needs publication year carried through `scan_prior_core_usage` and a half-life calibrated on `analysis/labeled_set.csv`. Do not guess the decay |

@@ -115,8 +115,9 @@ def test_the_query_selects_the_descriptor_and_binds_every_core_prefix():
 
 # --- the prior is untouched ------------------------------------------------
 def test_the_membership_set_and_therefore_the_prior_is_unchanged():
-    """core_mesh_tree_pmids now derives from the same query. Same pubs in, same prior
-    out — the descriptors ride along, they do not move `topical_prior`."""
+    """`core_mesh_tree_pmids` is untouched (its own narrower query, batch_screen's hot
+    path). Pinned here because the two run the same join and must agree: same pubs in,
+    same prior out — the descriptors ride along, they do not move `topical_prior`."""
     pmids = ["100", "200", "300"]
     idx = core_mesh_tree_descriptors(_FakeEngine(_ROWS), "11", pmids)
     assert core_mesh_tree_pmids(_FakeEngine(_ROWS), "11", pmids) == set(idx) == {"100", "200"}
@@ -199,3 +200,58 @@ def test_run_core_sets_mesh_evidence(monkeypatch):
     # A pub with no MeSH descriptors: an empty list, no raise, no key.
     assert recs["300"].signals.mesh_evidence == []
     assert "mesh:tree" not in evidence_features(recs["300"].signals)
+
+
+def test_cli_run_hands_the_production_mesh_index_to_the_scorer(monkeypatch):
+    """The one line in `main()` that connects the production index to the scorer.
+
+    Every `mesh:tree` weight is 0.00, so deleting `mesh_index=mesh_index` from that call
+    moves no likelihood, no status and no evidence key anywhere else — the signal just
+    silently stops being recorded and the rest of the suite stays green. Declared but not
+    connected is this repo's signature failure; this is the pin for it.
+    """
+    from unittest.mock import MagicMock
+
+    import utils.db as db
+    from pipeline_cores import ingest, prefilter, run, signals
+
+    pubs = [{"pmid": "100", "title": "confocal paper", "abstract": ""},
+            {"pmid": "300", "title": "no descriptors", "abstract": ""}]
+    index = {"100": [("D008854", "Microscopy, Confocal", "E01.370.350.515")]}
+
+    monkeypatch.setattr(db, "get_engine", lambda: MagicMock(name="engine"))
+    monkeypatch.setattr(ingest, "fetch_publications", lambda e, pmids=None, limit=None: pubs)
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+
+    # The loader, stubbed where run.py reaches it: no DB, and the pool main() scopes the
+    # query to is checkable.
+    seen = {}
+
+    def _loader(engine, core_id, pmid_pool):
+        seen["core_id"], seen["pool"] = core_id, list(pmid_pool)
+        return index
+
+    monkeypatch.setattr(prefilter, "core_mesh_tree_descriptors", _loader)
+
+    # run_core is the REAL one; the spy only keeps what main() handed it and what came
+    # back, because a --dry-run main() writes nothing and returns nothing to assert on.
+    real_run_core, captured = run.run_core, {}
+
+    def _spy(core, core_pubs, **kwargs):
+        captured["kwargs"] = kwargs
+        captured["recs"] = real_run_core(core, core_pubs, **kwargs)
+        return captured["recs"]
+
+    monkeypatch.setattr(run, "run_core", _spy)
+
+    run.main(["--core", "11", "--dry-run"])
+
+    assert seen == {"core_id": "11", "pool": ["100", "300"]}
+    # The connection itself: main()'s index reaches run_core...
+    assert captured["kwargs"].get("mesh_index") == index
+    # ...and comes out the other side as evidence on the record, not merely as a kwarg.
+    recs = {r.pmid: r for r in captured["recs"]}
+    assert recs["100"].signals.mesh_evidence == index["100"]
+    assert recs["300"].signals.mesh_evidence == []

@@ -104,6 +104,9 @@ def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=
 def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              engine, prior_user_pmids=None, screen_map=None, llm_workers=8,
              dry_run: bool = False, carry_forward: dict = None, family_index: dict = None,
+             # TRAP: mesh_index=None records NO mesh_evidence, and mesh_evidence is in
+             # _OWNED_ATTRS — a second caller that forgets this kwarg makes put_core_usage
+             # REMOVE it from every row an earlier run wrote. One caller today: main().
              mesh_index: dict = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
