@@ -344,6 +344,28 @@ def main(argv=None):
     from utils.iso_clock import now_iso  # lazy
 
     cores = [load_core(args.core)] if args.core else load_cores()
+    # Publish each loaded core's dictionary staff COUNT for SPS's review queue, which
+    # renders "Co-author signal draws on N core staff from the facility dictionary" and
+    # has no access to config/core_dictionary.yaml. Here, not in run_core: the count is
+    # a property of the DICTIONARY, not of a scoring pass, so it should not depend on
+    # whether a core had publications to score.
+    #
+    # ONLY THE CORES THIS INVOCATION LOADED. The deployed nightly runs `--core 14`, so
+    # on a normal night exactly one of the fourteen STAFF items is refreshed; the other
+    # thirteen keep whatever a previous run published (a stale count, not a missing one
+    # — nothing here ever deletes). A full-dictionary refresh means running without
+    # --core. A core that failed to load raises out of load_core/load_cores above and
+    # never reaches this loop, so a count is only ever published for a core actually
+    # in hand — never guessed for one that is not.
+    #
+    # Display-only and never fatal: put_core_staff_count swallows and warns, so this
+    # cannot fail the scoring run. Skipped under --dry-run like every other write.
+    if not args.dry_run:
+        from pipeline_cores.persist import put_core_staff_count  # lazy
+        for core in cores:
+            # len(core.staff): an absent `staff:` key and an explicit `staff: []` both
+            # load as [] and both legitimately publish 0.
+            put_core_staff_count(core.core_id, len(core.staff))
     engine = get_engine()
     pool = read_pmids_file(args.pmids_file) if args.pmids_file else None
     pubs = ingest.fetch_publications(engine, pmids=pool, limit=args.test)

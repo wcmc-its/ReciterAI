@@ -451,3 +451,63 @@ def scan_core_llm_scores(core_id: str = None, *, client=None, table_name: str = 
     logger.info("scan_core_llm_scores(core_id=%s): %d stored LLM scores across %d core(s)",
                 core_id, rows, len(out))
     return out
+
+
+def put_core_staff_count(core_id, count, *, client=None, table_name: str = TABLE_NAME) -> bool:
+    """Publish how many staff CWIDs this core's dictionary entry carries, for SPS.
+
+    Writes PK=CORE#{core_id}, SK="STAFF", attribute staff_count (N). Returns True if
+    the write went out, False if it was refused or failed.
+
+    THE COUNT ONLY, never the roster. SPS's core review queue renders one sentence —
+    "Co-author signal draws on N core staff from the facility dictionary" — and it has
+    no access to config/core_dictionary.yaml. Copying the CWIDs themselves into a
+    second datastore would buy PII surface for a string that needs an integer.
+
+    Runs the OPPOSITE direction from get_curated_clients above: SPS writes CLIENTS and
+    ReciterAI reads it; ReciterAI writes STAFF and SPS reads it. Same CORE#{core_id}
+    partition, distinct sort key, and a targeted UpdateItem that SETs `staff_count`
+    and nothing else — so this can never touch the sibling CLIENTS item nor any other
+    attribute, in either direction. A PutItem here would be the put_core_usage bug
+    (#384) rewritten from scratch, one partition over.
+
+    NEVER FATAL. Any exception — a botocore ClientError, a throttle, an unusable
+    client — logs a warning and returns False; the scoring run proceeds. That is the
+    same posture as get_curated_clients and the deliberate OPPOSITE of
+    scan_core_llm_scores / load_family_index, which raise. The rule those two follow is
+    "a degraded read on a path that WRITES is a wipe", and it does not reach here: this
+    value feeds a display string, is derived from the local YAML rather than from a
+    read of the thing it overwrites, and no consumer REMOVEs anything when it is
+    missing — SPS just omits the sentence. Failing a nightly's scoring over a caption
+    would be the worse trade by a wide margin.
+    """
+    # Positively derived or not written at all. A core whose `staff:` key is absent and
+    # one with `staff: []` are both legitimately 0 and DO publish; anything that is not
+    # a plain non-negative int never got counted, so there is nothing to publish and a
+    # guess would be worse than silence. (bool is an int subclass — exclude it.)
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        logger.warning(
+            "put_core_staff_count(core_id=%s): refusing to publish a staff count of "
+            "%r — not a derived non-negative integer", core_id, count,
+        )
+        return False
+    try:
+        # Inside the try on purpose: get_dynamo_client can itself raise (bad region,
+        # no credentials), and a display count must not be able to fail the run there
+        # any more than at the write.
+        client = client or get_dynamo_client()
+        client.update_item(
+            TableName=table_name,
+            Key={"PK": {"S": f"CORE#{core_id}"}, "SK": {"S": "STAFF"}},
+            UpdateExpression="SET staff_count = :n",
+            ExpressionAttributeValues={":n": {"N": str(count)}},
+        )
+    except Exception as exc:
+        logger.warning(
+            "put_core_staff_count(core_id=%s, count=%d) failed (%s: %s) — SPS keeps "
+            "the previously published count and the run continues",
+            core_id, count, type(exc).__name__, exc,
+        )
+        return False
+    logger.info("put_core_staff_count: core %s -> staff_count=%d", core_id, count)
+    return True
