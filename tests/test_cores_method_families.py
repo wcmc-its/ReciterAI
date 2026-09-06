@@ -136,6 +136,19 @@ def test_a_curated_label_the_artifact_no_longer_has_raises_and_names_it(tmp_path
     assert "core 14" in str(exc.value) and "regression modeling" not in str(exc.value)
 
 
+def test_an_empty_artifact_reports_EMPTY_not_drift_even_with_curation(tmp_path):
+    """ORDER, not either guard. A half-written republish makes EVERY curated label
+    missing at once, so the drift check would fire on it and blame the curator for an
+    artifact fault — the operator re-curates 7 correct labels while the real problem,
+    a bad republish, stays live. The empty check has to run FIRST, and nothing else
+    here can see it: move `validate_curated_labels` above `if not out:` and every other
+    assertion in this file still passes.
+    """
+    with pytest.raises(ValueError, match="EMPTY") as exc:
+        _index(tmp_path, tools={"tools": []}, cores=[_CORE])
+    assert "NOT in the artifact taxonomy" not in str(exc.value)
+
+
 def test_every_curated_label_present_does_not_raise(tmp_path):
     """_CORE curates "clinical text mining", whose only tool (t5) has no context entry
     and so never reaches the index. It IS in the taxonomy, so it is not drift — this is
@@ -157,7 +170,11 @@ def test_a_core_with_no_curated_families_is_not_an_error(tmp_path):
     """Every shipped core but 14. Absent = {}, and an empty curation cannot drift —
     not even against a taxonomy carrying nothing it could have matched."""
     uncurated = [c for c in load_cores() if not c.method_families]
-    assert len(uncurated) == len(load_cores()) - 1     # only core 14 curates today
+    # Deliberately no count against load_cores(): how MANY cores curate is config that
+    # moves, and pinning it reds this test in whatever PR adds the second one. What has
+    # to hold is that there ARE uncurated cores and that each carries {} rather than a
+    # falsy-but-present shape the guard would iterate.
+    assert uncurated and all(c.method_families == {} for c in uncurated)
     validate_curated_labels([], uncurated)
     assert set(_index(tmp_path, cores=uncurated)) == {"100", "200"}
 
