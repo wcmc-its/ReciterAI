@@ -25,7 +25,7 @@ overlays.
 - **`cold_run_task_iam_policy.json`** (#240) — minimum-privilege policy for the cold-run task role: the enrichment policy's DynamoDB CRUD on `reciterai` + **a new S3 read/write statement** on `wcmc-reciterai-hierarchy/*` and `wcmc-reciterai-artifacts/spotlight/*` (the cold-run is the only ReciterAI task that publishes those artifacts), Secrets Manager read on the DB + OpenAI secrets, and CloudWatch Logs on `/ecs/reciterai-cold`. No `bedrock:InvokeModel` (bearer-token auth, same as enrichment).
 - **`grants_task_definition.json`** (#269) — the Fargate task definition for the **daily grant-opportunity ingest** (`sh -c 'python -m pipeline_grants.ingest; python -m pipeline_grants.ingest_submissions'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 0.5 vCPU / 2 GB (serial Bedrock-I/O loops). See "Grants ingest launch path" below.
 - **`grants_task_iam_policy.json`** (#269) — minimum-privilege policy for the `reciterai-grants-task` role: DynamoDB CRUD on `reciterai`, S3 read/write scoped to `wcmc-reciterai-artifacts/grants/*` + `s3:ListBucket` on the bucket (the shrink guard's `key_exists` probe needs it), CloudWatch Logs on `/ecs/reciterai-grants`. No `bedrock:InvokeModel` (bearer-token auth), no Secrets Manager statement (the one secret is execution-role-injected), no DB secrets (pipeline_grants reads no MariaDB).
-- **`cores_task_definition.json`** — the Fargate task definition for the **daily core-facility usage inference** (`sh -c 'python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 1 vCPU / 4 GB — an unscoped run holds the whole 80,203-publication corpus (title + abstract) in memory from `ingest.fetch_publications`, plus the byline map and two paginated full-table DynamoDB Scans. `--with-llm` is deliberately ABSENT (a corpus-wide LLM pass is ~80k Haiku screens a night; the Bedrock budget for a nightly is an open decision in its own issue), and `--llm-carry-forward` is what stops `put_core_usage` from REMOVE-ing the stored LLM evidence on a run that does not produce it (#384). See "Cores daily run launch path" below.
+- **`cores_task_definition.json`** — the Fargate task definition for the **daily core-facility usage inference** (`sh -c 'python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 1 vCPU / 4 GB — an unscoped run holds the whole 80,203-publication corpus (title + abstract) in memory from `ingest.fetch_publications`, plus the byline map and two paginated full-table DynamoDB Scans. `--with-llm` is deliberately ABSENT (a corpus-wide LLM pass is ~80k Haiku screens a night; the Bedrock budget for a nightly is an open decision in its own issue), and `--llm-carry-forward` is what stops `put_core_usage` from REMOVE-ing the stored LLM evidence on a run that does not produce it (#384). See "Cores daily run launch path" below.
 - **`cores_task_iam_policy.json`** — minimum-privilege policy for the `reciterai-cores-task` role: DynamoDB CRUD on `reciterai` (+ `/index/*`) and CloudWatch Logs on `/ecs/reciterai-cores`. The smallest task-role policy in this directory, and the omissions are the content: NO S3 (pipeline_cores publishes no artifact — its output is the DynamoDB rows SPS projects, so there is no `latest/` pointer and no shrink guard), NO Secrets Manager (both secrets are execution-role-injected and nothing in the runtime path calls `GetSecretValue`), NO `bedrock:InvokeModel` (bearer-token auth, and the scheduled command invokes no model at all).
 - **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
 - **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
@@ -252,7 +252,7 @@ one Fargate task (`cores_task_definition.json`, family `reciterai-cores`), sched
 by EventBridge rule `reciterai-cores-daily` (05:00 UTC):
 
 ```bash
-python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward
+python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families
 ```
 
 It re-scores every `(publication, core)` pair for core 14 (Research Informatics)
@@ -286,6 +286,25 @@ the 05:00 slot (see the rule's `schedule_comment`).
   re-surfaces, and on core 14 that is the chip the review queue rests on (62 of 62
   open rows carry it). Dropping the flag does not fail the run; it empties the
   queue's strongest evidence overnight and looks like a working night.
+- `--with-method-families` joins the A2 method-family taxonomy
+  (`s3://<artifacts>/tools/latest/`) onto each publication and writes `method_tier`
+  + `method_evidence`. It is a DETERMINISTIC join, not a model call: no Bedrock, no
+  NCBI, one ~26 MB S3 read per run, loaded once and shared across the run. It was
+  absent from the first shipped schedule only because the signal had not merged yet
+  (#395); without it `method_tier` is never produced, and SPS's queue cannot show a
+  method chip no matter what it plumbs.
+  **Two things to know before removing it again.** First, `method_tier` and
+  `method_evidence` are run.py-owned, so dropping the flag REMOVEs them from every
+  row the next run re-surfaces — the same #384 trap `--llm-carry-forward` exists to
+  close, and there is no carry-forward for these. Second, `load_family_index`
+  validates core 14's seven curated labels against the artifact and RAISES on one
+  the taxonomy has renamed away (#397), which aborts the whole run rather than
+  scoring without the signal. That is deliberate — a silently-no-op curation is the
+  failure it was written to prevent — but it does mean this flag can turn a taxonomy
+  rebuild into a failed nightly. The artifact is frozen at v2026-06-23 with no
+  schedule, and all seven labels were verified present against it when the flag was
+  added, so the live risk today is nil; it stops being nil the day the tools
+  pipeline gets a cadence.
 - `--with-llm` is **deliberately absent.** `signals.llm_triage` makes one Haiku
   screen call per publication it is handed and a Sonnet dense-score call for each
   one at or above `SCREEN_CUTOFF`; with no `--pmids-file` the pool is the whole
