@@ -25,6 +25,12 @@ The descriptor->tree join is reciterdb-native and validated 100%:
     -> mesh_tree_numbers.TreeNumber
 A pub carries a core's topical signal iff >=1 of its descriptors has a tree number
 under any of that core's prefixes below.
+
+The same join also answers WHICH descriptor fired, which the prior cannot: it is a
+boolean going into a noisy-OR, and `run.py` persists the result as one blended float.
+`core_mesh_tree_descriptors` returns the descriptors themselves so the cores model can
+carry them as reviewable evidence (`SignalResult.mesh_evidence`, weight 0.00) and a
+per-descriptor lift can be measured later. It changes no prior.
 """
 from __future__ import annotations
 
@@ -70,22 +76,46 @@ def prefilter_prior(has_author_affinity: bool, has_mesh_tree: bool) -> float:
     return round(noisy_or(*present), 4)
 
 
-def core_mesh_tree_pmids(engine, core_id, pmids: list = None) -> set:
-    """Return the subset of `pmids` carrying >=1 descriptor under the core's E-tree prefixes.
+def core_mesh_tree_descriptors(engine, core_id, pmids: list = None) -> dict:
+    """{pmid: [(descriptor_ui, descriptor_label, tree_prefix), ...]} for one core.
 
-    Empty set when the core has no mapped prefixes. `pmids` restricts the scan to a
-    pool (the run's corpus); omit it to scan all of person_article_keyword (rarely
-    wanted). Matched on DescriptorUI via the validated keyword->Label join.
+    WHICH descriptor fired and WHICH of the core's prefixes it hit — the two facts
+    `core_mesh_tree_pmids` throws away by collapsing this join to a membership set, and
+    `prefilter_prior` throws away a second time by collapsing THAT to a 0.4 constant
+    that is then noisy-OR'd into one float. Neither the reviewer looking at a
+    `topicalPrior` chip nor a retrospective analysis can recover a descriptor from that
+    float, so nothing about MeSH has ever been auditable or measurable. This is the
+    record that makes both possible.
+
+    Nothing here ranks, tiers or weights. The entries are the raw join, deduplicated
+    and sorted — deliberately NO specificity/depth/rarity scheme, because none is
+    justified yet: the per-descriptor lift table has to be computed first, the way the
+    method-family table was, and that needs known pubs this pipeline does not have yet.
+
+    Empty dict when the core has no mapped prefixes (5 of 13 cores), WITHOUT touching
+    the engine. `pmids` restricts the scan to a pool (the run's corpus); omit it to
+    scan all of person_article_keyword (rarely wanted).
+
+    NO try/except, on purpose. `persist.put_core_usage` REMOVEs every attribute in
+    `_OWNED_ATTRS` this run did not produce, so a read that failed soft to empty here
+    would be WRITTEN as a wipe of `mesh_evidence` on every previously scored row. Same
+    rule as `method_families.load_family_index` and `scan_core_llm_scores`. Unlike the
+    S3 artifact there is no "well-formed but empty" floor to enforce: a zero-row answer
+    is legitimate for a small `--pmids-file`/`--test` pool, and this index is re-derived
+    from reciterdb on EVERY run at no cost, so a bad answer self-heals on the next tick
+    rather than needing a stored copy read back.
     """
+    from collections import defaultdict  # local: the pure prior stays import-light
     from sqlalchemy import bindparam, text  # lazy (keeps the pure prior import-light)
 
     prefixes = CORE_MESH_TREE_PREFIXES.get(str(core_id), [])
     if not prefixes:
-        return set()
+        return {}
     like = " OR ".join(f"mtn.TreeNumber LIKE :p{i}" for i in range(len(prefixes)))
     params = {f"p{i}": pfx + "%" for i, pfx in enumerate(prefixes)}
     sql = (
-        "SELECT DISTINCT pak.pmid FROM person_article_keyword pak "
+        "SELECT DISTINCT pak.pmid, m.DescriptorUI, m.Label, mtn.TreeNumber "
+        "FROM person_article_keyword pak "
         "JOIN mesh m ON m.Label = pak.keyword "
         "JOIN mesh_tree_numbers mtn ON mtn.DescriptorUI = m.DescriptorUI "
         f"WHERE ({like})"
@@ -98,8 +128,36 @@ def core_mesh_tree_pmids(engine, core_id, pmids: list = None) -> set:
     stmt = text(sql)
     if binds:
         stmt = stmt.bindparams(*binds)
+    hits: dict = defaultdict(set)
     with engine.connect() as conn:
-        return {str(r.pmid) for r in conn.execute(stmt, params)}
+        for row in conn.execute(stmt, params):
+            tree = str(row.TreeNumber).upper()
+            # The FIRST prefix the tree number sits under, in the core's own list order.
+            # No core's list nests today, so there is nothing for the order to decide.
+            # The "" default is unreachable — the WHERE clause already matched one of
+            # these prefixes and none of them contains a LIKE wildcard — and is here so
+            # a collation quirk cannot take a nightly down over a display string.
+            prefix = next((p for p in prefixes if tree.startswith(p)), "")
+            hits[str(row.pmid)].add((str(row.DescriptorUI), str(row.Label), prefix))
+    # sorted(set): one descriptor carries several tree numbers under the same prefix, so
+    # dedupe and give the list a stable order rather than the DB's.
+    return {pmid: sorted(rows) for pmid, rows in hits.items()}
+
+
+def core_mesh_tree_pmids(engine, core_id, pmids: list = None) -> set:
+    """Return the subset of `pmids` carrying >=1 descriptor under the core's E-tree prefixes.
+
+    Empty set when the core has no mapped prefixes. `pmids` restricts the scan to a
+    pool (the run's corpus); omit it to scan all of person_article_keyword (rarely
+    wanted). Matched on DescriptorUI via the validated keyword->Label join.
+
+    Derived from `core_mesh_tree_descriptors` rather than running its own narrower
+    query: ONE query builder means the prefilter prior and the persisted descriptor
+    evidence can never disagree about which pubs carry the signal. Same join, same
+    filter, so the membership set — and therefore every prior, likelihood and band —
+    is unchanged.
+    """
+    return set(core_mesh_tree_descriptors(engine, core_id, pmids))
 
 
 def compute_priors(pmids: list, *, mesh_pmids: set, author_pmids: set) -> dict:

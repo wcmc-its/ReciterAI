@@ -64,6 +64,14 @@ def build_core_item(rec: CoreUsageRecord) -> dict:
             {"M": {"family": {"S": fam}, "tool": {"S": tool},
                    "sentence": {"S": sent[:500]}}}          # capped like ack_snippet
             for fam, tool, sent in s.method_evidence]}
+    if s.mesh_evidence:
+        # Self-contained entries, same shape rule as method_evidence: a descriptor UI a
+        # reviewer cannot read and a label they cannot locate in the tree are both
+        # unusable. No cap — these are vocabulary strings, not quoted sentences.
+        item["mesh_evidence"] = {"L": [
+            {"M": {"descriptor_ui": {"S": ui}, "descriptor": {"S": label},
+                   "tree_prefix": {"S": prefix}}}
+            for ui, label, prefix in s.mesh_evidence]}
     return item
 
 
@@ -80,7 +88,8 @@ _OWNED_ATTRS = frozenset(build_core_item(CoreUsageRecord(
                          # falls OUTSIDE _OWNED_ATTRS, so put_core_usage never sweeps it
                          # into REMOVE and a stale method family survives on a row the
                          # run no longer supports.
-                         method_evidence=[("a", "a", "a")], method_tier="strong"),
+                         method_evidence=[("a", "a", "a")], method_tier="strong",
+                         mesh_evidence=[("D000001", "a", "E01")]),
 ))) - {"PK", "SK"}
 
 
@@ -126,10 +135,10 @@ def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) 
     only core ever scored through run.py, had 0).
 
     SET what this run produced and REMOVE the run.py-owned optionals it did NOT
-    (ack_alias, ack_snippet, llm_score, llm_rationale, author_affinity, and the four
-    method_* attributes): a previous run's llm_rationale surviving on a pair scored
-    without the LLM this time is stale evidence reading as fresh. Everything outside
-    _OWNED_ATTRS is left alone.
+    (ack_alias, ack_snippet, llm_score, llm_rationale, author_affinity, method_tier,
+    method_evidence and mesh_evidence): a previous run's llm_rationale surviving on a
+    pair scored without the LLM this time is stale evidence reading as fresh. Everything
+    outside _OWNED_ATTRS is left alone.
 
     The write is conditional on the row NOT holding a HUMAN status (ReciterAI #386
     recommendation 1). Nothing about a re-score is frozen by that: an engine
