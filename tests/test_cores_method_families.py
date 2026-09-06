@@ -7,7 +7,7 @@ import pytest
 
 from pipeline_cores.combine import evidence_features, score
 from pipeline_cores.dictionary import load_core, load_cores
-from pipeline_cores.method_families import load_family_index
+from pipeline_cores.method_families import load_family_index, validate_curated_labels
 from pipeline_cores.models import METHOD_FAMILY_TIERS, CoreDefinition, SignalResult
 from pipeline_cores.signals import method_family_signal
 
@@ -47,11 +47,11 @@ _CORE = CoreDefinition(
 )
 
 
-def _index(tmp_path, tools=None, context=None) -> dict:
+def _index(tmp_path, tools=None, context=None, cores=()) -> dict:
     (tmp_path / "tools.json").write_text(json.dumps(tools or _TOOLS), encoding="utf-8")
     (tmp_path / "ctx.json").write_text(json.dumps(context or _CONTEXT), encoding="utf-8")
     return load_family_index(tools_path=tmp_path / "tools.json",
-                             context_path=tmp_path / "ctx.json")
+                             context_path=tmp_path / "ctx.json", cores=cores)
 
 
 # --- the index -------------------------------------------------------------
@@ -121,6 +121,70 @@ def test_index_reads_s3_by_default_through_a_duck_typed_backend():
     s3 = _S3()
     assert set(load_family_index(s3=s3)) == {"100", "200"}
     assert s3.keys == ["tools/latest/tools.json", "tools/latest/tool_context.json"]
+
+
+# --- curated-label drift ---------------------------------------------------
+def test_a_curated_label_the_artifact_no_longer_has_raises_and_names_it(tmp_path):
+    """The defect this guards: a family label is `cls` from a non-deterministic LLM
+    reconcile, so a tools rebuild can RENAME a family. The curation then matches
+    nothing, fires nothing and — before this — raised nothing."""
+    drifted = CoreDefinition(core_id="14", name="Research Informatics", aliases=["ARCH"],
+                             method_families={"strong": ["ehr datasets"],
+                                              "weak": ["regression modeling"]})
+    with pytest.raises(ValueError, match="'ehr datasets'") as exc:
+        _index(tmp_path, cores=[drifted])
+    assert "core 14" in str(exc.value) and "regression modeling" not in str(exc.value)
+
+
+def test_every_curated_label_present_does_not_raise(tmp_path):
+    """_CORE curates "clinical text mining", whose only tool (t5) has no context entry
+    and so never reaches the index. It IS in the taxonomy, so it is not drift — this is
+    the cry-wolf case that decides which set the guard validates against."""
+    assert set(_index(tmp_path, cores=[_CORE])) == {"100", "200"}
+    assert not any("clinical text mining" == f.casefold()
+                   for rows in _index(tmp_path).values() for f, _t, _s in rows)
+
+
+def test_case_differences_never_trigger_it():
+    """load_cores casefolds the YAML side; the artifact side is casefolded here, exactly
+    as signals.method_family_signal compares. Any other convention invents failures."""
+    core = CoreDefinition(core_id="14", name="RI", aliases=["ARCH"],
+                          method_families={"strong": ["electronic health record datasets"]})
+    validate_curated_labels(["ELECTRONIC Health Record Datasets"], [core])
+
+
+def test_a_core_with_no_curated_families_is_not_an_error(tmp_path):
+    """Every shipped core but 14. Absent = {}, and an empty curation cannot drift —
+    not even against a taxonomy carrying nothing it could have matched."""
+    uncurated = [c for c in load_cores() if not c.method_families]
+    assert len(uncurated) == len(load_cores()) - 1     # only core 14 curates today
+    validate_curated_labels([], uncurated)
+    assert set(_index(tmp_path, cores=uncurated)) == {"100", "200"}
+
+
+def test_main_hands_the_shipped_cores_to_the_guard(monkeypatch):
+    """The CONNECTION, not the guard. Drop `cores=cores` in run.py and every assertion
+    above still passes while the check goes dark on the nightly — the failure mode this
+    whole module is about, one level up."""
+    import utils.db
+
+    from pipeline_cores import ingest, method_families, run
+
+    class _Stop(Exception):
+        pass
+
+    seen = {}
+
+    def _spy(**kwargs):
+        seen.update(kwargs)
+        raise _Stop                      # nothing after the load line is under test
+
+    monkeypatch.setattr(utils.db, "get_engine", lambda *a, **k: None)
+    monkeypatch.setattr(ingest, "fetch_publications", lambda *a, **k: [])
+    monkeypatch.setattr(method_families, "load_family_index", _spy)
+    with pytest.raises(_Stop):
+        run.main(["--core", "14", "--with-method-families", "--dry-run"])
+    assert [c.core_id for c in seen["cores"]] == ["14"]
 
 
 # --- the signal ------------------------------------------------------------
