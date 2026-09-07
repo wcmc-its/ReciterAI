@@ -3,9 +3,13 @@
 This file exists at the repo root, rather than in `tests/`, because of what CI
 actually runs. `.github/workflows/pytest.yml` runs a bare `python -m pytest -q` from
 the repo root, and the repo root collects more than `tests/`: `utils/` ships two of
-its own test modules (`utils/test_dynamodb_subtopic_migration.py` and
-`utils/test_s3_client.py`, 13 tests). Measured on this checkout: `pytest tests/` = 2838
-passed, bare `pytest -q` = 2851.
+its own test modules, `utils/test_dynamodb_subtopic_migration.py` (7 tests) and
+`utils/test_s3_client.py` (6). Stated here as a DELTA rather than as two absolute
+totals: absolute totals rot the moment anyone adds a test, and they are this file's
+load-bearing justification, so a stale pair reads as a regression to whoever
+re-measures. It reproduces as bare `pytest -q` minus `pytest tests/ -q` = 13, which
+matches `pytest utils/ -q` exactly. That the difference is those two modules is the
+invariant; the totals on the day are not.
 
 While the guard lived in `tests/conftest.py`, an autouse fixture there could only
 reach nodes under `tests/`, so those 13 CI tests ran with botocore's real

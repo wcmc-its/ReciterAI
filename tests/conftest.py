@@ -2,9 +2,9 @@
 
 The no-live-AWS guard (`UnstubbedAWSCall` + the autouse `_no_live_aws_unless_marked`
 fixture) moved to the REPO-ROOT `conftest.py`. It had to: CI runs a bare
-`python -m pytest -q` from the repo root, which also collects `utils/`'s own 13 test
-modules, and an autouse fixture in this file can only reach nodes under `tests/`. See
-the root conftest's docstring for the measured before/after node counts.
+`python -m pytest -q` from the repo root, which also collects the 13 tests in
+`utils/`'s own two test modules, and an autouse fixture in this file can only reach
+nodes under `tests/`. See the root conftest's docstring for how to reproduce that gap.
 
 `UnstubbedAWSCall` is re-exported here so `from conftest import UnstubbedAWSCall` --
 which resolves to THIS module for anything under `tests/` -- keeps working.
@@ -21,6 +21,24 @@ import pytest
 # that spelling would be a circular self-import. `_reciterai_root_conftest` is the alias
 # the root conftest publishes for exactly this purpose, and it resolves to the SAME
 # class object the autouse guard raises -- asserted in tests/test_conftest_aws_guard.py.
+#
+# Left deliberately brittle, and this is the one-hop answer for whoever hits it: this
+# line raises `ModuleNotFoundError: No module named '_reciterai_root_conftest'` and
+# collects 0 tests under `pytest --confcutdir=tests` (and under `--noconftest`), i.e.
+# any invocation that stops pytest loading the ROOT conftest. Measured, so nobody
+# re-derives it: plain `pytest` from inside `tests/` and `--rootdir=tests` both work --
+# pytest.ini keeps rootdir at the repo root, confcutdir defaults to rootdir, and the
+# root conftest loads.
+#
+# Making the import survive would be a downgrade, not a repair. `--confcutdir=tests`
+# does not merely hide the alias; it stops the root conftest loading AT ALL, autouse
+# guard fixture included. A "resilient" import therefore buys a GREEN run with
+# botocore's real `_make_api_call` still installed -- verified by pre-seeding the alias
+# in sys.modules and re-running a tests/ module under `--confcutdir=tests`: all green,
+# with the installed seam `_make_api_call` rather than the guard's `_blocked`. That is
+# the silent unguarded run this whole arrangement exists to prevent, wearing robustness
+# as a costume. Loud beats silent; run pytest from the repo root, which is what CI's
+# `python -m pytest -q` does.
 from _reciterai_root_conftest import UnstubbedAWSCall  # noqa: F401  (re-export)
 
 

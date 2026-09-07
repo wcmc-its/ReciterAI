@@ -1,2 +1,12 @@
 -r requirements.txt
 pytest>=8.0.0
+
+# Not optional, despite `test_put_candidate_real_condition_on_moto` guarding itself
+# with `pytest.importorskip`. `_moto_is_intercepting()` in the root conftest.py is the
+# ONE branch of the no-live-AWS guard that can PERMIT an AWS call, and it only
+# executes while moto is intercepting -- i.e. only from that test. With moto absent
+# the test skips, the permit branch never runs on the CI gate, and a moto symbol move
+# (the stubber it reads is re-exported, not defined, at `moto.core.models`) would
+# surface only on whichever developer machine happened to have moto installed.
+# `>=5`: the test imports `mock_aws`, which is the moto 5 API.
+moto>=5
