@@ -18,8 +18,9 @@ command edit:
   all 62 open review-queue rows carry, and the run still exits green.
 - `--all-cores-screen` must stay out: experimental, and it lost 7-11% screen recall on
   the 237-pilot.
-- The task role is the SMALLEST in this directory: DynamoDB + Logs, nothing else.
-  pipeline_cores publishes no artifact, so unlike cold/grants there is no S3 statement.
+- The task role is DynamoDB + Logs + a READ-ONLY grant on the tools artifact prefix.
+  pipeline_cores publishes no artifact, so unlike cold/grants there is no S3 write; the
+  read exists solely because `--with-method-families` makes load_family_index fetch it.
 - Sized 1 vCPU / 4 GB on the CORPUS LOAD (80,203 titles+abstracts held for the life of
   the run), not on concurrency — the nightly command has no Bedrock fan-out at all.
 """
@@ -117,16 +118,48 @@ def test_task_policy_has_no_secretsmanager_statement(task_policy):
     )
 
 
-def test_task_policy_has_no_s3_statement(task_policy):
-    """pipeline_cores publishes no artifact — its output is the DynamoDB rows SPS's
-    nightly projects into MySQL. The one S3 surface it has (the shared PMC full-text
-    cache) is reached only via --fulltext-s3, which is not in the nightly command.
-    Adding that flag without adding the grant fails SILENTLY: the cache degrades to an
-    origin fetch with one logged warning, so the run just re-fetches at full price."""
-    s3_actions = {a for a in _all_actions(task_policy) if a.startswith("s3:")}
-    assert s3_actions == set(), (
-        f"cores task role should carry NO s3:* actions; found: {s3_actions}"
-    )
+def test_task_policy_covers_the_artifact_keys_the_runtime_actually_reads(task_policy):
+    """The keys come from the CODE, not from a copy of them here.
+
+    This replaces a test that asserted the policy carried NO s3:* actions. That was
+    true until `reciterai-cores:4` added `--with-method-families`, which makes
+    `method_families.load_family_index` read the tools artifact on every run. The
+    grant was never added, and on 2026-09-07 the 05:00 run died 3ms in on
+    AccessDenied — taking the WHOLE scoring pass with it, because
+    `load_family_index` raises rather than degrading to an empty index that
+    `put_core_usage` would turn into a REMOVE of `method_tier`/`method_evidence` on
+    every previously scored row.
+
+    Reading TOOLS_KEY/TOOL_CONTEXT_KEY from the module is the point: a future key
+    move, or a new artifact read, fails here instead of at 05:00.
+    """
+    from pipeline_cores.method_families import TOOL_CONTEXT_KEY, TOOLS_KEY
+    from utils.s3_client import ARTIFACTS_BUCKET
+
+    reads = _resources_for_prefix(task_policy, "s3:")
+    assert reads, "policy grants no s3 access, but load_family_index reads the artifact"
+    for key in (TOOLS_KEY, TOOL_CONTEXT_KEY):
+        full = f"arn:aws:s3:::{ARTIFACTS_BUCKET}/{key}"
+        assert any(
+            full.startswith(r.rstrip("*")) for r in reads
+        ), f"no s3 Resource covers {full!r}; granted: {reads}"
+
+
+def test_task_policy_grants_no_s3_write(task_policy):
+    """Read-only by design: pipeline_cores publishes no artifact.
+
+    The one WRITE surface is the shared PMC full-text cache, reached only via
+    `--fulltext-s3`, which is not in the nightly command — so it is not running at
+    all, rather than silently degrading. Enabling that flag needs GetObject +
+    PutObject on `cores/fulltext/*` and ListBucket; without them it fails SILENTLY,
+    re-fetching from NCBI at full price.
+    """
+    writes = {
+        a
+        for a in _all_actions(task_policy)
+        if a.startswith("s3:") and a not in {"s3:GetObject"}
+    }
+    assert writes == set(), f"cores task role should be S3 read-only; found: {writes}"
 
 
 def test_task_policy_grants_dynamodb_crud_on_reciterai_only(task_policy):
