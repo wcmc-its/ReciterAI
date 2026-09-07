@@ -1705,8 +1705,22 @@ def test_carry_forward_cli_run_never_constructs_a_bedrock_client(monkeypatch):
     written = []
     monkeypatch.setattr(persist, "put_core_usage",
                         lambda recs: written.extend(recs) or len(recs))
+    # main() also publishes the dictionary staff counts, and that is a REAL UpdateItem
+    # per core in the dictionary -- fourteen of them -- against the shared `reciterai`
+    # table. This test drives main() with no --dry-run, so leaving it unstubbed makes a
+    # default `pytest tests/` run write to production on any machine with credentials in
+    # the environment. Stubbed like every other persist seam above, and like
+    # tests/test_cores_staff_count.py's _stub_a_scoring_run does. The conftest guard
+    # catches this class of mistake now; the stub is still what makes THIS test a unit
+    # test rather than a test that happens to be blocked.
+    published = []
+    monkeypatch.setattr(persist, "put_core_staff_dict_counts",
+                        lambda core_id, count, tracked: published.append(core_id) or True)
 
     run.main(["--core", "14", "--llm-carry-forward"])
+    # The publish is a property of the dictionary, not of this run's scored subset, so
+    # it still fires for every core -- it just no longer leaves the process.
+    assert len(published) > 1
     # One Scan for the whole run, grouped by core_id in memory — the same trade the
     # affinity prior makes, and scoped to the core that was asked for.
     assert scan.call_args == (("14",), {})

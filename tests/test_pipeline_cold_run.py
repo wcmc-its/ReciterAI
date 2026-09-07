@@ -131,6 +131,11 @@ def test_main_writes_complete_row_with_initiated_by(monkeypatch):
     fake_table.put_item.side_effect = lambda Item: captured.append(Item) or {}
     monkeypatch.setattr(cold, "get_table", lambda *a, **k: fake_table)
 
+    # Patch S3 manifest read to avoid AWS calls. Unstubbed, main() reached the live
+    # hierarchy bucket, and the helper returns None on any failure -- so it stayed
+    # green about it. Same stub the later tests in this file already carry.
+    monkeypatch.setattr(cold, "_read_prev_version_from_latest_manifest", lambda: None)
+
     rc = cold.main(["--initiated-by", "drift_alert"])
 
     assert rc == 0
@@ -164,6 +169,11 @@ def test_main_short_circuits_on_first_failure(monkeypatch):
     fake_table = MagicMock()
     fake_table.put_item.side_effect = lambda Item: captured.append(Item) or {}
     monkeypatch.setattr(cold, "get_table", lambda *a, **k: fake_table)
+
+    # Patch S3 manifest read to avoid AWS calls. Unstubbed, main() reached the live
+    # hierarchy bucket, and the helper returns None on any failure -- so it stayed
+    # green about it. Same stub the later tests in this file already carry.
+    monkeypatch.setattr(cold, "_read_prev_version_from_latest_manifest", lambda: None)
 
     rc = cold.main(["--initiated-by", "operator"])
     assert rc == 7
@@ -203,6 +213,11 @@ def test_main_from_stage_skips_earlier_stages(monkeypatch):
     fake_table = MagicMock()
     monkeypatch.setattr(cold, "get_table", lambda *a, **k: fake_table)
 
+    # Patch S3 manifest read to avoid AWS calls. Unstubbed, main() reached the live
+    # hierarchy bucket, and the helper returns None on any failure -- so it stayed
+    # green about it. Same stub the later tests in this file already carry.
+    monkeypatch.setattr(cold, "_read_prev_version_from_latest_manifest", lambda: None)
+
     rc = cold.main(["--from-stage", "rollup"])
     assert rc == 0
     # rollup + feedback_sweep + backfill_spotlight + publish_hierarchy = 4 invocations
@@ -224,6 +239,12 @@ def test_main_skip_stage_write_does_not_touch_dynamodb(monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: _ok_proc(cmd))
     table_factory = MagicMock()
     monkeypatch.setattr(cold, "get_table", table_factory)
+
+    # Patch S3 manifest read to avoid AWS calls. Unstubbed, main() reached the live
+    # hierarchy bucket, and the helper returns None on any failure -- so it stayed
+    # green about it. Same stub the later tests in this file already carry.
+    monkeypatch.setattr(cold, "_read_prev_version_from_latest_manifest", lambda: None)
+
     rc = cold.main(["--skip-stage-write"])
     assert rc == 0
     table_factory.assert_not_called()
