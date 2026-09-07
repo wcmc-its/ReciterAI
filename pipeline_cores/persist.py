@@ -451,3 +451,106 @@ def scan_core_llm_scores(core_id: str = None, *, client=None, table_name: str = 
     logger.info("scan_core_llm_scores(core_id=%s): %d stored LLM scores across %d core(s)",
                 core_id, rows, len(out))
     return out
+
+
+def put_core_staff_dict_counts(core_id, count, tracked_count, *, client=None,
+                               table_name: str = TABLE_NAME) -> bool:
+    """Publish this core's dictionary staff counts — listed AND matchable — for SPS.
+
+    Writes PK=CORE#{core_id}, SK="STAFF_DICT" with `staff_count` (N — the people listed
+    under the entry's `staff:` key) and `staff_tracked_count` (N — the subset the
+    co-authorship signal can actually find). Returns True if the write went out, False
+    if it was refused or failed.
+
+    BOTH NUMBERS, because the smaller one is the load-bearing one.
+    `signals.coauthorship_index` matches on `core.tracked_staff_cwids`, not
+    `core.staff`: an UNtracked staff member is not a ReCiter target person, so their
+    author rows carry personIdentifier NULL, and the signal returns {} before it reads
+    a row when no tracked staff remain. Fixing that is an upstream ReCiter-target
+    change — never a surname match. Today the gap is most of the roster: core 14 lists
+    4 and can match 1, and cores 8, 10 and 13 list 3, 2 and 1 and can match NONE.
+    Publishing the listed count alone would put "the co-author signal draws on 4 core
+    staff" under a signal drawing on one, and assert 3, 2 and 1 for three cores where
+    it cannot fire at all — decodeTopicalPrior's failure (7,332 of 9,352 live chips
+    asserting something false) re-created in a new attribute. So both are published
+    and the consumer renders both.
+
+    THE COUNTS ONLY, never the roster. SPS renders integers, and copying staff CWIDs
+    into a second datastore would buy PII surface for nothing.
+
+    SK is "STAFF_DICT", not "STAFF". "STAFF" is left free for a future SPS-CURATED
+    staff list, which by the CLIENTS precedent (SPS writes, this repo reads — see
+    `get_curated_clients` above) would want exactly that key. This item is
+    DICTIONARY-sourced and runs the other way: this repo writes it, SPS reads it. The
+    key says which, instead of the two colliding later. Like CLIENTS it must never
+    begin with "CORE#" — both `scan_prior_core_usage` and the SPS ETL select usage rows
+    with `begins_with(SK, "CORE#")`, so a config item under that prefix would surface
+    as a phantom publication in both.
+
+    A targeted UpdateItem that SETs those two attributes and nothing else, so it can
+    never reach the sibling CLIENTS item nor any other attribute, in either direction.
+    A PutItem here would be the `put_core_usage` full-replace bug (#384) rewritten from
+    scratch, one partition over.
+
+    NEVER FATAL. Any exception — a botocore ClientError, a throttle, an unusable client
+    — logs a warning and returns False; the scoring run proceeds. That is the same
+    posture as `get_curated_clients` and the deliberate OPPOSITE of
+    `scan_core_llm_scores` / `load_family_index`, which raise. The rule those two follow
+    is "a degraded read on a path that WRITES is a wipe", and it does not reach here:
+    these values feed a display string, are derived from the local YAML rather than
+    from a read of the thing they overwrite, and no consumer REMOVEs anything when they
+    are missing — SPS just omits the sentence. Failing a nightly's scoring over a
+    caption would be the worse trade by a wide margin.
+    """
+    # Positively derived or not written at all. A core whose `staff:` key is absent and
+    # one with `staff: []` are both legitimately 0 and DO publish; anything that is not
+    # a plain non-negative int never got counted, so there is nothing to publish and a
+    # guess would be worse than silence. (bool is an int subclass — exclude it.)
+    for attr, value in (("staff_count", count), ("staff_tracked_count", tracked_count)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            logger.warning(
+                "put_core_staff_dict_counts(core_id=%s): refusing to publish a %s of "
+                "%r — not a derived non-negative integer", core_id, attr, value,
+            )
+            return False
+    # Tracked staff are a SUBSET of listed staff (`tracked_staff_cwids` filters the same
+    # list `staff_cwids` returns whole), so tracked > listed is not a pair this could
+    # have counted — it is the two arguments swapped, which would publish core 14's
+    # "1 of 4 matchable" as "4 of 1". Same posture as the guard above: a shape that
+    # cannot be true is refused rather than published, because SPS renders what it finds.
+    if tracked_count > count:
+        logger.warning(
+            "put_core_staff_dict_counts(core_id=%s): refusing staff_tracked_count=%d "
+            "> staff_count=%d — tracked staff are a subset of listed staff, so these "
+            "are the two arguments swapped", core_id, tracked_count, count,
+        )
+        return False
+    try:
+        # Inside the try on purpose: get_dynamo_client can itself raise (bad region,
+        # no credentials), and a display count must not be able to fail the run there
+        # any more than at the write.
+        client = client or get_dynamo_client()
+        # ONE UpdateExpression for both: the two counts are one statement about one
+        # roster, and two round trips could leave a reader with a listed count from
+        # tonight beside a tracked count from a previous night.
+        client.update_item(
+            TableName=table_name,
+            Key={"PK": {"S": f"CORE#{core_id}"}, "SK": {"S": "STAFF_DICT"}},
+            UpdateExpression="SET staff_count = :n, staff_tracked_count = :t",
+            ExpressionAttributeValues={
+                ":n": {"N": str(count)},
+                ":t": {"N": str(tracked_count)},
+            },
+        )
+    except Exception as exc:
+        logger.warning(
+            "put_core_staff_dict_counts(core_id=%s, count=%d, tracked_count=%d) failed "
+            "(%s: %s) — SPS keeps the previously published counts and the run continues",
+            core_id, count, tracked_count, type(exc).__name__, exc,
+        )
+        return False
+    logger.info(
+        "put_core_staff_dict_counts: core %s -> staff_count=%d, staff_tracked_count=%d",
+        core_id, count, tracked_count,
+    )
+    return True

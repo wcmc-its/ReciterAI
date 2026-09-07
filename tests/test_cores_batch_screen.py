@@ -213,7 +213,13 @@ def test_put_candidate_never_downgrades_protected_status(protected):
 
 def test_put_candidate_real_condition_on_moto():
     """Exercise the REAL ConditionExpression against moto (proves the condition string, not
-    just the fake). Skips if moto isn't installed."""
+    just the fake).
+
+    Also the ONLY test that exercises the root conftest guard's moto carve-out -- the one
+    branch of it that permits an AWS call -- so moto is a hard entry in
+    requirements-dev.txt, not an optional extra. A skip here means an incomplete dev
+    install, not an expected outcome.
+    """
     pytest.importorskip("moto")
     import boto3
     from moto import mock_aws

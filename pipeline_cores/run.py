@@ -344,6 +344,33 @@ def main(argv=None):
     from utils.iso_clock import now_iso  # lazy
 
     cores = [load_core(args.core)] if args.core else load_cores()
+    # Publish every core's dictionary staff counts for SPS's review queue, which renders
+    # "the co-author signal draws on N of M core staff" and has no access to
+    # config/core_dictionary.yaml. Here, not in run_core: the counts are a property of
+    # the DICTIONARY, not of a scoring pass, so they should not depend on whether a core
+    # had publications to score.
+    #
+    # EVERY CORE IN THE DICTIONARY, not this invocation's `cores`. Same reason: the
+    # scheduled nightly is `--core 14`, so iterating the subset would publish exactly one
+    # of the fourteen items on a normal night and leave the other thirteen with NO item
+    # at all — not a stale count, nothing, and SPS renders no chip for them for as long
+    # as that holds. Fourteen idempotent UpdateItems that re-assert two small integers
+    # cost nothing measurable next to a corpus-wide scoring pass.
+    #
+    # BOTH counts: len(core.staff) is who the dictionary lists, and
+    # len(core.tracked_staff_cwids) is who signals.coauthorship_index can actually match
+    # (untracked staff carry personIdentifier NULL and are invisible to it). Publishing
+    # only the first would caption core 14's signal "4 core staff" where it draws on 1.
+    # An absent `staff:` key and an explicit `staff: []` both load as [] and both
+    # legitimately publish 0/0.
+    #
+    # Display-only and never fatal: put_core_staff_dict_counts swallows and warns, so
+    # this cannot fail the scoring run. Skipped under --dry-run like every other write.
+    if not args.dry_run:
+        from pipeline_cores.persist import put_core_staff_dict_counts  # lazy
+        for core in load_cores():
+            put_core_staff_dict_counts(
+                core.core_id, len(core.staff), len(core.tracked_staff_cwids))
     engine = get_engine()
     pool = read_pmids_file(args.pmids_file) if args.pmids_file else None
     pubs = ingest.fetch_publications(engine, pmids=pool, limit=args.test)
