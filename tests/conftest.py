@@ -22,13 +22,20 @@ import pytest
 # the root conftest publishes for exactly this purpose, and it resolves to the SAME
 # class object the autouse guard raises -- asserted in tests/test_conftest_aws_guard.py.
 #
-# Left deliberately brittle, and this is the one-hop answer for whoever hits it: this
-# line raises `ModuleNotFoundError: No module named '_reciterai_root_conftest'` and
-# collects 0 tests under `pytest --confcutdir=tests` (and under `--noconftest`), i.e.
-# any invocation that stops pytest loading the ROOT conftest. Measured, so nobody
-# re-derives it: plain `pytest` from inside `tests/` and `--rootdir=tests` both work --
-# pytest.ini keeps rootdir at the repo root, confcutdir defaults to rootdir, and the
-# root conftest loads.
+# Left deliberately brittle, and this is the one-hop answer for whoever hits it: any
+# invocation that stops pytest loading the ROOT conftest fails LOUDLY here and runs 0
+# tests. `--confcutdir=tests` raises `ModuleNotFoundError: No module named
+# '_reciterai_root_conftest'` and collects nothing; `--noconftest` ends in a collection
+# ERROR and `Interrupted`. Different mechanisms, same outcome -- neither is a silent
+# pass, which is the only property that matters here.
+#
+# Measured, so nobody re-derives it: under both `--rootdir=tests` and a plain `pytest`
+# run from inside `tests/`, the root conftest still loads and the guard still installs
+# -- pytest.ini keeps rootdir at the repo root and confcutdir defaults to rootdir. (A
+# plain run from inside `tests/` is not otherwise green: ~6 failures and ~14 errors in
+# test_spotlight_publish / test_spotlight_or_preflight / test_feedback_cli come from
+# cwd-relative fixture paths. Pre-existing, unrelated to the guard, and all pass from
+# the repo root -- which is what CI does.)
 #
 # Making the import survive would be a downgrade, not a repair. `--confcutdir=tests`
 # does not merely hide the alias; it stops the root conftest loading AT ALL, autouse
