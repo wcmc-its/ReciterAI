@@ -25,6 +25,7 @@ Severity mapping per draft D-11 table:
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -75,6 +76,15 @@ class DriftEvaluation:
     # "key absent" from "row predates field" (treat both as zero).
     per_topic_low_confidence: dict[str, int] = field(default_factory=dict)
 
+    # Wall clock of the run that produced this row, in milliseconds. Every STAGE#
+    # row has carried a duration since Phase 9; the two DRIFT# rows were the pair
+    # that did not, so SPS's producer board had nothing to put in its run-duration
+    # column for them. Optional and sparse for the same reason as
+    # `per_topic_low_confidence` above: rows written before this field existed carry
+    # no duration, and absence means UNKNOWN, not zero. `evaluate` is pure and times
+    # nothing, so it leaves this None; `run_evaluation` sets it.
+    duration_ms: int | None = None
+
     def to_dynamodb_item(self) -> dict[str, Any]:
         """Render as the DynamoDB item the evaluator persists.
 
@@ -106,6 +116,11 @@ class DriftEvaluation:
             item["per_topic_low_confidence"] = {
                 str(k): int(v) for k, v in self.per_topic_low_confidence.items()
             }
+        # Same additive pattern: emitted only when the run was actually timed, so an
+        # untimed evaluation writes no duration rather than a zero that would read as
+        # an instantaneous run.
+        if self.duration_ms is not None:
+            item["duration_ms"] = int(self.duration_ms)
         return item
 
 
@@ -268,9 +283,19 @@ def run_evaluation(
     new_pmid_count: int,
     thresholds: dict[str, Any],
     now: datetime | None = None,
+    t_start: float | None = None,
 ) -> dict[str, Any]:
     """Evaluate + persist; returns the DriftEvaluation as a dict the cron
-    handler can dispatch alerts from (T11)."""
+    handler can dispatch alerts from (T11).
+
+    `t_start` is a `time.monotonic()` reading the caller took before the work the
+    persisted `duration_ms` should cover. `handler` starts it before its four
+    DynamoDB scans, which are most of the Lambda's wall clock — timing only the
+    in-memory evaluation of rows somebody else already fetched would under-report
+    the run by orders of magnitude. Optional and defaulted so existing callers (and
+    the tests that hand rows straight in) keep working; they time the evaluation.
+    """
+    t_start = time.monotonic() if t_start is None else t_start
     eval_ = evaluate(
         uncovered_rows=uncovered_rows,
         low_confidence_rows=low_confidence_rows,
@@ -279,6 +304,9 @@ def run_evaluation(
         thresholds=thresholds,
         now=now,
     )
+    # Stopped BEFORE the put_item: the row reports how long the work took, not how
+    # long DynamoDB took to accept the row describing it.
+    eval_.duration_ms = max(0, int((time.monotonic() - t_start) * 1000))
     write_drift_row(table, eval_)
     return {
         "severity": eval_.severity,
@@ -442,6 +470,12 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
 
     table = get_table(TABLE_NAME)
 
+    # Started before the scans, not inside run_evaluation: the four paginated scans
+    # below are most of this Lambda's wall clock, and a duration that excluded them
+    # would make the DRIFT# row's run-duration read as milliseconds on a run that
+    # took minutes.
+    t_start = time.monotonic()
+
     uncovered_rows = _scan_by_pk_prefix(
         table, pk_prefix="UNCOVERED_PMID#", since_iso=since_iso
     )
@@ -459,6 +493,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
         new_pmid_count=new_pmid_count,
         thresholds=thresholds,
         now=now,
+        t_start=t_start,
     )
 
     severity = result["severity"]

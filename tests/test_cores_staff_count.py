@@ -308,6 +308,7 @@ def _stub_a_scoring_run(monkeypatch):
 
     from pipeline_cores import ingest, run
     import utils.db as db_mod
+    import utils.dynamodb_helpers as ddb
 
     monkeypatch.setattr(db_mod, "get_engine", lambda: MagicMock(name="engine"))
     monkeypatch.setattr(ingest, "fetch_publications",
@@ -315,6 +316,11 @@ def _stub_a_scoring_run(monkeypatch):
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(run, "run_core", lambda *a, **k: [])
     monkeypatch.setattr(persist, "put_core_usage", lambda recs: len(recs))
+    # A real run also writes the STAGE#cores_run#GLOBAL liveness row, and it reaches
+    # DynamoDB through a resource Table rather than the client every persist seam
+    # above uses. The tests below drive main() with no --dry-run, so an unstubbed
+    # get_table is a real PutItem against the shared `reciterai` table.
+    monkeypatch.setattr(ddb, "get_table", lambda *a, **k: MagicMock(name="reciterai"))
     return run
 
 

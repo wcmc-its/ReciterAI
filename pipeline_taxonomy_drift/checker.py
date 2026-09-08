@@ -45,6 +45,7 @@ see the ADR's D5 section for the amendment and the forward-only path.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Iterable
 
 logger = logging.getLogger(__name__)
@@ -209,12 +210,22 @@ def run_check(
     taxonomy_version: str = "taxonomy_v2",
 ) -> dict:
     """Scan, evaluate, persist a `DRIFT#taxonomy` row, alert if actionable."""
+    t_start = time.monotonic()
     newest_by_topic = scan_topic_partitions(table)
     catalog_ids = read_catalog_topic_ids(table, taxonomy_version)
     result = evaluate(newest_by_topic.keys(), taxonomy_ids, catalog_ids)
     result["taxonomy_hash"] = taxonomy_hash
     # Minting dates for orphans only — this is what made the 07-10 incident legible.
     result["orphan_last_written"] = {t: newest_by_topic[t] for t in result["orphan_topics"]}
+    # How long the WORK took: the full-table Scan (~136 MB / 133 pages) plus the
+    # catalog read plus the comparison. Stopped here, before the put_item below, so
+    # the number is not inflated by the write that carries it, and unchanged by the
+    # alert-status re-put further down — the row reports the check, not the paperwork.
+    # `_persist_row` spreads `**result`, so it lands on the row from here. Every
+    # STAGE# row has carried a duration since Phase 9 and the DRIFT# rows did not,
+    # which left SPS's producer board with an empty run-duration column for them.
+    # Rows written before this field existed have none; read it as optional.
+    result["duration_ms"] = max(0, int((time.monotonic() - t_start) * 1000))
 
     # Persist first for idempotency, but never let a write failure swallow the
     # alert: a check that has just found drift going silent because it could not

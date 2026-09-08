@@ -14,6 +14,8 @@ Covers:
 
 from __future__ import annotations
 
+import time
+
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -458,6 +460,72 @@ def test_run_evaluation_writes_one_drift_row():
     assert row["SK"] == "DAY#2026-05-12"
     assert out["severity"] == "WARN"
     assert out["cold_run_recommended"] is False
+
+
+# ---------- duration_ms ----------
+
+
+def test_run_evaluation_stamps_an_int_duration_on_the_row():
+    """SPS's producer board has a run-duration column that every STAGE# row fills and
+    this DRIFT# row did not."""
+    captured: list = []
+    table = MagicMock()
+    table.put_item.side_effect = lambda Item: captured.append(Item) or {}
+
+    run_evaluation(
+        table=table,
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+
+    duration = captured[0]["duration_ms"]
+    # int, not float: DynamoDB has no float type and the board formats it as a number.
+    assert isinstance(duration, int)
+
+
+def test_the_duration_covers_work_the_caller_already_started_timing():
+    """`t_start` exists so `handler` can start the clock before its four paginated
+    scans, which are most of the Lambda's wall clock. An `isinstance(int)` assertion
+    cannot tell that plumbing from a clock started inside run_evaluation, so pin it
+    with a t_start that is demonstrably in the past: drop the parameter and the
+    reported duration collapses to the in-memory evaluation."""
+    captured: list = []
+    table = MagicMock()
+    table.put_item.side_effect = lambda Item: captured.append(Item) or {}
+
+    run_evaluation(
+        table=table,
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+        t_start=time.monotonic() - 5.0,   # as if five seconds of scanning preceded us
+    )
+
+    assert captured[0]["duration_ms"] >= 5000, captured[0]["duration_ms"]
+
+
+def test_an_untimed_evaluation_omits_duration_ms():
+    """Optional-shaped, like per_topic_low_confidence: `evaluate` is pure and times
+    nothing, so a row built straight off it carries no duration rather than a zero
+    that would read as an instantaneous run. Rows predating the field behave the same
+    way, and consumers must survive both."""
+    item = evaluate(
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    ).to_dynamodb_item()
+
+    assert "duration_ms" not in item
 
 
 # ---------- Phase 12 D-34: per_topic_low_confidence ----------

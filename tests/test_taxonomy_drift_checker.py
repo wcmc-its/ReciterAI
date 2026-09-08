@@ -10,6 +10,7 @@ trusting a green run.
 from __future__ import annotations
 
 import json
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -150,6 +151,34 @@ class TestRunCheck:
         assert item["SK"] == "DAY#2026-08-03"
         assert item["severity"] == "OK"
         assert item["taxonomy_hash"] == "abc123"
+
+    def test_the_row_carries_an_int_duration(self):
+        """SPS's producer board fills its run-duration column from this field, which
+        every STAGE# row has and this DRIFT# row did not. int, not float: DynamoDB
+        has no float type."""
+        table = self._table([{"PK": "TOPIC#cardiology"}], catalog=["cardiology"])
+        run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        duration = table.put_item.call_args.kwargs["Item"]["duration_ms"]
+        assert isinstance(duration, int)
+
+    def test_the_duration_spans_the_scan_not_just_the_write(self):
+        """The near-miss an `isinstance(int)` assertion cannot see: a clock started
+        just before put_item still yields a valid int. The full-table Scan is most of
+        this check's wall clock, so make the scan cost real time and require the
+        reported duration to contain it."""
+        table = self._table([{"PK": "TOPIC#cardiology"}], catalog=["cardiology"])
+        pages = iter([{"Items": [{"PK": "TOPIC#cardiology"}]}])
+
+        def _slow_scan(*a, **k):
+            time.sleep(0.25)
+            return next(pages)
+        table.scan.side_effect = _slow_scan
+
+        run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        duration = table.put_item.call_args.kwargs["Item"]["duration_ms"]
+        assert duration >= 250, duration
 
     def test_clean_run_does_not_alert(self, monkeypatch):
         # alerting.build_card raises ValueError on any severity outside
