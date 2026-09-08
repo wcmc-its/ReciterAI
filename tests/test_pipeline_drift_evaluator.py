@@ -14,6 +14,8 @@ Covers:
 
 from __future__ import annotations
 
+import time
+
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -481,10 +483,32 @@ def test_run_evaluation_stamps_an_int_duration_on_the_row():
     )
 
     duration = captured[0]["duration_ms"]
-    # >= 0, not > 0: an evaluation of zero rows can round to a whole millisecond of
-    # nothing. The assertion that matters is that the field is there and is an int
-    # (DynamoDB has no float, and the board formats it as a number).
-    assert isinstance(duration, int) and duration >= 0
+    # int, not float: DynamoDB has no float type and the board formats it as a number.
+    assert isinstance(duration, int)
+
+
+def test_the_duration_covers_work_the_caller_already_started_timing():
+    """`t_start` exists so `handler` can start the clock before its four paginated
+    scans, which are most of the Lambda's wall clock. An `isinstance(int)` assertion
+    cannot tell that plumbing from a clock started inside run_evaluation, so pin it
+    with a t_start that is demonstrably in the past: drop the parameter and the
+    reported duration collapses to the in-memory evaluation."""
+    captured: list = []
+    table = MagicMock()
+    table.put_item.side_effect = lambda Item: captured.append(Item) or {}
+
+    run_evaluation(
+        table=table,
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+        t_start=time.monotonic() - 5.0,   # as if five seconds of scanning preceded us
+    )
+
+    assert captured[0]["duration_ms"] >= 5000, captured[0]["duration_ms"]
 
 
 def test_an_untimed_evaluation_omits_duration_ms():
