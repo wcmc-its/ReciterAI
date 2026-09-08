@@ -460,6 +460,50 @@ def test_run_evaluation_writes_one_drift_row():
     assert out["cold_run_recommended"] is False
 
 
+# ---------- duration_ms ----------
+
+
+def test_run_evaluation_stamps_an_int_duration_on_the_row():
+    """SPS's producer board has a run-duration column that every STAGE# row fills and
+    this DRIFT# row did not."""
+    captured: list = []
+    table = MagicMock()
+    table.put_item.side_effect = lambda Item: captured.append(Item) or {}
+
+    run_evaluation(
+        table=table,
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    )
+
+    duration = captured[0]["duration_ms"]
+    # >= 0, not > 0: an evaluation of zero rows can round to a whole millisecond of
+    # nothing. The assertion that matters is that the field is there and is an int
+    # (DynamoDB has no float, and the board formats it as a number).
+    assert isinstance(duration, int) and duration >= 0
+
+
+def test_an_untimed_evaluation_omits_duration_ms():
+    """Optional-shaped, like per_topic_low_confidence: `evaluate` is pure and times
+    nothing, so a row built straight off it carries no duration rather than a zero
+    that would read as an instantaneous run. Rows predating the field behave the same
+    way, and consumers must survive both."""
+    item = evaluate(
+        uncovered_rows=[],
+        low_confidence_rows=[],
+        stage_failed_rows=[],
+        new_pmid_count=0,
+        thresholds=THRESHOLDS,
+        now=NOW,
+    ).to_dynamodb_item()
+
+    assert "duration_ms" not in item
+
+
 # ---------- Phase 12 D-34: per_topic_low_confidence ----------
 
 

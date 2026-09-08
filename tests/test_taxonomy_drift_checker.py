@@ -151,6 +151,17 @@ class TestRunCheck:
         assert item["severity"] == "OK"
         assert item["taxonomy_hash"] == "abc123"
 
+    def test_the_row_carries_an_int_duration(self):
+        """SPS's producer board fills its run-duration column from this field, which
+        every STAGE# row has and this DRIFT# row did not. >= 0 rather than > 0: a
+        one-partition fixture can round to a whole millisecond of nothing — what has
+        to hold is that the field is present and an int (DynamoDB has no float)."""
+        table = self._table([{"PK": "TOPIC#cardiology"}], catalog=["cardiology"])
+        run_check(table, ["cardiology"], taxonomy_hash="abc", day="2026-08-03")
+
+        duration = table.put_item.call_args.kwargs["Item"]["duration_ms"]
+        assert isinstance(duration, int) and duration >= 0
+
     def test_clean_run_does_not_alert(self, monkeypatch):
         # alerting.build_card raises ValueError on any severity outside
         # INFO|WARN|ERROR, and "OK" is a valid DRIFT# row severity. Passing it

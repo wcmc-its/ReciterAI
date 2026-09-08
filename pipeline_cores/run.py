@@ -14,6 +14,8 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -25,10 +27,28 @@ from pipeline_cores import ingest, method_families, pmc_search, prefilter, signa
 from pipeline_cores.dictionary import load_core, load_cores
 from pipeline_cores.models import METHOD_FAMILY_TIERS, STATUS_CONFIRMED
 
+logger = logging.getLogger(__name__)
+
 # Triage Bedrock calls are tiny generations (a screen int / a short JSON), so a
 # 120s read timeout is ample headroom while bounding a hung connection far below
 # the BedrockClient 900s default that suits long overview/biosketch generations.
 _TRIAGE_READ_TIMEOUT = 120
+
+# SPS's /edit/etl-status board keys producer liveness on `STAGE#{stage}#{scope}`, and
+# it mirrors GLOBAL scope only. Both halves are therefore a CONTRACT with that board
+# rather than a local naming choice: rename either and the cores job silently drops
+# off it, back to being graded on data recency.
+CORES_STAGE = "cores_run"
+CORES_SCOPE = "GLOBAL"
+
+# A DECLARED zero, not a measured one. `--with-llm` runs spend real money on Bedrock
+# triage and nothing in pipeline_cores meters a run's spend, so there is no observed
+# figure to write. It is still written explicitly, because `cost_observed_usd` is a
+# required STAGE# field that cost rollups SUM over — an omission breaks the sum, and
+# an invented estimate would put a fabricated number where the rollup reads truth.
+# Meaning: "unmetered", not "free". Meter the run before believing any cores line in
+# a spend report.
+CORES_COST_OBSERVED_USD = Decimal("0")
 
 
 def _make_fulltext_loader(enabled: bool, *, use_s3: bool = False):
@@ -279,6 +299,69 @@ def read_pmids_file(path: str) -> list:
     return out
 
 
+def _write_run_record(args, *, cores, started_at: str, t_start: float,
+                      records_written: int) -> None:
+    """Record that this run happened, as `STAGE#cores_run#GLOBAL`.
+
+    SPS grades this job on max(scored_at) across the PUB#/CORE# rows it writes,
+    because there was nothing else to grade it on. That measures DATA RECENCY, not
+    whether the job ran: a nightly that legitimately re-scores nothing new moves no
+    scored_at, and the board reads a healthy producer as a dead one. This row is the
+    run saying it finished, which is the question the board is actually asking.
+
+    Best-effort, and deliberately so — the same posture as
+    `pipeline_taxonomy_drift.checker._persist_row`. `put_core_usage` has already
+    committed the scoring output by the time this is called, so a failure here means
+    the run SUCCEEDED and only the liveness row is missing; raising would convert a
+    good night into a failed task and an alarm about a run that did its job. Logged
+    with the record count so the gap is explained rather than invisible.
+
+    Only reachable on a real run — see `main()`.
+    """
+    try:
+        from utils.dynamodb_helpers import get_table  # lazy
+        from utils.iso_clock import now_iso  # lazy
+        from utils.stage_records import compute_input_hash, write_complete  # lazy
+
+        # PROVENANCE ONLY — do NOT wire `should_skip()` to this hash. Cores has no
+        # skip-caching and must not acquire any: the corpus moves underneath
+        # identical arguments every night, so a hash match here means "same flags",
+        # never "same work", and skipping on it would skip a run with real work to do.
+        # It records what the run was given, and nothing more.
+        input_hash = compute_input_hash(CORES_STAGE, {
+            "core_ids": sorted(c.core_id for c in cores),
+            "threshold": args.threshold,
+            "limit": args.test,
+            "pmids_file": args.pmids_file,
+            "with_llm": args.with_llm,
+            "llm_carry_forward": args.llm_carry_forward,
+            "with_fulltext": args.with_fulltext,
+            "alias_search": args.alias_search,
+            "with_method_families": args.with_method_families,
+            "with_affinity": args.with_affinity,
+        })
+        write_complete(
+            # A resource Table, not the low-level client persist.py builds:
+            # write_complete calls `table.put_item(Item=...)` with plain Python
+            # values, which the client would reject for want of type descriptors.
+            get_table(),
+            stage=CORES_STAGE,
+            scope=CORES_SCOPE,
+            input_hash=input_hash,
+            started_at=started_at,
+            completed_at=now_iso(),
+            duration_ms=max(0, int((time.monotonic() - t_start) * 1000)),
+            cost_observed_usd=CORES_COST_OBSERVED_USD,
+            records_written=records_written,
+        )
+    except Exception:  # noqa: BLE001 — best-effort liveness row, must not fail the run
+        logger.exception(
+            "cores run record: STAGE#%s#%s write failed (best-effort). The scoring "
+            "run itself SUCCEEDED and %d (publication, core) records were written; "
+            "only the liveness row is missing, so SPS's producer board will read "
+            "this tick as a no-show.", CORES_STAGE, CORES_SCOPE, records_written)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="WCM core-facility usage inference")
     ap.add_argument("--core", help="core_id to run (default: all in dictionary)")
@@ -342,6 +425,12 @@ def main(argv=None):
 
     from utils.db import get_engine  # lazy
     from utils.iso_clock import now_iso  # lazy
+
+    # The clock for the STAGE#cores_run#GLOBAL row written at the very end. Started
+    # HERE, before the first query, so `duration_ms` measures the run rather than the
+    # write that closes it.
+    started_at = now_iso()
+    t_start = time.monotonic()
 
     cores = [load_core(args.core)] if args.core else load_cores()
     # Publish every core's dictionary staff counts for SPS's review queue, which renders
@@ -451,9 +540,18 @@ def main(argv=None):
     surfaced = [r for r in all_records if r.status in ("confirmed", "candidate")]
     if args.dry_run:
         print(f"DRY RUN — {len(surfaced)} records would be written (PUB#/CORE# in '{__doc__ and 'reciterai'}').")
+        # No STAGE# row either. --dry-run is documented as writing nothing to
+        # DynamoDB, and the liveness row is the one write whose presence would be
+        # worse than its absence: it would tell SPS's board that the nightly ran and
+        # persisted on a run that persisted nothing.
     else:
         from pipeline_cores.persist import put_core_usage  # lazy
-        print(f"wrote {put_core_usage(surfaced)} (publication, core) records to DynamoDB")
+        written = put_core_usage(surfaced)
+        print(f"wrote {written} (publication, core) records to DynamoDB")
+        # After the data write, and only if it returned: the row asserts "this run
+        # finished", so a run that died inside put_core_usage must leave none behind.
+        _write_run_record(args, cores=cores, started_at=started_at, t_start=t_start,
+                          records_written=written)
 
 
 if __name__ == "__main__":

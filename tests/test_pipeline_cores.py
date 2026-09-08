@@ -1716,6 +1716,11 @@ def test_carry_forward_cli_run_never_constructs_a_bedrock_client(monkeypatch):
     published = []
     monkeypatch.setattr(persist, "put_core_staff_dict_counts",
                         lambda core_id, count, tracked: published.append(core_id) or True)
+    # Same reasoning for the STAGE#cores_run#GLOBAL liveness row main() writes at the
+    # end of a real run: it goes through a resource Table rather than the low-level
+    # client the persist seams above use, so it needs its own stub.
+    import utils.dynamodb_helpers as ddb
+    monkeypatch.setattr(ddb, "get_table", lambda *a, **k: MagicMock(name="reciterai"))
 
     run.main(["--core", "14", "--llm-carry-forward"])
     # The publish is a property of the dictionary, not of this run's scored subset, so
