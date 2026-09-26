@@ -52,7 +52,7 @@ mkdir -p "$BUILD_DIR"
 LAMBDAS=(
   # ---- Hot path (6) -------------------------------------------------------
   "reciterai-hot-orchestrator|pipeline_hot.orchestrator|pymysql>=1.1.0 sqlalchemy>=2.0.0|pipeline_hot/__init__.py pipeline_hot/orchestrator.py pipeline_hot/taxonomy_handshake.py pipeline_enrichment/__init__.py pipeline_enrichment/alerting.py taxonomy_v2.json|"
-  "reciterai-hot-score|pipeline_hot.handlers.score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json|"
+  "reciterai-hot-score|pipeline_hot.handlers.score|pymysql>=1.1.0 sqlalchemy>=2.0.0 tqdm>=4.67.0 openai>=2.0.0|pipeline_hot/__init__.py pipeline_hot/handlers/__init__.py pipeline_hot/handlers/score.py score_publications.py taxonomy_v2.json|score_publications"
   # assign also bundles the approved hierarchy_draft_*.json files (step 3b
   # below): both the onboarding Assign fan-out (#80 Phase 2 / PR 4) and the
   # hot path's AssignFanOut Map (#119) run assign_subtopics per topic, which
@@ -223,8 +223,10 @@ build_one() {
   fi
 
   # 4. Strip pre-compiled bytecode from staging (smaller zip + cleaner).
+  # Keep *.dist-info: httpx2 (an openai dependency) calls
+  # importlib.metadata.version("httpx2") at import, so stripping package
+  # metadata crashes every Lambda that imports openai.
   find "$stage" -name '__pycache__' -prune -exec rm -rf {} +
-  find "$stage" -name '*.dist-info' -prune -exec rm -rf {} + 2>/dev/null || true
 
   # 5. Build zip.
   rm -f "$zip_out"
