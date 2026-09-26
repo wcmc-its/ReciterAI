@@ -149,6 +149,10 @@ any LLM call sites in SPS.
 
 ---
 
+## TOPIC# Row Fields
+
+The per-row DynamoDB fields SPS's `etl/dynamodb` reads (`author_position`, subtopic fields, `year`, impact) are specified in `docs/data-model-and-queries.md` § "TOPIC# row attributes (SPS contract)". `author_position` is `first` | `middle` | `last` on every row minted after 2026-09-26, and on older rows once `python -m cli.backfill_topic_author_position --all --apply` has run in that environment. Until then, treat a missing value as unknown, not middle.
+
 ## Schema-Change Coordination
 
 Breaking schema changes receive **30 days advance notice** via the `## Changelog`

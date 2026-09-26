@@ -75,6 +75,7 @@ def test_additive_topic_rows_only_for_new_topic():
     assert len(rows) == 1
     assert rows[0]["PK"]["S"] == f"TOPIC#{NEW}"
     assert rows[0]["faculty_uid"]["S"] == "cwid_aaa"
+    assert rows[0]["author_position"] == {"S": "first"}
 
 
 def test_additive_topic_rows_skip_pub_with_no_authors():

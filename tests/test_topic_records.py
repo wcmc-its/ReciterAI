@@ -88,7 +88,7 @@ def test_synopsis_and_title_omitted_when_absent():
     )
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
-        "rationale", "topic_scores_version", "pmid", "created_at",
+        "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
     }
 
 
@@ -195,7 +195,7 @@ def test_build_topic_records_aggregates_pmid_rows():
     for row in records:
         assert set(row) == {
             "PK", "SK", "faculty_uid", "score",
-            "rationale", "topic_scores_version", "pmid", "created_at",
+            "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
         }
 
 
@@ -274,7 +274,7 @@ def test_impact_keys_omitted_when_score_absent_preserves_historical_shape():
     assert "impact_justification" not in rows[0]
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
-        "rationale", "topic_scores_version", "pmid", "created_at",
+        "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
     }
 
 
@@ -309,3 +309,56 @@ def test_build_topic_records_joins_impact_from_scoring_results():
     )
     assert records[0]["impact_score"] == {"N": "88"}
     assert records[0]["impact_justification"] == {"S": "j"}
+
+
+# --- author_position (SPS "Scholars in this area" ranks on first/last) -------
+
+
+def _positions(authors):
+    rows = build_topic_rows_for_pmid(
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}},
+        authors=authors,
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+    )
+    return {r["faculty_uid"]["S"]: r["author_position"]["S"] for r in rows}
+
+
+def test_author_position_written_for_every_position():
+    """NULL authorPosition is a middle author and reads back as "" or, via
+    extract_author_mapping's str(), "None". Middle is emitted explicitly so a
+    missing attribute only ever means "row predates the field"."""
+    assert _positions([
+        {"cwid": "a", "position": "first"},
+        {"cwid": "b", "position": " LAST "},
+        {"cwid": "c", "position": "middle"},
+        {"cwid": "d", "position": ""},
+        {"cwid": "e", "position": "None"},
+        {"cwid": "f", "position": None},
+        {"cwid": "g"},
+    ]) == {
+        "cwid_a": "first", "cwid_b": "last", "cwid_c": "middle",
+        "cwid_d": "middle", "cwid_e": "middle", "cwid_f": "middle",
+        "cwid_g": "middle",
+    }
+
+
+def test_duplicate_cwid_prefers_first_or_last_over_middle():
+    """Co-first/co-last: a CWID listed twice keeps the first/last position,
+    whichever order the SQL returned them in, and still yields one row."""
+    assert _positions([
+        {"cwid": "a", "position": "middle"},
+        {"cwid": "a", "position": "last"},
+        {"cwid": "b", "position": "first"},
+        {"cwid": "b", "position": ""},
+    ]) == {"cwid_a": "last", "cwid_b": "first"}
+
+
+def test_cold_loader_writes_author_position():
+    records = load_dynamodb.build_topic_records(
+        [{"pmid": "111", "dense_scores": {"cardio": {"score": 0.9}}}],
+        {"111": [{"cwid": "abc1234", "position": "last"}]},
+        "taxonomy_v2", min_score=0.3,
+    )
+    assert records[0]["author_position"] == {"S": "last"}

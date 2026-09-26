@@ -85,9 +85,9 @@ def test_middle_author_row_is_minted_so_first_last_cull_would_overdelete():
 
 def test_author_position_is_not_part_of_topic_row_identity():
     """Row identity is (topic_id, score, pmid, cwid). The same CWID at two
-    different positions collapses to ONE row (dedup on PK+SK), and position
-    appears in neither key nor as an attribute — so the cull cannot and must
-    not key on position."""
+    different positions collapses to ONE row, and position appears in neither
+    key — so the cull cannot and must not key on position. It rides along as
+    the non-key ``author_position`` attribute only."""
     rows = _topic_rows(
         [
             {"cwid": "dup0001", "position": "first"},
@@ -102,6 +102,7 @@ def test_author_position_is_not_part_of_topic_row_identity():
     assert "position" not in row["SK"]["S"]
     # Identity carries the CWID, never the position.
     assert row["SK"]["S"].endswith("#cwid_dup0001")
+    assert row["author_position"] == {"S": "first"}
 
 
 def test_mint_does_not_filter_on_position_value():

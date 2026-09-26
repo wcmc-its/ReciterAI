@@ -23,6 +23,26 @@
 | STAGE#onboarding | `STAGE#onboarding#cwid:{cwid}` | `RUN#{started_at}` | one per onboarding run | #80 Phase 2: new-researcher onboarding workflow row — 5-state terminal status |
 | STAGE#onboarding_detector | `STAGE#onboarding_detector#GLOBAL` | `RUN#{started_at}` | one per detector run | #80 Phase 2: daily onboarding detector — faculty publication-gap scan + ReCiter churn |
 
+### TOPIC# row attributes (SPS contract)
+
+SPS projects TOPIC# rows into `publication_topic`. A missing attribute is silent there (the mapper stores `""`), so this table is the contract. Row builder: `utils/topic_records.py`.
+
+| Attribute | Type | When present | Values / notes |
+|---|---|---|---|
+| `PK`, `SK`, `faculty_uid`, `pmid` | S | always | identity; see Record Types |
+| `score` | N | always | dense relevance, >= the score floor |
+| `rationale` | S | always | may be `""` when the dense score carries none |
+| `topic_scores_version` | S | always | today the static taxonomy version (`taxonomy_v2`); does not identify the minting path |
+| `created_at` | S | always | ISO-8601; the spotlight dirty gate filters on it |
+| `author_position` | S | always (rows minted after 2026-09-26; older rows via `python -m cli.backfill_topic_author_position`) | `first` \| `middle` \| `last`. SPS "Scholars in this area" ranks on first/last. Missing means "row predates the field", never "middle" |
+| `year` | N | when the publication year is known | missing reads as 0 in `spotlight.pool_ranker` (row dropped) |
+| `synopsis`, `title` | S | onboarding and `score_new_topics` rows; not the cold loader | |
+| `impact_score`, `impact_justification` | N, S | once the PMID's IMPACT# row is enriched (build-time join or #212 back-propagation) | |
+| `subtopic_ids`, `primary_subtopic_id`, `subtopic_confidences`, `hierarchy_version` | L/S/M/S | after the Assign stage (`utils/dynamodb_subtopic_migration.update_activity_subtopics`) finds a subtopic above the confidence floor | missing ⇒ the paper appears under no subarea. Re-minted rows lose them until re-assigned |
+| `primary_subtopic_durable_id` | S | #191 flag on | |
+
+Writers other than the builder must use `UpdateItem SET`, never `PutItem`, or they wipe the post-mint attributes above.
+
 ### Global Secondary Indexes
 
 | GSI | HASH | RANGE | Projection | Purpose |

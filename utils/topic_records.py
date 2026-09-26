@@ -37,12 +37,41 @@ ordering — Enrich runs before Score), that value is joined onto every
 representative-paper ranking. When the IMPACT# row has no score yet
 (``TOPIC#``-before-enrichment), the keys are simply omitted and the daily
 back-propagation hook (#212 Part B) fills them when enrichment lands.
+
+``author_position`` (``first`` / ``middle`` / ``last``) is written on every
+row. SPS ranks "Scholars in this area" on first/senior authorships and
+``spotlight.pool_ranker`` prefers them for the lede; both read this attribute.
+``analysis_summary_author.authorPosition`` is {first, last, NULL} and NULL is a
+middle author, so the value is always known and a missing attribute means the
+row predates this field (``cli/backfill_topic_author_position.py``).
 """
 
 from __future__ import annotations
 
 from utils.dynamodb_helpers import make_score_sk, to_decimal
 from utils.iso_clock import now_iso
+
+
+def normalize_author_position(raw) -> str:
+    """Map an ``authorPosition`` value to first/middle/last.
+
+    The source column is {first, last, NULL}; NULL (read back as ``""`` or the
+    string ``"None"``) is a middle author.
+    """
+    p = str(raw or "").strip().lower()
+    return p if p in ("first", "last") else "middle"
+
+
+def author_positions_by_cwid(authors: list) -> dict:
+    """``{cwid: position}`` in first-seen CWID order. A CWID listed at more than
+    one position (co-first/co-last) keeps first/last over middle."""
+    out: dict = {}
+    for author in authors:
+        cwid = author["cwid"]
+        pos = normalize_author_position(author.get("position"))
+        if out.get(cwid, "middle") == "middle":
+            out[cwid] = pos
+    return out
 
 
 def build_topic_rows_for_pmid(
@@ -104,7 +133,6 @@ def build_topic_rows_for_pmid(
     """
     pmid = str(pmid)
     rows: list[dict] = []
-    seen_keys: set = set()
     # A re-score deletes then rewrites this PMID's rows, so created_at means
     # "when this row landed", not "when the publication was first scored" — a
     # re-scored pub reads as dirty to the gate, which is what we want since its
@@ -127,6 +155,8 @@ def build_topic_rows_for_pmid(
         except ValueError:
             year_n = None
 
+    positions = author_positions_by_cwid(authors)
+
     for topic_id, score_data in (dense_scores or {}).items():
         if isinstance(score_data, dict):
             score = score_data.get("score")
@@ -137,13 +167,9 @@ def build_topic_rows_for_pmid(
         if score is None or score < min_score:
             continue
 
-        for author in authors:
-            cwid = author["cwid"]
+        for cwid, position in positions.items():
             pk = f"TOPIC#{topic_id}"
             sk = f"{make_score_sk(score, pmid)}#cwid_{cwid}"
-            if (pk, sk) in seen_keys:
-                continue
-            seen_keys.add((pk, sk))
 
             item = {
                 "PK": {"S": pk},
@@ -154,6 +180,7 @@ def build_topic_rows_for_pmid(
                 "topic_scores_version": {"S": taxonomy_version},
                 "pmid": {"S": pmid},
                 "created_at": {"S": row_created_at},
+                "author_position": {"S": position},
             }
             if synopsis:
                 item["synopsis"] = {"S": str(synopsis)}

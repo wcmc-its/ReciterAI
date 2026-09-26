@@ -91,6 +91,7 @@ def test_materialize_writes_topic_rows_with_title_and_synopsis():
     assert item["faculty_uid"] == {"S": "cwid_abc1234"}
     assert item["synopsis"] == {"S": "a synopsis"}
     assert item["title"] == {"S": "A Title"}
+    assert item["author_position"] == {"S": "first"}
 
 
 def test_materialize_no_authors_is_noop():
