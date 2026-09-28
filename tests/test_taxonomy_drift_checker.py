@@ -25,6 +25,16 @@ from pipeline_taxonomy_drift.checker import (
 from utils.taxonomy import content_hash, topic_ids
 
 
+@pytest.fixture(autouse=True)
+def _stub_field_coverage(monkeypatch):
+    """These tests pin the taxonomy half of run_check. The #406 field-coverage
+    half shares the Scan but writes its own row and alert; it is tested in
+    tests/test_topic_field_coverage.py."""
+    import pipeline_taxonomy_drift.checker as checker
+
+    monkeypatch.setattr(checker, "_check_field_coverage", lambda *a, **k: {"severity": "OK"})
+
+
 def _table_returning(*pages):
     """A MagicMock table whose scan() yields the given pages then stops.
 

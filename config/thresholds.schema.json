@@ -363,6 +363,23 @@
     "spotlight_b1_faculty_or_enabled": {
       "type": "boolean",
       "description": "Spotlight B1 author-resolver rule (#231). When false (default), a paper enters the pool only when BOTH its first AND last byline lead have a non-empty personIdentifier (the legacy WCM-disambiguation presence rule) -- a gate-off run is behavior-identical to today and every emitted author carries a non-empty pid. When true, a paper qualifies when its first OR last author is identity.fullTimeFaculty='yes', unlocking ~1,850 recent faculty papers (mostly faculty-last + external/trainee-first); papers whose leads are neither fulltime faculty are skipped and logged (no_fulltime_faculty_lead). OFF by default because the unlocked papers carry an empty co-lead personIdentifier, which violates spotlight.schema.json's Author.personIdentifier minLength:1 and the SPS headshot-join contract -- flip to true only after the schema is relaxed AND SPS renders pid-less co-authors name-only."
+    },
+    "topic_field_author_position_min_coverage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "#406 daily DRIFT#topic_fields check: a topic whose TOPIC# rows carry author_position on fewer than this fraction is ERROR (Teams card with mention). Tolerates the few stale rows with no authorship left in ReciterDB."
+    },
+    "topic_field_subtopic_min_coverage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "#406 daily DRIFT#topic_fields check: a non-exempt topic whose TOPIC# rows carry primary_subtopic_id on fewer than this fraction is WARN. Set below the steady-state rate (lowest topic 78.6%, 2026-09-28) so it catches a collapse, not normal assign-floor rejections."
+    },
+    "topic_field_subtopic_exempt_topics": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "#406: topics with no subtopic hierarchy, skipped by the primary_subtopic_id floor (their coverage is 0% by design)."
     }
   }
 }

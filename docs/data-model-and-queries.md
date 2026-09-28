@@ -20,6 +20,7 @@
 | LOW_CONFIDENCE_ASSIGNMENT# | `LOW_CONFIDENCE_ASSIGNMENT#{pmid}` | `GLOBAL` | event-volume | Phase 10: PMID whose subtopic-assignment confidence is below floor across all candidates |
 | DRIFT# | `DRIFT#evaluation` | `DAY#YYYY-MM-DD` | one per day | Phase 10: drift evaluator output (rolling-window thresholds, severity, cold-run recommendation) |
 | DRIFT# | `DRIFT#taxonomy` | `DAY#YYYY-MM-DD` | one per day | ADR D5 layer 2: taxonomy-vs-data drift — orphan `TOPIC#` partitions (topic retired but still scored) and unscored taxonomy topics (topic added but never reached prod). Separate partition from `DRIFT#evaluation`, which `pipeline_feedback/sweep.py` consumes |
+| DRIFT# | `DRIFT#topic_fields` | `DAY#YYYY-MM-DD` | one per day | #406: per-topic `TOPIC#` field coverage (`coverage`: `{topic: {rows, author_position, primary_subtopic_id}}`), `violations` against the `topic_field_*` floors in `config/thresholds.json`, `severity` OK/WARN/ERROR, `alert_sent`. Written by the same daily Lambda and Scan as `DRIFT#taxonomy` |
 | STAGE#onboarding | `STAGE#onboarding#cwid:{cwid}` | `RUN#{started_at}` | one per onboarding run | #80 Phase 2: new-researcher onboarding workflow row — 5-state terminal status |
 | STAGE#onboarding_detector | `STAGE#onboarding_detector#GLOBAL` | `RUN#{started_at}` | one per detector run | #80 Phase 2: daily onboarding detector — faculty publication-gap scan + ReCiter churn |
 
