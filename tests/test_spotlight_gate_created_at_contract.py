@@ -22,6 +22,7 @@ SINCE = "2026-07-01T00:00:00Z"
 
 def _build_rows(pmid: str, created_at: str) -> list[dict]:
     return build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid=pmid,
         dense_scores={"aging_geroscience": {"score": 0.9, "rationale": "r"}},
         authors=[{"cwid": "abc1234", "position": "first"}],
@@ -78,6 +79,7 @@ def test_rows_older_than_since_are_excluded():
 
 def test_builder_stamps_created_at_on_every_row():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="333",
         dense_scores={"t1": {"score": 0.9}, "t2": {"score": 0.8}},
         authors=[{"cwid": "abc1234"}, {"cwid": "def5678"}],

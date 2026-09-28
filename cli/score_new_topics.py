@@ -96,6 +96,7 @@ from utils.dynamodb_helpers import (  # noqa: E402
     to_decimal,
 )
 from utils.llm_cost import CostAccumulator  # noqa: E402
+from utils.build_info import minted_by  # noqa: E402
 from utils.topic_records import build_topic_rows_for_pmid  # noqa: E402
 
 logging.basicConfig(
@@ -362,6 +363,7 @@ def build_additive_topic_rows(scored: dict, corpus_by_pmid: dict,
             continue
         pub = corpus_by_pmid.get(pmid, {})
         rows.extend(build_topic_rows_for_pmid(
+            minted_by=minted_by("score_new_topics"),
             pmid=pmid,
             dense_scores=dense,
             authors=authors,

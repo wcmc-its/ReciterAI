@@ -17,6 +17,13 @@ RUN pip install -r requirements.txt \
 
 COPY . .
 
+# Build id for utils.build_info.build_id() (#407) — TOPIC# rows carry it in
+# `minted_by`. .git is dockerignored, so pass it in:
+#   docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) ...
+# Absent, it is empty and build_id() reports "unknown".
+ARG BUILD_SHA=
+ENV RECITERAI_BUILD_SHA=$BUILD_SHA
+
 RUN useradd --create-home --shell /bin/bash --uid 10001 reciterai \
  && chown -R reciterai:reciterai /app
 USER reciterai

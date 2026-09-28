@@ -13,6 +13,7 @@ _AUTHORS = [{"cwid": "abc1234", "position": "first"}]
 
 def test_topic_below_min_score_is_dropped():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}, "neuro": {"score": 0.2}},
         authors=_AUTHORS,
@@ -24,6 +25,7 @@ def test_topic_below_min_score_is_dropped():
 
 def test_one_row_per_qualifying_topic_per_author():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}, "neuro": {"score": 0.8}},
         authors=[
@@ -44,6 +46,7 @@ def test_one_row_per_qualifying_topic_per_author():
 
 def test_sk_format_and_base_attributes():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="12345",
         dense_scores={"cardio": {"score": 0.85, "rationale": "RCT on PAD"}},
         authors=_AUTHORS,
@@ -64,6 +67,7 @@ def test_sk_format_and_base_attributes():
 
 def test_synopsis_and_title_written_when_provided():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -80,6 +84,7 @@ def test_synopsis_and_title_omitted_when_absent():
     """Cold-path parity: load_dynamodb passes neither, so the row keeps
     its historical 7-attribute shape."""
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -89,11 +94,13 @@ def test_synopsis_and_title_omitted_when_absent():
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
         "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
+        "minted_by",
     }
 
 
 def test_plain_float_dense_score_supported():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": 0.9},
         authors=_AUTHORS,
@@ -109,6 +116,7 @@ def test_year_written_as_number_when_known():
     """A row missing `year` reads as 0 in spotlight.pool_ranker and is dropped
     for falling below the recency cutoff, so the attribute must land at birth."""
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -126,6 +134,7 @@ def test_year_omitted_when_unknown_or_unparseable():
     'unknown', and both are wrong to write into a Number attribute."""
     for bad in (None, "", "   ", "n/a"):
         rows = build_topic_rows_for_pmid(
+            minted_by="test@abc1234",
             pmid="111",
             dense_scores={"cardio": {"score": 0.9}},
             authors=_AUTHORS,
@@ -138,6 +147,7 @@ def test_year_omitted_when_unknown_or_unparseable():
 
 def test_no_authors_yields_no_rows():
     assert build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=[],
@@ -148,6 +158,7 @@ def test_no_authors_yields_no_rows():
 
 def test_empty_dense_scores_yields_no_rows():
     assert build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={},
         authors=_AUTHORS,
@@ -158,6 +169,7 @@ def test_empty_dense_scores_yields_no_rows():
 
 def test_duplicate_author_deduped():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=[
@@ -196,6 +208,7 @@ def test_build_topic_records_aggregates_pmid_rows():
         assert set(row) == {
             "PK", "SK", "faculty_uid", "score",
             "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
+        "minted_by",
         }
 
 
@@ -218,6 +231,7 @@ def test_build_topic_records_skips_pubs_without_faculty_authors():
 
 def test_impact_score_and_justification_written_when_provided():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -233,6 +247,7 @@ def test_impact_score_and_justification_written_when_provided():
 def test_impact_score_accepts_int_and_float():
     for val, expected in ((72, "72"), (88.0, "88.0")):
         rows = build_topic_rows_for_pmid(
+            minted_by="test@abc1234",
             pmid="111",
             dense_scores={"cardio": {"score": 0.9}},
             authors=_AUTHORS,
@@ -246,6 +261,7 @@ def test_impact_score_accepts_int_and_float():
 def test_impact_justification_omitted_when_blank_even_if_score_present():
     """Mirrors the stopgap backfill: justification only when present."""
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -262,6 +278,7 @@ def test_impact_keys_omitted_when_score_absent_preserves_historical_shape():
     """TOPIC#-before-enrichment ordering: no impact yet -> historical
     7-attribute shape, Part B back-propagates later."""
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -275,11 +292,13 @@ def test_impact_keys_omitted_when_score_absent_preserves_historical_shape():
     assert set(rows[0]) == {
         "PK", "SK", "faculty_uid", "score",
         "rationale", "topic_scores_version", "pmid", "created_at", "author_position",
+        "minted_by",
     }
 
 
 def test_impact_score_blank_string_treated_as_absent():
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=_AUTHORS,
@@ -316,6 +335,7 @@ def test_build_topic_records_joins_impact_from_scoring_results():
 
 def _positions(authors):
     rows = build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="111",
         dense_scores={"cardio": {"score": 0.9}},
         authors=authors,
@@ -362,3 +382,36 @@ def test_cold_loader_writes_author_position():
         "taxonomy_v2", min_score=0.3,
     )
     assert records[0]["author_position"] == {"S": "last"}
+
+
+# --- minted_by (#407): which path + build minted the row ---------------------
+
+
+def test_minted_by_written_on_every_row():
+    rows = build_topic_rows_for_pmid(
+        minted_by="load_dynamodb@deadbee",
+        pmid="111",
+        dense_scores={"cardio": {"score": 0.9}, "neuro": {"score": 0.8}},
+        authors=[{"cwid": "a", "position": "first"}, {"cwid": "b", "position": ""}],
+        taxonomy_version="taxonomy_v2",
+        min_score=0.3,
+    )
+    assert len(rows) == 4
+    assert {r["minted_by"]["S"] for r in rows} == {"load_dynamodb@deadbee"}
+    # topic_scores_version stays the taxonomy version (readers compare it).
+    assert {r["topic_scores_version"]["S"] for r in rows} == {"taxonomy_v2"}
+
+
+def test_cold_loader_stamps_minted_by_load_dynamodb(monkeypatch):
+    from utils import build_info
+    monkeypatch.setenv("RECITERAI_BUILD_SHA", "cafe123")
+    build_info.build_id.cache_clear()
+    try:
+        records = load_dynamodb.build_topic_records(
+            [{"pmid": "111", "dense_scores": {"cardio": {"score": 0.9}}}],
+            {"111": [{"cwid": "abc1234", "position": "last"}]},
+            "taxonomy_v2", min_score=0.3,
+        )
+    finally:
+        build_info.build_id.cache_clear()
+    assert records[0]["minted_by"] == {"S": "load_dynamodb@cafe123"}

@@ -42,6 +42,7 @@ _ALL_POSITION_AUTHORS = [
 
 def _topic_rows(authors):
     return build_topic_rows_for_pmid(
+        minted_by="test@abc1234",
         pmid="900001",
         dense_scores={"cardio": {"score": 0.9}},
         authors=authors,
