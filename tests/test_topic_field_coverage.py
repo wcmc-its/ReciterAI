@@ -146,3 +146,17 @@ def test_shipped_thresholds_carry_the_keys():
     t = load_thresholds()
     assert 0 < t["topic_field_subtopic_min_coverage"] < t["topic_field_author_position_min_coverage"] <= 1
     assert "oral_craniofacial_health" in t["topic_field_subtopic_exempt_topics"]
+
+
+def test_a_coverage_failure_alerts_without_failing_the_run(monkeypatch):
+    import pipeline_enrichment.alerting as alerting
+
+    calls = []
+    monkeypatch.setattr(alerting, "alert", lambda *a, **k: calls.append(a) or True)
+    table = _table(_rows("a", 10, ap=10, sub=10))
+    result = run_check(table, ["a"], taxonomy_hash="h", day="2026-09-28", thresholds={})
+
+    assert result["severity"] == "OK"  # taxonomy half unaffected
+    assert result["topic_fields"]["severity"] == "ERROR"
+    assert "KeyError" in result["topic_fields"]["error"]
+    assert [c[1] for c in calls] == ["TOPIC# field coverage check failed"]

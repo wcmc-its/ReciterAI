@@ -382,7 +382,23 @@ def run_check(
         if result["row_persisted"]:
             _persist_row(table, day, result)
 
-    result["topic_fields"] = _check_field_coverage(table, day, field_counts, thresholds)
+    # Guarded: the taxonomy row and card are already out. An exception here would
+    # fail the invocation, and EventBridge's async retries would re-Scan and
+    # re-send that card while never writing the coverage row.
+    try:
+        result["topic_fields"] = _check_field_coverage(table, day, field_counts, thresholds)
+    except Exception as exc:
+        logger.exception("topic field coverage check failed")
+        from pipeline_enrichment import alerting
+
+        result["topic_fields"] = {"severity": "ERROR", "error": repr(exc)}
+        result["topic_fields"]["alert_sent"] = alerting.alert(
+            "ERROR",
+            "TOPIC# field coverage check failed",
+            f"The daily coverage check raised {exc!r}; coverage was not measured today. "
+            f"The taxonomy drift check above it completed.",
+            {"source": "pipeline_taxonomy_drift.checker", "day": day},
+        )
     return result
 
 
