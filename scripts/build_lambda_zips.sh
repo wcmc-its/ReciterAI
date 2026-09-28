@@ -20,6 +20,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${REPO_ROOT}/build"
 LAMBDA_IMAGE="public.ecr.aws/lambda/python:3.12"
+BUILD_SHA="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 mkdir -p "$BUILD_DIR"
 
@@ -221,6 +222,11 @@ build_one() {
       || { echo "no hierarchy drafts bundled into assign zip" >&2; exit 1; }
     echo ">> bundled ${n_drafts} hierarchy drafts"
   fi
+
+  # 3c. Stamp the build (#407). utils.build_info.build_id() reads BUILD_SHA
+  #     at the zip root (= the handler's REPO_ROOT); TOPIC# rows carry it in
+  #     `minted_by`. A zip built outside a git checkout gets "unknown".
+  echo "$BUILD_SHA" > "${stage}/BUILD_SHA"
 
   # 4. Strip pre-compiled bytecode from staging (smaller zip + cleaner).
   # Keep *.dist-info: httpx2 (an openai dependency) calls

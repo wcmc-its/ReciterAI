@@ -56,6 +56,7 @@ from utils.dynamodb_helpers import (
     batch_write, release_quarantine, fetch_synopses_for_pmids,
     fetch_synopsis_records, scan_invalid_pmids,
 )
+from utils.build_info import minted_by
 from utils.topic_records import build_topic_rows_for_pmid
 from utils.sql_queries import (
     PUBLICATION_EXTRACTION_SQL, FACULTY_METADATA_SQL,
@@ -780,6 +781,7 @@ def _materialize_topic_rows(
     if not authors:
         return
     rows = build_topic_rows_for_pmid(
+        minted_by=minted_by("score_publications"),
         pmid=pmid,
         dense_scores=dense_scores,
         authors=authors,

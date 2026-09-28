@@ -33,7 +33,8 @@ SPS projects TOPIC# rows into `publication_topic`. A missing attribute is silent
 | `PK`, `SK`, `faculty_uid`, `pmid` | S | always | identity; see Record Types |
 | `score` | N | always | dense relevance, >= the score floor |
 | `rationale` | S | always | may be `""` when the dense score carries none |
-| `topic_scores_version` | S | always | today the static taxonomy version (`taxonomy_v2`); does not identify the minting path |
+| `topic_scores_version` | S | always | today the static taxonomy version (`taxonomy_v2`); does not identify the minting path (see `minted_by`) |
+| `minted_by` | S | always (rows minted after #407; older rows lack it) | `<path>@<build>`. Path: `load_dynamodb` (cold loader), `score_publications` (hot path and onboarding), or `score_new_topics`. Build: `utils.build_info.build_id()`, a short git sha or `unknown`. Additive; SPS ignores it |
 | `created_at` | S | always | ISO-8601; the spotlight dirty gate filters on it |
 | `author_position` | S | always (rows minted after 2026-09-26; older rows via `python -m cli.backfill_topic_author_position`) | `first` \| `middle` \| `last`. SPS "Scholars in this area" ranks on first/last. Missing means "row predates the field", never "middle" |
 | `year` | N | when the publication year is known | missing reads as 0 in `spotlight.pool_ranker` (row dropped) |

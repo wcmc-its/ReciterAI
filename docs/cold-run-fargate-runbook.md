@@ -49,9 +49,11 @@ ECR=$ACCT.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment
 TAG=cold-$(git rev-parse --short HEAD)
 git checkout <the commit with the intended flag state>
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$ACCT.dkr.ecr.us-east-1.amazonaws.com"
-docker build --platform linux/amd64 -t "$ECR:$TAG" .   # X86_64 task — a Mac defaults to arm64, which won't run on Fargate
+docker build --platform linux/amd64 --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t "$ECR:$TAG" .   # X86_64 task — a Mac defaults to arm64, which won't run on Fargate
 docker push "$ECR:$TAG"
 ```
+`BUILD_SHA` becomes the build half of `minted_by` on every TOPIC# row the run mints (#407);
+omit it and the rows read `load_dynamodb@unknown`.
 The cold-run shares the Dockerfile + ECR repo with the enrichment task but is generally a
 **different tag** (different flag state). `out/` is excluded from the build (`.dockerignore`).
 

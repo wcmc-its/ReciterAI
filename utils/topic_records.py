@@ -44,6 +44,13 @@ row. SPS ranks "Scholars in this area" on first/senior authorships and
 ``analysis_summary_author.authorPosition`` is {first, last, NULL} and NULL is a
 middle author, so the value is always known and a missing attribute means the
 row predates this field (``cli/backfill_topic_author_position.py``).
+
+``minted_by`` (``<path>@<build>``, #407) is written on every row: which code
+path minted it (``load_dynamodb``, ``score_publications``, ``score_new_topics``)
+and which build (``utils.build_info.build_id``). ``topic_scores_version`` stays
+the taxonomy version because readers compare it against that, so it cannot
+tell rows from different paths or builds apart. A missing attribute means the
+row predates this field.
 """
 
 from __future__ import annotations
@@ -81,6 +88,7 @@ def build_topic_rows_for_pmid(
     authors: list,
     taxonomy_version: str,
     min_score: float,
+    minted_by: str,
     synopsis: str = "",
     title: str = "",
     year: str | int | None = None,
@@ -102,6 +110,9 @@ def build_topic_rows_for_pmid(
             faculty authors (i.e. ``author_mapping[pmid]``).
         taxonomy_version: stamped on each row as ``topic_scores_version``.
         min_score: dense-score floor; topics scoring below it are dropped.
+        minted_by: ``<path>@<build>`` stamped on each row as ``minted_by``
+            (#407). Required so no caller can mint an unattributed row; build
+            it with ``utils.build_info.minted_by(path)``.
         synopsis: article synopsis; written as the ``synopsis`` attribute
             when non-empty so the Assign subtopic classifier can read it.
         title: article title; written as the ``title`` attribute when
@@ -181,6 +192,7 @@ def build_topic_rows_for_pmid(
                 "pmid": {"S": pmid},
                 "created_at": {"S": row_created_at},
                 "author_position": {"S": position},
+                "minted_by": {"S": minted_by},
             }
             if synopsis:
                 item["synopsis"] = {"S": str(synopsis)}

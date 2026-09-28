@@ -37,3 +37,5 @@ node_modules
 *.log
 .vscode
 .idea
+# A stray local BUILD_SHA must not name the image's build; use --build-arg BUILD_SHA (#407)
+BUILD_SHA

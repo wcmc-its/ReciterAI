@@ -94,6 +94,29 @@ def test_materialize_writes_topic_rows_with_title_and_synopsis():
     assert item["author_position"] == {"S": "first"}
 
 
+def test_materialize_stamps_minted_by_score_publications(monkeypatch):
+    """#407 — the hot path and onboarding both mint through this helper."""
+    from utils import build_info
+    monkeypatch.setenv("RECITERAI_BUILD_SHA", "cafe123")
+    build_info.build_id.cache_clear()
+    client = _ddb_client()
+    try:
+        sp._materialize_topic_rows(
+            client, "reciterai",
+            pmid="12345",
+            dense_scores={"cardio": {"score": 0.9, "rationale": "r"}},
+            authors=_AUTHORS,
+            taxonomy_version="taxonomy_v2",
+            synopsis="s",
+            title="t",
+        )
+    finally:
+        build_info.build_id.cache_clear()
+    request = client.batch_write_item.call_args.kwargs["RequestItems"]["reciterai"]
+    item = request[0]["PutRequest"]["Item"]
+    assert item["minted_by"] == {"S": "score_publications@cafe123"}
+
+
 def test_materialize_no_authors_is_noop():
     client = _ddb_client()
     sp._materialize_topic_rows(

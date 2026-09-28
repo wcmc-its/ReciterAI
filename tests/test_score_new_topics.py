@@ -78,6 +78,23 @@ def test_additive_topic_rows_only_for_new_topic():
     assert rows[0]["author_position"] == {"S": "first"}
 
 
+def test_additive_topic_rows_stamp_minted_by_score_new_topics(monkeypatch):
+    """#407 — rows minted by the additive path name it."""
+    from utils import build_info
+    monkeypatch.setenv("RECITERAI_BUILD_SHA", "cafe123")
+    build_info.build_id.cache_clear()
+    try:
+        rows = snt.build_additive_topic_rows(
+            {"1": {NEW: {"score": 0.8, "rationale": "r"}}},
+            {"1": {"pmid": "1"}},
+            {"1": [{"cwid": "aaa", "position": "first"}]},
+            "taxonomy_v2",
+        )
+    finally:
+        build_info.build_id.cache_clear()
+    assert rows[0]["minted_by"] == {"S": "score_new_topics@cafe123"}
+
+
 def test_additive_topic_rows_skip_pub_with_no_authors():
     scored = {"1": {NEW: {"score": 0.8}}}
     rows = snt.build_additive_topic_rows(scored, {"1": {}}, {"1": []}, "taxonomy_v2")

@@ -38,6 +38,8 @@ out/
 
 # Lambda zip build artifacts — scripts/build_lambda_zips.sh staging + zips
 build/
+# utils.build_info stamp; the zip script writes it into each staging dir (#407)
+BUILD_SHA
 
 # Editor / OS noise
 .DS_Store

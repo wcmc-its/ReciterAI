@@ -44,6 +44,7 @@ from utils.dynamodb_helpers import (
 )
 from utils.sql_queries import TOOL_EXTRACTION_SQL, get_raw_db_connection
 from utils.env_check import load_thresholds
+from utils.build_info import minted_by
 from utils.topic_records import build_topic_rows_for_pmid
 
 logging.basicConfig(
@@ -88,6 +89,7 @@ def build_topic_records(
             continue
 
         pmid_rows = build_topic_rows_for_pmid(
+            minted_by=minted_by("load_dynamodb"),
             pmid=pmid,
             dense_scores=pub.get('dense_scores', {}),
             authors=authors,
