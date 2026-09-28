@@ -61,5 +61,8 @@
   "spotlight_publish_shrink_max_fraction": 0.34,
   "spotlight_publish_min_cards": 8,
   "spotlight_author_resolve_min_ratio": 0.5,
-  "spotlight_b1_faculty_or_enabled": true
+  "spotlight_b1_faculty_or_enabled": true,
+  "topic_field_author_position_min_coverage": 0.99,
+  "topic_field_subtopic_min_coverage": 0.75,
+  "topic_field_subtopic_exempt_topics": ["oral_craniofacial_health"]
 }

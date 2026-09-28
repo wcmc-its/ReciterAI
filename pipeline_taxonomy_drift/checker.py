@@ -40,6 +40,20 @@ value `"taxonomy_v2"`, unchanged across all seven post-creation edits to the
 file. That check would pass on 100% of rows by construction. A check that can
 only return "clean" is worse than no check, so it is omitted rather than faked;
 see the ADR's D5 section for the amendment and the forward-only path.
+
+The same Scan also measures per-topic field coverage (#406) and writes it to a
+separate `DRIFT#topic_fields` row. `author_position` went missing on 69% of
+`TOPIC#` rows for four months (#405) with nothing noticing, because SPS stores a
+missing attribute as `""` without complaint. Floors and exemptions live in
+`config/thresholds.json` (`topic_field_*`; rationale in `config/thresholds.md`):
+
+  author_position     a topic below the floor is ERROR — the builder writes it
+                      on every row, so a gap means a writer regressed.
+  primary_subtopic_id a topic below the floor is WARN. ~9% of rows carry no
+                      subtopic in steady state (no subtopic clears the assign
+                      confidence floor), so the floor catches a collapse, not the
+                      normal rate. Per-topic counts land on the row so slow
+                      erosion is visible there.
 """
 
 from __future__ import annotations
@@ -51,6 +65,8 @@ from typing import Any, Iterable
 logger = logging.getLogger(__name__)
 
 DRIFT_PK = "DRIFT#taxonomy"
+FIELDS_PK = "DRIFT#topic_fields"
+COVERAGE_FIELDS = ("author_position", "primary_subtopic_id")
 
 # `DRIFT#` rows use OK|WARN|ERROR (docs/data-model-and-queries.md); alerting.py
 # accepts INFO|WARN|ERROR and raises ValueError on anything else. "OK" is a valid
@@ -102,6 +118,44 @@ def evaluate(
     }
 
 
+def evaluate_field_coverage(
+    counts: dict[str, dict[str, int]],
+    *,
+    author_position_min: float,
+    subtopic_min: float,
+    subtopic_exempt: Iterable[str] = (),
+) -> dict[str, Any]:
+    """Per-topic coverage against the floors. Pure.
+
+    `counts` is `{topic: {"rows": n, "author_position": k, "primary_subtopic_id": j}}`
+    as filled by `scan_topic_partitions(field_counts=...)`.
+    """
+    exempt = set(subtopic_exempt)
+    violations: list[dict] = []
+    for topic in sorted(counts):
+        c = counts[topic]
+        rows = c.get("rows", 0)
+        if not rows:
+            continue
+        checks = [("author_position", author_position_min, "ERROR")]
+        if topic not in exempt:
+            checks.append(("primary_subtopic_id", subtopic_min, "WARN"))
+        for field, floor, level in checks:
+            covered = c.get(field, 0)
+            if covered < floor * rows:
+                violations.append(
+                    {"topic": topic, "field": field, "covered": covered, "rows": rows, "level": level}
+                )
+    levels = {v["level"] for v in violations}
+    severity = "ERROR" if "ERROR" in levels else "WARN" if levels else "OK"
+    return {
+        "severity": severity,
+        "violations": violations,
+        "coverage": {t: dict(c) for t, c in sorted(counts.items())},
+        "rows": sum(c.get("rows", 0) for c in counts.values()),
+    }
+
+
 def read_catalog_topic_ids(table: Any, taxonomy_version: str) -> set[str] | None:
     """Return the topic ids listed in `TAXONOMY#{version}/META`, or None.
 
@@ -138,7 +192,9 @@ def read_catalog_topic_ids(table: Any, taxonomy_version: str) -> set[str] | None
     return ids or None
 
 
-def scan_topic_partitions(table: Any) -> dict[str, str]:
+def scan_topic_partitions(
+    table: Any, field_counts: dict[str, dict[str, int]] | None = None
+) -> dict[str, str]:
     """Return {topic_id: newest created_at seen} for every `TOPIC#` partition.
 
     A full Scan is unavoidable: the check must *discover* unexpected partitions,
@@ -148,6 +204,11 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
     `created_at` is absent on rows predating the field. It is reported as
     evidence of *when* an orphan was minted, never used to decide whether one
     exists — absence must not read as a violation.
+
+    When `field_counts` is passed it is filled in the same pass with
+    `{topic: {"rows", "author_position", "primary_subtopic_id"}}` — counts of
+    rows carrying a non-empty value — so #406's coverage check costs no second
+    Scan.
     """
     newest: dict[str, str] = {}
     kwargs: dict[str, Any] = {
@@ -156,6 +217,8 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
         "ExpressionAttributeValues": {":p": "TOPIC#"},
         "ProjectionExpression": "#pk, created_at",
     }
+    if field_counts is not None:
+        kwargs["ProjectionExpression"] += ", " + ", ".join(COVERAGE_FIELDS)
     last_key = None
     while True:
         if last_key is not None:
@@ -175,28 +238,33 @@ def scan_topic_partitions(table: Any) -> dict[str, str]:
             if created and created > newest.get(topic, ""):
                 newest[topic] = created
             newest.setdefault(topic, "")
+            if field_counts is not None:
+                c = field_counts.setdefault(topic, {"rows": 0, **{f: 0 for f in COVERAGE_FIELDS}})
+                c["rows"] += 1
+                for f in COVERAGE_FIELDS:
+                    c[f] += bool(item.get(f))
         last_key = resp.get("LastEvaluatedKey")
         if not last_key:
             break
     return newest
 
 
-def _persist_row(table: Any, day: str, result: dict) -> bool:
-    """Write the `DRIFT#taxonomy` row for `day`. Returns False on failure.
+def _persist_row(table: Any, day: str, result: dict, pk: str = DRIFT_PK) -> bool:
+    """Write the `DRIFT#` row for `day`. Returns False on failure.
 
     Callers must not let a write failure abort the check — see run_check.
     """
     try:
         table.put_item(
             Item={
-                "PK": DRIFT_PK,
+                "PK": pk,
                 "SK": f"DAY#{day}",
                 "checked_at": day,
                 **result,
             }
         )
     except Exception:
-        logger.exception("failed to persist %s DAY#%s", DRIFT_PK, day)
+        logger.exception("failed to persist %s DAY#%s", pk, day)
         return False
     return True
 
@@ -208,10 +276,16 @@ def run_check(
     taxonomy_hash: str,
     day: str,
     taxonomy_version: str = "taxonomy_v2",
+    thresholds: dict | None = None,
 ) -> dict:
-    """Scan, evaluate, persist a `DRIFT#taxonomy` row, alert if actionable."""
+    """Scan, evaluate, persist a `DRIFT#taxonomy` row, alert if actionable.
+
+    The field-coverage result (#406) rides back as `result["topic_fields"]`;
+    it is persisted to its own `DRIFT#topic_fields` row, never onto this one.
+    """
     t_start = time.monotonic()
-    newest_by_topic = scan_topic_partitions(table)
+    field_counts: dict[str, dict[str, int]] = {}
+    newest_by_topic = scan_topic_partitions(table, field_counts)
     catalog_ids = read_catalog_topic_ids(table, taxonomy_version)
     result = evaluate(newest_by_topic.keys(), taxonomy_ids, catalog_ids)
     result["taxonomy_hash"] = taxonomy_hash
@@ -308,7 +382,68 @@ def run_check(
         if result["row_persisted"]:
             _persist_row(table, day, result)
 
+    result["topic_fields"] = _check_field_coverage(table, day, field_counts, thresholds)
     return result
+
+
+def _check_field_coverage(table: Any, day: str, field_counts: dict, thresholds: dict | None) -> dict:
+    """#406 — evaluate, persist `DRIFT#topic_fields`, alert. Same persist-then-
+    alert-then-record ordering as the taxonomy check above."""
+    if thresholds is None:
+        from utils.env_check import load_thresholds
+
+        thresholds = load_thresholds()
+    fields = evaluate_field_coverage(
+        field_counts,
+        author_position_min=float(thresholds["topic_field_author_position_min_coverage"]),
+        subtopic_min=float(thresholds["topic_field_subtopic_min_coverage"]),
+        subtopic_exempt=thresholds.get("topic_field_subtopic_exempt_topics", []),
+    )
+    fields["row_persisted"] = _persist_row(table, day, fields, pk=FIELDS_PK)
+    if fields["severity"] not in ALERTABLE:
+        return fields
+
+    from pipeline_enrichment import alerting
+
+    by_field: dict[str, list[str]] = {}
+    for v in fields["violations"]:
+        by_field.setdefault(v["field"], []).append(
+            f"{v['topic']} ({v['covered']}/{v['rows']})"
+        )
+    missing_ap = by_field.get("author_position", [])
+    missing_sub = by_field.get("primary_subtopic_id", [])
+    if missing_ap:
+        title = "TOPIC# rows missing author_position"
+        message = (
+            f"{len(missing_ap)} topic(s) are below the author_position floor: "
+            f"{', '.join(missing_ap)}. SPS ranks 'Scholars in this area' on first/last "
+            f"authorship and stores a missing value as blank, so those papers stop "
+            f"counting. The row builder writes it on every row, so a writer has "
+            f"regressed. Repair with `python -m cli.backfill_topic_author_position --all`."
+        )
+    else:
+        title = "TOPIC# rows missing subtopic assignments"
+        message = (
+            f"{len(missing_sub)} topic(s) are below the primary_subtopic_id floor: "
+            f"{', '.join(missing_sub)}. Those papers appear under no subarea on SPS. "
+            f"Likely rows re-minted without a re-assign, or a failed Assign stage."
+        )
+    fields["alert_sent"] = alerting.alert(
+        fields["severity"],
+        title,
+        message,
+        {
+            "source": "pipeline_taxonomy_drift.checker",
+            "author_position": missing_ap,
+            "primary_subtopic_id": missing_sub,
+            "rows": fields["rows"],
+            "row_persisted": fields["row_persisted"],
+        },
+        mention=bool(missing_ap),
+    )
+    if fields["row_persisted"]:
+        _persist_row(table, day, fields, pk=FIELDS_PK)
+    return fields
 
 
 def handler(event, context):  # pragma: no cover - thin Lambda entrypoint
@@ -322,5 +457,8 @@ def handler(event, context):  # pragma: no cover - thin Lambda entrypoint
         taxonomy_hash=current_content_hash(),
         day=now_iso()[:10],
     )
-    logger.info("taxonomy drift check: %s", result["severity"])
+    logger.info(
+        "taxonomy drift check: %s; topic field coverage: %s",
+        result["severity"], result["topic_fields"]["severity"],
+    )
     return result

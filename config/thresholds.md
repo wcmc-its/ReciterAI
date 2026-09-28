@@ -154,3 +154,19 @@ If you raise this: repeats get rarer, the page broadens to more distinct individ
 ### `spotlight_scholar_lead_depth` (int, default 3)
 
 How many of a subtopic's top impact-ranked papers define its "featured individuals" — the first/last `person_identifier` of the top-N papers. `1` counts only the headline paper's two authors (narrow — the names the lede actually leads with); `3` counts the few papers the card fronts (recommended — this is where the monopoly actually shows up). Bounded above by `pool_top_papers_per_subtopic` (7). The depth is the bigger lever of the two: at depth 1 the live page already barely repeats, so the policy mostly bites at depth ≥ 3.
+
+## TOPIC# field coverage (#406)
+
+Read by the daily `reciterai-taxonomy-drift` Lambda (`pipeline_taxonomy_drift/checker.py`). It reuses the taxonomy check's full `TOPIC#` Scan to count, per topic, the rows carrying a non-empty `author_position` and `primary_subtopic_id`, writes the counts to a `DRIFT#topic_fields` / `DAY#<date>` row, and sends a Teams card when a topic is below a floor.
+
+### `topic_field_author_position_min_coverage` (float, default 0.99)
+
+A topic below this is ERROR, with an @mention. The row builder writes `author_position` on every row (#405), so a gap means a writer regressed; before #405, 69% of rows lacked it for four months with nothing noticing. Not 1.0 because a handful of stale rows have no authorship left in ReciterDB and cannot be backfilled (4 table-wide on 2026-09-28, at most 2 in one topic).
+
+### `topic_field_subtopic_min_coverage` (float, default 0.75)
+
+A non-exempt topic below this is WARN. **Measured 2026-09-28:** 91.2% of rows carry a primary subtopic; the rate is the same for rows minted before July (8.7% without) and after (8–14% without), so the gap is steady state — no subtopic cleared the assign confidence floor — not a leak. The lowest topic with a hierarchy was 78.6% (genetics_genomics_precision_medicine) and 47 of 69 topics were under 95%, so the 95% floor first proposed in #406 would have warned daily on normal behaviour. 0.75 catches a collapse (a failed Assign stage, a topic re-minted without re-assignment). Raise it once the steady-state rate is understood; the per-topic counts on each day's row show the trend.
+
+### `topic_field_subtopic_exempt_topics` (list, default `["oral_craniofacial_health"]`)
+
+Topics with no subtopic hierarchy, so 0% coverage is by design. Remove a topic here when it gains a hierarchy.
