@@ -25,7 +25,7 @@ overlays.
 - **`cold_run_task_iam_policy.json`** (#240) — minimum-privilege policy for the cold-run task role: the enrichment policy's DynamoDB CRUD on `reciterai` + **a new S3 read/write statement** on `wcmc-reciterai-hierarchy/*` and `wcmc-reciterai-artifacts/spotlight/*` (the cold-run is the only ReciterAI task that publishes those artifacts), Secrets Manager read on the DB + OpenAI secrets, and CloudWatch Logs on `/ecs/reciterai-cold`. No `bedrock:InvokeModel` (bearer-token auth, same as enrichment).
 - **`grants_task_definition.json`** (#269) — the Fargate task definition for the **daily grant-opportunity ingest** (`sh -c 'python -m pipeline_grants.ingest; python -m pipeline_grants.ingest_submissions'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 0.5 vCPU / 2 GB (serial Bedrock-I/O loops). See "Grants ingest launch path" below.
 - **`grants_task_iam_policy.json`** (#269) — minimum-privilege policy for the `reciterai-grants-task` role: DynamoDB CRUD on `reciterai`, S3 read/write scoped to `wcmc-reciterai-artifacts/grants/*` + `s3:ListBucket` on the bucket (the shrink guard's `key_exists` probe needs it), CloudWatch Logs on `/ecs/reciterai-grants`. No `bedrock:InvokeModel` (bearer-token auth), no Secrets Manager statement (the one secret is execution-role-injected), no DB secrets (pipeline_grants reads no MariaDB).
-- **`cores_task_definition.json`** — the Fargate task definition for the **daily core-facility usage inference** (`sh -c 'python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 1 vCPU / 4 GB — an unscoped run holds the whole 80,203-publication corpus (title + abstract) in memory from `ingest.fetch_publications`, plus the byline map and two paginated full-table DynamoDB Scans. `--with-llm` is deliberately ABSENT (a corpus-wide LLM pass is ~80k Haiku screens a night; the Bedrock budget for a nightly is an open decision in its own issue), and `--llm-carry-forward` is what stops `put_core_usage` from REMOVE-ing the stored LLM evidence on a run that does not produce it (#384). See "Cores daily run launch path" below.
+- **`cores_task_definition.json`** — the Fargate task definition for the **daily core-facility usage inference** (`sh -c 'python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families --reconcile'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 1 vCPU / 4 GB — an unscoped run holds the whole 80,203-publication corpus (title + abstract) in memory from `ingest.fetch_publications`, plus the byline map and two paginated full-table DynamoDB Scans. `--with-llm` is deliberately ABSENT (a corpus-wide LLM pass is ~80k Haiku screens a night; the Bedrock budget for a nightly is an open decision in its own issue), and `--llm-carry-forward` is what stops `put_core_usage` from REMOVE-ing the stored LLM evidence on a run that does not produce it (#384). See "Cores daily run launch path" below.
 - **`cores_task_iam_policy.json`** — minimum-privilege policy for the `reciterai-cores-task` role: DynamoDB CRUD on `reciterai` (+ `/index/*`) and CloudWatch Logs on `/ecs/reciterai-cores`. The smallest task-role policy in this directory, and the omissions are the content: NO S3 (pipeline_cores publishes no artifact — its output is the DynamoDB rows SPS projects, so there is no `latest/` pointer and no shrink guard), NO Secrets Manager (both secrets are execution-role-injected and nothing in the runtime path calls `GetSecretValue`), NO `bedrock:InvokeModel` (bearer-token auth, and the scheduled command invokes no model at all).
 - **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
 - **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
@@ -252,7 +252,7 @@ one Fargate task (`cores_task_definition.json`, family `reciterai-cores`), sched
 by EventBridge rule `reciterai-cores-daily` (05:00 UTC):
 
 ```bash
-python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families
+python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families --reconcile
 ```
 
 It re-scores every `(publication, core)` pair for core 14 (Research Informatics)
@@ -305,6 +305,26 @@ the 05:00 slot (see the rule's `schedule_comment`).
   schedule, and all seven labels were verified present against it when the flag was
   added, so the live risk today is nil; it stops being nil the day the tools
   pipeline gets a cadence.
+- `--reconcile` demotes what the run did **not** re-surface. Without it a re-score
+  cannot demote: a pair that falls below threshold (or leaves the corpus) is simply
+  not written and keeps its old `candidate`/`confirmed` status forever — the gap the
+  hand-run `demote_core14_stale.py` scripts closed. After `put_core_usage`, one
+  paginated Scan finds core 14's `candidate`/`confirmed` rows with `scored_at` older
+  than this run's single stamp, and each is demoted to `below_threshold` by a
+  conditional UpdateItem (`status IN (candidate, confirmed) AND scored_at = :seen`),
+  so a reviewer's `claimed`/`rejected` — even one written mid-sweep — and a row a
+  concurrent run re-scored are never overwritten. Out-of-corpus pairs are demoted
+  too (decided 2026-09-29; ~19 rows on core 14). SPS's `publication_core` prune then
+  drops the demoted rows from MySQL on its next nightly. **Two safety guards, per
+  core, both logged at ERROR (so the `?ERROR` metric filter below sees them) and
+  neither failing the task:** a core this run surfaced **zero** rows for is never
+  reconciled (indistinguishable from a run that silently scored nothing), and a core
+  whose would-demote count exceeds half of (demoted + re-surfaced) is refused
+  (`--reconcile-max-demote-fraction`, default 0.5 — raise it only for a deliberate
+  operator re-score). run.py **refuses** `--reconcile` with `--test` or
+  `--pmids-file` (exit 2): a partial-corpus run would read every row outside its
+  slice as stale. Needs no IAM change — one more `Scan`, and `UpdateItem`s, both
+  already granted.
 - `--with-llm` is **deliberately absent.** `signals.llm_triage` makes one Haiku
   screen call per publication it is handed and a Sonnet dense-score call for each
   one at or above `SCREEN_CUTOFF`; with no `--pmids-file` the pool is the whole
@@ -456,9 +476,16 @@ scope tomorrow morning with no deploy.
      should be the FULL corpus (~80,203). A materially smaller number means the
      corpus query was scoped, not that the core got smaller.
    - `wrote <n> (publication, core) records to DynamoDB` — `<n>` = `<c>` + `<k>`
-     from the line above, because only surfaced rows are persisted. It is a
-     re-score, not a reset: pairs that fall below threshold are simply not written,
-     so core 14's live row count moves by deltas and never drops to `<n>`.
+     from the line above, because only surfaced rows are persisted. Pairs that fall
+     below threshold are not written; `--reconcile` is what moves them.
+   - `reconcile: core 14 demoted <x>, skipped <y> (condition failed)` — `<x>` is the
+     rows the run stopped surfacing. Expect it LARGE on the first tick with the flag
+     (the backlog of stale candidates since 09-15, plus ~19 out-of-corpus pairs) and
+     small after. `<y>` is rows claimed/rejected or re-scored between the Scan and the
+     write, normally 0. `reconcile: core 14 REFUSED` at ERROR means a safety guard
+     fired and nothing was demoted — read its reason before re-running with a higher
+     `--reconcile-max-demote-fraction`. SPS's next nightly should then log a
+     `publication_core prune: removed N` close to `<x>`.
    - **Wall clock, measured against 07:00 UTC.** The 2h window before SPS's nightly
      is an assumption until this number exists. If the run overruns it, move THIS
      cron earlier — never the SPS nightly.

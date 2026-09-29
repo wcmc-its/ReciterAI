@@ -20,6 +20,7 @@ from pipeline_cores.models import (
     STATUS_BELOW,
     STATUS_CANDIDATE,
     STATUS_CLAIMED,
+    STATUS_CONFIRMED,
     STATUS_REJECTED,
     CoreUsageRecord,
     SignalResult,
@@ -211,6 +212,117 @@ def put_core_usage(records: list, *, client=None, table_name: str = TABLE_NAME) 
             guarded, len(records), "/".join(_HUMAN_STATUSES),
         )
     return len(records)
+
+
+# The statuses the reconcile sweep may demote: the two SURFACED statuses the engine
+# itself writes. Disjoint from _HUMAN_STATUSES by construction, and asserted so at
+# import: a human status added to this tuple would let a nightly overwrite a
+# reviewer's decision, which is the one thing #386 exists to prevent.
+_RECONCILE_STATUSES = (STATUS_CANDIDATE, STATUS_CONFIRMED)
+assert not set(_RECONCILE_STATUSES) & set(_HUMAN_STATUSES), "reconcile must never touch a human status"
+
+
+def scan_stale_core_rows(core_ids, before: str, *, client=None,
+                         table_name: str = TABLE_NAME) -> dict:
+    """{core_id: [{"PK", "SK", "pmid", "scored_at"}]} — the surfaced engine rows of
+    `core_ids` whose `scored_at` is strictly older than `before`.
+
+    The READ half of `run.py --reconcile`. `before` is the run's single `scored_at`
+    stamp: every row `put_core_usage` wrote this run carries exactly that value, so
+    `scored_at < before` is "surfaced by an earlier run and not re-surfaced by this
+    one". Rows with NO scored_at never match (a missing attribute fails the
+    comparison), and neither does anything outside `_RECONCILE_STATUSES` — human
+    `claimed`/`rejected` and existing `below_threshold` rows are not returned at all.
+
+    ONE paginated Scan per run, grouped by core in memory — the same trade as
+    `scan_prior_core_usage` — rather than one full-table Scan per core. The SK filter
+    is exact (`CORE#{id}`), so the `CORE#{id}/CLIENTS` and `STAFF_DICT` config items
+    (PK=CORE#, not SK=CORE#) can never be returned.
+
+    RAISES on error. A degraded (empty) result here would only mean "demote nothing",
+    which is safe — but a PARTIAL one (a throttle mid-pagination swallowed) would skew
+    the fraction guard in run.py, so the posture is the same as scan_core_llm_scores:
+    fail, and let the next night catch up.
+    """
+    client = client or get_dynamo_client()
+    wanted = {str(c) for c in core_ids}
+    eav = {":before": {"S": before}}
+    for i, s in enumerate(_RECONCILE_STATUSES):
+        eav[f":s{i}"] = {"S": s}
+    status_in = ", ".join(f":s{i}" for i in range(len(_RECONCILE_STATUSES)))
+    if len(wanted) == 1:
+        (only,) = wanted
+        sk_filt = "SK = :sk"
+        eav[":sk"] = {"S": f"CORE#{only}"}
+    else:
+        sk_filt = "begins_with(SK, :sk)"
+        eav[":sk"] = {"S": "CORE#"}
+    kwargs = {
+        "TableName": table_name,
+        "ProjectionExpression": "PK, SK, pmid, scored_at",
+        "FilterExpression": f"{sk_filt} AND #st IN ({status_in}) AND scored_at < :before",
+        "ExpressionAttributeNames": {"#st": "status"},
+        "ExpressionAttributeValues": eav,
+    }
+    out: dict = {c: [] for c in wanted}
+    while True:
+        resp = client.scan(**kwargs)
+        for it in resp.get("Items", []):
+            cid = it["SK"]["S"][len("CORE#"):]
+            if cid not in wanted:
+                continue
+            pk = it["PK"]["S"]
+            out[cid].append({
+                "PK": pk,
+                "SK": it["SK"]["S"],
+                "pmid": it.get("pmid", {}).get("S") or pk[len("PUB#"):],
+                "scored_at": it["scored_at"]["S"],
+            })
+        lek = resp.get("LastEvaluatedKey")
+        if not lek:
+            break
+        kwargs["ExclusiveStartKey"] = lek
+    return out
+
+
+def demote_stale_core_rows(rows, *, client=None, table_name: str = TABLE_NAME) -> tuple:
+    """Demote each row to `below_threshold`. Returns (demoted, skipped).
+
+    The WRITE half of `run.py --reconcile`: one conditional UpdateItem per row,
+    `SET status = below_threshold` and nothing else — likelihood and the evidence
+    attributes stay as the last scoring run left them, so a demoted row still says
+    what it was demoted FROM.
+
+    The ConditionExpression re-checks, at write time, the two facts the Scan saw:
+    - `status IN (candidate, confirmed)` — a reviewer's `claimed`/`rejected` written
+      between the Scan and this write (SPS claim-writeback) is never overwritten. This
+      clause is the human-status guard; the Scan's filter alone is not, because the
+      Scan is a snapshot.
+    - `scored_at = :seen` — a row a concurrent run re-scored in the meantime is fresh
+      evidence, not stale, and is left alone.
+    Either failing is a ConditionalCheckFailedException, counted as skipped.
+    """
+    client = client or get_dynamo_client()
+    demoted = skipped = 0
+    for row in rows:
+        try:
+            client.update_item(
+                TableName=table_name,
+                Key={"PK": {"S": row["PK"]}, "SK": {"S": row["SK"]}},
+                UpdateExpression="SET #st = :below",
+                ConditionExpression="#st IN (:cand, :conf) AND scored_at = :seen",
+                ExpressionAttributeNames={"#st": "status"},
+                ExpressionAttributeValues={
+                    ":below": {"S": STATUS_BELOW},
+                    ":cand": {"S": STATUS_CANDIDATE},
+                    ":conf": {"S": STATUS_CONFIRMED},
+                    ":seen": {"S": row["scored_at"]},
+                },
+            )
+            demoted += 1
+        except client.exceptions.ConditionalCheckFailedException:
+            skipped += 1
+    return demoted, skipped
 
 
 def put_candidate(pmid, core_id, *, confidence, band, prior, likelihood,
