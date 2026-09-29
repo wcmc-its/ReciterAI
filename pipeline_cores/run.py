@@ -2,8 +2,10 @@
 
     python3 -m pipeline_cores.run --core 2 --test 200 --dry-run
     python3 -m pipeline_cores.run --core 2 --with-llm        # full run (Bedrock + DynamoDB)
-    python3 -m pipeline_cores.run --core 14 --llm-carry-forward   # nightly: ZERO Bedrock calls,
-                                                                  # stored LLM evidence preserved
+    python3 -m pipeline_cores.run --core 14 --with-affinity --alias-search \
+        --llm-carry-forward --with-method-families --reconcile
+        # nightly: ZERO Bedrock calls, stored LLM evidence preserved, and rows this
+        # run did not re-surface demoted to below_threshold
 
 Signals layer in by cost/precision:
   coauthorship (free, deterministic) + acknowledgement (full text, deterministic)
@@ -281,6 +283,94 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     return out
 
 
+# --reconcile's second guard (the first is "this run surfaced zero rows for the core").
+# 0.5 is not fitted: it is "more stale than fresh means the RUN is suspect, not the
+# rows". Core 14's nightly is expected well under it (2026-09-29 probe: ~1,620
+# re-surfaced vs ~2,334 open, so roughly 0.3 on the first sweep and near 0 after).
+RECONCILE_MAX_DEMOTE_FRACTION = 0.5
+
+
+def reconcile_stale_rows(cores, surfaced, scored_at: str, *, dry_run: bool,
+                         max_demote_fraction: float = RECONCILE_MAX_DEMOTE_FRACTION,
+                         client=None) -> dict:
+    """The `--reconcile` sweep: demote what this run did not re-surface.
+
+    run.py persists only confirmed/candidate records, so a pair that falls below
+    threshold (or leaves the corpus) is never written and keeps its old status forever
+    — the gap `demote_core14_stale.py` and friends were hand-run to close. This closes
+    it in-band: for each scored core, every candidate/confirmed row whose scored_at is
+    older than this run's single stamp is conditionally demoted to below_threshold
+    (persist.demote_stale_core_rows — the condition protects human claimed/rejected
+    rows and rows a concurrent run re-scored). That INCLUDES out-of-corpus pairs the
+    engine no longer scores: decided 2026-09-29 (rescore plan, decision 4) — they are
+    stale by the same definition, and a human decision on one is still protected.
+
+    Pairs this run surfaced are excluded by pmid as well as by stamp. On a real run the
+    stamp alone suffices; under dry_run nothing was written, so every live row is
+    "older" and the pmid set is what keeps the would-demote count honest.
+
+    SAFETY GUARDS, per core, both logged at ERROR (the cores metric filter matches
+    `?ERROR`) and neither failing the run — the scoring write already landed, and a
+    refused sweep only means stale rows wait another night:
+    1. ZERO SURFACED. A core this run surfaced nothing for, while it still has open
+       rows, is refused outright. A deterministic run can legitimately surface nothing
+       for a core with no tracked staff and no cached aliases, but it is
+       indistinguishable here from a run that silently failed (empty corpus read, an
+       NCBI outage zeroing the only signal), and reconciling it would empty the core.
+       Not overridable: a deliberate "demote everything" is an operator script, not a
+       nightly side-effect.
+    2. FRACTION. A core whose would-demote count exceeds `max_demote_fraction` of
+       (would-demote + re-surfaced) is refused: a run that suddenly surfaces a small
+       slice of what it used to is more likely broken than right. Overridable with
+       --reconcile-max-demote-fraction for a deliberate re-score (cores 1-13 onto the
+       run.py scale is expected to trip it).
+
+    Returns {core_id: {"stale", "surfaced", "demoted", "skipped", "refused"}}.
+    """
+    from pipeline_cores.persist import demote_stale_core_rows, scan_stale_core_rows  # lazy
+
+    fresh = defaultdict(set)
+    for r in surfaced:
+        fresh[str(r.core_id)].add(str(r.pmid))
+    core_ids = [str(c.core_id) for c in cores]
+    stale_by_core = scan_stale_core_rows(core_ids, scored_at, client=client)
+
+    out = {}
+    for cid in core_ids:
+        stale = [row for row in stale_by_core.get(cid, []) if row["pmid"] not in fresh[cid]]
+        n_fresh = len(fresh[cid])
+        res = out[cid] = {"stale": len(stale), "surfaced": n_fresh, "demoted": 0,
+                          "skipped": 0, "refused": None}
+        if not stale:
+            logger.info("reconcile: core %s nothing to demote (%d re-surfaced this run)",
+                        cid, n_fresh)
+            continue
+        if n_fresh == 0:
+            res["refused"] = "zero_surfaced"
+            logger.error(
+                "reconcile: core %s REFUSED — this run surfaced 0 rows for it but %d open "
+                "rows are live; reconciling would demote the whole core. Left untouched "
+                "(a run that silently scored nothing looks exactly like this)", cid, len(stale))
+            continue
+        frac = len(stale) / (len(stale) + n_fresh)
+        if frac > max_demote_fraction:
+            res["refused"] = "fraction"
+            logger.error(
+                "reconcile: core %s REFUSED — would demote %d vs %d re-surfaced (%.0f%% > "
+                "--reconcile-max-demote-fraction %.0f%%). Left untouched; if this re-score "
+                "is deliberate, re-run with a higher fraction", cid, len(stale), n_fresh,
+                frac * 100, max_demote_fraction * 100)
+            continue
+        if dry_run:
+            logger.info("reconcile: core %s would demote %d (dry run — nothing written; "
+                        "%d re-surfaced)", cid, len(stale), n_fresh)
+            continue
+        res["demoted"], res["skipped"] = demote_stale_core_rows(stale, client=client)
+        logger.info("reconcile: core %s demoted %d, skipped %d (condition failed)",
+                    cid, res["demoted"], res["skipped"])
+    return out
+
+
 def read_pmids_file(path: str) -> list:
     """PMIDs from a newline-separated file; blanks and `#` comments ignored.
 
@@ -339,6 +429,7 @@ def _write_run_record(args, *, cores, started_at: str, t_start: float,
             "alias_search": args.alias_search,
             "with_method_families": args.with_method_families,
             "with_affinity": args.with_affinity,
+            "reconcile": args.reconcile,
         })
         write_complete(
             # A resource Table, not the low-level client persist.py builds:
@@ -410,10 +501,35 @@ def main(argv=None):
                          "screen calls) but lost screen recall on the 237-pilot (TP regressions collapse "
                          "to score 1) — OFF by default until re-calibrated to per-core parity")
     ap.add_argument("--dry-run", action="store_true", help="do not write to DynamoDB")
+    ap.add_argument("--reconcile", action="store_true",
+                    help="after the write, demote to below_threshold every candidate/confirmed "
+                         "row of each scored core that THIS run did not re-surface (scored_at "
+                         "older than this run's). run.py otherwise never demotes: a pair that "
+                         "falls below threshold is simply not written and stays in the queue at "
+                         "its old status. Human claimed/rejected rows are never touched. Also "
+                         "demotes pairs no longer in the corpus. FULL-CORPUS RUNS ONLY: refused "
+                         "with --test / --pmids-file. Under --dry-run it prints the would-demote "
+                         "count per core and writes nothing")
+    ap.add_argument("--reconcile-max-demote-fraction", type=float,
+                    default=RECONCILE_MAX_DEMOTE_FRACTION,
+                    help="safety guard for --reconcile: refuse to reconcile a core when the rows "
+                         "it would demote exceed this fraction of (demoted + re-surfaced) "
+                         f"(default {RECONCILE_MAX_DEMOTE_FRACTION}). Raise it to 1.0 only for a "
+                         "deliberate operator re-score expected to empty most of a core's queue")
     ap.add_argument("--threshold", type=float, default=None,
                     help="override the candidate threshold for every core (default: the "
                          "core's own triage_threshold, else combine.DEFAULT_TRIAGE_THRESHOLD)")
     args = ap.parse_args(argv)
+    if args.reconcile and (args.test is not None or args.pmids_file):
+        # Before ANY work. A partial-corpus run writes only the pairs in its slice, so
+        # every other open row of the core looks "not re-surfaced" to the sweep — a
+        # --test 500 run would demote nearly the whole queue. Refused, not warned: there
+        # is no partial-corpus run whose reconcile would be correct.
+        ap.error("--reconcile needs a FULL-corpus run: it demotes every row this run did "
+                 "not re-surface, so with --test/--pmids-file it would demote everything "
+                 "outside the slice")
+    if not 0.0 <= args.reconcile_max_demote_fraction <= 1.0:
+        ap.error("--reconcile-max-demote-fraction must be between 0 and 1")
 
     # Without this the module loggers are silent: the root logger defaults to WARNING
     # with only lastResort, so persist.py's logger.info lines — the #386 guard's count
@@ -544,10 +660,20 @@ def main(argv=None):
         # DynamoDB, and the liveness row is the one write whose presence would be
         # worse than its absence: it would tell SPS's board that the nightly ran and
         # persisted on a run that persisted nothing.
+        if args.reconcile:
+            reconcile_stale_rows(cores, surfaced, scored_at, dry_run=True,
+                                 max_demote_fraction=args.reconcile_max_demote_fraction)
     else:
         from pipeline_cores.persist import put_core_usage  # lazy
         written = put_core_usage(surfaced)
         print(f"wrote {written} (publication, core) records to DynamoDB")
+        # After the write, never before: the sweep's "stale" test is `scored_at <` this
+        # run's stamp, which only means "not re-surfaced" once this run's rows carry it.
+        # Before the run record: the sweep is part of the run, so a Scan failure here
+        # leaves no liveness row (the stale rows simply wait for the next night).
+        if args.reconcile:
+            reconcile_stale_rows(cores, surfaced, scored_at, dry_run=False,
+                                 max_demote_fraction=args.reconcile_max_demote_fraction)
         # After the data write, and only if it returned: the row asserts "this run
         # finished", so a run that died inside put_core_usage must leave none behind.
         _write_run_record(args, cores=cores, started_at=started_at, t_start=t_start,

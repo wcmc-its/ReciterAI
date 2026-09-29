@@ -256,27 +256,50 @@ evidence *against*. That is the whole point of the conditional terms.
                               ▼                                            │
    (absent) ──────────────► candidate ───────────────────────────────► confirmed
                               │  ▲                P >= confirm_threshold
-                              │  └──── below_threshold  (operator reconcile
-                              │            scripts ONLY — nothing in this package)
+                              │  └──── below_threshold  (`run.py --reconcile`:
+                              │            not re-surfaced by a full-corpus run)
                               ├──► claimed   (human, in SPS) ─┐
                               └──► rejected  (human, in SPS) ─┴─► engine never overwrites (#386)
 ```
 
 | status | written by | meaning |
 |---|---|---|
-| `below_threshold` | **nothing in this package** — see below | scored, too low to surface |
+| `below_threshold` | `run.py --reconcile` only — see below | scored, too low to surface (or no longer in the corpus) |
 | `candidate` | `run.py` and `batch_screen` | in the review queue |
 | `confirmed` | `run.py` | cleared `confirm_threshold` on evidence alone |
 | `claimed` | SPS (human) | a reviewer said yes — engine reads it, never writes it |
 | `rejected` | SPS (human) | a reviewer said no |
 
-**`below_threshold` is never written by `pipeline_cores`.** `combine.combine()` can return
-it, but `run.py` persists only `confirmed`/`candidate` and `put_candidate` always writes
-`candidate` (drop-band pairs are skipped entirely). It has been that way since the first
-commit. The status exists in the live table anyway — 4,407 rows, **all on core 14 and none
-on any other core** — because out-of-band operator scripts wrote them during the core-14
-work (`demote_core14_stale.py` and friends, the reconcile pass that exists precisely
-because a re-score cannot demote).
+**`below_threshold` is written only by the `--reconcile` sweep.** `combine.combine()` can
+return it, but `run.py` persists only `confirmed`/`candidate` and `put_candidate` always
+writes `candidate` (drop-band pairs are skipped entirely), so a re-score on its own cannot
+demote. Until 2026-09-29 nothing in this package wrote the status at all; the 4,407 live
+rows it held then — **all on core 14** — came from out-of-band operator scripts
+(`demote_core14_stale.py` and friends). `run.py --reconcile` is those scripts moved
+in-band:
+
+- After `put_core_usage`, ONE paginated Scan (`persist.scan_stale_core_rows`) finds each
+  scored core's `candidate`/`confirmed` rows whose `scored_at` is older than this run's
+  single stamp (`now_iso()` once per run) — i.e. rows this run did not re-surface,
+  **including pairs no longer in the corpus** (decided 2026-09-29).
+- Each is demoted by a conditional UpdateItem (`persist.demote_stale_core_rows`):
+  `SET status = below_threshold` only, condition `status IN (candidate, confirmed) AND
+  scored_at = :seen`. A reviewer's `claimed`/`rejected` — even one SPS writes back between
+  the Scan and the write — and a row a concurrent run re-scored are never overwritten;
+  either counts as `skipped`. One log line per core:
+  `reconcile: core N demoted X, skipped Y (condition failed)`.
+- **Refused outright** (argparse error, before any work) with `--test` or `--pmids-file`:
+  a partial-corpus run would read every row outside its slice as stale. Under `--dry-run`
+  it prints `would demote X` per core and writes nothing (it still Scans).
+- **Two per-core safety guards**, logged at ERROR, neither failing the run: a core this
+  run surfaced **zero** rows for is never reconciled (a run that silently scored nothing
+  looks exactly like that — not overridable), and a core whose would-demote count exceeds
+  `--reconcile-max-demote-fraction` (default 0.5) of (demoted + re-surfaced) is refused.
+  Raise the fraction only for a deliberate re-score expected to empty most of a queue
+  (cores 1–13 onto the run.py scale will need it).
+- Cores the run did not score are never touched. A core with no tracked staff and no
+  cached aliases can surface nothing on a deterministic run, so the zero guard leaves its
+  stale rows in place — clearing those is an operator decision, not a nightly side-effect.
 
 That matters for reading queue growth: those rows are the residue of a *manual* demotion,
 and a corpus-wide `run.py` pass re-scores them and promotes a large share back. The first
@@ -368,9 +391,10 @@ likelihood, `scored_at` and the evidence still refresh under a reviewer's decisi
 the decision itself stands. Engine statuses stay fully mutable: a `confirmed` row can
 still be re-scored down to `candidate`.
 
-**`run.py` never writes `below_threshold`.** Only `confirmed`/`candidate` are persisted,
-so a re-score cannot demote a row out of the queue, and there is no record of "scored and
-rejected" anywhere. That second fact is why no "only score what is new" flag can bound a
+**`run.py` never writes `below_threshold` from a score.** Only `confirmed`/`candidate` are
+persisted, so a re-score alone cannot demote a row out of the queue (that is
+`--reconcile`'s job, see the lifecycle section), and a pair that was never surfaced has no
+record of "scored and rejected" anywhere. That second fact is why no "only score what is new" flag can bound a
 corpus-wide LLM pass: 79,860 of the 80,203 corpus publications carry no stored `llm_score`
 on any given night (#388).
 
@@ -387,7 +411,8 @@ Those `below_threshold` rows came from the operator reconcile scripts (see the l
 section), **not** from `batch_screen`, which has never written to core 14 at all — its
 `prefilter_prior` count there is 0. So a corpus-wide `run.py` pass promoting a large share
 of them back is the engine re-litigating a hand demotion. Measured full-corpus: 1,434
-candidates against ~63 open before it. Not reconciled; read queue growth with this in mind
+candidates against ~63 open before it. Not reconciled at the time (the nightly gained
+`--reconcile` on 2026-09-29); read queue growth with this in mind
 and check `scored_at` vintage before concluding the model changed its mind.
 
 ## Data flow
@@ -509,8 +534,10 @@ python3 -m pipeline_cores.run --core 2 --with-llm             # Bedrock + Dynamo
 
 # THE SCHEDULED NIGHTLY (reciterai-cores-daily, 05:00 UTC). Core 14 only, corpus-wide,
 # and ZERO Bedrock calls: --llm-carry-forward re-emits the stored LLM evidence that
-# put_core_usage would otherwise REMOVE from every row it re-surfaces.
-python3 -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward
+# put_core_usage would otherwise REMOVE from every row it re-surfaces; --reconcile then
+# demotes the rows this run did not re-surface (full-corpus runs only).
+python3 -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward \
+    --with-method-families --reconcile
 
 # A2 method families (#394). One 26 MB S3 read per run, no Bedrock, every weight 0.00 —
 # it writes the method_* attributes and changes no score or status. CARRY IT once
@@ -629,4 +656,4 @@ Infra and the nightly: `infra/README.md`, "Cores daily run launch path".
 | — | `batch_screen` and `run.py` write `likelihood` on different scales (above) |
 | — | per-author **time decay** in affinity: needs publication year carried through `scan_prior_core_usage` and a half-life calibrated on `analysis/labeled_set.csv`. Do not guess the decay |
 | — | `ack_section` is extracted but unpriced; `run.py` does not pass the XML through |
-| — | a scoped run (`--pmids-file`) can neither surface a pair outside its set nor demote one — never use it to generate a pool |
+| — | a scoped run (`--pmids-file`) can neither surface a pair outside its set nor demote one — never use it to generate a pool (and `--reconcile` is refused on one) |

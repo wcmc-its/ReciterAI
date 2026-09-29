@@ -230,8 +230,15 @@ def test_default_command_is_the_nightly_invocation(container):
         "sh",
         "-c",
         "python -m pipeline_cores.run --core 14 --with-affinity --alias-search "
-        "--llm-carry-forward --with-method-families",
+        "--llm-carry-forward --with-method-families --reconcile",
     ]
+
+
+def test_the_nightly_reconciles_what_it_stopped_surfacing(command):
+    """run.py persists only confirmed/candidate rows, so without --reconcile a pair the
+    nightly stops surfacing keeps its old status forever and stays in the claim queue
+    (and an engine `confirmed` stays public). The sweep is the only in-band demote."""
+    assert "--reconcile" in command
 
 
 def test_the_nightly_asks_for_the_method_family_signal(command):
