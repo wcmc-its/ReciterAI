@@ -129,7 +129,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              # TRAP: mesh_index=None records NO mesh_evidence, and mesh_evidence is in
              # _OWNED_ATTRS — a second caller that forgets this kwarg makes put_core_usage
              # REMOVE it from every row an earlier run wrote. One caller today: main().
-             mesh_index: dict = None):
+             mesh_index: dict = None, triage_only: set = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -154,6 +154,10 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     None when --with-method-families is off. Looking a pmid up in it is a dict access,
     so phase 1 asks for every pub either way and an absent index simply answers with
     nothing.
+
+    triage_only narrows the carry-forward triage to these pmids (str) — main()'s
+    --llm-triage-candidates-only passes the pmids a no-LLM pass surfaced. None means no
+    narrowing.
 
     mesh_index is the same shape for MeSH descriptors
     (prefilter.core_mesh_tree_descriptors), but built PER CORE — the E-tree prefixes are
@@ -189,11 +193,13 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         # put_core_usage REMOVEs the evidence while this line still reports it carried.
         # ingest.fetch_publications str()s them today; this keeps that from being load-bearing.
         carry_forward = {str(k): v for k, v in carry_forward.items()}
-        todo = [p for p in pubs if str(p["pmid"]) not in carry_forward]
+        todo = [p for p in pubs if str(p["pmid"]) not in carry_forward
+                and (triage_only is None or str(p["pmid"]) in triage_only)]
         llm_scores = signals.llm_triage(bedrock, core, todo, screen_map=screen_map,
                                         max_workers=llm_workers) if bedrock else {}
         llm_scores.update(carry_forward)
-        print(f"[{core.core_id} {core.name}] llm: {len(pubs) - len(todo)} carried forward, "
+        print(f"[{core.core_id} {core.name}] llm: "
+              f"{sum(1 for p in pubs if str(p['pmid']) in carry_forward)} carried forward, "
               f"{len(todo) if bedrock else 0} triaged")
 
     # Curated clients, intersected with each byline below. Asserted rather than
@@ -281,6 +287,9 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
         out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
                                     core=core, triage_threshold=threshold))
     return out
+
+
+SURFACED_STATUSES = ("confirmed", "candidate")
 
 
 # --reconcile's second guard (the first is "this run surfaced zero rows for the core").
@@ -472,6 +481,12 @@ def main(argv=None):
                          "not produce (#384), stripping the chip the review queue rests on. "
                          "WITH --with-llm it triages only the pubs that have no stored score, "
                          "so the same flag covers both the nightly and an incremental top-up")
+    ap.add_argument("--llm-triage-candidates-only", action="store_true",
+                    help="with --with-llm --llm-carry-forward: triage only the unscored pubs a "
+                         "no-LLM pass already surfaces as candidate/confirmed, instead of every "
+                         "unscored pub in the corpus (~80k Haiku screens, #388). Costs one extra "
+                         "no-LLM scoring pass. Rows it scores below threshold are still written "
+                         "(below_threshold + llm_score), so they are never re-triaged")
     ap.add_argument("--llm-workers", type=int, default=8,
                     help="concurrent Bedrock triage workers (default 8; lower if Bedrock throttles)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
@@ -528,6 +543,10 @@ def main(argv=None):
         ap.error("--reconcile needs a FULL-corpus run: it demotes every row this run did "
                  "not re-surface, so with --test/--pmids-file it would demote everything "
                  "outside the slice")
+    if args.llm_triage_candidates_only and not (args.with_llm and args.llm_carry_forward):
+        # Without carry-forward every candidate is re-triaged every night; without
+        # --with-llm there is nothing to narrow.
+        ap.error("--llm-triage-candidates-only needs --with-llm and --llm-carry-forward")
     if not 0.0 <= args.reconcile_max_demote_fraction <= 1.0:
         ap.error("--reconcile-max-demote-fraction must be between 0 and 1")
 
@@ -638,24 +657,39 @@ def main(argv=None):
         # lands exactly there — an unbounded join for a run with nothing to score.
         mesh_index = prefilter.core_mesh_tree_descriptors(
             engine, core.core_id, [p["pmid"] for p in pubs]) if pubs else {}
-        recs = run_core(core, pubs, bedrock=bedrock, full_text=core_full_text,
-                        threshold=args.threshold, scored_at=scored_at, engine=engine,
-                        prior_user_pmids=prior_pmids, screen_map=screen_map,
-                        llm_workers=args.llm_workers, dry_run=args.dry_run,
-                        # None (flag off) and {} (flag on, nothing stored for this
-                        # core) mean different things to run_core — .get's default
-                        # keeps them apart.
-                        carry_forward=(None if carry_forward is None
-                                       else carry_forward.get(core.core_id, {})),
-                        family_index=family_index, mesh_index=mesh_index)
+        core_kwargs = dict(full_text=core_full_text,
+                           threshold=args.threshold, scored_at=scored_at, engine=engine,
+                           prior_user_pmids=prior_pmids, screen_map=screen_map,
+                           llm_workers=args.llm_workers, dry_run=args.dry_run,
+                           # None (flag off) and {} (flag on, nothing stored for this
+                           # core) mean different things to run_core — .get's default
+                           # keeps them apart.
+                           carry_forward=(None if carry_forward is None
+                                          else carry_forward.get(core.core_id, {})),
+                           family_index=family_index, mesh_index=mesh_index)
+        triage_only = None
+        if args.llm_triage_candidates_only:
+            # ponytail: a whole second no-LLM pass (DB reads + combine, no Bedrock) just
+            # to learn which pubs surface; cheap next to one Haiku call per corpus pub.
+            pre = run_core(core, pubs, bedrock=None, **core_kwargs)
+            triage_only = {str(r.pmid) for r in pre if r.status in SURFACED_STATUSES}
+        recs = run_core(core, pubs, bedrock=bedrock, triage_only=triage_only, **core_kwargs)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")
         all_records.extend(recs)
 
-    surfaced = [r for r in all_records if r.status in ("confirmed", "candidate")]
+    surfaced = [r for r in all_records if r.status in SURFACED_STATUSES]
+    # Also write every row that carries an LLM score, below threshold included. Without
+    # this an LLM "no" leaves no trace: the pair keeps its old candidate row with no
+    # llm_score, the nightly re-surfaces it unscored, and every later LLM run pays to
+    # triage it again (#388, #412). Stored as below_threshold + llm_score, carry-forward
+    # reads it back and it is never triaged twice. Human statuses stay protected by
+    # put_core_usage's condition; reconcile still sees only `surfaced`.
+    to_write = surfaced + [r for r in all_records
+                           if r.status not in SURFACED_STATUSES and r.signals.llm_score]
     if args.dry_run:
-        print(f"DRY RUN — {len(surfaced)} records would be written (PUB#/CORE# in '{__doc__ and 'reciterai'}').")
+        print(f"DRY RUN — {len(to_write)} records would be written (PUB#/CORE# in '{__doc__ and 'reciterai'}').")
         # No STAGE# row either. --dry-run is documented as writing nothing to
         # DynamoDB, and the liveness row is the one write whose presence would be
         # worse than its absence: it would tell SPS's board that the nightly ran and
@@ -665,7 +699,7 @@ def main(argv=None):
                                  max_demote_fraction=args.reconcile_max_demote_fraction)
     else:
         from pipeline_cores.persist import put_core_usage  # lazy
-        written = put_core_usage(surfaced)
+        written = put_core_usage(to_write)
         print(f"wrote {written} (publication, core) records to DynamoDB")
         # After the write, never before: the sweep's "stale" test is `scored_at <` this
         # run's stamp, which only means "not re-surfaced" once this run's rows carry it.
