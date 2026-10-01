@@ -2063,3 +2063,74 @@ def test_distinct_papers_from_prior_and_this_run_still_add_up(monkeypatch):
                  engine=None, dry_run=True,
                  prior_user_pmids={"abc1234": {"14": {"111", "222"}}})  # neither is 999
     assert seen["abc1234"]["14"] == 3, f"2 prior + 1 new = 3, got {seen['abc1234']['14']}"
+
+
+# --- #412: LLM "no" is recorded; nightly triages only would-be candidates ----
+def _main_stubs(monkeypatch, run_core):
+    from unittest.mock import MagicMock
+    from pipeline_cores import ingest, run
+    import pipeline_cores.persist as persist
+    import utils.bedrock_client as bc
+    import utils.db as db
+
+    monkeypatch.setattr(db, "get_engine", lambda: MagicMock(name="engine"))
+    monkeypatch.setattr(ingest, "fetch_publications", lambda e, pmids=None, limit=None: [{"pmid": "1"}])
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
+    monkeypatch.setattr(bc, "BedrockClient", lambda **k: MagicMock(name="bedrock"))
+    monkeypatch.setattr(persist, "scan_core_llm_scores", lambda core_id=None: {})
+    monkeypatch.setattr(persist, "put_core_staff_dict_counts", lambda *a, **k: None)
+    monkeypatch.setattr(run, "_write_run_record", lambda *a, **k: None)
+    monkeypatch.setattr(run, "run_core", run_core)
+    written = []
+    monkeypatch.setattr(persist, "put_core_usage", lambda recs: written.extend(recs) or len(recs))
+    return run, written
+
+
+def test_main_writes_a_below_threshold_row_only_when_it_carries_an_llm_score(monkeypatch):
+    """An LLM 'no' must leave a trace, or the pair keeps its old unscored candidate row
+    and every later LLM run pays to triage it again."""
+    from pipeline_cores.models import CoreUsageRecord
+
+    def rec(pmid, status, llm=None):
+        return CoreUsageRecord(pmid, "14", 0.2, status, SignalResult(llm_score=llm))
+    recs = [rec("a", STATUS_CANDIDATE, 5), rec("b", STATUS_BELOW, 1), rec("c", STATUS_BELOW)]
+    run, written = _main_stubs(monkeypatch, lambda *a, **k: recs)
+    run.main(["--core", "14", "--with-llm", "--llm-carry-forward"])
+    assert sorted(r.pmid for r in written) == ["a", "b"]
+
+
+def test_triage_candidates_only_triages_just_what_a_no_llm_pass_surfaces(monkeypatch):
+    from pipeline_cores.models import CoreUsageRecord
+
+    calls = []
+
+    def fake_run_core(core, pubs, *, bedrock=None, triage_only=None, **k):
+        calls.append((bedrock is not None, triage_only))
+        return [CoreUsageRecord("1", core.core_id, 0.4, STATUS_CANDIDATE, SignalResult())]
+    run, _ = _main_stubs(monkeypatch, fake_run_core)
+    run.main(["--core", "14", "--with-llm", "--llm-carry-forward",
+              "--llm-triage-candidates-only", "--dry-run"])
+    assert calls == [(False, None), (True, {"1"})]
+
+
+def test_triage_candidates_only_is_refused_without_carry_forward():
+    import pytest
+    from pipeline_cores import run
+    with pytest.raises(SystemExit):
+        run.main(["--with-llm", "--llm-triage-candidates-only"])
+
+
+def test_run_core_triage_only_narrows_the_bedrock_calls(monkeypatch):
+    from pipeline_cores import ingest, run, signals
+
+    seen = []
+    monkeypatch.setattr(signals, "llm_triage",
+                        lambda b, c, todo, **k: seen.extend(p["pmid"] for p in todo) or {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
+    pubs = [{"pmid": p, "title": "t", "abstract": ""} for p in ("a", "b", "c")]
+    run.run_core(load_core("14"), pubs, bedrock=object(), threshold=0.30, scored_at="t",
+                 engine=None, dry_run=True, carry_forward={"c": {"score": 4}},
+                 triage_only={"a", "c"})
+    assert seen == ["a"]
