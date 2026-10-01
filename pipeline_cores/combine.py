@@ -444,15 +444,20 @@ def combine(
     likelihood = score(signals)
     status = (STATUS_CONFIRMED if likelihood >= confirm
               else STATUS_CANDIDATE if likelihood >= triage else STATUS_BELOW)
-    # The LLM ranks, it never labels (README, signal 4). Alone it tops out at 0.591,
-    # but beside a weak usage prior it crossed the bar: the #412 backfill confirmed
-    # ~290 papers nobody had judged on LLM + aff:trace/regular alone. So the LLM may
-    # never be the deciding vote — a pair that confirms only WITH its llm term is held
-    # at candidate (likelihood kept, so it still ranks first). It can still pull a
-    # pair DOWN, and evidence that confirms without it is untouched.
-    if (status == STATUS_CONFIRMED and signals.llm_score
-            and score(replace(signals, llm_score=None)) < confirm):
-        status = STATUS_CANDIDATE
+    # Two signals may never be the DECIDING vote for confirmation; a pair that clears
+    # the bar only because of them is held at candidate (likelihood kept, so it still
+    # ranks first). Either can still pull a pair DOWN.
+    #  - The LLM ranks, it never labels (README, signal 4). Alone it tops out at 0.591,
+    #    but beside a weak usage prior the #412 backfill confirmed ~290 papers nobody
+    #    had judged on LLM + aff:trace/regular alone.
+    #  - A staff co-author, unless an alias names the core too: ReCiter over-matches
+    #    core staff onto bylines, so a byline match alone is a lead, not a label.
+    #    An acknowledgement still confirms, with or without staff beside it.
+    if status == STATUS_CONFIRMED:
+        held = replace(signals, llm_score=None,
+                       coauthor_cwids=signals.coauthor_cwids if signals.ack_matched else [])
+        if score(held) < confirm:
+            status = STATUS_CANDIDATE
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)
 
 

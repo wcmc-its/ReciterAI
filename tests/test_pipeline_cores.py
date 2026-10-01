@@ -34,6 +34,18 @@ from pipeline_cores.signals import (
 )
 
 
+# A distinctive alias beside a home institution — the strongest confirmer (1.000).
+_HOME_ACK = dict(ack_matched=True, ack_alias="A", ack_alias_hits=5, ack_institution="home")
+
+
+def _ack_confirms(monkeypatch, pmids):
+    """Make phase 1 confirm `pmids` by acknowledgement; returns run_core's full_text."""
+    from pipeline_cores import signals
+    monkeypatch.setattr(signals, "acknowledgement_signal",
+                        lambda text, core, xml="": SignalResult(**_HOME_ACK) if text == "ACK" else SignalResult())
+    return lambda pmid: "ACK" if str(pmid) in pmids else ""
+
+
 # --- dictionary ------------------------------------------------------------
 def test_dictionary_loads_imaging_core():
     cores = load_cores()
@@ -85,13 +97,16 @@ def test_acknowledgement_at_home_still_confirms():
     assert rec.status == STATUS_CONFIRMED and rec.likelihood > 0.99
 
 
-def test_staff_coauthor_still_confirms_on_its_own():
-    """The other historically 100%-precision confirmer. The default confirm
-    threshold is set BELOW a lone staff co-author on purpose, so signal 2 keeps
-    confirming by itself."""
+def test_a_staff_coauthor_alone_is_held_at_candidate():
+    """ReCiter over-matches core staff onto bylines, so a lone staff co-author is a
+    lead, not a label: it scores above the confirm bar but is held at candidate. An
+    acknowledgement beside it still confirms."""
     rec = combine("1", "2", SignalResult(coauthor_cwids=["djb2001"]))
-    assert rec.status == STATUS_CONFIRMED
     assert rec.likelihood > DEFAULT_CONFIRM_THRESHOLD
+    assert rec.status == STATUS_CANDIDATE
+    assert combine("1", "2", SignalResult(coauthor_cwids=["djb2001"], **_HOME_ACK)).status == STATUS_CONFIRMED
+    # ...and staff + LLM together is still no decider: neither may cast the vote.
+    assert combine("1", "2", SignalResult(coauthor_cwids=["x"], llm_score=9)).status == STATUS_CANDIDATE
 
 
 def test_a_dismissive_llm_score_can_now_hold_a_staff_paper_back():
@@ -122,7 +137,7 @@ def test_the_llm_is_never_the_deciding_vote_for_confirmation():
     assert rec.status == STATUS_CANDIDATE
     # Evidence that confirms on its own still confirms with an LLM score beside it.
     assert combine("1", "2", SignalResult(llm_score=7, author_affinity=0.9)).status == STATUS_CONFIRMED
-    assert combine("1", "2", SignalResult(llm_score=7, coauthor_cwids=["x"])).status == STATUS_CONFIRMED
+    assert combine("1", "2", SignalResult(llm_score=7, **_HOME_ACK)).status == STATUS_CONFIRMED
 
 
 def test_low_signal_falls_below_threshold():
@@ -577,7 +592,7 @@ def test_llm_triage_serial_when_max_workers_1():
 
 # --- two-phase affinity recompute in run_core (monkeypatched DB reads) ------
 def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
-    """A co-author-confirmed paper makes the same author's other (weak) paper a
+    """An ack-confirmed paper makes the same author's other (weak) paper a
     candidate via the repeat-user prior — the compounding behavior."""
     from pipeline_cores import ingest, run, signals
 
@@ -586,15 +601,17 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
         {"pmid": "100", "title": "MRI paper by core staff", "abstract": ""},
         {"pmid": "200", "title": "Weak paper, same author", "abstract": ""},
     ]
-    # 100 is co-authored by core staff djb2001 -> auto-confirmed.
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {"100": ["djb2001"]})
+    # 100 names the core in its acknowledgements -> confirmed.
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    full_text = _ack_confirms(monkeypatch, {"100"})
     # Both papers share author djb2001 on the byline.
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["djb2001"], "200": ["djb2001"]})
     # ...and djb2001 has 20 corpus papers, so one confirm is a 5% rate: aff:regular.
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 20})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                            scored_at="t", engine=None, dry_run=True)}
+                                            scored_at="t", engine=None, dry_run=True,
+                                            full_text=full_text)}
     assert recs["100"].status == STATUS_CONFIRMED
     # 200 has no direct signal; it inherits djb2001's affinity. One confirm out of 20
     # corpus papers is a 5% rate (aff:regular), so the sibling reaches the queue and
@@ -606,7 +623,8 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     # curve both were 0.45 — the count knew nothing about who the author was.
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 100})
     prolific = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
-                                                scored_at="t", engine=None, dry_run=True)}
+                                                scored_at="t", engine=None, dry_run=True,
+                                            full_text=full_text)}
     assert prolific["200"].status == STATUS_BELOW
     assert prolific["200"].likelihood < recs["200"].likelihood
 
@@ -2085,8 +2103,8 @@ def test_a_paper_in_both_the_prior_and_this_run_is_counted_once(monkeypatch):
 
     core = load_core("14")
     pubs = [{"pmid": "999", "title": "t", "abstract": "a"}]
-    monkeypatch.setattr(signals, "coauthorship_index",
-                        lambda *a, **k: {"999": core.tracked_staff_cwids[:1]})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    full_text = _ack_confirms(monkeypatch, {"999"})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda *a, **k: {"999": ["abc1234"]})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda *a, **k: {"abc1234": 2})
 
@@ -2098,11 +2116,11 @@ def test_a_paper_in_both_the_prior_and_this_run_is_counted_once(monkeypatch):
     monkeypatch.setattr(signals, "build_affinity_index", spy)
 
     recs = run.run_core(core, pubs, bedrock=None, threshold=None, scored_at="t",
-                        engine=None, dry_run=True,
-                        # the SAME pmid this run will confirm via the staff co-author
+                        engine=None, dry_run=True, full_text=full_text,
+                        # the SAME pmid this run will confirm via the acknowledgement
                         prior_user_pmids={"abc1234": {"14": {"999"}}})
 
-    assert recs[0].status == STATUS_CONFIRMED, "staff co-author should confirm it"
+    assert recs[0].status == STATUS_CONFIRMED, "the acknowledgement should confirm it"
     assert seen["abc1234"]["14"] == 1, (
         f"one paper from two sources must count once, got {seen['abc1234']['14']}")
 
@@ -2113,8 +2131,8 @@ def test_distinct_papers_from_prior_and_this_run_still_add_up(monkeypatch):
 
     core = load_core("14")
     pubs = [{"pmid": "999", "title": "t", "abstract": "a"}]
-    monkeypatch.setattr(signals, "coauthorship_index",
-                        lambda *a, **k: {"999": core.tracked_staff_cwids[:1]})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    full_text = _ack_confirms(monkeypatch, {"999"})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda *a, **k: {"999": ["abc1234"]})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda *a, **k: {"abc1234": 4})
 
@@ -2126,7 +2144,7 @@ def test_distinct_papers_from_prior_and_this_run_still_add_up(monkeypatch):
     monkeypatch.setattr(signals, "build_affinity_index", spy)
 
     run.run_core(core, pubs, bedrock=None, threshold=None, scored_at="t",
-                 engine=None, dry_run=True,
+                 engine=None, dry_run=True, full_text=full_text,
                  prior_user_pmids={"abc1234": {"14": {"111", "222"}}})  # neither is 999
     assert seen["abc1234"]["14"] == 3, f"2 prior + 1 new = 3, got {seen['abc1234']['14']}"
 

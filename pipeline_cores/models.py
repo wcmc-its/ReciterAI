@@ -136,7 +136,7 @@ METHOD_FAMILY_TIERS = ("strong", "moderate", "weak")
 
 
 # Status lifecycle for a (publication, core) pair.
-STATUS_CONFIRMED = "confirmed"      # deterministic: core named OR core-staff co-author
+STATUS_CONFIRMED = "confirmed"      # core named, or a usage prior that clears the bar alone (never staff/LLM alone)
 STATUS_CANDIDATE = "candidate"      # probabilistic: routed to the claim queue for review
 STATUS_BELOW = "below_threshold"    # scored but too low to surface
 STATUS_CLAIMED = "claimed"          # human-claimed in SPS (read back; never set by engine)
