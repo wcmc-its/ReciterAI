@@ -52,13 +52,11 @@ def test_dictionary_loads_imaging_core():
     assert any(c.core_id == "2" and c.name == "Biomedical Imaging" for c in cores)
 
 
-def test_imaging_staff_resolved_and_tracking_split():
+def test_imaging_staff_are_listed_with_no_stored_tracking_flag():
+    """Tracking is a live lookup now (signals.resolved_staff), not a dictionary flag."""
     c = load_core("2")
     assert len(c.staff) == 7
-    tracked = set(c.tracked_staff_cwids)
-    assert tracked == {"djb2001", "jpd2001", "dcs7001", "bih2006"}      # active in person tables
-    untracked = {s.cwid for s in c.staff if not s.tracked}
-    assert untracked == {"hev2006", "job2060", "cof2003"}              # need upstream ReCiter fix
+    assert not hasattr(c.staff[0], "tracked")
 
 
 # --- acknowledgement matcher ----------------------------------------------
@@ -602,7 +600,7 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
         {"pmid": "200", "title": "Weak paper, same author", "abstract": ""},
     ]
     # 100 names the core in its acknowledgements -> confirmed.
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     full_text = _ack_confirms(monkeypatch, {"100"})
     # Both papers share author djb2001 on the byline.
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["djb2001"], "200": ["djb2001"]})
@@ -639,7 +637,7 @@ def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
     core.clients = ["cwid1"]
     pubs = [{"pmid": "100", "title": "client paper", "abstract": ""},
             {"pmid": "200", "title": "someone else's paper", "abstract": ""}]
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines",
                         lambda e, p: {"100": ["cwid1", "cwid9"], "200": ["cwid9"]})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
@@ -668,13 +666,14 @@ def test_run_core_dry_run_skips_the_dynamodb_curated_client_read(monkeypatch):
     core = load_core("2")
     core.clients = ["cwid1"]
     pubs = [{"pmid": "100", "title": "client paper", "abstract": ""}]
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["cwid1"]})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
 
     def _boom(*a, **k):
         raise AssertionError("get_curated_clients must not be called under dry_run")
     monkeypatch.setattr(persist, "get_curated_clients", _boom)
+    monkeypatch.setattr(persist, "get_curated_staff", _boom)
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None, dry_run=True)}
@@ -693,12 +692,13 @@ def test_run_core_unions_yaml_and_dynamodb_curated_clients(monkeypatch):
     pubs = [{"pmid": "100", "title": "yaml client paper", "abstract": ""},
             {"pmid": "200", "title": "dynamo client paper", "abstract": ""},
             {"pmid": "300", "title": "nobody's paper", "abstract": ""}]
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {
         "100": ["cwid1"], "200": ["cwid2"], "300": ["cwid9"],
     })
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
     monkeypatch.setattr(persist, "get_curated_clients", lambda core_id: {"cwid2"})
+    monkeypatch.setattr(persist, "get_curated_staff", lambda core_id: set())
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None, dry_run=False)}
@@ -1725,7 +1725,7 @@ def _stub_core_reads(monkeypatch, bylines=None):
     """The three DB reads every run_core makes, stubbed to empty. No DB, no AWS."""
     from pipeline_cores import ingest, signals
 
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: bylines or {})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
 
@@ -1783,6 +1783,7 @@ def test_carry_forward_cli_run_never_constructs_a_bedrock_client(monkeypatch):
     _stub_core_reads(monkeypatch)
     monkeypatch.setattr(signals, "llm_triage", _never_triage)
     monkeypatch.setattr(persist, "get_curated_clients", lambda core_id: set())
+    monkeypatch.setattr(persist, "get_curated_staff", lambda core_id: set())
 
     scan = MagicMock(return_value={"14": {"100": {"score": 8, "rationale": "REDCap build"}}})
     monkeypatch.setattr(persist, "scan_core_llm_scores", scan)
@@ -2210,7 +2211,7 @@ def test_run_core_triage_only_narrows_the_bedrock_calls(monkeypatch):
     seen = []
     monkeypatch.setattr(signals, "llm_triage",
                         lambda b, c, todo, **k: seen.extend(p["pmid"] for p in todo) or {})
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
     pubs = [{"pmid": p, "title": "t", "abstract": ""} for p in ("a", "b", "c")]

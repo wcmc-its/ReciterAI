@@ -54,13 +54,13 @@ cores:
       "Citigroup Biomedical Imaging Center": 197
       "Biomedical Imaging Core Facility": 62
     staff:
-      - { cwid: djb2001, name: "Douglas J. Ballon",  dept: Radiology, tracked: true }
-      - { cwid: jpd2001, name: "Jonathan P. Dyke",   dept: Radiology, tracked: true }
-      - { cwid: dcs7001, name: "Dikoma C. Shungu",   dept: Radiology, tracked: true }
-      - { cwid: bih2006, name: "Bin He",             dept: Radiology, tracked: true }
-      - { cwid: hev2006, name: "Henning U. Voss",    dept: Radiology, tracked: false }
-      - { cwid: job2060, name: "John W. Babich",     dept: Radiology, tracked: false }
-      - { cwid: cof2003, name: "Conor P. Foley",     dept: "",        tracked: false }
+      - { cwid: djb2001, name: "Douglas J. Ballon",  dept: Radiology }
+      - { cwid: jpd2001, name: "Jonathan P. Dyke",   dept: Radiology }
+      - { cwid: dcs7001, name: "Dikoma C. Shungu",   dept: Radiology }
+      - { cwid: bih2006, name: "Bin He",             dept: Radiology }
+      - { cwid: hev2006, name: "Henning U. Voss",    dept: Radiology }
+      - { cwid: job2060, name: "John W. Babich",     dept: Radiology }
+      - { cwid: cof2003, name: "Conor P. Foley",     dept: "" }
     grant_ids: []
     llm_description: >
       multimodal imaging research; advanced MRI/MRS, PET/CT, MicroPET/SPECT/CT,
@@ -69,10 +69,12 @@ cores:
   # ---------------------------------------------------------------------------
   # The remaining 12 cores, resolved 2026-06-21 against reciterdb.identity (prod)
   # + reciterdb.analysis_summary_author (the table signal 2 queries).
-  #   tracked: true  = CWID has resolved-authorship rows in analysis_summary_author
-  #                    (signal 2 will fire). tracked: false = in identity but no
-  #                    resolved-author rows (upstream ReCiter target gap), OR a
-  #                    founder/PI whose large independent lab would over-confirm.
+  #   TRACKING IS A LIVE LOOKUP now (no `tracked:` key): every listed staff CWID is
+  #   matched against analysis_summary_author each run, so someone ReCiter has not
+  #   resolved simply matches nothing until it does. The large-lab founder/PI
+  #   exclusions were dropped too: a staff match only raises the likelihood and is
+  #   never the deciding vote for confirmation (combine's hold). Notes below that say
+  #   "tracked: false" record why someone was excluded BEFORE that change.
   # Some service cores (Flow, Biorepository, Metabolic Phenotyping, Microbiome,
   #   Human Immune Monitoring, Proteomics) have NO firing staff: their hands-on
   #   core staff are not ReCiter target persons. Those lean on signal-3 aliases
@@ -93,10 +95,10 @@ cores:
       "Applied Bioinformatics Core": 88
       "Applied Bioinformatics Core at Weill Cornell Medicine": 4
     staff:
-      - { cwid: dob2014, name: "Doron Betel",     dept: Medicine, tracked: true }
-      - { cwid: paz2005, name: "Paul Zumbo",      dept: "Systems and Computational Biomedicine", tracked: true }
-      - { cwid: las2017, name: "Lucy Skrabanek",  dept: "Systems and Computational Biomedicine", tracked: true }
-      - { cwid: pim2001, name: "Piali Mukherjee", dept: Medicine, tracked: true }
+      - { cwid: dob2014, name: "Doron Betel",     dept: Medicine }
+      - { cwid: paz2005, name: "Paul Zumbo",      dept: "Systems and Computational Biomedicine" }
+      - { cwid: las2017, name: "Lucy Skrabanek",  dept: "Systems and Computational Biomedicine" }
+      - { cwid: pim2001, name: "Piali Mukherjee", dept: Medicine }
     grant_ids: []
     llm_description: >
       bioinformatics service core: data management and analysis for high-throughput
@@ -119,11 +121,11 @@ cores:
       "Weill Cornell Medicine Epigenomics Core": 34
       "Epigenomics Core of Weill Cornell Medicine": 23
     staff:
-      - { cwid: dob2014, name: "Doron Betel",      dept: Medicine, tracked: true }
-      - { cwid: kab3004, name: "Kalpita Banerjee", dept: Ophthalmology, tracked: true }
+      - { cwid: dob2014, name: "Doron Betel",      dept: Medicine }
+      - { cwid: kab3004, name: "Kalpita Banerjee", dept: Ophthalmology }
       # ala2035 = sole "Alicia Alonso" in identity (dept Medicine, 150 pubs); identity
       # match to the Epigenomics director is UNCERTAIN + own-research over-confirm risk.
-      - { cwid: ala2035, name: "Alicia Alonso",    dept: Medicine, tracked: false }
+      - { cwid: ala2035, name: "Alicia Alonso",    dept: Medicine }
     grant_ids: []
     llm_description: >
       epigenomics + bioinformatics core: DNA methylation (RRBS/WGBS/EMSeq),
@@ -166,12 +168,12 @@ cores:
       "Genomics Resources Core Facility at Weill Cornell Medicine": 45
       "Weill Cornell Medicine Genomics Resources Core Facility": 34
     staff:
-      - { cwid: jzx2002, name: "Jenny Xiang",         dept: "Microbiology and Immunology", tracked: true }
-      - { cwid: taz2008, name: "Tuo Zhang",           dept: "", tracked: true }
+      - { cwid: jzx2002, name: "Jenny Xiang",         dept: "Microbiology and Immunology" }
+      - { cwid: taz2008, name: "Tuo Zhang",           dept: "" }
       # In identity but no resolved-author rows (upstream gap) -> tracked: false.
-      - { cwid: chp2020, name: "Chendong Pan",        dept: "Microbiology and Immunology", tracked: false }
-      - { cwid: yit2001, name: "Adrian Ying-Cai Tan", dept: "", tracked: false }
-      - { cwid: ail2004, name: "Aihong Liu",          dept: "", tracked: false }
+      - { cwid: chp2020, name: "Chendong Pan",        dept: "Microbiology and Immunology" }
+      - { cwid: yit2001, name: "Adrian Ying-Cai Tan", dept: "" }
+      - { cwid: ail2004, name: "Aihong Liu",          dept: "" }
     grant_ids: []
     llm_description: >
       Illumina NGS core (RNA-Seq, ChIP-Seq, WGS/WES, panel-seq) plus single-cell
@@ -246,9 +248,9 @@ cores:
     # target persons. The co-founders below ARE tracked but run large independent
     # labs -> tracked: false to avoid over-confirming their non-core papers.
     staff:
-      - { cwid: ili2001, name: "Iliyan Iliev",  dept: Medicine, tracked: false }
-      - { cwid: daa2028, name: "David Artis",   dept: Medicine, tracked: false }
-      - { cwid: ral2006, name: "Randy Longman", dept: Medicine, tracked: false }
+      - { cwid: ili2001, name: "Iliyan Iliev",  dept: Medicine }
+      - { cwid: daa2028, name: "David Artis",   dept: Medicine }
+      - { cwid: ral2006, name: "Randy Longman", dept: Medicine }
     grant_ids: []
     llm_description: >
       microbiome sequencing core: 16S rRNA amplicon, shotgun metagenomic, and
@@ -266,10 +268,10 @@ cores:
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Advanced Biomolecular Analysis Core": 1
     staff:
-      - { cwid: qic2005, name: "Qiuying Chen",  dept: Pharmacology, tracked: true }
+      - { cwid: qic2005, name: "Qiuying Chen",  dept: Pharmacology }
       # Director; no resolved-author rows (0 pubs in analysis_summary_author) and may
       # have departed WCM -> tracked: false. Distinct from #13 (do not merge).
-      - { cwid: nod2007, name: "Noah Dephoure", dept: Biochemistry, tracked: false }
+      - { cwid: nod2007, name: "Noah Dephoure", dept: Biochemistry }
     grant_ids: []
     llm_description: >
       mass-spectrometry core: custom proteomics (PTM, AP-MS / proximity-labeling
@@ -292,8 +294,8 @@ cores:
     # nia9069 = possible faculty director with a large own lab (over-confirm risk).
     # Both tracked: false -> this core is aliases-only for now.
     staff:
-      - { cwid: hir4001, name: "Hiranmayi Ravichandran",   dept: "Systems and Computational Biomedicine", tracked: false }
-      - { cwid: nia9069, name: "Niroshana Anandasabapathy", dept: Dermatology, tracked: false }
+      - { cwid: hir4001, name: "Hiranmayi Ravichandran",   dept: "Systems and Computational Biomedicine" }
+      - { cwid: nia9069, name: "Niroshana Anandasabapathy", dept: Dermatology }
     grant_ids: []
     llm_description: >
       high-parameter immune profiling: spectral flow cytometry (Cytek Aurora),
@@ -315,10 +317,10 @@ cores:
       "Weill Cornell Medicine Microscopy and Image Analysis Core Facility": 7
       "Optical Microscopy Core": 318
     staff:
-      - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics", tracked: true }
-      - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry, tracked: true }
+      - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics" }
+      - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry }
       # Senior director "Lee" = Leona Cohen-Gould in identity; no resolved-author rows.
-      - { cwid: lcgould,  name: "Leona Cohen-Gould",  dept: "Cell and Developmental Biology", tracked: false }
+      - { cwid: lcgould,  name: "Leona Cohen-Gould",  dept: "Cell and Developmental Biology" }
     grant_ids: []
     llm_description: >
       optical (widefield/confocal/multiphoton), light-sheet, high-content/automated,
@@ -342,7 +344,7 @@ cores:
       "NMR Core": 926
     staff:
       # "W. Clay Bracken" = William Bracken in identity; sole director of this core.
-      - { cwid: wcb2001, name: "William Bracken", dept: "", tracked: true }
+      - { cwid: wcb2001, name: "William Bracken", dept: "" }
     grant_ids: []
     llm_description: >
       solution NMR spectroscopy for biological and chemical analysis: sample prep,
@@ -369,7 +371,7 @@ cores:
     # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
     # Aliases-only for now. Distinct from #9 ABAC (do not merge).
     staff:
-      - { cwid: zhl4007, name: "Zhucui Li", dept: "Biochemistry and Biophysics", tracked: false }
+      - { cwid: zhl4007, name: "Zhucui Li", dept: "Biochemistry and Biophysics" }
     grant_ids: []
     llm_description: >
       MS-based proteomics and metabolomics: protein ID, label-free / SILAC / TMT
@@ -449,10 +451,10 @@ cores:
       "Architecture for Research Computing in Health": 20
       "WCM Research Informatics": 2
     staff:
-      - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences", tracked: false }
-      - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences", tracked: false }
-      - { cwid: saa3011, name: "Sajjad Abedian", dept: "",                           tracked: true }
-      - { cwid: nik2004, name: "Nivedita Chang", dept: "",                           tracked: false }
+      - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences" }
+      - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences" }
+      - { cwid: saa3011, name: "Sajjad Abedian", dept: "" }
+      - { cwid: nik2004, name: "Nivedita Chang", dept: "" }
     grant_ids: []
     llm_description: >
       research informatics service core: EHR-based reporting and clinical data

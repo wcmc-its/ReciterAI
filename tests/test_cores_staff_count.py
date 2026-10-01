@@ -142,68 +142,81 @@ def test_core_ids_are_scoped_to_their_own_partition():
 
 
 # --- tracked is a SUBSET, and the two numbers are not interchangeable ------
-def test_a_core_with_untracked_staff_publishes_the_smaller_tracked_count(tmp_path):
-    """Untracked staff are in `identity` but are NOT ReCiter target persons, so their
-    author rows carry personIdentifier NULL and coauthorship_index cannot see them.
-    Listed 3, matchable 2 — and the item must say both, not 3 twice."""
+class _ResolvedEngine:
+    """An engine whose analysis_summary_author has resolved exactly `resolved`."""
+    def __init__(self, resolved):
+        self.resolved, self.asked = set(resolved), None
+
+    def connect(self):
+        eng = self
+
+        class _Conn:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def execute(self, stmt, params):
+                eng.asked = list(params["cwids"])
+                return [type("R", (), {"personIdentifier": c, "pmid": 1})() for c in params["cwids"]
+                        if c in eng.resolved]
+        return _Conn()
+
+
+def test_the_tracked_count_is_a_live_lookup_of_resolved_staff(tmp_path):
+    """Listed 3, resolved by ReCiter today 2 — and the item must say both. No stored
+    flag: the second number comes from analysis_summary_author on this run, so it
+    moves as ReCiter starts (or stops) resolving people."""
+    from pipeline_cores import signals
     core = _write_dictionary(
         tmp_path,
         "    staff:\n"
-        "      - {cwid: aaa0001, tracked: true}\n"
-        "      - {cwid: aaa0002, tracked: true}\n"
-        "      - {cwid: aaa0003, tracked: false}\n",
+        "      - {cwid: aaa0001}\n"
+        "      - {cwid: aaa0002}\n"
+        "      - {cwid: aaa0003}\n",
     )
-    assert (len(core.staff), len(core.tracked_staff_cwids)) == (3, 2)
+    eng = _ResolvedEngine({"aaa0001", "aaa0002"})
+    tracked = signals.resolved_staff(eng, core.staff_cwids)
+    assert (len(core.staff), len(tracked)) == (3, 2)
 
     db = _FakeUpdateItemDynamo()
     assert persist.put_core_staff_dict_counts(
-        core.core_id, len(core.staff), len(core.tracked_staff_cwids), client=db) is True
+        core.core_id, len(core.staff), len(tracked), client=db) is True
     assert _only_call(db)["ExpressionAttributeValues"] == {
         ":n": {"N": "3"}, ":t": {"N": "2"}}
 
 
-def test_a_core_whose_staff_are_all_untracked_publishes_tracked_zero(tmp_path):
-    """The case that makes the second number load-bearing rather than decorative: cores
-    8, 10 and 13 list staff and can match NONE of them, so the co-author signal cannot
-    fire at all. Publishing 3/2/1 alone would assert a signal that does not exist."""
+def test_a_core_whose_staff_are_all_unresolved_publishes_tracked_zero(tmp_path):
+    """Listed staff ReCiter has resolved none of: the co-author signal cannot fire, and
+    0 is published, not skipped and not silently equalised to the listed count."""
+    from pipeline_cores import signals
     core = _write_dictionary(
-        tmp_path,
-        "    staff:\n"
-        "      - {cwid: bbb0001, tracked: false}\n"
-        "      - {cwid: bbb0002, tracked: false}\n"
-        "      - {cwid: bbb0003, tracked: false}\n",
-    )
-    assert (len(core.staff), len(core.tracked_staff_cwids)) == (3, 0)
-
+        tmp_path, "    staff:\n      - {cwid: bbb0001}\n      - {cwid: bbb0002}\n")
+    tracked = signals.resolved_staff(_ResolvedEngine(set()), core.staff_cwids)
     db = _FakeUpdateItemDynamo()
     assert persist.put_core_staff_dict_counts(
-        core.core_id, len(core.staff), len(core.tracked_staff_cwids), client=db) is True
-    call = _only_call(db)
-    # 0 is published, not skipped and not silently equalised to the listed count.
-    assert call["ExpressionAttributeValues"] == {":n": {"N": "3"}, ":t": {"N": "0"}}
+        core.core_id, len(core.staff), len(tracked), client=db) is True
+    assert _only_call(db)["ExpressionAttributeValues"] == {":n": {"N": "2"}, ":t": {"N": "0"}}
 
 
-def test_tracked_zero_is_exactly_what_the_coauthor_signal_can_do(tmp_path):
-    """Binds the published number to the signal it captions. coauthorship_index reads
-    core.tracked_staff_cwids — not core.staff — and short-circuits to {} when it is
-    empty, without touching the database. If that ever changes to staff_cwids, this
-    fails and staff_tracked_count stops meaning what the item says it means."""
+def test_the_coauthor_signal_asks_for_every_listed_and_curated_staff_member(tmp_path):
+    """Binds the signal to the live lookup: coauthorship_index asks the DB about every
+    listed CWID plus SPS's curated ones (unresolved ones just match nothing), and
+    short-circuits to {} without touching the DB only when there is nobody at all."""
     from pipeline_cores import signals
-
     core = _write_dictionary(
-        tmp_path,
-        "    staff:\n"
-        "      - {cwid: bbb0001, tracked: false}\n"
-        "      - {cwid: bbb0002, tracked: false}\n",
-    )
+        tmp_path, "    staff:\n      - {cwid: bbb0001}\n      - {cwid: bbb0002}\n")
+    eng = _ResolvedEngine({"bbb0002", "ccc0009"})
+    assert signals.coauthorship_index(eng, core, extra_cwids={"ccc0009"}) == {"1": ["bbb0002", "ccc0009"]}
+    assert sorted(eng.asked) == ["bbb0001", "bbb0002", "ccc0009"]
 
     class _EngineThatMustNotBeUsed:
         def connect(self):
-            raise AssertionError(
-                "coauthorship_index queried the DB for a core with no TRACKED staff")
-
-    assert core.staff_cwids and not core.tracked_staff_cwids
-    assert signals.coauthorship_index(_EngineThatMustNotBeUsed(), core) == {}
+            raise AssertionError("coauthorship_index queried the DB for a core with no staff")
+    empty = _write_dictionary(tmp_path, "")
+    assert signals.coauthorship_index(_EngineThatMustNotBeUsed(), empty) == {}
+    assert signals.resolved_staff(_EngineThatMustNotBeUsed(), []) == set()
 
 
 # --- zero is a real answer, not a missing one ------------------------------
@@ -216,7 +229,7 @@ def test_a_core_with_an_empty_staff_list_publishes_zero_and_zero(core_id):
     assert core.staff == []
     db = _FakeUpdateItemDynamo()
     assert persist.put_core_staff_dict_counts(
-        core.core_id, len(core.staff), len(core.tracked_staff_cwids), client=db) is True
+        core.core_id, len(core.staff), 0, client=db) is True
     assert _only_call(db)["ExpressionAttributeValues"] == {
         ":n": {"N": "0"}, ":t": {"N": "0"}}
 
@@ -228,7 +241,7 @@ def test_an_absent_staff_key_publishes_zero_and_zero(tmp_path):
     assert core.staff == []
     db = _FakeUpdateItemDynamo()
     assert persist.put_core_staff_dict_counts(
-        core.core_id, len(core.staff), len(core.tracked_staff_cwids), client=db) is True
+        core.core_id, len(core.staff), 0, client=db) is True
     assert _only_call(db)["ExpressionAttributeValues"] == {
         ":n": {"N": "0"}, ":t": {"N": "0"}}
 
@@ -321,6 +334,9 @@ def _stub_a_scoring_run(monkeypatch):
     # above uses. The tests below drive main() with no --dry-run, so an unstubbed
     # get_table is a real PutItem against the shared `reciterai` table.
     monkeypatch.setattr(ddb, "get_table", lambda *a, **k: MagicMock(name="reciterai"))
+    # Live lookup stub: "ReCiter has resolved the first listed staff member of each core".
+    from pipeline_cores import signals
+    monkeypatch.setattr(signals, "resolved_staff", lambda engine, cwids: set(list(cwids)[:1]))
     return run
 
 
@@ -336,8 +352,7 @@ def test_main_publishes_every_core_in_the_dictionary(monkeypatch):
                         lambda core_id, count, tracked: published.append(
                             (core_id, count, tracked)))
 
-    expected = [(c.core_id, len(c.staff), len(c.tracked_staff_cwids))
-                for c in load_cores()]
+    expected = [(c.core_id, len(c.staff), min(len(c.staff), 1)) for c in load_cores()]
 
     run.main(["--core", "14"])
     assert published == expected
@@ -355,8 +370,8 @@ def test_main_publishes_every_core_in_the_dictionary(monkeypatch):
 
 
 def test_main_publishes_the_tracked_count_not_the_listed_one_twice(monkeypatch):
-    """The pair per core is (listed, tracked) off the dictionary — len(core.staff) and
-    len(core.tracked_staff_cwids). Passing the listed count for both would recreate the
+    """The pair per core is (listed, resolved-today) — len(core.staff) and the live
+    signals.resolved_staff lookup. Passing the listed count for both would recreate the
     over-claim in the call site after the persist layer refused it."""
     run = _stub_a_scoring_run(monkeypatch)
     published = {}
@@ -366,10 +381,7 @@ def test_main_publishes_the_tracked_count_not_the_listed_one_twice(monkeypatch):
 
     run.main(["--core", "14"])
     for core in load_cores():
-        assert published[core.core_id] == (
-            len(core.staff), len(core.tracked_staff_cwids))
-    # At least one core in the live dictionary has untracked staff today; if that ever
-    # stops being true the assertion below is the thing to delete, not the attribute.
+        assert published[core.core_id] == (len(core.staff), min(len(core.staff), 1))
     assert any(t < n for n, t in published.values())
 
 

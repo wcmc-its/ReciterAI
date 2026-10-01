@@ -10,11 +10,6 @@ class CoreStaff:
     cwid: str
     name: str = ""
     dept: str = ""
-    # False when the person is in `identity` but NOT a ReCiter target person, so
-    # their author rows carry personIdentifier=NULL and the coauthorship signal
-    # cannot see them. Surfacing them requires adding them to ReCiter's target
-    # feed (an upstream fix) — never surname matching.
-    tracked: bool = True
 
 
 # Tri-Institutional partners (+ NYP). An alias found next to one of these is HOME
@@ -84,10 +79,6 @@ class CoreDefinition:
     @property
     def staff_cwids(self) -> list:
         return [s.cwid for s in self.staff]
-
-    @property
-    def tracked_staff_cwids(self) -> list:
-        return [s.cwid for s in self.staff if s.tracked]
 
 
 @dataclass

@@ -376,9 +376,11 @@ def put_candidate(pmid, core_id, *, confidence, band, prior, likelihood,
         return False
 
 
-def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NAME) -> set:
-    """CWIDs SPS's "Known clients" panel has curated for this core, lowercased.
+def _get_curated_cwids(core_id: str, sk: str, attr: str, *, client=None,
+                       table_name: str = TABLE_NAME) -> set:
+    """CWIDs SPS has curated for this core under `sk` (CLIENTS or STAFF), lowercased.
 
+    Written for CLIENTS, and every word holds for STAFF with its own attr:
     GetItem on PK=CORE#{core_id}, SK=CLIENTS, attribute client_cwids (a DynamoDB
     List of String the SPS DocumentClient writes already lowercased and sorted).
 
@@ -398,33 +400,46 @@ def get_curated_clients(core_id: str, *, client=None, table_name: str = TABLE_NA
     try:
         resp = client.get_item(
             TableName=table_name,
-            Key={"PK": {"S": f"CORE#{core_id}"}, "SK": {"S": "CLIENTS"}},
-            ProjectionExpression="client_cwids",
+            Key={"PK": {"S": f"CORE#{core_id}"}, "SK": {"S": sk}},
+            ProjectionExpression=attr,
         )
     except Exception as exc:
         logger.warning(
-            "get_curated_clients(core_id=%s) failed (%s: %s) — treating as no "
-            "curated clients for this run", core_id, type(exc).__name__, exc,
+            "get_curated_%s(core_id=%s) failed (%s: %s) — treating as none "
+            "for this run", sk.lower(), core_id, type(exc).__name__, exc,
         )
         return set()
 
     item = resp.get("Item")
     if not item:
         logger.debug(
-            "get_curated_clients(core_id=%s): no CORE#%s/CLIENTS item found — "
-            "treating as no curated clients for this run", core_id, core_id,
+            "get_curated_%s(core_id=%s): no CORE#%s/%s item found — "
+            "treating as none for this run", sk.lower(), core_id, core_id, sk,
         )
         return set()
 
-    raw = item.get("client_cwids", {}).get("L")
+    raw = item.get(attr, {}).get("L")
     if not raw:
         logger.debug(
-            "get_curated_clients(core_id=%s): item has no client_cwids attribute — "
-            "treating as no curated clients for this run", core_id,
+            "get_curated_%s(core_id=%s): item has no %s attribute — "
+            "treating as none for this run", sk.lower(), core_id, attr,
         )
         return set()
 
     return {v["S"].strip().lower() for v in raw if v.get("S", "").strip()}
+
+
+def get_curated_clients(core_id: str, **kw) -> set:
+    """SPS's "Known clients" panel: CORE#{core_id}/CLIENTS, attribute client_cwids."""
+    return _get_curated_cwids(core_id, "CLIENTS", "client_cwids", **kw)
+
+
+def get_curated_staff(core_id: str, **kw) -> set:
+    """SPS-curated core staff: CORE#{core_id}/STAFF, attribute staff_cwids — the key
+    STAFF_DICT's docstring reserved for it. Same contract as CLIENTS (SPS writes the
+    lowercased list, the engine reads it nightly), so a staff member assigned in SPS
+    today feeds the co-author signal tomorrow with no deploy. Absent = none."""
+    return _get_curated_cwids(core_id, "STAFF", "staff_cwids", **kw)
 
 
 # Statuses that establish a (pub, core) usage for the affinity prior. 'claimed'
@@ -575,12 +590,12 @@ def put_core_staff_dict_counts(core_id, count, tracked_count, *, client=None,
     if it was refused or failed.
 
     BOTH NUMBERS, because the smaller one is the load-bearing one.
-    `signals.coauthorship_index` matches on `core.tracked_staff_cwids`, not
-    `core.staff`: an UNtracked staff member is not a ReCiter target person, so their
-    author rows carry personIdentifier NULL, and the signal returns {} before it reads
-    a row when no tracked staff remain. Fixing that is an upstream ReCiter-target
-    change — never a surname match. Today the gap is most of the roster: core 14 lists
-    4 and can match 1, and cores 8, 10 and 13 list 3, 2 and 1 and can match NONE.
+    `signals.coauthorship_index` asks about every listed staff CWID, but only the ones
+    ReCiter has resolved onto an author row can match; someone who is not a ReCiter
+    target person has personIdentifier NULL rows and is invisible to it. The second
+    number is that resolved subset, looked up LIVE each run (`signals.resolved_staff`),
+    never a stored flag. Making someone matchable is an upstream ReCiter-target change
+    — never a surname match.
     Publishing the listed count alone would put "the co-author signal draws on 4 core
     staff" under a signal drawing on one, and assert 3, 2 and 1 for three cores where
     it cannot fire at all — decodeTopicalPrior's failure (7,332 of 9,352 live chips
@@ -625,7 +640,7 @@ def put_core_staff_dict_counts(core_id, count, tracked_count, *, client=None,
                 "%r — not a derived non-negative integer", core_id, attr, value,
             )
             return False
-    # Tracked staff are a SUBSET of listed staff (`tracked_staff_cwids` filters the same
+    # Tracked staff are a SUBSET of listed staff (`resolved_staff` filters the same
     # list `staff_cwids` returns whole), so tracked > listed is not a pair this could
     # have counted — it is the two arguments swapped, which would publish core 14's
     # "1 of 4 matchable" as "4 of 1". Same posture as the guard above: a shape that

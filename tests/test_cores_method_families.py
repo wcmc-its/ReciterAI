@@ -357,7 +357,7 @@ def test_run_core_sets_the_method_fields(monkeypatch, tmp_path):
     core = load_core("14")
     pubs = [{"pmid": "100", "title": "ehr paper", "abstract": ""},
             {"pmid": "999", "title": "not in the artifact", "abstract": ""}]
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
 

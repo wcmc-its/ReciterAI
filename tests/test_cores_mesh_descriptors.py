@@ -188,7 +188,7 @@ def test_run_core_sets_mesh_evidence(monkeypatch):
     core = load_core("11")
     pubs = [{"pmid": "100", "title": "confocal paper", "abstract": ""},
             {"pmid": "300", "title": "no descriptors", "abstract": ""}]
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
 
@@ -223,7 +223,7 @@ def test_cli_run_hands_the_production_mesh_index_to_the_scorer(monkeypatch):
     monkeypatch.setattr(ingest, "fetch_publications", lambda e, pmids=None, limit=None: pubs)
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {})
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {})
-    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p: {})
+    monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
 
     # The loader, stubbed where run.py reaches it: no DB, and the pool main() scopes the
     # query to is checkable.
