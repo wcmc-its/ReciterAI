@@ -114,6 +114,17 @@ def test_the_llm_alone_never_confirms():
     assert combine("1", "2", SignalResult(llm_score=9)).status == STATUS_CANDIDATE
 
 
+def test_the_llm_is_never_the_deciding_vote_for_confirmation():
+    """#412: LLM + a weak usage prior crossed the bar together, so ~290 unjudged papers
+    auto-confirmed. Held at candidate with the likelihood kept for ranking."""
+    rec = combine("1", "2", SignalResult(llm_score=7, author_affinity=0.30))  # aff:regular
+    assert rec.likelihood >= DEFAULT_CONFIRM_THRESHOLD
+    assert rec.status == STATUS_CANDIDATE
+    # Evidence that confirms on its own still confirms with an LLM score beside it.
+    assert combine("1", "2", SignalResult(llm_score=7, author_affinity=0.9)).status == STATUS_CONFIRMED
+    assert combine("1", "2", SignalResult(llm_score=7, coauthor_cwids=["x"])).status == STATUS_CONFIRMED
+
+
 def test_low_signal_falls_below_threshold():
     rec = combine("1", "2", SignalResult(llm_score=2))
     assert rec.status == STATUS_BELOW
@@ -1596,8 +1607,11 @@ def test_per_core_thresholds_override_the_defaults():
     assert combine("1", "9", sig).status == STATUS_CANDIDATE
     strict = CoreDefinition(core_id="9", name="T", aliases=["T Core"], triage_threshold=0.99)
     assert combine("1", "9", sig, core=strict).status == STATUS_BELOW
-    loose = CoreDefinition(core_id="9", name="T", aliases=["T Core"], confirm_threshold=0.5)
-    assert combine("1", "9", sig, core=loose).status == STATUS_CONFIRMED
+    loose = CoreDefinition(core_id="9", name="T", aliases=["T Core"], confirm_threshold=0.35)
+    # Not the LLM: it may never be the deciding vote for confirmation (#412), so a
+    # lowered bar is shown on aff:regular (0.387) instead.
+    assert combine("1", "9", SignalResult(author_affinity=0.30), core=loose).status == STATUS_CONFIRMED
+    assert combine("1", "9", sig, core=loose).status == STATUS_CANDIDATE
     # an explicit argument still beats the core's own override
     assert combine("1", "9", sig, core=strict, triage_threshold=0.1).status == STATUS_CANDIDATE
 
