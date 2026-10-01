@@ -31,7 +31,8 @@
         "arn:aws:secretsmanager:*:*:secret:reciterai/reciter-analysis-db-*",
         "arn:aws:secretsmanager:*:*:secret:reciterai/openai-api-key-*",
         "arn:aws:secretsmanager:*:*:secret:reciterai/teams-webhook-url-*",
-        "arn:aws:secretsmanager:*:*:secret:reciterai/bedrock-api-key-*"
+        "arn:aws:secretsmanager:*:*:secret:reciterai/bedrock-api-key-*",
+        "arn:aws:secretsmanager:*:*:secret:reciterai/ncbi-api-key-*"
       ]
     },
     {

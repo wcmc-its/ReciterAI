@@ -8,10 +8,8 @@ command edit:
 - `--core 14` is the whole scope. The nightly re-scores ONE core; the other nine stay
   operator-run. Widening it is a real decision (nine more cores' rows rewritten every
   night, on cores with no reviewer to catch a regression), not a tidy-up.
-- `--with-llm` is deliberately ABSENT. `run.py` persists only confirmed/candidate rows,
-  so 79,860 of the 80,203 corpus publications carry no stored `llm_score` on any given
-  night — a corpus-wide LLM pass is ~80k Haiku screens EVERY night, not just the first.
-  How much Bedrock a nightly may spend is an open decision in its own issue.
+- `--with-llm` is ON only beside `--llm-triage-candidates-only` (#412): Bedrock is spent
+  on unscored pubs a no-LLM pass surfaces, never the ~80k corpus.
 - `--llm-carry-forward` is REQUIRED. `persist.put_core_usage` REMOVEs every owned
   optional the run did not produce (#384), so a nightly without it strips
   `llm_score`/`llm_rationale` off every row it re-surfaces — on core 14 that is the chip
@@ -230,7 +228,8 @@ def test_default_command_is_the_nightly_invocation(container):
         "sh",
         "-c",
         "python -m pipeline_cores.run --core 14 --with-affinity --alias-search "
-        "--llm-carry-forward --with-method-families --reconcile",
+        "--llm-carry-forward --with-llm --llm-triage-candidates-only "
+        "--with-method-families --reconcile",
     ]
 
 
@@ -256,13 +255,12 @@ def test_the_nightly_is_scoped_to_core_14(command):
     assert "--core 14" in command
 
 
-def test_the_nightly_makes_no_bedrock_call(command):
-    """--with-llm over the unscoped corpus is ~80k Haiku screens EVERY night: run.py
-    persists only confirmed/candidate rows, so 79,860 of 80,203 corpus publications
-    carry no stored llm_score on any given night and --llm-carry-forward cannot bound
-    it. The nightly LLM budget is an open decision in its own issue — until it is
-    settled this flag stays out, and adding it should trip this test first."""
-    assert "--with-llm" not in command
+def test_the_nightly_llm_is_bounded_to_new_candidates(command):
+    """--with-llm alone is ~80k Haiku screens EVERY night. It is on (#412) only beside
+    --llm-triage-candidates-only, which triages just the unscored pubs a no-LLM pass
+    surfaces; dropping that flag while keeping --with-llm should trip this test first."""
+    assert "--with-llm" in command
+    assert "--llm-triage-candidates-only" in command
 
 
 def test_the_nightly_carries_the_stored_llm_evidence_forward(command):
@@ -296,10 +294,12 @@ def test_secrets_are_the_db_credentials_plus_the_bedrock_token(container):
     path (unlike the cold run this file was cloned from)."""
     names = [s["name"] for s in container["secrets"]]
     assert names == ["DB_HOST", "DB_USERNAME", "DB_PASSWORD", "DB_NAME",
-                     "AWS_BEARER_TOKEN_BEDROCK"]
+                     "AWS_BEARER_TOKEN_BEDROCK", "NCBI_API_KEY"]
     assert "OPENAI_API_KEY" not in names
-    # Plain-SecretString secret: no trailing :KEY:: selector, unlike the DB keys.
-    assert container["secrets"][-1]["valueFrom"] == "{BEDROCK_API_KEY_SECRET_ARN}"
+    # Plain-SecretString secrets: no trailing :KEY:: selector, unlike the DB keys.
+    # NCBI_API_KEY (#415) lifts the alias search off the anonymous 3 req/s per-IP limit.
+    assert [s["valueFrom"] for s in container["secrets"][-2:]] == [
+        "{BEDROCK_API_KEY_SECRET_ARN}", "{NCBI_API_KEY_SECRET_ARN}"]
 
 
 def test_log_group_is_cores_scoped_and_never_auto_created(container):
