@@ -81,6 +81,10 @@ hard-coded precedence. And **`aff:core` alone confirms**, at 0.738: an author wh
 already given ≥70% of their corpus output to this core confirms their next paper on the
 strength of that history. That is measured, not chosen (55/137 labelled-yes vs 3/1200
 corpus), but it makes the affinity numerator's correctness load-bearing — see #391 below.
+A core's **own staff earn no rate for that core** and so lend none: publishing through
+their own core is their job, not client usage, and left in they lent `aff:core` to every
+byline they were on (and fed it back through each confirmation). The co-author signal
+covers them instead.
 
 ### Two signals are wired but inert
 
