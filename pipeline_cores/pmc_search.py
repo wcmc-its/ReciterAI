@@ -22,7 +22,7 @@ the alias and its count, so a truncated set is never silent again.
 REQUESTS ARE PACED and carry PUBMED_API_KEY / NCBI_API_KEY when set, exactly as
 fulltext.py does. Unpaced, the 2 requests per alias across 57 aliases ran past
 NCBI's 3-req/s anonymous limit and 18 of them came back "HTTP Error 400", each
-swallowed by the per-alias fail-soft below as "no hits".
+swallowed by the then-fail-soft per-alias catch as "no hits" (it raises now, #415).
 
 Coverage is identical to `--with-fulltext`: both see the PMC subset and nothing
 else, so this trades no recall for the speedup.
@@ -40,6 +40,7 @@ import json
 import logging
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -55,6 +56,9 @@ MAX_IDS = 9999      # NCBI's OWN ceiling: retstart must be <= 9998, and a reques
                     # returns a 200 whose JSON carries a raw newline, so json.load raises
                     # and pmids_naming's per-alias catch would discard every id collected.
 IDCONV_CHUNK = 200  # idconv's documented per-request id limit (a bigger GET is a 414)
+
+RETRY_WAITS = (2, 4, 8, 16, 32)  # seconds between attempts on a 429/5xx/network error
+                                # (~1 min); Retry-After wins when NCBI sends one
 
 _last_request = 0.0
 
@@ -76,8 +80,25 @@ def _get_json(url: str, params: dict, timeout: int) -> dict:
         time.sleep(gap)
     _last_request = time.monotonic()
     q = urllib.parse.urlencode(params)
-    with urllib.request.urlopen(f"{url}?{q}", timeout=timeout) as resp:
-        return json.load(resp)
+    # Retried, because one 429 used to cost the alias (#415): unkeyed Fargate egress
+    # shares NCBI's 3 req/s per-IP budget with whoever else is on that IP.
+    for wait in (*RETRY_WAITS, None):
+        try:
+            with urllib.request.urlopen(f"{url}?{q}", timeout=timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as err:
+            if wait is None or not (err.code == 429 or err.code >= 500):
+                raise
+            try:
+                wait = max(wait, float(err.headers.get("Retry-After") or 0))
+            except ValueError:
+                pass  # an HTTP-date Retry-After; the backoff is close enough
+            logger.info("NCBI HTTP %d — retrying in %ss", err.code, wait)
+        except (urllib.error.URLError, TimeoutError) as err:
+            if wait is None:
+                raise
+            logger.info("NCBI %s — retrying in %ss", err, wait)
+        time.sleep(wait)
 
 
 def esearch_pmc(phrase: str, *, timeout: int = DEFAULT_TIMEOUT) -> list:
@@ -143,8 +164,12 @@ def pmcids_to_pmids(pmcids: list, *, timeout: int = DEFAULT_TIMEOUT) -> set:
 def pmids_naming(core, *, timeout: int = DEFAULT_TIMEOUT) -> set:
     """PMIDs whose PMC full text names one of `core`'s non-acronym aliases.
 
-    Fail-soft per alias: an NCBI hiccup on one alias logs and is skipped rather
-    than failing the run — signal 3 is a bonus confirmer, never load-bearing.
+    RAISES when an alias search still fails after _get_json's retries (#415). It
+    used to log and carry on, and that is a wipe, not a degradation: ack_alias /
+    ack_snippet are owned attributes, so a run that "found no alias" REMOVEs them
+    from every row it rewrites, and the pairs resting on them drop a band. A failed
+    nightly writes nothing (run.py persists only after every core finishes), so the
+    stored evidence waits for the next night intact.
     """
     out: set = set()
     for alias in core.aliases:
@@ -153,8 +178,10 @@ def pmids_naming(core, *, timeout: int = DEFAULT_TIMEOUT) -> set:
             continue
         try:
             out |= pmcids_to_pmids(esearch_pmc(alias, timeout=timeout), timeout=timeout)
-        except Exception as err:  # noqa: BLE001 — any NCBI failure degrades to "no hits"
-            logger.warning("alias search failed for %r: %s", alias, err)
+        except Exception as err:
+            raise RuntimeError(f"alias search failed for {alias!r} after retries — "
+                               f"refusing to score core {core.core_id} without it "
+                               f"(it would strip stored ack evidence, #415)") from err
     return out
 
 

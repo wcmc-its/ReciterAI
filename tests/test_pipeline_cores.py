@@ -1025,8 +1025,10 @@ def test_pmids_naming_skips_acronym_aliases(monkeypatch):
     assert searched == ["Architecture for Research Computing"]
 
 
-def test_pmids_naming_survives_an_ncbi_failure(monkeypatch):
-    """Signal 3 is a bonus confirmer — one bad alias must not fail the run."""
+def test_pmids_naming_raises_rather_than_reporting_no_hits(monkeypatch):
+    """#415: "no hits" REMOVEs the stored ack evidence from every rewritten row, so an
+    alias that still fails after retries fails the run instead."""
+    import pytest
     from pipeline_cores import pmc_search
     from pipeline_cores.models import CoreDefinition
 
@@ -1038,8 +1040,58 @@ def test_pmids_naming_survives_an_ncbi_failure(monkeypatch):
     monkeypatch.setattr(pmc_search, "esearch_pmc", flaky)
     monkeypatch.setattr(pmc_search, "pmcids_to_pmids", lambda ids, **kw: {"32997716"})
 
-    core = CoreDefinition(core_id="14", name="RI", aliases=["Bad Alias", "Good Alias"])
-    assert pmc_search.pmids_naming(core) == {"32997716"}
+    core = CoreDefinition(core_id="14", name="RI", aliases=["Good Alias", "Bad Alias"])
+    with pytest.raises(RuntimeError, match="Bad Alias"):
+        pmc_search.pmids_naming(core)
+
+
+def _ncbi(monkeypatch, outcomes):
+    """urlopen that plays `outcomes` in order: an int is an HTTP error code, a dict a body."""
+    import io
+    import json
+    import urllib.error
+    from pipeline_cores import pmc_search
+
+    calls, sleeps = [], []
+    monkeypatch.setattr(pmc_search.time, "sleep", sleeps.append)
+    monkeypatch.delenv("PUBMED_API_KEY", raising=False)
+    monkeypatch.delenv("NCBI_API_KEY", raising=False)
+
+    def urlopen(url, timeout):
+        out = outcomes[len(calls)]
+        calls.append(url)
+        if isinstance(out, int):
+            raise urllib.error.HTTPError(url, out, "x", {"Retry-After": "7"} if out == 429 else {}, None)
+        return io.BytesIO(json.dumps(out).encode())
+    monkeypatch.setattr(pmc_search.urllib.request, "urlopen", urlopen)
+    return calls, sleeps
+
+
+def test_get_json_retries_a_429_and_honours_retry_after(monkeypatch):
+    from pipeline_cores import pmc_search
+    calls, sleeps = _ncbi(monkeypatch, [429, 503, {"ok": 1}])
+    assert pmc_search._get_json("u", {}, 1) == {"ok": 1}
+    assert len(calls) == 3 and 7.0 in sleeps and 4 in sleeps
+
+
+def test_get_json_does_not_retry_a_client_error(monkeypatch):
+    import urllib.error
+    import pytest
+    from pipeline_cores import pmc_search
+    calls, _ = _ncbi(monkeypatch, [400, {"ok": 1}])
+    with pytest.raises(urllib.error.HTTPError):
+        pmc_search._get_json("u", {}, 1)
+    assert len(calls) == 1
+
+
+def test_get_json_gives_up_after_the_last_wait(monkeypatch):
+    import urllib.error
+    import pytest
+    from pipeline_cores import pmc_search
+    calls, _ = _ncbi(monkeypatch, [429] * (len(pmc_search.RETRY_WAITS) + 1))
+    with pytest.raises(urllib.error.HTTPError):
+        pmc_search._get_json("u", {}, 1)
+    assert len(calls) == len(pmc_search.RETRY_WAITS) + 1
 
 
 def _esearch_page(ids, count):
