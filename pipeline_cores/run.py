@@ -171,7 +171,25 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     (the tests, today) simply records no descriptors."""
     full_text = full_text or (lambda _pmid: "")
     pmids = [p["pmid"] for p in pubs]
-    coauthors = signals.coauthorship_index(engine, core, pmids)
+    # Curated clients, intersected with each byline below. Asserted rather than
+    # inferred, so this fires on a core with zero prior confirmations — the case the
+    # phase-2 affinity prior cannot reach. Union of the YAML-curated list (already
+    # lowercased/stripped by load_cores) and whatever SPS's "Known clients" panel has
+    # written to DynamoDB for this core (#383's engine half).
+    yaml_clients = set(core.clients)
+    if dry_run:
+        print(f"[{core.core_id} {core.name}] dry-run: skipping DynamoDB curated-client read")
+        dynamo_clients = dynamo_staff = set()
+    else:
+        from pipeline_cores.persist import get_curated_clients, get_curated_staff  # lazy
+        dynamo_clients = get_curated_clients(core.core_id)
+        dynamo_staff = get_curated_staff(core.core_id)
+    clients = yaml_clients | dynamo_clients
+    print(f"[{core.core_id} {core.name}] curated clients: {len(yaml_clients)} yaml + "
+          f"{len(dynamo_clients)} dynamodb -> {len(clients)} union")
+    print(f"[{core.core_id} {core.name}] staff: {len(core.staff_cwids)} dictionary + "
+          f"{len(dynamo_staff)} dynamodb (matched live against ReCiter)")
+    coauthors = signals.coauthorship_index(engine, core, pmids, extra_cwids=dynamo_staff)
     bylines = ingest.fetch_author_bylines(engine, pmids)
     if carry_forward is None:
         llm_scores = signals.llm_triage(bedrock, core, pubs, screen_map=screen_map,
@@ -202,21 +220,6 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
               f"{sum(1 for p in pubs if str(p['pmid']) in carry_forward)} carried forward, "
               f"{len(todo) if bedrock else 0} triaged")
 
-    # Curated clients, intersected with each byline below. Asserted rather than
-    # inferred, so this fires on a core with zero prior confirmations — the case the
-    # phase-2 affinity prior cannot reach. Union of the YAML-curated list (already
-    # lowercased/stripped by load_cores) and whatever SPS's "Known clients" panel has
-    # written to DynamoDB for this core (#383's engine half).
-    yaml_clients = set(core.clients)
-    if dry_run:
-        print(f"[{core.core_id} {core.name}] dry-run: skipping DynamoDB curated-client read")
-        dynamo_clients = set()
-    else:
-        from pipeline_cores.persist import get_curated_clients  # lazy
-        dynamo_clients = get_curated_clients(core.core_id)
-    clients = yaml_clients | dynamo_clients
-    print(f"[{core.core_id} {core.name}] curated clients: {len(yaml_clients)} yaml + "
-          f"{len(dynamo_clients)} dynamodb -> {len(clients)} union")
 
     # Phase 1 — deterministic + LLM signals.
     sigs, records = {}, []
@@ -581,21 +584,23 @@ def main(argv=None):
     # as that holds. Fourteen idempotent UpdateItems that re-assert two small integers
     # cost nothing measurable next to a corpus-wide scoring pass.
     #
-    # BOTH counts: len(core.staff) is who the dictionary lists, and
-    # len(core.tracked_staff_cwids) is who signals.coauthorship_index can actually match
-    # (untracked staff carry personIdentifier NULL and are invisible to it). Publishing
-    # only the first would caption core 14's signal "4 core staff" where it draws on 1.
+    # BOTH counts: len(core.staff) is who the dictionary lists, and the second is who
+    # signals.coauthorship_index can actually match TODAY — a live lookup of which of
+    # them ReCiter has resolved onto an author row (signals.resolved_staff), not a
+    # stored flag, so it moves as ReCiter adds people. Publishing only the first would
+    # caption a signal with staff it cannot see.
     # An absent `staff:` key and an explicit `staff: []` both load as [] and both
     # legitimately publish 0/0.
     #
     # Display-only and never fatal: put_core_staff_dict_counts swallows and warns, so
     # this cannot fail the scoring run. Skipped under --dry-run like every other write.
+    engine = get_engine()
     if not args.dry_run:
         from pipeline_cores.persist import put_core_staff_dict_counts  # lazy
         for core in load_cores():
             put_core_staff_dict_counts(
-                core.core_id, len(core.staff), len(core.tracked_staff_cwids))
-    engine = get_engine()
+                core.core_id, len(core.staff),
+                len(signals.resolved_staff(engine, core.staff_cwids)))
     pool = read_pmids_file(args.pmids_file) if args.pmids_file else None
     pubs = ingest.fetch_publications(engine, pmids=pool, limit=args.test)
     if pool is not None:

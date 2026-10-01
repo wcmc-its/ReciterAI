@@ -26,7 +26,6 @@ def load_cores(path: Path = None) -> list:
                 cwid=s["cwid"],
                 name=s.get("name", ""),
                 dept=s.get("dept", ""),
-                tracked=bool(s.get("tracked", True)),
             )
             for s in c.get("staff", [])
         ]

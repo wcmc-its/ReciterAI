@@ -60,13 +60,20 @@ after any weight change:
 |---|---|---|
 | distinctive alias beside a home institution | 1.000 | confirmed |
 | aff:core (rate ≥ 0.70) | 0.738 | confirmed |
-| staff co-author | 0.731 | confirmed |
+| staff co-author | 0.731 | candidate (held — never the deciding vote, see below) |
 | LLM 9 or 10 | 0.591 | candidate |
 | aff:regular (rate 0.30) | 0.387 | candidate |
 | **curated client** | **0.020** | **below_threshold** |
 | **curated method family, any tier** | **0.020** | **below_threshold** |
 | **MeSH descriptor under the core's E-tree branch** | **0.020** | **below_threshold** |
 | generic alias beside another institution | 0.002 | below_threshold |
+
+**Neither the LLM nor a staff co-author is ever the deciding vote** (`combine.combine`):
+a pair that clears 0.65 only because of its LLM term, or only because of a staff
+co-author with no alias match beside it, is held at `candidate`, likelihood kept. The
+LLM because LLM + a weak usage prior auto-confirmed ~290 unjudged papers in the #412
+backfill; staff because ReCiter over-matches core staff onto bylines. An
+acknowledgement still confirms, with or without staff.
 
 Two things to read off it. **The LLM alone never confirms** — it tops out at 0.591
 against a 0.65 bar, deliberately, and that is the one doctrine kept from the old
@@ -606,7 +613,7 @@ a cell too thin to support a weight is `0.00` **and says so** rather than being 
    `origin/main`'s combiner after any change.
 3. Re-run the "what one piece of evidence is worth" table above. The thresholds are
    *bracketed* by the weights, not chosen: 0.65 sits **below** a lone staff co-author
-   (0.731), which must confirm, and **above** the LLM's ceiling (0.591), which must not,
+   (0.731, held at candidate by rule, not by weight), and **above** the LLM's ceiling (0.591), which must not,
    with nothing within 0.05 of the bar (nearest: the LLM at Δ0.059, and a generic alias
    beside a home institution at 0.706, Δ0.056). A weight change can quietly move a piece
    of evidence across it.

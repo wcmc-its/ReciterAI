@@ -197,18 +197,37 @@ def method_family_signal(family_index: dict, pmid: str, core: CoreDefinition):
 # ---------------------------------------------------------------------------
 # Signal 2 — core-staff co-authorship (deterministic, resolved identity)
 # ---------------------------------------------------------------------------
-def coauthorship_index(engine, core: CoreDefinition, pmids: list = None) -> dict:
+def resolved_staff(engine, cwids) -> set:
+    """The subset of `cwids` ReCiter has resolved onto at least one author row — i.e.
+    the staff coauthorship_index can match TODAY. A live lookup, not a dictionary
+    flag: staff come and go, and ReCiter starts (or stops) resolving people over time."""
+    from sqlalchemy import bindparam, text  # lazy
+
+    cwids = sorted(set(cwids))
+    if not cwids:
+        return set()
+    stmt = text("SELECT DISTINCT personIdentifier FROM analysis_summary_author "
+                "WHERE personIdentifier IN :cwids").bindparams(bindparam("cwids", expanding=True))
+    with engine.connect() as conn:
+        return {row.personIdentifier for row in conn.execute(stmt, {"cwids": cwids})}
+
+
+def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
+                       extra_cwids=()) -> dict:
     """Map pmid -> [core-staff CWIDs on its byline], from RESOLVED authorship.
 
     Source: reciterdb.analysis_summary_author.personIdentifier (resolved CWID per
     author row; mirrored into the SPS DB). Matched on personIdentifier, NEVER on
-    name. Only `tracked` staff can be found here; untracked staff (personIdentifier
-    NULL) need the upstream ReCiter-target fix. Validated: 39% recall / 100%
-    precision on the 237-paper pilot.
+    name. Every listed staff member is asked for (the dictionary's `staff:` plus
+    `extra_cwids`, SPS's curated CORE#{id}/STAFF); one ReCiter has not resolved simply
+    matches nothing until it does, so coverage is live rather than a stored flag.
+    A staff match is one signal: it raises the likelihood but never confirms on its
+    own (combine's hold). Validated: 39% recall / 100% precision on the 237-paper
+    pilot, before the large-lab PIs were included.
     """
     from sqlalchemy import bindparam, text  # lazy
 
-    cwids = core.tracked_staff_cwids
+    cwids = sorted(set(core.staff_cwids) | set(extra_cwids))
     if not cwids:
         return {}
     sql = (

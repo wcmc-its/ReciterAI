@@ -125,7 +125,7 @@ def _identity(conn, cwids: set) -> dict:
 
 
 def suggest_for_core(conn, core, in_dict_cwids: dict, since: int, min_papers: int, top: int, staff_only: bool = False):
-    seed = set(core.tracked_staff_cwids)
+    seed = set(core.staff_cwids)  # untracked ones simply match no rows
     if not seed:
         print(f"\n=== core {core.core_id}  {core.name} ===")
         print("  (no tracked-staff seed — needs signal-3/alias bootstrapping first)")
