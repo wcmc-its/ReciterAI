@@ -263,14 +263,27 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     # prior_user_pmids and this run's records on any corpus-wide run; `add` makes that
     # one paper, `+= 1` made it two. The numerator has to mean the same thing as the
     # denominator — a count of that author's papers — or the rate is not a rate.
+    #
+    # The core's OWN staff are left out of THIS core's rates. The prior asks "what share
+    # of this author's work used the core?", and for staff that is just their job: most
+    # of what they publish runs through the core, so their rate is high because they
+    # are staff, not clients. Left in, they lent aff:core (which confirms alone) to every
+    # byline they are on — Sholle sat at ~40 of 54 on core 14 — re-admitting through the
+    # prior exactly the staff over-match combine's hold keeps from confirming, and it fed
+    # itself (each confirmation raised the rate that made the next). Staff are covered
+    # by the co-author signal instead. Their usage of OTHER cores still counts.
+    staff = {c.lower() for c in core.staff_cwids} | dynamo_staff
     papers = defaultdict(lambda: defaultdict(set))
     for cwid, by_core in (prior_user_pmids or {}).items():
         for cid, pmid_set in by_core.items():
+            if cid == core.core_id and cwid.lower() in staff:
+                continue
             papers[cwid][cid] |= set(pmid_set)
     for rec in records:
         if rec.status == STATUS_CONFIRMED:
             for cwid in bylines.get(rec.pmid, []):
-                papers[cwid][core.core_id].add(rec.pmid)
+                if cwid.lower() not in staff:
+                    papers[cwid][core.core_id].add(rec.pmid)
     # len() at the boundary: build_affinity_index takes counts, and keeping the sets on
     # this side of it means the dedupe cannot be undone by a caller that builds its own.
     counts = {cwid: {cid: len(p) for cid, p in by_core.items()} for cwid, by_core in papers.items()}

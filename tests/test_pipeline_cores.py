@@ -591,7 +591,8 @@ def test_llm_triage_serial_when_max_workers_1():
 # --- two-phase affinity recompute in run_core (monkeypatched DB reads) ------
 def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     """An ack-confirmed paper makes the same author's other (weak) paper a
-    candidate via the repeat-user prior — the compounding behavior."""
+    candidate via the repeat-user prior — the compounding behavior. The author is a
+    client, not core staff: staff lend no affinity to their own core."""
     from pipeline_cores import ingest, run, signals
 
     core = load_core("2")
@@ -602,16 +603,16 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     # 100 names the core in its acknowledgements -> confirmed.
     monkeypatch.setattr(signals, "coauthorship_index", lambda e, c, p, **k: {})
     full_text = _ack_confirms(monkeypatch, {"100"})
-    # Both papers share author djb2001 on the byline.
-    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["djb2001"], "200": ["djb2001"]})
-    # ...and djb2001 has 20 corpus papers, so one confirm is a 5% rate: aff:regular.
-    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 20})
+    # Both papers share author cli0001 on the byline.
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["cli0001"], "200": ["cli0001"]})
+    # ...and cli0001 has 20 corpus papers, so one confirm is a 5% rate: aff:regular.
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"cli0001": 20})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None, dry_run=True,
                                             full_text=full_text)}
     assert recs["100"].status == STATUS_CONFIRMED
-    # 200 has no direct signal; it inherits djb2001's affinity. One confirm out of 20
+    # 200 has no direct signal; it inherits cli0001's affinity. One confirm out of 20
     # corpus papers is a 5% rate (aff:regular), so the sibling reaches the queue and
     # still sits well below the paper that was actually confirmed.
     assert recs["200"].status == STATUS_CANDIDATE
@@ -619,12 +620,37 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     # ...and it is the DENOMINATOR doing that, not the count: the same single confirm by
     # an author with 100 corpus papers is a trace and stays out of the queue. On the old
     # curve both were 0.45 — the count knew nothing about who the author was.
-    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"djb2001": 100})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"cli0001": 100})
     prolific = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                                 scored_at="t", engine=None, dry_run=True,
                                             full_text=full_text)}
     assert prolific["200"].status == STATUS_BELOW
     assert prolific["200"].likelihood < recs["200"].likelihood
+
+
+def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
+    """Staff publish through their own core as a matter of course, so their rate is a
+    job description, not client usage. Excluded from THIS core's rates (dictionary and
+    SPS-curated staff alike), a staff member's history no longer lifts a byline; the
+    same history still counts for a non-staff co-author."""
+    from pipeline_cores import ingest, run, signals
+
+    core = load_core("14")
+    staff = core.staff_cwids[0]
+    pubs = [{"pmid": "200", "title": "t", "abstract": ""}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {staff: 4, "cli0001": 4})
+    prior = {staff: {"14": {"1", "2", "3", "4"}}, "cli0001": {"14": {"1", "2", "3", "4"}}}
+
+    def score_200(byline):
+        monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"200": byline})
+        (rec,) = run.run_core(core, pubs, bedrock=None, threshold=0.30, scored_at="t",
+                              engine=None, dry_run=True, prior_user_pmids=prior)
+        return rec
+
+    assert score_200([staff]).signals.author_affinity == 0.0
+    assert score_200(["cli0001"]).signals.author_affinity == 1.0   # a client at 4/4: aff:core
+    assert score_200(["cli0001"]).status == STATUS_CONFIRMED
 
 
 def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
