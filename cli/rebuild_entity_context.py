@@ -84,6 +84,8 @@ def reproject_entity_context(
     *,
     live_entities: list[dict] | None = None,
     generic_terms: list[str] | None = None,
+    context_augment: dict[str, list[str]] | None = None,
+    max_per_pair: int | None = None,
 ) -> tuple[list[dict], dict]:
     """Re-run build_entity_layer over the (aligned) tool_context; preserve descriptors.
 
@@ -91,9 +93,14 @@ def reproject_entity_context(
     span/centrality/sentence_complete, the #252 is_generic flag + 0-count
     suppression re-applied. Descriptors from ``live_entities`` are re-attached by
     their content-stable ``parent_entity_id`` (no LLM call).
+
+    ``context_augment`` (#1166-B) optionally adds multi-sentence depth per existing
+    (entity, pmid) pair — see :func:`pipeline_tools.entities.build_entity_layer`.
     """
+    kw = {} if max_per_pair is None else {"max_per_pair": max_per_pair}
     entities, entity_context, _parents = build_entity_layer(
-        tools, families, tool_context, generic_terms=generic_terms,
+        tools, families, tool_context,
+        generic_terms=generic_terms, context_augment=context_augment, **kw,
     )
     if live_entities:
         descriptors = {
@@ -120,6 +127,8 @@ def republish_entity_context(
     live_manifest_path: str | None = None,
     out_dir: str | None = None,
     publish: bool = False,
+    context_augment: dict[str, list[str]] | None = None,
+    max_per_pair: int | None = None,
 ) -> dict:
     """Re-project entity_context from live aligned tool_context and republish it.
 
@@ -151,6 +160,7 @@ def republish_entity_context(
     entities, entity_context = reproject_entity_context(
         bundle["tools"], bundle["families"], tool_context,
         live_entities=live_entities, generic_terms=load_generic_terms(),
+        context_augment=context_augment, max_per_pair=max_per_pair,
     )
     after = entity_fragment_metrics(entity_context)
     logger.info("AFTER  (re-projected)        : %s", after)
@@ -211,6 +221,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--live-entity-context", help="path to the live entity_context.json (before-metrics)")
     ap.add_argument("--live-manifest", help="path to the live latest/manifest.json (freeze safety check)")
     ap.add_argument("--out-dir", default="out/tools/a2", help="where to write the rebuilt artifacts for review")
+    ap.add_argument("--augment", help="#1166-B multi-sentence augment JSON ({pmid: [sentence,...]}) "
+                    "from cli/extract_entity_augment — adds depth per existing (entity, pmid)")
+    ap.add_argument("--max-per-pair", type=int, default=None,
+                    help="cap kept sentences per (entity, pmid); pass 1 while the SPS feed renders one")
     ap.add_argument("--publish", action="store_true", help="ACTUALLY upload to S3 (default: dry-run)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -223,6 +237,12 @@ def main(argv: list[str] | None = None) -> int:
     if not live_tools or not live_tool_context:
         ap.error("need --live-tools and --live-tool-context (or --live-dir with both)")
 
+    context_augment = None
+    if args.augment:
+        context_augment = {str(k): v for k, v in json.load(open(args.augment)).items()}
+        n_pairs = sum(len(v or []) for v in context_augment.values())
+        logger.info("loaded augment: %d pmids, %d candidate sentences", len(context_augment), n_pairs)
+
     republish_entity_context(
         live_tools,
         live_tool_context,
@@ -231,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
         live_manifest_path=args.live_manifest or _d("manifest.json"),
         out_dir=args.out_dir,
         publish=args.publish,
+        context_augment=context_augment,
+        max_per_pair=args.max_per_pair,
     )
     return 0
 
