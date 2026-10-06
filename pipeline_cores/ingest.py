@@ -165,7 +165,8 @@ def fetch_author_tenure(engine, cwids) -> dict:
     Source: reciterdb `identity` (the ReCiter identity mirror of the Enterprise
     Directory), startDateWCMFaculty / endDateWCMFaculty and the Student pair, all
     YEARS. The span is the union: earliest start, latest end — a student who joined
-    the faculty is one stay. end None = open-ended (a current appointment carries a
+    the faculty is one stay. A pair with a start and a NULL end is open-ended, and so
+    is the span it belongs to. end None = open-ended (a current appointment carries a
     future sentinel year, which reads the same). A cwid with no identity row or no
     start date is ABSENT from the result and therefore not gated.
 
@@ -185,10 +186,16 @@ def fetch_author_tenure(engine, cwids) -> dict:
     out: dict = {}
     with engine.connect() as conn:
         for row in conn.execute(stmt, {"cwids": cwids}):
-            starts = [y for y in (row.sf, row.ss) if y]
-            ends = [y for y in (row.ef, row.es) if y]
-            if starts:
-                out[row.cwid] = (min(starts), max(ends) if ends else None)
+            pairs = [(st, en) for st, en in ((row.sf, row.ef), (row.ss, row.es)) if st]
+            if not pairs:
+                continue
+            # A started appointment with a NULL end is OPEN, and an open appointment
+            # makes the whole span open. max() over the non-NULL ends alone would drop
+            # it: a student who graduated in 2015 and is now open-ended faculty would
+            # read as gone in 2015, and lose every paper after 2017.
+            ends = [en for _st, en in pairs]
+            out[row.cwid] = (min(st for st, _en in pairs),
+                             None if any(not en for en in ends) else max(ends))
     return out
 
 

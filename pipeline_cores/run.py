@@ -293,7 +293,12 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     known_years = {p["pmid"]: p.get("year") for p in pubs if p.get("year")}
     counts, author_totals, tenure, pub_years = ingest.affinity_inputs(
         engine, papers, years=known_years)
-    affinity_index = signals.build_affinity_index(counts, author_totals, tenure=tenure)
+    # `members=papers` so each scored paper is left out of its own prior: a pair an
+    # earlier run confirmed (or a human claimed) arrives in prior_user_pmids AND is
+    # re-scored below, and counting it in its own byline's numerator kept it confirmed
+    # with its own label (signals.author_affinity, SELF-EXCLUSION).
+    affinity_index = signals.build_affinity_index(counts, author_totals, tenure=tenure,
+                                                  members=papers)
 
     out = []
     for rec in records:
@@ -302,7 +307,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             continue
         sig = sigs[rec.pmid]
         sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []),
-                                                      core.core_id, pub_years.get(rec.pmid))
+                                                      core.core_id, pub_years.get(rec.pmid),
+                                                      pmid=rec.pmid)
         out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
                                     core=core, triage_threshold=threshold))
     return out

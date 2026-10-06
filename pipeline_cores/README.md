@@ -80,9 +80,13 @@ against a 0.65 bar, deliberately, and that is the one doctrine kept from the old
 hard-coded precedence. And **`aff:core` alone no longer confirms** (0.554, refit
 2026-10-06). It did, at 0.738, while the fit priced it at +4.93 (55/137 labelled-yes vs
 3/1200) — but 40 of those 55 were core staff's self-affinity, which production stopped
-computing in #418, and production's 1-of-1 authors were riding it to auto-confirmation.
-With staff out of the panel and K=1 shrinkage the cell is a 3-positive floor of +4.11, so
-a usage prior now needs one more piece of evidence to confirm. The numerator's
+computing in #418. And production was not scoring the feature the fit priced: a paper
+confirmed once was re-scored with its OWN confirmation in its byline's numerator, so it
+kept itself confirmed with its own label (all 47 of core 14's affinity-only confirmations
+on 2026-10-06 counted themselves). Each scored paper is now left out of its own prior
+(self-exclusion, below). With staff out of the panel and K=1 shrinkage the cell is a
+3-positive floor of +4.11, so a usage prior now needs one more piece of evidence to
+confirm. The numerator's
 correctness is still load-bearing — see #391 below.
 A core's **own staff earn no rate for that core** and so lend none: publishing through
 their own core is their job, not client usage, and left in they lent `aff:core` to every
@@ -230,8 +234,8 @@ them honest:
   confirmations are largely the *same papers* on a corpus-wide run, so phase 2 carries
   pmid **sets** and unions them, taking `len()` only at the `build_affinity_index`
   boundary. A counter double-credited every re-confirmed paper to every byline author,
-  which moved authors a whole bucket — and since `aff:core` alone confirms, an inflated
-  author's next paper auto-confirmed with no ack, no staff co-author and no LLM score.
+  which moved authors a whole bucket — and since `aff:core` alone then confirmed, an
+  inflated author's papers auto-confirmed with no ack, no staff co-author and no LLM score.
   `build_affinity_index` only *warns* when the doubled value exceeds the author's own
   corpus total, so most of the inflation was silent. Fixing it moved a live full-corpus
   run from 216→186 confirmed and 1632→1434 candidates.
@@ -241,6 +245,17 @@ them honest:
   lends nothing to a scored paper published outside that window — the paper itself is
   never dropped, and ack / staff never pass through here. No identity row = not gated.
   The start lag is generous because identity dates the FACULTY appointment, not arrival.
+- **A paper is never its own evidence** (self-exclusion, `signals.author_affinity(...,
+  pmid=)`). When P is scored, each author's rate leaves P out: the numerator drops P if it
+  is one of their confirmed/claimed papers for the core, and the denominator drops P (it
+  is a corpus paper). Every confirmed or claimed pair is re-scored on every run, and
+  before this its own row sat in its byline's numerator — a self-confirmation loop: all
+  47 of core 14's affinity-only confirmations counted themselves, 20 had a byline author
+  whose ONLY confirmation was that paper, and 15 drop out of `aff:core` once they are
+  left out. The fit already scored papers this way (labelled papers are not in its
+  numerator), so this is also what makes production compute the fitted feature. A 3-of-3
+  author scoring one of their own three reads as 2-of-2. `batch_screen` needs none: its
+  pool already drops every pmid its numerator is built from.
 - **Small denominators are shrunk**: rate = n / (total + 1), so a 1-of-1 author is 0.50
   (`aff:regular`), not 1.0 (`aff:core`). Time decay is implemented but OFF
   (`signals.AFFINITY_HALF_LIFE_YEARS = None`); the constants' comments in `signals.py`

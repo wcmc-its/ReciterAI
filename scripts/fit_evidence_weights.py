@@ -286,10 +286,16 @@ def alias_negatives(corpus_set, n_sample: int, seed: int):
 # ---------------------------------------------------------------------------
 def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._DEFAULT,
                    half_life=signals._DEFAULT, tenure_gate: bool = True):
-    """(bylines, years, index) for panel B's affinity prior, built the way run_core builds it.
+    """(bylines, years, score) for panel B's affinity prior, built the way run_core builds
+    it; `score(pmid)` is that paper's author_affinity.
 
     The index is built from the core's signal-2 confirms MINUS anything in the label set,
-    so a labelled paper never contributes to its own prior. Its denominator is each
+    so a labelled paper never contributes to its own prior. Every scored paper is ALSO
+    passed through author_affinity's self-exclusion, exactly as run_core passes it:
+    that is a no-op on a labelled paper's numerator (it is not in it) but not on a
+    random-corpus negative that happens to be a signal-2 confirm, and it takes each
+    scored paper out of its authors' DENOMINATOR on both sides — production scores
+    corpus papers, so a corpus total there never contains the paper being scored. Its denominator is each
     author's total output in the SAME corpus these negatives are drawn from — the
     unrestricted author count deflates every rate ~4x and would fit the buckets against a
     scale production never sees — and the numerator is gated to that corpus exactly as
@@ -317,13 +323,21 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._D
                 papers[cwid][core.core_id].add(pmid)
     counts, totals, tenure, _ = ingest.affinity_inputs(engine, papers)
     index = signals.build_affinity_index(counts, totals, tenure=tenure if tenure_gate else {},
-                                         shrink_k=shrink_k, half_life=half_life)
+                                         shrink_k=shrink_k, half_life=half_life,
+                                         members=papers)
     years = ingest.fetch_pub_years(engine, everyone)
+    corpus = ingest.filter_corpus_pmids(engine, everyone)
+
+    def score(pmid):
+        return signals.author_affinity(index, bylines.get(pmid, []), core.core_id,
+                                       years.get(pmid), pmid=pmid, in_corpus=pmid in corpus)
     print(f"  affinity index: {len(outside)} confirms outside the label set, "
           f"{len(index.papers)} non-staff authors, tenure rows for {len(tenure)}"
           f"{'' if tenure_gate else ' (gate OFF)'}; shrink_k={index.shrink_k}, "
-          f"half_life={index.half_life}")
-    return bylines, years, index
+          f"half_life={index.half_life}; {len(corpus)}/{len(everyone)} scored papers in corpus, "
+          f"{len(set(neg_pmids) & set(outside))} random negatives are confirms "
+          f"(self-excluded)")
+    return bylines, years, score
 
 
 def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
@@ -342,7 +356,7 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     everyone = sorted(labels) + list(neg_pmids)
 
     coauthors = signals.coauthorship_index(engine, core, everyone)
-    bylines, years, index = affinity_panel(engine, labels, neg_pmids, core)
+    bylines, _years, aff = affinity_panel(engine, labels, neg_pmids, core)
 
     # The negatives need LLM scores from the SAME two-pass triage that produced the
     # positives' stored ones, so they are scored live — on a subset, because this is
@@ -370,8 +384,7 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
             coauthor_cwids=coauthors.get(pmid, []),
             client_cwids=[c for c in bylines.get(pmid, []) if c in clients],
             llm_score=llm_source.get(pmid, {}).get("score"),
-            author_affinity=signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE,
-                                                    years.get(pmid)),
+            author_affinity=aff(pmid),
         )
 
     rows = {"yes": [], "no": []}
@@ -400,10 +413,7 @@ def affinity_only(engine, neg_pmids, args) -> int:
         kw["shrink_k"] = args.shrink_k
     if args.half_life is not None:
         kw["half_life"] = args.half_life or None
-    bylines, years, index = affinity_panel(engine, labels, neg_pmids, core, **kw)
-
-    def aff(pmid):
-        return signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE, years.get(pmid))
+    _bylines, _years, aff = affinity_panel(engine, labels, neg_pmids, core, **kw)
 
     pos = [SignalResult(author_affinity=aff(p)) for p in sorted(labels) if labels[p] == "yes"]
     neg = [SignalResult(author_affinity=aff(p)) for p in neg_pmids]

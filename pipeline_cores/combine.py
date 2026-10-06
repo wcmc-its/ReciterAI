@@ -229,8 +229,9 @@ WEIGHTS = {
     # Refit 2026-10-06 (`fit_evidence_weights.py --affinity-only`) on the rate production
     # now computes: core staff left out of their own core's rate (#418 — the panel had
     # kept them, so 40 of the old 55 `aff:core` positives were staff self-affinity, a
-    # second copy of `staff`), the tenure gate, and shrinkage K=1 (signals.py). Was
-    # 0.79 / 3.43 / 4.93. `aff:core` is now a FLOOR on 3 positives and no longer
+    # second copy of `staff`), the tenure gate, shrinkage K=1 and self-exclusion (the
+    # scored paper left out of its own rate; signals.py). Was 0.79 / 3.43 / 4.93;
+    # self-exclusion moved none of the three cells. `aff:core` is now a FLOOR on 3 positives and no longer
     # clears DEFAULT_CONFIRM_THRESHOLD alone (see there).
     "aff:trace": 1.22,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 24/1200
     "aff:regular": 3.51,               # 0.05 <= rate < 0.70; n=40/137 vs 10/1200
@@ -288,14 +289,16 @@ _AFF_CORE_MIN = 0.70
 # 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
 # Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
 #
-# `aff:core` alone does NOT clear it (0.555, refit 2026-10-06). It did, at 0.738, while
+# `aff:core` alone does NOT clear it (0.554, refit 2026-10-06). It did, at 0.738, while
 # the fit priced it at 4.93 — but that cell was mostly core STAFF's self-affinity
-# (#418 stopped production computing it), and production's 1-of-1 authors (one corpus
-# paper, confirmed once -> rate 1.0) were auto-confirming the next paper they touched:
-# 10 of core 14's 47 affinity-carried confirmations on 2026-10-06. With staff out and
-# K=1 shrinkage it is a 3-positive floor of 4.11, so a usage prior now needs a second
-# piece of evidence to confirm. Measured, not chosen; it IS a behaviour change, and
-# the first thing to eyeball in a live queue.
+# (#418 stopped production computing it), and production fed it a self-confirmation
+# loop: a confirmed paper was re-scored with its OWN confirmation in its byline's
+# numerator, so it kept itself confirmed with its own label (all 47 of core 14's
+# affinity-carried confirmations on 2026-10-06 counted themselves; signals.author_affinity
+# now leaves the scored paper out). With staff out and K=1 shrinkage it is a 3-positive
+# floor of 4.11, so a usage prior now needs a second piece of evidence to confirm.
+# Measured, not chosen; it IS a behaviour change, and the first thing to eyeball in a
+# live queue.
 DEFAULT_CONFIRM_THRESHOLD = 0.65
 # Unchanged from the old combiner (and still what run.py --threshold overrides), so
 # "what reaches the claim queue" moves for measured reasons rather than by a

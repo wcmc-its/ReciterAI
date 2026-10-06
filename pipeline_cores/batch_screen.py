@@ -126,6 +126,12 @@ def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: b
     The set is unchanged by the count -> rate switch: this consumer asks only whether the
     prior fires at all, and any positive count still gives a positive rate. It is the
     WEIGHT that the rate changed, in combine().
+
+    No self-exclusion here (signals.author_affinity's `pmid`), deliberately: screen_core
+    drops `confirmed` — every pmid this numerator was built from — from the pool before
+    the prior is consulted, so no screened paper can be in its own numerator. Taking it
+    out of the denominator cannot change whether the prior FIRES either: a positive
+    numerator is some OTHER corpus paper, so total - 1 stays positive.
     """
     from collections import defaultdict
     from pipeline_cores import ingest  # lazy
