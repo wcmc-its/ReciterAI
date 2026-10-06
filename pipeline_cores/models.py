@@ -38,7 +38,8 @@ class CoreDefinition:
     # Institutions that count as HOME for this core's alias matches (above).
     partner_institutions: list = field(
         default_factory=lambda: list(DEFAULT_PARTNER_INSTITUTIONS))
-    # alias -> global PMC hit count, cached by `python3 -m pipeline_cores.refresh_alias_hits`.
+    # alias -> global PMC hit count (an "and"/"&" alias: the union of both spellings),
+    # cached by `python3 -m pipeline_cores.refresh_alias_hits`.
     # Alias SPECIFICITY predicts precision: over 10 aliases spanning 1 -> 23,544 global
     # hits, Pearson r = -0.852 between log10(hits) and the share of matches that mean OUR
     # core (100% home at 1 hit, 24% at 23,544). Empty until the refresh runs.

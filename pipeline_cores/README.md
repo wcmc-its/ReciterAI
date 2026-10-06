@@ -208,6 +208,20 @@ counting — which is why a *generic* alias is a net loss of ~5 nats against the
 Section is extracted but **weighted at zero until measured**; `run.py` does not pass the
 XML through, so it is `""` in production.
 
+**"and" and "&" are one connector.** `signals._alias_pattern` matches an alias's word
+"and" (whitespace both sides) or "&" against any of `and` / `&` / a leftover `&amp;` in
+the text, whitespace-tolerant, so the dictionary lists ONE spelling per alias. The PMC
+side follows: `pmc_search.alias_term` searches both spellings in one OR term (PMC drops
+"&" from a phrase, so the spellings return nearly disjoint paper sets — 207 vs 88 ids,
+5 shared, for "Microscopy and Image Analysis Core"), and `esearch_count` caches the
+UNION as the alias's specificity, because that is the set a match can come from. An
+alias with no connector compiles to exactly the old regex and sends exactly the old
+term — every core-14 alias and every acronym among them. Changing the connector rule
+means re-running `refresh_alias_hits --write`; a test fails if two spellings of one alias
+carry different counts. Change the rule when the claim queue's confirmed/rejected ack
+rows show one connector form with different precision, or ack text shows a new
+connector ("+", "/").
+
 **Repeat-user prior (signal 1):** core users are overwhelmingly repeat users, so
 `run_core` runs two phases — deterministic + LLM first, then it attributes every
 confirmed/claimed paper (this run + prior runs via DynamoDB) to its byline authors and
