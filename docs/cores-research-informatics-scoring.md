@@ -29,9 +29,10 @@ with very strong evidence are marked "confirmed" without review.
 2. **A Research Informatics staff member is an author.** This is strong evidence, but on
    its own it only puts a paper in the queue. It never confirms by itself, because the
    author-matching system sometimes attaches the wrong person to a byline.
-3. **An author is a repeat user.** If someone on the byline has had other papers
-   confirmed or claimed for Research Informatics, the paper gets a boost. The more of
-   their papers have used the core, the bigger the boost.
+3. **An author is a repeat user.** If someone on the byline has had at least 3 other
+   papers confirmed or claimed for Research Informatics, the paper gets a boost. The
+   more of their papers have used the core, the bigger the boost. (The minimum of 3 is
+   a Research Informatics setting once #424 merges; other cores have no minimum.)
 4. **An AI model read the title and abstract** and scored, from 1 to 10, how likely the
    paper was to need the core. This helps rank papers. It never confirms a paper on its
    own.
@@ -55,7 +56,8 @@ you can tick "Slight" (for example), check the list, and reject all of them in o
 - A decision is permanent as far as the engine is concerned. It never overwrites a claim
   or a rejection, and it never puts a rejected paper back in your queue.
 - A claim counts straight away. On the next nightly run, every author on that paper counts
-  as having used the core once more, which raises their other papers.
+  as having used the core once more, which raises their other papers once they have at
+  least 3 confirmed or claimed papers besides the one being scored.
 - A rejection changes no score automatically. It is still just as useful, because claims
   and rejections together are the only labelled data we have for core 14. Every
   adjustment below was measured on them, and the next ones need more of them (see
@@ -65,16 +67,29 @@ you can tick "Slight" (for example), check the list, and reject all of them in o
   papers in the queue are the ones that help most.
 
 **The repeat-user rule.** The team asked for a rule that an author needs at least 3
-confirmed Research Informatics papers before their history counts. We built that and
-then replaced it with a sliding scale. Under a hard minimum, 2 confirmed papers count for
-nothing and 3 count in full. Under the sliding scale, every confirmed paper counts a
-little, and a long record counts much more than a short one. The trade-off: on the 46
-papers your team has decided, the hard minimum of 3 separated claimed from rejected papers
-better, because it removed the boost from most of the rejected ones. The sliding scale
-also lets more papers into the queue: about 601 candidates, against 420 under the minimum
-of 3, in a dry run. The details and numbers are in
-[Why a sliding scale and not a minimum of 3](#why-a-sliding-scale-and-not-a-minimum-of-3).
-Both rules are a single setting, so the choice can be revisited as more decisions come in.
+confirmed Research Informatics papers before their history counts. That is what Research
+Informatics gets (#424). We tried two alternatives first and measured all three on the 46
+papers your team has decided (26 claimed, 20 rejected):
+
+- a **sliding scale**, where every confirmed paper counts a little and a long record
+  counts much more than a short one;
+- a **soft threshold**, a sliding scale that also fades out authors with only 1 or 2
+  confirmations.
+
+The minimum of 3 separated claimed from rejected papers clearly better than either,
+because it is the only one that removes the boost from most rejected papers: only 4 of the
+20 rejected papers keep one, against 17 of 20 under the other two. It also gives the
+smallest queue, 418 candidates in a dry run, against 601 under the sliding scale and 545
+under the soft threshold. The sliding scale still applies on top of the minimum: an author
+with 3 or more confirmations gets a boost that grows with their record.
+
+Two cautions. 46 papers is a small sample, so the measured difference, while larger than
+chance, has a wide margin of error; the rule will be re-measured once there are 100 or
+more decided papers. And a paper whose only evidence is a repeat user still scores 40.1%,
+just above the 40% line that hides Weak papers, so those papers will show as Slight. On
+Research Informatics that now only happens for authors with at least 3 other confirmed
+papers. The details and numbers are in
+[Why core 14 uses a minimum of 3](#why-core-14-uses-a-minimum-of-3).
 
 ## Where things stand
 
@@ -83,7 +98,7 @@ Both rules are a single setting, so the choice can be revisited as more decision
 | #418 | ReciterAI | a core's own staff lend no repeat-user boost to their own core | merged (`main`) |
 | #417, #414 | ReciterAI | staff alone and the LLM alone never confirm | merged |
 | #422 | ReciterAI | adds aliases "INSIGHT Clinical Research Network" and "INSIGHT CRN" | open |
-| #424 | ReciterAI | repeat-user rate: tenure gate, self-exclusion, sliding-scale shrinkage, refit weights | open |
+| #424 | ReciterAI | repeat-user rate: tenure gate, self-exclusion, sliding-scale shrinkage, refit weights; minimum of 3 confirmations for core 14 only (head `761fe0a`) | open |
 | #429 | ReciterAI | alias matcher treats "and" and "&" as one connector; **no effect on core 14** | open |
 | #430 | ReciterAI | per-core calibration hook (identity for every core); stacks on #424 | open |
 | #421, #423, #425, #426, #427, #428 | ReciterAI | experiments, measured and not wired (scripts and docs only) | open |
@@ -312,8 +327,8 @@ papers, total = their papers in the corpus. Both sides are gated to the corpus (
 core 14's 43 prior rows were outside it when this was fixed). There is no tenure gate, no
 self-exclusion and no shrinkage, and `aff:core` alone scores 0.738, enough to confirm.
 
-**After #424** (head `0924002`, branch `feat/affinity-tenure-decay-shrinkage`) four
-things change:
+**After #424** (head `761fe0a`, branch `feat/affinity-tenure-decay-shrinkage`) five
+things change. The first four apply to every core; the fifth is core 14 only.
 
 1. **Tenure gate.** An author's history only counts for papers published within
    `[start - 3, end + 2]` years of their WCM appointment (from `identity`), and only
@@ -370,6 +385,19 @@ things change:
    0.00. As a result **`aff:core` alone now scores 0.401, a candidate, not confirmed**:
    a repeat-user history needs a second piece of evidence to confirm. The 0.70 edge
    currently prices nothing differently; it is kept so a larger panel can repopulate it.
+5. **Minimum of 3 confirmations, core 14 only.** `affinity_min_confirms: 3` beside core
+   14 in `config/core_dictionary.yaml`. An author with fewer than 3 confirmed or claimed
+   core-14 papers, counted inside their tenure window, undecayed and with the scored
+   paper left out, lends 0. At 3 or more, the shrunk rate from item 3 applies unchanged.
+   The global default is 1 (`signals.AFFINITY_MIN_CONFIRMS`, i.e. no minimum), so every
+   other core is unaffected, and `WEIGHTS` is unchanged because panel B is fitted at the
+   global defaults. Unlike shrinkage, the minimum also changes which papers
+   `batch_screen`'s prior fires on. Why core 14 gets it is in
+   [Why core 14 uses a minimum of 3](#why-core-14-uses-a-minimum-of-3).
+
+#424 also adds a per-core `affinity_soft_threshold: {c, h}` key (or `false`), global
+default off (`signals.AFFINITY_SOFT_THRESHOLD = None`). No core sets it. It was measured
+and failed on core 14 (below); it stays as a key so it can be re-measured.
 
 **Time decay is off** (`AFFINITY_HALF_LIFE_YEARS = None`). On panel B decay never helps
 and short half-lives hurt: bucket AUC 0.6770 / 0.6777 / 0.6785 / 0.6786 / 0.6786 at 1 / 2
@@ -377,67 +405,137 @@ and short half-lives hurt: bucket AUC 0.6770 / 0.6777 / 0.6785 / 0.6786 / 0.6786
 results are non-monotone (2 years 0.6038, 3 years 0.6212, 5 years 0.6192, off 0.6144). The
 corpus starts in 2020, so decay has only about 6 years to act on.
 
-#### Why a sliding scale and not a minimum of 3
+#### Why core 14 uses a minimum of 3
+
+**Read this with the sample size in mind.** Everything in this section was measured on
+core 14's n = 46 decided rows (26 claimed, 20 rejected; 520 claimed-rejected pairs).
+Every confidence interval is wide, and the choice is to be re-measured at 100 or more
+decided rows.
 
 The core 14 owner asked that an author need at least 3 confirmed papers (not counting the
-paper being scored) before their history counts. That was built in #424 (commit
-`542937f`) as a per-core `affinity_min_confirms` and measured on core 14's 26 claimed and
-20 rejected rows (`scripts/measure_affinity_min_confirms.py`, since removed):
+paper being scored) before their history counts. It went through three versions in #424:
 
-| Minimum | AUC (rate / bucket) | Rejected rows with affinity | Claimed rows with affinity | Open candidates that drop below (of 486) |
-|---|---|---|---|---|
-| 1 | 0.6212 / 0.5558 | 17/20 | 17/26 | 12 |
-| 2 | 0.6317 / 0.6000 | 14/20 | 16/26 | 131 |
-| 3 | 0.7279 / 0.6962 | 4/20 | 16/26 | 174 |
+1. **Minimum of 3** (commit `542937f`). Measured on core 14's decided rows with the
+   intermediate `n / (total + 1)` rate (`scripts/measure_affinity_min_confirms.py`,
+   since renamed `measure_affinity_gates.py`):
 
-The same minimum applied to panel B **lowered** bucket AUC: 0.6786 / 0.6027 / 0.5637 at
-1 / 2 / 3. So it could only ever have been a core-14 setting.
+   | Minimum | AUC (rate / bucket) | Rejected rows with affinity | Claimed rows with affinity | Open candidates that drop below (of 486) |
+   |---|---|---|---|---|
+   | 1 | 0.6212 / 0.5558 | 17/20 | 17/26 | 12 |
+   | 2 | 0.6317 / 0.6000 | 14/20 | 16/26 | 131 |
+   | 3 | 0.7279 / 0.6962 | 4/20 | 16/26 | 174 |
 
-It was replaced (commit `0924002`) because a hard minimum is a cliff: 2 confirmations
-count for exactly nothing and 3 count in full, and nothing about an author changes between
-the two. The sliding scale treats each confirmation as partial evidence and a long record
-as strong evidence, with one knob (s) instead of a threshold.
+   On panel B the same minimum **lowers** bucket AUC (0.6786 / 0.6027 / 0.5637 at
+   1 / 2 / 3), so it could only ever be a core-14 setting.
+2. **Sliding scale instead** (commit `0924002`). A hard minimum is a cliff: 2
+   confirmations count for nothing and 3 count in full. Shrinkage (item 3 above) treats
+   each confirmation as partial evidence instead. The prior strength was swept on both
+   panels:
 
-The prior strength was swept on both panels (`fit_evidence_weights.py --affinity-only
---prior-strength S` and `measure_affinity_prior_strength.py --core 14`):
+   | s | Panel B AUC (rate / bucket) | Core 14 AUC (rate / bucket) | Core 14 open candidates that drop below (of 486) |
+   |---|---|---|---|
+   | 0 | 0.6788 / 0.6780 | 0.6144 / 0.5558 | 8 |
+   | 1 | 0.6787 / 0.6776 | 0.6212 / 0.5558 | 14 |
+   | 2 | 0.6787 / 0.6776 | 0.6250 / 0.5558 | 25 |
+   | **5** | **0.6785 / 0.6777** | **0.6250 / 0.5404** | **32** |
+   | 10 | 0.6786 / 0.6781 | 0.6144 / 0.5654 | 54 |
+   | 20 | 0.6782 / 0.6771 | 0.5894 / 0.5981 | 106 |
 
-| s | Panel B AUC (rate / bucket) | Core 14 AUC (rate / bucket) | Core 14 open candidates that drop below (of 486) |
+   Panel B is flat within 0.0005 from s = 0 to 10, so it cannot choose s; 5 is the middle
+   of the flat range, not a measured optimum. On core 14 the sliding scale gave back most
+   of the minimum's gain (bucket AUC 0.5404 against 0.6962), because shrinkage never
+   removes a prior: 17 of 20 rejected rows keep one at every s.
+3. **Soft threshold tested, failed; minimum of 3 restored for core 14 only** (commit
+   `761fe0a`). The compromise tested was `affinity = rate × g(n)` with
+   `g(n) = n^h / (n^h + c^h)`, where n is the author's confirmations counted the same way
+   as for the minimum. The pre-registered primary was c = 3, h = 2 (g = 0.10, 0.31,
+   0.50, 0.74, 0.92 at n = 1, 2, 3, 5, 10), on top of s = 5. The decision rule was fixed
+   before the run and applied mechanically:
+   - bucket AUC ≥ 0.66 on core 14 **and** on panel B: ship c = 3, h = 2 as the global
+     default;
+   - only core 14 passes: ship it as a core-14 setting;
+   - otherwise: restore the minimum of 3 as a core-14-only setting, global default off,
+     sliding shrinkage kept.
+
+   Core 14 bucket AUC under the primary was **0.5981**, below 0.66, so the third branch
+   applied.
+
+**The three options side by side** (all at s = 5):
+
+| s = 5 plus | Core 14 AUC (rate / bucket) | Prior on claimed / rejected | Rejected rows none / trace / regular / core | Panel B AUC (rate / bucket) | Panel B refit `aff:*` (trace / regular / core) | Core 14 dry-run candidates |
+|---|---|---|---|---|---|---|
+| nothing (sliding scale) | 0.6250 / 0.5404 | 17/26, 17/20 | 3 / 10 / 6 / 1 | 0.6785 / 0.6777 | 1.18 / 3.49 / 3.49 | 601 |
+| soft threshold c = 3, h = 2 | 0.5913 / 0.5981 (fails 0.66) | 17/26, 17/20 | 3 / 13 / 4 / 0 | 0.6780 / 0.6755 (passes) | 2.38 / 3.19 / 3.19 | 545 |
+| **minimum 3 (shipped, core 14 only)** | **0.7279 / 0.6962** | **16/26, 4/20** | **16 / 0 / 3 / 1** | 0.5632 / 0.5632 | 3.01 / 3.20 / 3.20 (not shipped) | **418** |
+
+The panel B column for the minimum is why it is not a global default: on core 2's
+labels it costs about 0.11 of bucket AUC. Panel B keeps the global defaults, so `WEIGHTS`
+stays at 1.18 / 3.49 / 3.49.
+
+**Paired stratified bootstrap on core 14** (2,000 resamples of the 26 claimed and 20
+rejected rows, seed 20261006, same resample for both arms):
+
+| Comparison | Rate AUC difference [95% CI] | Bucket AUC difference [95% CI] |
+|---|---|---|
+| minimum 3 − sliding | +0.1029 [+0.0337, +0.1846] | +0.1558 [+0.0750, +0.2404] |
+| soft − sliding | −0.0337 [−0.0837, +0.0000] | +0.0577 [+0.0096, +0.1202] |
+| soft − minimum 3 | −0.1365 [−0.2106, −0.0740] | −0.0981 [−0.1808, −0.0212] |
+| minimum 3 + soft − minimum 3 | −0.0163 [−0.0500, +0.0000] | +0.0115 [−0.0087, +0.0462] |
+
+The last row (both gates together, 0.7077 bucket AUC) is outside the pre-registered rule
+and its interval includes zero, so it was not adopted. An independent recompute in the
+verification of `761fe0a`, which used none of the pipeline's rate, gate or AUC code,
+reproduced every AUC above and gave matching intervals (minimum 3 − sliding, bucket:
++0.1558 [+0.0740, +0.2490] with a different seed).
+
+**Sensitivity grid.** c = 2, 3, 4 × h = 1, 2, 4, 8, at s = 5 and s = 0 (24 points,
+reported only; the rule did not call for choosing from it). Core 14 bucket AUC ranges
+0.5712 to 0.6144 and never reaches 0.66; panel B ranges 0.6754 to 0.6783. Dropping the
+shrinkage is no better (best 0.6019 at s = 0 against 0.6144 at s = 5), so s = 5 stays.
+
+**Why the soft threshold loses.** It scales a prior down but never removes it, so 17 of
+the 20 rejected rows keep one at every setting. Even a steep h does not reproduce the
+minimum: authors with n = 3 pass the minimum anyway, but at c = 3, h = 8 an author with
+n = 2 keeps g ≈ 0.04 (n = 1 keeps about 0.0002) where the minimum gives 0, so those
+authors still land in `aff:trace`. The verifier's recompute at s = 5, c = 3, h = 8 puts
+the rejected rows at 3 / 13 / 3 / 1 (none / trace / regular / core), against 16 / 0 / 3 / 1
+under the minimum.
+
+**What the shipped config moves on core 14's stored rows** (`measure_affinity_gates.py`,
+re-banded against the live `aff:*` weights 0.79 / 3.43 / 4.93):
+
+| Config (re-band weights) | Open candidates (486) | Engine-confirmed (72) | Below threshold (4,761) |
 |---|---|---|---|
-| 0 | 0.6788 / 0.6780 | 0.6144 / 0.5558 | 8 |
-| 1 | 0.6787 / 0.6776 | 0.6212 / 0.5558 | 14 |
-| 2 | 0.6787 / 0.6776 | 0.6250 / 0.5558 | 25 |
-| **5** | **0.6785 / 0.6777** | **0.6250 / 0.5404** | **32** |
-| 10 | 0.6786 / 0.6781 | 0.6144 / 0.5654 | 54 |
-| 20 | 0.6782 / 0.6771 | 0.5894 / 0.5981 | 106 |
+| sliding (1.18 / 3.49 / 3.49) | 32 → below, 454 stay | 59 → candidate, 1 → below, 12 stay | 59 → candidate (4 at ≥ 0.40) |
+| soft c = 3, h = 2 (its refit 2.38 / 3.19 / 3.19) | 98 → below, 388 stay | 59 → candidate, 1 → below, 12 stay | 267 → candidate (125 at ≥ 0.40) |
+| **minimum 3, shipped (1.18 / 3.49 / 3.49)** | **176 → below, 310 stay** | 59 → candidate, 1 → below, 12 stay | **25 → candidate (4 at ≥ 0.40)** |
 
-What this shows, plainly:
+- The engine-confirmed column is the same under every config. It comes from the weight
+  refit (0.79 / 3.43 / 4.93 to 1.18 / 3.49 / 3.49 or the soft refit), which drops
+  `aff:core` alone below the confirm bar, not from the minimum.
+- "12 stay" is the measurement script's reconstruction from stored likelihoods. The real
+  no-write dry run shows 0 confirmed under every config, because it has no full text.
+- The open-candidate column is where the minimum acts: 176 open candidates lose their
+  only repeat-user support and fall below threshold.
 
-- **Panel B cannot choose s.** Bucket AUC is flat within 0.0005 from s = 0 to 10 and drops
-  at 20. s = 5 is the middle of that flat range, the value least exposed to either end
-  moving as labels accrue. It is not a measured optimum.
-- **On core 14 the sliding scale gives back most of the minimum-of-3 gain.** Rate AUC is
-  0.6250 at s = 5 against 0.7279 under the minimum of 3. Bucket AUC, which is what the
-  weights price and what ships, is 0.5404 at s = 5, the lowest of the six values tested.
-  The minimum of 3 worked on core 14 because it removed the boost from 13 of the 17
-  rejected papers that had one. Shrinkage never removes a boost entirely, so 17 of 26
-  claimed and 17 of 20 rejected rows keep some prior at every s.
-- **46 rows is too few to set a core-specific s.** Core 14's rate and bucket AUCs point in
-  opposite directions across the sweep, and the 46-row panel has 520 claimed-rejected
-  pairs. Core 14 therefore has no override.
-- **The queue grows.** A dry run of the core-14 pipeline reusing stored LLM scores (no
-  LLM calls, nothing written) gives 601 candidates at s = 5, against 420 under the
-  minimum of 3.
+**Queue size.** `python3 -m pipeline_cores.run --core 14 --with-affinity
+--llm-carry-forward --dry-run` (stored LLM scores, no Bedrock, nothing written) prints
+`min confirms 3, soft threshold off` and **418 candidates** at `761fe0a`. The same run
+gives 601 with the minimum patched to 1 (the sliding scale only) and 545 with the soft
+threshold and its refit weights, both patched in-process during the #424 measurement.
 
-Against the weights live on `main` (0.79 / 3.43 / 4.93), #424 at s = 5 moves core 14's
-stored rows as follows: 59 engine-confirmed rows become candidates, 1 drops below
-threshold and 12 stay confirmed; 32 of 486 open candidates drop below threshold; 59
-below-threshold rows become candidates (4 of them at 0.40 or more).
+**The SPS 0.40 display floor.** `WEIGHTS` is unchanged, so a paper carried by affinity
+alone still scores **0.401** at `aff:regular` or `aff:core` (`aff:trace` alone is 0.062),
+a hair above the 0.40 floor. On core 14 that now only applies to papers with an author
+who has at least 3 other confirmations. Had the soft threshold's refit shipped, the same
+paper would have scored about 0.33 and stayed hidden. See
+[Thresholds and the review queue](#thresholds-and-the-review-queue).
 
-If reviewers find too many repeat-user-only papers in the queue, the next step is to
-re-measure with more decided rows, not to guess: once core 14 has 100 or more decided
-rows, re-run the sweep and set `affinity_prior_strength` only if a value clearly beats the
-global default. A per-core minimum could be reintroduced the same way if the evidence
-favours it again on a larger panel.
+**What would change it.** Once core 14 has 100 or more decided rows, re-run
+`scripts/measure_affinity_gates.py` over s, the minimum and the soft threshold. Drop the
+minimum or switch to a soft threshold only if the alternative beats the minimum of 3 on
+core-14 bucket AUC with a paired-bootstrap interval that excludes zero. The yaml comment
+beside core 14 and the `signals.py` comments record the same rule.
 
 ## What one piece of evidence is worth on its own
 
@@ -490,9 +588,14 @@ rows are exempt; the weak tier is near background, so it is not.
 **Interaction to check when #424 merges.** On `main` an `aff:regular`-only paper scores
 0.387, under the 0.40 floor, which is why the floor hides them. After #424 the same paper
 scores 0.401 (stored as 0.4009), a hair **above** the floor, so the floor would stop
-hiding repeat-user-only rows. The #430 measurement, which uses #424's weights, counts 595
-candidates and 544 rows above the 0.40 floor. Decide before or with the #424 merge whether to move
-the floor (for example just above 0.401) or accept the larger visible queue.
+hiding repeat-user-only rows. `WEIGHTS` is the same at #424's head `761fe0a`, so this still
+holds. On core 14 the minimum of 3 narrows it to papers with an author who has at least 3
+other confirmations: 25 below-threshold rows become candidates (4 of them at 0.40 or more)
+and the no-write dry run gives 418 candidates, against 59 (4) and 601 under the sliding
+scale alone. The #430 measurement (595 candidates, 544 at or above the floor) predates the
+minimum and used the sliding scale alone. Decide before or with the #424 merge whether to
+move the floor (for example just above 0.401) or accept the larger visible queue; on other
+cores, which have no minimum, the effect is larger.
 
 **Review queue features** (SPS `components/edit/core-claim-queue.tsx` on `master`):
 
@@ -580,7 +683,8 @@ change. The PRs carry the scripts and result docs.
 | GEO deposit text | #428 | Precise (12/14 core 5, 13/13 core 3) but fires on about 2.5% of GEO-linked papers; +0.014 to +0.023 AUC. | Dead. |
 | WCM first/last authorship (PubMed affiliation) | #428 | +0.200 core 5, +0.126 core 3, +0.036 panel B. Verification: the labels are acknowledgement labels, and placebos show a generic "WCM-led paper" prior (AUC 0.84 and 0.90 for "body mentions WCM"). | Promising but unproven; needs labels that are not acknowledgement-based, a fit, and an overlap check. Not measured on core 14. |
 | Core billing / usage records | none | No billing, booking or usage data anywhere reachable (repos, Projects, reciterdb and reciter schemas, SPS Prisma). The likely join key is `infoed_all.Account_Number` (67,050 of 67,050 rows filled, 28,799 distinct, all 10 characters). As a stand-in, "a funded PI is on the byline" fires on 21/26 claimed, 10/20 rejected, 0.838 of below-threshold and 0.870 of candidate rows. About 56% of InfoEd PI award rows have no project period. | Infeasible without an external extract. The funded-PI stand-in only identifies funded labs. Billing would be the cleanest signal outside the affinity loop if an extract (core, service date, requester and PI CWIDs, fund number) could be obtained. |
-| Minimum of 3 confirmations | #424 (`542937f`) | See [above](#why-a-sliding-scale-and-not-a-minimum-of-3). | Replaced by the sliding scale. |
+| Soft threshold `rate × n^h / (n^h + c^h)`, c = 3, h = 2 | #424 (`761fe0a`) | Core 14 bucket AUC 0.5981 against the pre-registered 0.66 bar (panel B 0.6755 passed); no point of a 24-point c × h × s grid reaches 0.66. See [Why core 14 uses a minimum of 3](#why-core-14-uses-a-minimum-of-3). | Failed; kept as an unset per-core key. The minimum of 3 shipped for core 14 instead. |
+| Sliding scale alone for core 14 (no minimum) | #424 (`0924002`) | Core 14 bucket AUC 0.5404 against 0.6962 with the minimum of 3; difference +0.1558 [+0.0750, +0.2404]. | Superseded on core 14 by the minimum of 3; still the global rule. |
 | Time decay | #424 | See [Signal 1](#signal-1-repeat-users-author-affinity). | Off. |
 | Calibration map for core 14 | #430 | See [Calibration](#calibration). | Hook shipped at identity; no map set. |
 
@@ -592,14 +696,16 @@ change. The PRs carry the scripts and result docs.
 | Calibration | identity (0, 1) | `calibration:` per core in `core_dictionary.yaml` (#430) | ≥ 100 decided in-corpus rows; held-out log-loss CI excluding zero on engine-scored rows; a map that keeps a distinctive alias confirming and a lone LLM score not | `python3 scripts/measure_calibration.py collect ...` then `analyze --inputs inputs.json` |
 | Confirm threshold | 0.65 | `combine.DEFAULT_CONFIRM_THRESHOLD`; `confirm_threshold` per core | Reviewers revoke a meaningful share of engine-confirmed rows; or a weight change moves an anchor across 0.65 | Re-run the "evidence alone" table; count revoked confirmations by evidence type |
 | Triage threshold | 0.30 | `combine.DEFAULT_TRIAGE_THRESHOLD`; `triage_threshold` per core; `run.py --threshold` | Claims appearing just above it at a rate that justifies the queue size, or none at all | Claim rate per likelihood band from SPS decisions |
-| SPS display floor | 0.40 | SPS `CANDIDATE_DISPLAY_FLOOR` (global; per-core override not built) | #424 lifts affinity-only rows to 0.401; claim rate on Slight rows near the floor | Count candidates and claims at 0.40 to 0.41 after #424 merges |
+| SPS display floor | 0.40 | SPS `CANDIDATE_DISPLAY_FLOOR` (global; per-core override not built) | #424 lifts affinity-only rows to 0.401 (on core 14 only for authors with ≥ 3 other confirmations); claim rate on Slight rows near the floor | Count candidates and claims at 0.40 to 0.41 after #424 merges |
 | Floor-exempt method tiers | strong, moderate | SPS `FLOOR_EXEMPT_METHOD_TIERS` | Claim rate on exempt rows vs other rows near the floor | SPS decisions by `methodTier` |
 | Score bands | 0.85 / 0.65 / 0.40 | SPS `likelihoodBand` | Display only; keep Moderate aligned with the confirm bar | n/a |
-| Repeat-user prior strength s | 5 (global; core 14 none) | `signals.AFFINITY_PRIOR_STRENGTH`; `affinity_prior_strength` per core (#424) | Global: another s beats 5 on panel B bucket AUC by more than one pair's worth with monotone refit cells. Core 14: ≥ 100 decided rows that clearly prefer another s | `python3 scripts/measure_affinity_prior_strength.py --core 14 --strengths 0 1 2 5 10 20`; `python3 scripts/fit_evidence_weights.py --affinity-only --prior-strength S` |
+| Repeat-user prior strength s | 5 (global; core 14 none) | `signals.AFFINITY_PRIOR_STRENGTH`; `affinity_prior_strength` per core (#424) | Global: another s beats 5 on panel B bucket AUC by more than one pair's worth with monotone refit cells. Core 14: ≥ 100 decided rows that clearly prefer another s | `python3 scripts/measure_affinity_gates.py --core 14 --strengths 0 1 2 5 10 20 --min-confirms 3`; `python3 scripts/fit_evidence_weights.py --affinity-only --prior-strength S` |
+| Repeat-user minimum | 3 for core 14; global 1 (none) | `affinity_min_confirms` per core in `core_dictionary.yaml`; `signals.AFFINITY_MIN_CONFIRMS` (#424) | Core 14: at ≥ 100 decided rows, the sliding scale or a soft threshold beats the minimum of 3 on bucket AUC with a paired-bootstrap CI excluding zero (today the minimum leads by +0.1558 [+0.0750, +0.2404], n = 46). Global: never on today's evidence; it costs panel B 0.6777 → 0.5632 | `python3 scripts/measure_affinity_gates.py --core 14 --strengths 5 --min-confirms 3 1 --soft-threshold off --soft-threshold 3 2 --bootstrap 2000`; `fit_evidence_weights.py --affinity-only --min-confirms N` |
+| Repeat-user soft threshold | off everywhere | `affinity_soft_threshold: {c, h}` or `false` per core; `signals.AFFINITY_SOFT_THRESHOLD = None` (#424) | Bucket AUC ≥ 0.66 on core 14 and panel B (the pre-registered rule); today 0.5981 and 0.6755 at c = 3, h = 2 | `measure_affinity_gates.py ... --soft-threshold C H`; `fit_evidence_weights.py --affinity-only --soft-threshold C H` |
 | Tenure lags | 3 years before, 2 after | `signals.TENURE_LAG_BEFORE` / `TENURE_LAG_AFTER` (#424) | A labelled paper that post-dates its author's departure (AFTER is unmeasured) | `fit_evidence_weights.py --affinity-only` with the lag changed |
 | Decay half-life | off | `signals.AFFINITY_HALF_LIFE_YEARS` (#424) | A half-life beating off on panel B and on ≥ 100 core-14 decided rows by more than one pair's worth, with monotone buckets | `fit_evidence_weights.py --affinity-only --half-life H` for H in 2, 3, 5, 8 |
 | Affinity bucket edges | 0.05, 0.70 | `combine._AFF_REGULAR_MIN`, `_AFF_CORE_MIN` | A larger panel that repopulates the top bucket | `fit_evidence_weights.py --affinity-only` |
-| Affinity weights | 1.18 / 3.49 / 3.49 after #424 (0.79 / 3.43 / 4.93 on `main`) | `combine.WEIGHTS`, fitted only | Any change to the rate formula or panel | `fit_evidence_weights.py --affinity-only`, paste its block |
+| Affinity weights | 1.18 / 3.49 / 3.49 after #424 (0.79 / 3.43 / 4.93 on `main`); unchanged by core 14's minimum | `combine.WEIGHTS`, fitted only, on panel B at the global defaults | Any change to the global rate formula or the panel | `fit_evidence_weights.py --affinity-only`, paste its block |
 | `client` weight | 0.00 | `combine.WEIGHTS` | A real client list, plus the overlap with `aff:*` measured | `fit_evidence_weights.py` (prints and refuses the cell today) |
 | `method:*` weights | 0.00 | `combine.WEIGHTS` | ≥ 30 positives with affinity 0 and no LLM yes, from a sampling frame that produces them | the overlap measurement in `combine.py`'s `method:*` comment |
 | Alias list | 3 on `main`, 5 after #422 | `aliases:` for core 14 | Reviewers rejecting rows whose only alias is an INSIGHT one (0 of 43 today); a new name in claimed papers' full text | `python3 -m pipeline_cores.suggest_aliases`; DynamoDB rows by `ack_alias` and status |
@@ -618,7 +724,8 @@ DynamoDB holds.
 **What a claim does immediately.** `claimed` and `confirmed` are the statuses that feed
 the repeat-user numerator (`persist._USER_STATUSES`). A claim on an in-corpus paper raises
 every byline author's rate on the next run (after #424, never for the claimed paper itself,
-and only within each author's tenure window). A claim on a paper outside the corpus does
+only within each author's tenure window, and on core 14 only for authors who then have at
+least 3 confirmations besides the paper being scored). A claim on a paper outside the corpus does
 not count, because the numerator is gated to the corpus.
 
 **What a rejection does immediately.** Nothing to any score. It removes the paper from the
@@ -629,7 +736,7 @@ was measured on the 46 decided rows, and the next refit needs more. Today:
 
 | | Now | Target | What it unlocks |
 |---|---|---|---|
-| Decided rows (claimed + rejected) | 46 (26 / 20) | 100 or more | re-measuring s, decay and the INSIGHT revisit rule on core 14 |
+| Decided rows (claimed + rejected) | 46 (26 / 20) | 100 or more | re-measuring s, the minimum of 3, the soft threshold, decay and the INSIGHT revisit rule on core 14 |
 | Decided rows the engine scored (in the corpus) | 27 (7 / 20) | 100 or more | a calibration map (likely an intercept-only shift first) |
 | Positives with no affinity and no LLM yes | 5 `method:strong` events | 30 (`MIN_PANEL`) | pricing the method-family tiers |
 | Rejected rows whose only alias is INSIGHT | 0 of 43 | any material share | revisiting the INSIGHT aliases |
@@ -653,11 +760,12 @@ Three things make decisions more useful:
   result docs only; merge them as records or close them.
 - **Pending merge (SPS):** #3023, after a staging eyeball on desktop and at 390px.
 - **CI billing block:** every ReciterAI PR's `pytest` check fails in 2 to 3 seconds.
-  Local full-suite results: #422 2,925 passed; #424 2,949 passed; #429 2,953 passed; #430
+  Local full-suite results: #422 2,925 passed; #424 3,001 passed at `761fe0a`; #429 2,953 passed; #430
   2,965 passed (each with 21 skipped and 14 deselected). Re-run CI once billing is fixed,
   before or after merge.
 - **Display floor after #424:** affinity-only rows move from 0.387 to 0.401, just above
-  the 0.40 floor. Decide whether to move the floor.
+  the 0.40 floor. On core 14 that applies only to authors with at least 3 other
+  confirmations. Decide whether to move the floor.
 - **Stale ARCH alias hits:** run `python3 -m pipeline_cores.refresh_alias_hits --core 14
   --write` on the #422 branch. No score changes.
 - **Small doc and test gaps found in verification:** `combine.py` on #424 says the rate-0
@@ -665,7 +773,14 @@ Three things make decisions more useful:
   (the `affinity_base_rate` clamp and self-exclusion in the two measurement scripts, which
   have no tests); #422's test would still pass if `strict=True` were removed from
   `suggest_aliases`; `test_score_is_monotone_in_the_evidence` was loosened to `<=`
-  because `aff:regular` and `aff:core` are now equal.
+  because `aff:regular` and `aff:core` are now equal. From the verification of `761fe0a`:
+  the #424 PR body explains h = 8 wrongly (it blames g(3) = 0.5; the cause is g(1) and
+  g(2) staying above 0, as described [above](#why-core-14-uses-a-minimum-of-3)); the
+  core-14 yaml comment lists the engine-confirmed moves (59 to candidate, 12 stay) under
+  the minimum-of-3 measurement although they come from the weight refit and are the same
+  under every config, and it does not say the real dry run shows 0 confirmed; and no test
+  checks that a per-core `affinity_soft_threshold: false` turns off a global soft
+  threshold (harmless while the global default is off).
 - **Institution check** reads "Cornell Univ" as Weill Cornell (PMID 40312501).
 - **Signal 3 scans reference lists**, so an alias in a commonly cited title would match
   citing papers.
@@ -680,10 +795,15 @@ Three things make decisions more useful:
 All read-only (DynamoDB Scan, reciterdb SELECTs, PMC/NCBI, S3 reads). None writes.
 
 ```bash
-# Repeat-user prior strength on core 14's decided rows (#424)
-python3 scripts/measure_affinity_prior_strength.py --core 14 --strengths 0 1 2 5 10 20
+# Repeat-user gates on core 14's decided rows (#424): s, minimum, soft threshold, bootstrap
+python3 scripts/measure_affinity_gates.py --core 14 --strengths 5 --min-confirms 3 1 \
+    --soft-threshold off --soft-threshold 3 2 --bootstrap 2000
 
-# Affinity weights and AUC on panel B (#424); add --half-life H to test decay
+# Core 14 queue size, no writes, no Bedrock
+python3 -m pipeline_cores.run --core 14 --with-affinity --llm-carry-forward --dry-run
+
+# Affinity weights and AUC on panel B (#424); add --half-life H to test decay,
+# --min-confirms N or --soft-threshold C H to test the gates
 python3 scripts/fit_evidence_weights.py --affinity-only --prior-strength 5
 
 # Calibration on core 14 and panel B (#430)
