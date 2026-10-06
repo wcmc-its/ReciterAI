@@ -21,7 +21,7 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 
 | # | Signal | Module | Role | Fitted weight |
 |---|---|---|---|---|
-| 1 | author × core affinity (repeat-user prior) | `signals.author_affinity` | recall prior | `aff:trace` +0.79 / `aff:regular` +3.43 / `aff:core` +4.93 |
+| 1 | author × core affinity (repeat-user prior) | `signals.author_affinity` | recall prior | `aff:trace` +1.18 / `aff:regular` +3.49 / `aff:core` +3.49 (empty, pooled) |
 | 1b | curated known clients (asserted, not inferred) | `run_core`, `persist.get_curated_clients` | recall on cores with no history | `client` **0.00 — unfitted** |
 | 2 | core-staff co-authorship (resolved `personIdentifier`) | `signals.coauthorship_index` | deterministic recall | `staff` +4.89 |
 | 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | strongest single weight | `ack` +6.37, plus conditional terms |
@@ -48,7 +48,7 @@ separately inspectable via `combine.explain()`, and it spreads by construction.
 
 **Absent evidence contributes no key.** A never-scored `llm_score` is `None`, which is
 not the claim "scored 1"; an affinity rate of 0 emits nothing even though the cell
-measures −0.99, because pricing that one absence and no other would bias every pair with
+measures −0.45, because pricing that one absence and no other would bias every pair with
 no author history.
 
 ### What one piece of evidence is worth on its own
@@ -59,10 +59,10 @@ after any weight change:
 | evidence alone | P | status |
 |---|---|---|
 | distinctive alias beside a home institution | 1.000 | confirmed |
-| aff:core (rate ≥ 0.70) | 0.738 | confirmed |
+| aff:core (rate ≥ 0.70) | 0.401 | candidate |
 | staff co-author | 0.731 | candidate (held — never the deciding vote, see below) |
 | LLM 9 or 10 | 0.591 | candidate |
-| aff:regular (rate 0.30) | 0.387 | candidate |
+| aff:regular (rate 0.30) | 0.401 | candidate |
 | **curated client** | **0.020** | **below_threshold** |
 | **curated method family, any tier** | **0.020** | **below_threshold** |
 | **MeSH descriptor under the core's E-tree branch** | **0.020** | **below_threshold** |
@@ -77,10 +77,17 @@ acknowledgement still confirms, with or without staff.
 
 Two things to read off it. **The LLM alone never confirms** — it tops out at 0.591
 against a 0.65 bar, deliberately, and that is the one doctrine kept from the old
-hard-coded precedence. And **`aff:core` alone confirms**, at 0.738: an author who has
-already given ≥70% of their corpus output to this core confirms their next paper on the
-strength of that history. That is measured, not chosen (55/137 labelled-yes vs 3/1200
-corpus), but it makes the affinity numerator's correctness load-bearing — see #391 below.
+hard-coded precedence. And **`aff:core` alone no longer confirms** (0.401, refit
+2026-10-06). It did, at 0.738, while the fit priced it at +4.93 (55/137 labelled-yes vs
+3/1200) — but 40 of those 55 were core staff's self-affinity, which production stopped
+computing in #418. And production was not scoring the feature the fit priced: a paper
+confirmed once was re-scored with its OWN confirmation in its byline's numerator, so it
+kept itself confirmed with its own label (all 47 of core 14's affinity-only confirmations
+on 2026-10-06 counted themselves). Each scored paper is now left out of its own prior
+(self-exclusion, below). With staff out of the panel and base-rate shrinkage at s = 5 no
+panel-B rate reaches 0.70, so the cell is empty and priced as `aff:regular` (+3.49), and a
+usage prior needs one more piece of evidence to confirm. The numerator's
+correctness is still load-bearing — see #391 below.
 A core's **own staff earn no rate for that core** and so lend none: publishing through
 their own core is their job, not client usage, and left in they lent `aff:core` to every
 byline they were on (and fed it back through each confirmation). The co-author signal
@@ -227,11 +234,96 @@ them honest:
   confirmations are largely the *same papers* on a corpus-wide run, so phase 2 carries
   pmid **sets** and unions them, taking `len()` only at the `build_affinity_index`
   boundary. A counter double-credited every re-confirmed paper to every byline author,
-  which moved authors a whole bucket — and since `aff:core` alone confirms, an inflated
-  author's next paper auto-confirmed with no ack, no staff co-author and no LLM score.
+  which moved authors a whole bucket — and since `aff:core` alone then confirmed, an
+  inflated author's papers auto-confirmed with no ack, no staff co-author and no LLM score.
   `build_affinity_index` only *warns* when the doubled value exceeds the author's own
   corpus total, so most of the inflation was silent. Fixing it moved a live full-corpus
   run from 216→186 confirmed and 1632→1434 candidates.
+- **Only in-tenure history counts** (`ingest.fetch_author_tenure`, reciterdb `identity`
+  faculty + student appointment years). Per author, confirmations and corpus papers
+  outside `[start − 3, end + 2]` are dropped from both sides of the ratio, and an author
+  lends nothing to a scored paper published outside that window — the paper itself is
+  never dropped, and ack / staff never pass through here. No identity row = not gated.
+  The start lag is generous because identity dates the FACULTY appointment, not arrival.
+- **A paper is never its own evidence** (self-exclusion, `signals.author_affinity(...,
+  pmid=)`, NUMERATOR ONLY). When P is scored, each author's numerator drops P if it is one
+  of their confirmed/claimed papers for the core; the denominator keeps P — it is honestly
+  part of the author's corpus output, and only its LABEL was the leak. Every confirmed or
+  claimed pair is re-scored on every run, and before this its own row sat in its byline's
+  numerator — a self-confirmation loop: all 47 of core 14's affinity-only confirmations
+  counted themselves, 20 had a byline author whose ONLY confirmation was that paper, and
+  15 drop out of `aff:core` once they are left out. The fit already scored papers this
+  way (labelled papers are not in its numerator), so this is also what makes production
+  compute the fitted feature. A 3-of-3 author scoring one of their own three reads
+  (2 + s·p0) / (3 + s), 0.25 at s = 5. Why not the denominator too: on core 14's 46
+  human-decided rows (26 claimed / 20 rejected, gate + the then n / (total + 1)) affinity
+  AUC is 0.6212 numerator-only vs 0.6115 with both sides, and panel B was unchanged
+  either way. `batch_screen` needs no self-exclusion: its pool already drops every pmid its
+  numerator is built from.
+- **The rate is shrunk toward the core's base rate, on a sliding scale**:
+  rate = (n + s·p0) / (total + s). p0 is the core's base rate — the share of the scoreable
+  corpus that is its confirmed/claimed work, computed each run (`ingest.fetch_corpus_size`,
+  `signals.affinity_base_rate`; core 14 on 2026-10-06: 79 / 82,203 = 0.00096) — and s, the
+  prior strength, is how many papers' worth of "an average WCM author" each author starts
+  from (`signals.AFFINITY_PRIOR_STRENGTH = 5`, per core `affinity_prior_strength` in
+  `config/core_dictionary.yaml`). At s = 5 and core 14's p0: 1-of-1 → 0.17, 1-of-2 → 0.14,
+  3-of-3 → 0.38, 10-of-10 → 0.67, 1-of-80 → 0.012. More confirmations at the same share
+  always score higher, and there is no count below which an author stops counting. An
+  author with no other confirmed paper (n = 0 after self-exclusion) still lends 0. This
+  replaces the old n / (total + 1) as the global rate; core 14 adds a hard minimum on top
+  (next bullet).
+
+  Choosing s, measured 2026-10-06 (`python3 scripts/fit_evidence_weights.py
+  --affinity-only --prior-strength S`, reciterdb reads only; panel B p0 = 56 / 82,203):
+
+  | s | panel B AUC (rate / bucket) | panel B cells trace / regular / core (pos/neg) | core 14 claimed vs rejected AUC (rate / bucket) | core 14 open candidates → below (of 486) |
+  |---|---|---|---|---|
+  | 0 | 0.6788 / 0.6780 | 9/24, 28/11, 15/1 | 0.6144 / 0.5558 | 8 |
+  | 1 | 0.6787 / 0.6776 | 9/24, 40/11, 3/1 | 0.6212 / 0.5558 | 14 |
+  | 2 | 0.6787 / 0.6776 | 9/24, 43/12, 0/0 | 0.6250 / 0.5558 | 25 |
+  | **5** | **0.6785 / 0.6777** | **9/25, 43/11, 0/0** | **0.6250 / 0.5404** | **32** |
+  | 10 | 0.6786 / 0.6781 | 9/27, 43/9, 0/0 | 0.6144 / 0.5654 | 54 |
+  | 20 | 0.6782 / 0.6771 | 24/31, 28/5, 0/0 | 0.5894 / 0.5981 | 106 |
+
+  Panel B is flat from s = 0 to 10 (bucket AUC within 0.0005) and drops at 20, so it
+  cannot pick s; 5 is the middle of that flat range, which is the choice least exposed to
+  either end moving, and it ties for the best core-14 rate AUC (with s = 2). s = 0 is no
+  shrinkage at all (1-of-1 = 1.0). Core 14 (`python3 scripts/measure_affinity_gates.py
+  --core 14 --strengths 0 1 2 5 10 20`, read-only) does not clearly prefer a different s
+  — 46 rows, 520 pairs, and its rate and bucket AUCs disagree on direction — so it has no
+  s override. Shrinkage keeps 17/26 claimed and 17/20 rejected core-14 rows with a prior
+  at every s, which is why core 14 also gets the minimum below. Time decay is
+  implemented but OFF (`signals.AFFINITY_HALF_LIFE_YEARS = None`); the constants'
+  comments in `signals.py` carry the measurements.
+- **Per-core gates on the repeat-user count** n (the author's confirmed/claimed papers
+  for the core, in tenure, undecayed, the scored paper left out). Two
+  `config/core_dictionary.yaml` keys, both off by default:
+  - `affinity_min_confirms: N` (global `signals.AFFINITY_MIN_CONFIRMS = 1`): below N the
+    author lends 0; at or above it the shrunk rate is unchanged. **Core 14 sets 3.**
+  - `affinity_soft_threshold: {c: C, h: H}` (global `signals.AFFINITY_SOFT_THRESHOLD =
+    None`; `false` = off for one core): affinity = rate × n^h / (n^h + c^h). **No core
+    sets it.**
+
+  Measured 2026-10-06, read-only, against a rule fixed before the run: ship the soft
+  threshold c = 3, h = 2 globally if its bucket AUC is >= 0.66 on core 14 AND on panel B;
+  core 14 only if just core 14 passes; otherwise restore the minimum of 3 on core 14 only.
+
+  | s = 5 plus | core 14 AUC rate / bucket | panel B AUC rate / bucket | panel B refit trace / regular / core |
+  |---|---|---|---|
+  | nothing (global) | 0.6250 / 0.5404 | 0.6785 / 0.6777 | 1.18 / 3.49 / 3.49 |
+  | soft c = 3, h = 2 | 0.5913 / 0.5981 | 0.6780 / 0.6755 | 2.38 / 3.19 / 3.19 |
+  | minimum 3 | 0.7279 / 0.6962 | 0.5632 / 0.5632 | 3.01 / 3.20 / 3.20 |
+
+  The soft threshold failed core 14 (0.5981 < 0.66), and no point of the grid c in
+  {2, 3, 4} × h in {1, 2, 4, 8}, at s = 5 or s = 0, reached 0.66 there (best 0.6144):
+  it shrinks the 17 rejected rows' prior but never removes it, while the minimum of 3
+  leaves it on 4 of 20 rejected and 16 of 26 claimed. So core 14 runs the minimum of 3
+  with the sliding shrinkage; the global default stays at no minimum and no soft
+  threshold, and WEIGHTS (fitted on panel B, core 2, at those defaults) is unchanged.
+  n = 46, so the bootstrap CIs are wide: minimum 3 minus sliding, bucket AUC +0.156
+  [95% CI +0.075, +0.240]. Re-measure at >= 100 decided rows:
+  `python3 scripts/measure_affinity_gates.py --core 14 --min-confirms 1 3
+  --soft-threshold off --soft-threshold 3 2 --bootstrap 2000`.
 
 ### A worked example
 
@@ -246,13 +338,13 @@ arithmetic around them):
 | `ack` — an alias matched at all | +6.37 |
 | `staff` — a tracked core-staff member on the byline | +4.89 |
 | `inst:home` — the match sits beside WCM or a Tri-I partner | +3.47 |
-| `aff:regular=0.420` — best byline author has given 42% of their output to this core | +3.43 |
+| `aff:regular=0.420` — best byline author's shrunk share of their output given to this core | +3.49 |
 | `llm:7` — Sonnet dense score 7 → −1.86 + 0.68×7 | +2.90 |
 | `ack.spec:moderate` — "Epigenomics Core", 666 global PMC hits | +1.90 |
 | `client` — a curated known client on the byline | +0.00 |
 | `method:strong` — an Electronic-health-record-datasets tool named in the abstract | +0.00 |
 | `mesh:tree` — a bare MeSH descriptor under the core's E-tree branch | +0.00 |
-| **= logit** | **+19.07** |
+| **= logit** | **+19.13** |
 | **= P** | **1.000 → confirmed** |
 
 Note `ack` + `ack.spec:moderate` + `inst:home` is the chain rule on one match, not three

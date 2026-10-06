@@ -75,6 +75,18 @@ class CoreDefinition:
     # affinity index has saturated to the point of carrying no information.
     confirm_threshold: Optional[float] = None
     triage_threshold: Optional[float] = None
+    # Prior strength s of the affinity rate's shrinkage toward the core's base rate,
+    # (n + s*p0) / (total + s). None = signals.AFFINITY_PRIOR_STRENGTH. See
+    # signals.affinity_prior_strength.
+    affinity_prior_strength: Optional[float] = None
+    # Soft threshold g(n) = n^h / (n^h + c^h) on the repeat-user count, as (c, h). None =
+    # signals.AFFINITY_SOFT_THRESHOLD; False = explicitly off for this core (g = 1). See
+    # signals.affinity_soft_threshold.
+    affinity_soft_threshold: Optional[object] = None
+    # Minimum confirmed/claimed papers (in tenure, scored paper excluded) before an author
+    # counts as a repeat user at all. None = signals.AFFINITY_MIN_CONFIRMS (1). See
+    # signals.affinity_min_confirms.
+    affinity_min_confirms: Optional[int] = None
 
     @property
     def staff_cwids(self) -> list:

@@ -126,6 +126,22 @@ def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: b
     The set is unchanged by the count -> rate switch: this consumer asks only whether the
     prior fires at all, and any positive count still gives a positive rate. It is the
     WEIGHT that the rate changed, in combine().
+
+    No self-exclusion here (signals.author_affinity's `pmid`), deliberately: screen_core
+    drops `confirmed` — every pmid this numerator was built from — from the pool before
+    the prior is consulted, so no screened paper can be in its own numerator. Taking it
+    out of the denominator cannot change whether the prior FIRES either: a positive
+    numerator is some OTHER corpus paper, so total - 1 stays positive.
+
+    The prior strength and base rate (signals.AFFINITY_PRIOR_STRENGTH, affinity_base_rate)
+    are not passed either: they shrink a positive rate, they never zero one or make a
+    zero positive, so they cannot change which papers this set holds. The core's soft
+    threshold (signals.affinity_soft_threshold) is passed so this is run_core's feature,
+    but it is equally inert here: g(n) > 0 for every n >= 1.
+
+    The core's minimum confirmations (signals.affinity_min_confirms, core_dictionary.yaml
+    `affinity_min_confirms`, default 1) DOES change the set: an author below it is not a
+    repeat user, here as in run_core (core 14: 3). At the default 1 the set is unchanged.
     """
     from collections import defaultdict
     from pipeline_cores import ingest  # lazy
@@ -142,7 +158,10 @@ def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: b
             continue
         for cwid in bylines.get(str(rec["pmid"]), []):
             counts[cwid][rec["core_id"]] += 1
-    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
+    index = signals.build_affinity_index(
+        counts, ingest.fetch_author_totals(engine, list(counts)),
+        soft_threshold={core.core_id: signals.affinity_soft_threshold(core)},
+        min_confirms={core.core_id: signals.affinity_min_confirms(core)})
     author = {str(p) for p in pmids
               if signals.author_affinity(index, bylines.get(str(p), []), core.core_id) > 0.0}
     return confirmed, author

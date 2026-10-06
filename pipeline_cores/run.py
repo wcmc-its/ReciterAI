@@ -83,7 +83,7 @@ def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=
     denominator is a real paper count. `build_affinity_index` only warns when the
     doubled value exceeds the author's corpus total (2 authors on the 2026-09-05
     full-corpus run); everyone still under their total was inflated SILENTLY, and
-    `aff:core` (rate >= 0.70, +4.93 nats) clears DEFAULT_CONFIRM_THRESHOLD on its own —
+    `aff:core` (rate >= 0.70, then +4.93 nats) cleared DEFAULT_CONFIRM_THRESHOLD on its own —
     so an inflated author's next paper auto-confirms with no acknowledgement, no staff
     co-author and no LLM score behind it. A set unions instead of adding, so the same
     paper arriving from both sources counts once by construction rather than by a
@@ -129,7 +129,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              # TRAP: mesh_index=None records NO mesh_evidence, and mesh_evidence is in
              # _OWNED_ATTRS — a second caller that forgets this kwarg makes put_core_usage
              # REMOVE it from every row an earlier run wrote. One caller today: main().
-             mesh_index: dict = None, triage_only: set = None):
+             mesh_index: dict = None, triage_only: set = None, corpus_size: int = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -284,14 +284,44 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             for cwid in bylines.get(rec.pmid, []):
                 if cwid.lower() not in staff:
                     papers[cwid][core.core_id].add(rec.pmid)
-    # len() at the boundary: build_affinity_index takes counts, and keeping the sets on
-    # this side of it means the dedupe cannot be undone by a caller that builds its own.
-    counts = {cwid: {cid: len(p) for cid, p in by_core.items()} for cwid, by_core in papers.items()}
-    # The rate's denominator, for the authors that actually have confirmations. Scoped
-    # to those cwids rather than the whole corpus: it is the same number either way,
-    # and this run may only be scoring a pool.
-    author_totals = ingest.fetch_author_totals(engine, list(counts))
-    affinity_index = signals.build_affinity_index(counts, author_totals)
+    # Counted at the boundary (ingest.affinity_inputs turns each set into {year: n}), and
+    # keeping the sets on this side of it means the dedupe cannot be undone by a caller
+    # that builds its own. The rate's denominator and the tenure spans are read for the
+    # authors that actually have confirmations: the same numbers as for the whole
+    # corpus, and this run may only be scoring a pool. Years: this run's pubs carry
+    # theirs; prior papers outside the pool are dated on demand.
+    known_years = {p["pmid"]: p.get("year") for p in pubs if p.get("year")}
+    counts, author_totals, tenure, pub_years = ingest.affinity_inputs(
+        engine, papers, years=known_years)
+    # `members=papers` so each scored paper is left out of its own prior: a pair an
+    # earlier run confirmed (or a human claimed) arrives in prior_user_pmids AND is
+    # re-scored below, and counting it in its own byline's numerator kept it confirmed
+    # with its own label (signals.author_affinity, SELF-EXCLUSION).
+    # Shrinkage toward the core's base rate, rate = (n + s*p0) / (total + s): s is the
+    # core's affinity_prior_strength (core_dictionary.yaml, else the global default), p0
+    # this run's share of the corpus (`corpus_size`, which main() reads once) that is the
+    # core's confirmed/claimed work — every author's, staff included, since p0 describes
+    # the core, not its clients. corpus_size None (unit tests) = the documented fallback.
+    core_pmids = {p for by_core in (prior_user_pmids or {}).values()
+                  for p in by_core.get(core.core_id, ())}
+    core_pmids |= {rec.pmid for rec in records if rec.status == STATUS_CONFIRMED}
+    base_rate = signals.affinity_base_rate(len(core_pmids), corpus_size)
+    strength = signals.affinity_prior_strength(core)
+    # Gates on each author's repeat-user count (in tenure, this paper excluded): the
+    # core's minimum (`affinity_min_confirms`, else signals.AFFINITY_MIN_CONFIRMS = 1;
+    # below it the author lends 0) and soft threshold g(n) (`affinity_soft_threshold`,
+    # else signals.AFFINITY_SOFT_THRESHOLD; None = off). core_dictionary.yaml keys.
+    soft = signals.affinity_soft_threshold(core)
+    minimum = signals.affinity_min_confirms(core)
+    print(f"[{core.core_id} {core.name}] affinity prior: s={strength:g}, p0={base_rate:.5f} "
+          + (f"({len(core_pmids)} core papers / {corpus_size} corpus)" if corpus_size
+             else "(corpus size not given: fallback)")
+          + f", min confirms {minimum}"
+          + (f", soft threshold c={soft[0]:g} h={soft[1]:g}" if soft else ", soft threshold off"))
+    affinity_index = signals.build_affinity_index(
+        counts, author_totals, tenure=tenure, members=papers,
+        prior_strength={core.core_id: strength}, base_rate={core.core_id: base_rate},
+        soft_threshold={core.core_id: soft}, min_confirms={core.core_id: minimum})
 
     out = []
     for rec in records:
@@ -299,7 +329,9 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             out.append(rec)
             continue
         sig = sigs[rec.pmid]
-        sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []), core.core_id)
+        sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []),
+                                                      core.core_id, pub_years.get(rec.pmid),
+                                                      pmid=rec.pmid)
         out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
                                     core=core, triage_threshold=threshold))
     return out
@@ -644,6 +676,8 @@ def main(argv=None):
     # run_core reads only its own core's slice — so passing the whole prior is
     # identical to a per-core filtered scan, at 1/len(cores) the table reads.
     prior_pmids = load_prior_user_pmids(args.core, bylines, enabled=args.with_affinity, engine=engine)
+    # The affinity base rate's denominator (signals.affinity_base_rate), read once per run.
+    corpus_size = ingest.fetch_corpus_size(engine) if args.with_affinity else None
     # Stored LLM evidence: the same trade as the affinity prior above — ONE Scan
     # grouped by core_id in memory rather than one Scan per core, since each run_core
     # reads only its own core's slice.
@@ -684,7 +718,8 @@ def main(argv=None):
                            # keeps them apart.
                            carry_forward=(None if carry_forward is None
                                           else carry_forward.get(core.core_id, {})),
-                           family_index=family_index, mesh_index=mesh_index)
+                           family_index=family_index, mesh_index=mesh_index,
+                           corpus_size=corpus_size)
         triage_only = None
         if args.llm_triage_candidates_only:
             # ponytail: a whole second no-LLM pass (DB reads + combine, no Bedrock) just
