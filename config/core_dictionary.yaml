@@ -11,7 +11,11 @@
 # signals.AFFINITY_PRIOR_STRENGTH = 5; signals.py carries the measurement; see core 14
 # for why it has no override), affinity_min_confirms (repeat-user minimum, default 1;
 # core 14 = 3) and affinity_soft_threshold ({c, h}: rate x n^h / (n^h + c^h), default off,
-# `false` = off for one core; measured and set on no core — see core 14).
+# `false` = off for one core; measured and set on no core — see core 14)
+# and calibration: {intercept, slope} (combine() maps the summed log-odds to
+# intercept + slope * logit before banding; absent = identity, slope must be > 0;
+# combine.calibrated_logit says what would justify one; core 14 carries the first
+# measurement).
 # The four with the longest stories:
 #   partner_institutions: institutions that count as HOME for an alias match, beside
 #     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
@@ -534,6 +538,34 @@ cores:
     #       --soft-threshold off --soft-threshold 3 2 --bootstrap 2000
     # and drop the minimum (or switch to `affinity_soft_threshold: {c: 3, h: 2}`) only if
     # it no longer clearly wins.
+
+    #
+    # No `calibration`: identity. MEASURED 2026-10-06, read-only, BEFORE the minimum of
+    # 3 above was restored (affinity was then the s = 5 sliding scale only; re-measure
+    # under the shipped config before acting on these numbers)
+    # (scripts/measure_calibration.py; docs/experiments/core14-calibration-2026-10-06.md),
+    # leave-one-out held-out log-loss of combine.score vs a Platt map
+    # logistic(a + b * logit), 2,000-sample paired bootstrap 95% CIs:
+    #   rows                                n (claimed/rejected)  score   Platt   delta [95% CI]
+    #   all claimed + rejected                46 (26/20)         0.918   0.586   -0.33 [-0.60, -0.10]
+    #   in-corpus only (what the engine scores) 27 (7/20)        1.526   0.678   -0.85 [-1.32, -0.38]
+    #   engine-scored only (rows the queue showed) 26 (6/20)     1.389   0.845   -0.54 [-1.30, +0.44]
+    #   Platt fit on all 46: a = -0.99 [-4.32, +0.11], b = 0.39 [0.16, 1.35]
+    # The CI excludes zero on the first two and not on the third, the rows a calibration
+    # would actually act on; on those rows the Platt fit itself is unidentified (b CI
+    # [-0.14, 301]). And the all-46 map breaks two anchors the thresholds were bracketed
+    # on: a GENERIC alias beside a home institution drops 0.706 -> 0.343 (no longer
+    # confirms) and a paper with no evidence RISES 0.020 -> 0.075, while the engine's
+    # candidate band over all 5,365 stored rows shrinks from 595 to 345 (251 fall below
+    # triage). 19 of the 26 claims are outside the WCM corpus
+    # (never engine-scored), and the decided rows were picked by reviewers from what the
+    # engine surfaced, so the panel is selected on the score itself (a joint fit on it
+    # gives the LLM a NEGATIVE weight). Set `calibration: {intercept: a, slope: b}`
+    # here only when the engine-scored row's CI also excludes zero; re-measure at >= 100
+    # decided in-corpus rows:
+    #   python3 scripts/measure_calibration.py collect --out inputs.json --llm-cache <panel-B llm json> \
+    #       --c14-llm-cache c14_llm.json --live-llm --cache-dir <dir>
+    #   python3 scripts/measure_calibration.py analyze --inputs inputs.json
     affinity_min_confirms: 3
     llm_description: >
       research informatics service core: EHR-based reporting and clinical data

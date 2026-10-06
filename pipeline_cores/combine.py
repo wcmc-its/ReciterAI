@@ -317,6 +317,41 @@ DEFAULT_CONFIRM_THRESHOLD = 0.65
 DEFAULT_TRIAGE_THRESHOLD = 0.30
 
 
+# Per-core probability CALIBRATION: logit' = intercept + slope * logit, applied to the
+# summed log-odds before the status bands. IDENTITY by default (0, 1), so a core without
+# a `calibration: {intercept, slope}` key in core_dictionary.yaml scores exactly as
+# before; the loader rejects slope <= 0 (it would invert the ranking).
+#
+# WHY IT EXISTS. score() is naive Bayes: each weight is fitted MARGINALLY and the
+# log-odds are summed, so correlated evidence is counted twice and the probability is
+# overconfident even where the ranking is fine. Measured 2026-10-06
+# (scripts/measure_calibration.py; docs/experiments/core14-calibration-2026-10-06.md):
+# on panel B with the ack evidence set aside (staff + aff:* + llm, 137 yes vs 421
+# random-corpus papers), the held-out Platt slope is 0.82 [0.70, 1.06] and a JOINT
+# refit of the same features beats a Platt rescale by 0.0055 [0.0004, 0.0114] nats of
+# log-loss. A per-core (intercept, slope) is the smallest knob that can correct the
+# probability a core's reviewers see without touching the shared WEIGHTS fit.
+#
+# WHAT WOULD JUSTIFY A NON-IDENTITY VALUE for a core: a Platt fit on that core's own
+# human-decided rows (claimed = 1, rejected = 0) that improves HELD-OUT log-loss with a
+# bootstrap CI excluding zero ON THE ROWS IT WOULD ACT ON (rows the engine scores, i.e.
+# in-corpus), with a slope CI that excludes nothing absurd, and a map that keeps the
+# anchors the thresholds were bracketed on (a distinctive alias confirms; a lone LLM
+# score does not). Core 14 does not clear that yet: see its entry in
+# core_dictionary.yaml for the numbers and the command that re-measures them.
+DEFAULT_CALIBRATION_INTERCEPT = 0.0
+DEFAULT_CALIBRATION_SLOPE = 1.0
+
+
+def calibrated_logit(logit: float, core=None) -> float:
+    """The core's calibration map applied to a raw log-odds; identity without one."""
+    a = getattr(core, "calibration_intercept", None)
+    b = getattr(core, "calibration_slope", None)
+    a = DEFAULT_CALIBRATION_INTERCEPT if a is None else a
+    b = DEFAULT_CALIBRATION_SLOPE if b is None else b
+    return a + b * logit
+
+
 def noisy_or(*probabilities: float) -> float:
     """1 - product(1 - p): the probability that at least one independent signal fires.
 
@@ -441,10 +476,15 @@ def explain(signals: SignalResult) -> list:
     return sorted(pairs, key=lambda kv: -abs(kv[1]))
 
 
-def score(signals: SignalResult) -> float:
-    """P(this publication used this core) = sigmoid(prior + sum of the weights)."""
-    logit = PRIOR_LOGIT + sum(w for _, w in explain(signals))
-    return 1.0 / (1.0 + math.exp(-logit))
+def score(signals: SignalResult, core=None) -> float:
+    """P(this publication used this core) = sigmoid(prior + sum of the weights), passed
+    through `core`'s calibration map (identity when `core` is None or has none)."""
+    logit = calibrated_logit(PRIOR_LOGIT + sum(w for _, w in explain(signals)), core)
+    # Stable at both tails: a calibrated logit can exceed exp()'s range.
+    if logit >= 0:
+        return 1.0 / (1.0 + math.exp(-logit))
+    e = math.exp(logit)
+    return e / (1.0 + e)
 
 
 def combine(
@@ -465,7 +505,7 @@ def combine(
     """
     triage = _threshold(triage_threshold, core, "triage_threshold", DEFAULT_TRIAGE_THRESHOLD)
     confirm = _threshold(confirm_threshold, core, "confirm_threshold", DEFAULT_CONFIRM_THRESHOLD)
-    likelihood = score(signals)
+    likelihood = score(signals, core)
     status = (STATUS_CONFIRMED if likelihood >= confirm
               else STATUS_CANDIDATE if likelihood >= triage else STATUS_BELOW)
     # Two signals may never be the DECIDING vote for confirmation; a pair that clears
@@ -480,7 +520,7 @@ def combine(
     if status == STATUS_CONFIRMED:
         held = replace(signals, llm_score=None,
                        coauthor_cwids=signals.coauthor_cwids if signals.ack_matched else [])
-        if score(held) < confirm:
+        if score(held, core) < confirm:
             status = STATUS_CANDIDATE
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)
 
