@@ -226,10 +226,16 @@ WEIGHTS = {
     # largest share of their own corpus output that any author on this byline has
     # already given to this core). A rate, not a count: the count could not tell a
     # regular from a passer-by, so its curve put 83.9% of a live queue on one value.
-    "aff:trace": 0.79,                 # 0 < rate < 0.05;    n=7/137 labelled yes vs 29/1200
-    "aff:regular": 3.43,               # 0.05 <= rate < 0.70; n=26/137 vs 7/1200
-    "aff:core": 4.93,                  # rate >= 0.70;       n=55/137 vs 3/1200
-    # NOT a key, on purpose: rate == 0 measures -0.99 (n=49/137 vs 1161/1200), and it is
+    # Refit 2026-10-06 (`fit_evidence_weights.py --affinity-only`) on the rate production
+    # now computes: core staff left out of their own core's rate (#418 — the panel had
+    # kept them, so 40 of the old 55 `aff:core` positives were staff self-affinity, a
+    # second copy of `staff`), the tenure gate, and shrinkage K=1 (signals.py). Was
+    # 0.79 / 3.43 / 4.93. `aff:core` is now a FLOOR on 3 positives and no longer
+    # clears DEFAULT_CONFIRM_THRESHOLD alone (see there).
+    "aff:trace": 1.22,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 24/1200
+    "aff:regular": 3.51,               # 0.05 <= rate < 0.70; n=40/137 vs 10/1200
+    "aff:core": 4.11,                  # rate >= 0.70;       n=3/137 vs 0/1200 — bound only
+    # NOT a key, on purpose: rate == 0 measures -0.45 (n=85/137 vs 1166/1200), and it is
     # held at 0 rather than shipped as a fourth bucket because evidence_features()'s
     # convention is that ABSENT evidence contributes no key — the same reason a
     # never-scored llm_score adds nothing. Pricing the absence here and nowhere else
@@ -260,7 +266,10 @@ _GENERIC_MIN = 800
 # the panel separates "has touched this core at all" (0.79 nats) from "a working
 # relationship" (3.43) at 0.05, and that from "this is largely what they do" (4.93)
 # at 0.70. Every bucket clears MIN_PANEL=30 on the positive side and the three are
-# monotone, so the edges are supported rather than drawn to taste.
+# monotone, so the edges are supported rather than drawn to taste. (Those are the
+# fit the edges were drawn on. The 2026-10-06 refit keeps them — still monotone,
+# 1.22 / 3.51 / 4.11 — but `aff:core` now holds 3 positives, so the top edge is no
+# longer independently supported; re-derive it when a larger panel exists.)
 _AFF_REGULAR_MIN = 0.05
 _AFF_CORE_MIN = 0.70
 
@@ -279,13 +288,14 @@ _AFF_CORE_MIN = 0.70
 # 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
 # Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
 #
-# `aff:core` alone now clears it too, at 0.738 — its fitted 4.93 came out just above
-# staff co-authorship's 4.89 (55/137 vs 3/1200), so an author who has already given
-# 70%+ of their corpus output to this core confirms their next paper on the strength
-# of that history. Measured, not chosen; a core that does not want it can raise its
-# own `confirm_threshold`. The old constant could not do this (4.60 * 0.85 = 3.91,
-# a candidate at best), so it IS a behaviour change and the first thing to eyeball
-# in a live queue.
+# `aff:core` alone does NOT clear it (0.555, refit 2026-10-06). It did, at 0.738, while
+# the fit priced it at 4.93 — but that cell was mostly core STAFF's self-affinity
+# (#418 stopped production computing it), and production's 1-of-1 authors (one corpus
+# paper, confirmed once -> rate 1.0) were auto-confirming the next paper they touched:
+# 10 of core 14's 47 affinity-carried confirmations on 2026-10-06. With staff out and
+# K=1 shrinkage it is a 3-positive floor of 4.11, so a usage prior now needs a second
+# piece of evidence to confirm. Measured, not chosen; it IS a behaviour change, and
+# the first thing to eyeball in a live queue.
 DEFAULT_CONFIRM_THRESHOLD = 0.65
 # Unchanged from the old combiner (and still what run.py --threshold overrides), so
 # "what reaches the claim queue" moves for measured reasons rather than by a

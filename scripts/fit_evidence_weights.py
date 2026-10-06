@@ -284,6 +284,48 @@ def alias_negatives(corpus_set, n_sample: int, seed: int):
 # ---------------------------------------------------------------------------
 # panel B — staff / LLM / affinity: human labels vs the random corpus
 # ---------------------------------------------------------------------------
+def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._DEFAULT,
+                   half_life=signals._DEFAULT, tenure_gate: bool = True):
+    """(bylines, years, index) for panel B's affinity prior, built the way run_core builds it.
+
+    The index is built from the core's signal-2 confirms MINUS anything in the label set,
+    so a labelled paper never contributes to its own prior. Its denominator is each
+    author's total output in the SAME corpus these negatives are drawn from — the
+    unrestricted author count deflates every rate ~4x and would fit the buckets against a
+    scale production never sees — and the numerator is gated to that corpus exactly as
+    production gates it (ingest.filter_corpus_pmids).
+
+    Mirrors run_core on the two rules production applies and this panel used to skip:
+      * the core's OWN staff lend nothing to its rate (#418). These confirms are
+        signal-2 confirms — every one has a staff member on the byline — so leaving
+        staff in fitted `aff:*` largely on staff self-affinity, i.e. a second copy of
+        the `staff` key, against a feature production no longer computes.
+      * tenure gate + shrinkage + (optional) decay, through the same
+        ingest.affinity_inputs / signals.build_affinity_index path, with each scored
+        paper's own year.
+    The keyword knobs exist for the measurement (--affinity-only); defaults = shipped.
+    """
+    everyone = sorted(labels) + list(neg_pmids)
+    bylines = ingest.fetch_author_bylines(engine, everyone)
+    outside = [p for p in confirms()[core.core_id] if p not in labels]
+    outside = sorted(ingest.filter_corpus_pmids(engine, outside))
+    staff = {c.lower() for c in core.staff_cwids}
+    papers: dict = collections.defaultdict(lambda: collections.defaultdict(set))
+    for pmid, cwids in ingest.fetch_author_bylines(engine, outside).items():
+        for cwid in cwids:
+            if cwid.lower() not in staff:
+                papers[cwid][core.core_id].add(pmid)
+    counts, totals, tenure, _ = ingest.affinity_inputs(engine, papers)
+    index = signals.build_affinity_index(counts, totals, tenure=tenure if tenure_gate else {},
+                                         shrink_k=shrink_k, half_life=half_life)
+    years = ingest.fetch_pub_years(engine, everyone)
+    print(f"  affinity index: {len(outside)} confirms outside the label set, "
+          f"{len(index.papers)} non-staff authors, tenure rows for {len(tenure)}"
+          f"{'' if tenure_gate else ' (gate OFF)'}; shrink_k={index.shrink_k}, "
+          f"half_life={index.half_life}")
+    return bylines, years, index
+
+
 def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     """(labelled yes, labelled no, random-corpus negatives) as SignalResults.
 
@@ -300,24 +342,7 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     everyone = sorted(labels) + list(neg_pmids)
 
     coauthors = signals.coauthorship_index(engine, core, everyone)
-    bylines = ingest.fetch_author_bylines(engine, everyone)
-
-    # The affinity index is built from the core's signal-2 confirms MINUS anything in
-    # the label set, so a labelled paper never contributes to its own prior. The rate's
-    # denominator is each author's total output in the SAME corpus these negatives are
-    # drawn from — the unrestricted author count deflates every rate ~4x and would fit
-    # the buckets against a scale production never sees.
-    # ...and gated to the corpus, exactly as production gates it (ingest.filter_corpus_pmids
-    # in run.py / batch_screen.py). A no-op on today's core-2 confirms — all are in-corpus —
-    # but without it a future out-of-corpus confirm would fit the buckets against a
-    # numerator production does not use.
-    outside = [p for p in confirms()[LABEL_CORE] if p not in labels]
-    outside = sorted(ingest.filter_corpus_pmids(engine, outside))
-    counts: dict = collections.defaultdict(lambda: collections.defaultdict(int))
-    for _pmid, cwids in ingest.fetch_author_bylines(engine, outside).items():
-        for cwid in cwids:
-            counts[cwid][LABEL_CORE] += 1
-    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
+    bylines, years, index = affinity_panel(engine, labels, neg_pmids, core)
 
     # The negatives need LLM scores from the SAME two-pass triage that produced the
     # positives' stored ones, so they are scored live — on a subset, because this is
@@ -327,8 +352,7 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
     from utils.bedrock_client import BedrockClient  # lazy
     print(f"\npanel B: {len(labels)} labelled imaging-core papers "
           f"({sum(1 for v in labels.values() if v == 'yes')} yes / "
-          f"{sum(1 for v in labels.values() if v == 'no')} no); affinity index from "
-          f"{len(outside)} confirms outside the label set, {len(index)} authors; "
+          f"{sum(1 for v in labels.values() if v == 'no')} no); "
           f"triaging {len(llm_negs)} random corpus papers through Bedrock")
     live_llm = signals.llm_triage(BedrockClient(read_timeout=120), core,
                                   ingest.fetch_publications(engine, pmids=llm_negs))
@@ -346,13 +370,63 @@ def panel_b(engine, neg_pmids, n_llm_negatives: int, seed: int):
             coauthor_cwids=coauthors.get(pmid, []),
             client_cwids=[c for c in bylines.get(pmid, []) if c in clients],
             llm_score=llm_source.get(pmid, {}).get("score"),
-            author_affinity=signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE),
+            author_affinity=signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE,
+                                                    years.get(pmid)),
         )
 
     rows = {"yes": [], "no": []}
     for pmid in sorted(labels):
         rows[labels[pmid]].append(sig(pmid, stored_llm))
     return rows["yes"], rows["no"], [sig(p, live_llm) for p in neg_pmids]
+
+
+def auc(pos: list, neg: list) -> float:
+    """P(a random positive outranks a random negative), ties half."""
+    wins = sum(1.0 if a > b else 0.5 if a == b else 0.0 for a in pos for b in neg)
+    return wins / max(len(pos) * len(neg), 1)
+
+
+def affinity_only(engine, neg_pmids, args) -> int:
+    """--affinity-only: panel B's three `aff:*` cells and nothing else.
+
+    No Bedrock, no full text, no NCBI — reciterdb SELECTs only — so the affinity prior
+    can be re-measured (and its knobs swept) without the cost or the S3 cache fills of
+    the full fit. fit() prices each WEIGHTS key from that key's own counts, so the
+    `aff:*` numbers here are the ones the full run prints for the same panel."""
+    labels = {r["pmid"]: r["label"] for r in csv.DictReader(LABELS.open())}
+    core = load_core(LABEL_CORE)
+    kw = {"tenure_gate": not args.no_tenure_gate}
+    if args.shrink_k is not None:
+        kw["shrink_k"] = args.shrink_k
+    if args.half_life is not None:
+        kw["half_life"] = args.half_life or None
+    bylines, years, index = affinity_panel(engine, labels, neg_pmids, core, **kw)
+
+    def aff(pmid):
+        return signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE, years.get(pmid))
+
+    pos = [SignalResult(author_affinity=aff(p)) for p in sorted(labels) if labels[p] == "yes"]
+    neg = [SignalResult(author_affinity=aff(p)) for p in neg_pmids]
+    keys = ["aff:trace", "aff:regular", "aff:core"]
+    table = fit(pos, neg, keys, "PANEL B — author x core affinity RATE only "
+                                "(labelled yes vs random corpus)")
+    zp = sum(1 for s in pos if not s.author_affinity)
+    zn = sum(1 for s in neg if not s.author_affinity)
+    print(f"  {'aff: rate == 0':<24}{zp:>6}{zn:>7}{zp / max(len(pos), 1):>9.4f}"
+          f"{zn / max(len(neg), 1):>9.4f}{weight(zp, len(pos), zn, len(neg)):>8.2f}"
+          "   NOT SHIPPED: absent evidence contributes no key")
+    rank = {None: 0, **{k: i + 1 for i, k in enumerate(keys)}}
+
+    def bucket(s):
+        f = [k for k in evidence_features(s) if k.startswith("aff:")]
+        return rank[f[0] if f else None]
+
+    print(f"\n  AUC (rate)   = {auc([s.author_affinity for s in pos], [s.author_affinity for s in neg]):.4f}")
+    print(f"  AUC (bucket) = {auc([bucket(s) for s in pos], [bucket(s) for s in neg]):.4f}")
+    print("\n# --- aff:* cells, paste into pipeline_cores/combine.py WEIGHTS ---")
+    for k, (w, note) in table.items():
+        print(f'    "{k}": {w:.2f},' + (f"  # {note}" if note else ""))
+    return 0
 
 
 def graded_bins(pos, neg, value, edges):
@@ -376,6 +450,16 @@ def main(argv=None) -> int:
     ap.add_argument("--llm-negatives", type=int, default=400,
                     help="random corpus papers put through live Bedrock triage (default 400)")
     ap.add_argument("--seed", type=int, default=11)
+    ap.add_argument("--affinity-only", action="store_true",
+                    help="fit only panel B's aff:* cells (reciterdb reads only; no Bedrock, "
+                         "no full text) and print their AUC")
+    ap.add_argument("--shrink-k", type=float, default=None,
+                    help="with --affinity-only: override signals.AFFINITY_SHRINK_K")
+    ap.add_argument("--half-life", type=float, default=None,
+                    help="with --affinity-only: override signals.AFFINITY_HALF_LIFE_YEARS "
+                         "(0 = off)")
+    ap.add_argument("--no-tenure-gate", action="store_true",
+                    help="with --affinity-only: build the index without the tenure gate")
     args = ap.parse_args(argv)
 
     from utils.db import get_engine  # lazy
@@ -384,6 +468,8 @@ def main(argv=None) -> int:
     random.seed(args.seed)
     neg_pmids = random.sample(corpus, args.negatives)
     print(f"corpus: {len(corpus)} WCM publications")
+    if args.affinity_only:
+        return affinity_only(engine, neg_pmids, args)
 
     buckets = ("distinctive", "moderate", "generic", "unknown")
     sections = [f"sec:{s}" for s in ("ack", "methods", "body")]

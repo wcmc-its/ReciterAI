@@ -263,39 +263,167 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
 # as three fitted buckets instead of a slope through a made-up curve.
 
 
-def build_affinity_index(user_paper_counts: dict, author_totals: dict) -> dict:
-    """cwid -> {core_id: rate}: each author's SHARE of their own corpus output
-    that already belongs to the core.
+# Every number below is from `python3 scripts/fit_evidence_weights.py --affinity-only`
+# (panel B: 137 labelled-yes imaging papers vs 1,200 random corpus papers, core staff
+# excluded as run_core excludes them) unless it says core 14, which is the 46
+# human-decided rows (26 claimed / 20 rejected) of core 14, leave-one-out. Measured
+# 2026-10-06. Bucket AUC is what ships (WEIGHTS prices buckets, not the rate).
 
-    `user_paper_counts` maps cwid -> {core_id: n_confirmed_papers}, aggregated
-    from this run's confirmations plus prior confirmed/claimed records.
+# Small-denominator shrinkage: rate = n / (total + K). Without it an author with ONE
+# corpus paper, confirmed once, has rate 1/1 = 1.0 -> `aff:core` — and while `aff:core`
+# cleared DEFAULT_CONFIRM_THRESHOLD alone, that one confirmation auto-confirmed the
+# author's next paper (10 of core 14's 47 affinity-carried confirmations). K = 1 is the
+# smallest K that keeps 1-of-1 (0.50) and 2-of-2 (0.67) out of `aff:core` while 3-of-3
+# (0.75) still reaches it. Panel B cannot tell K apart: bucket AUC 0.6789 at K=0,
+# 0.6786 at K=0.5 and K=1, 0.6785 at K=2 (where `aff:core` has no rows left at all);
+# K=1 moves 12 of the 15 panel-B `aff:core` positives into `aff:regular` and no
+# negatives anywhere. Core 14 AUC 0.6144 (K=0) -> 0.6212 (K=1). A hard minimum-n floor
+# (2 or 3 confirms before `aff:core`) was measured too and is IDENTICAL to K=1 on panel
+# B (same 12 authors move), so it is not built — one smooth knob, not two.
+AFFINITY_SHRINK_K = 1.0
+
+# Per-confirmation time decay, as a half-life in years on |scored paper year - confirmed
+# paper year|, applied to numerator AND denominator alike (so a decayed rate is still a
+# share of the author's own output, just recency-weighted). OFF (None): on panel B decay
+# never helps and short half-lives hurt — bucket AUC 0.6770 / 0.6777 / 0.6785 / 0.6786 /
+# 0.6786 at 1 / 2 / 3 / 5 / 8 years vs 0.6786 off — and the core-14 rows are too few to
+# say otherwise (non-monotone: 2y 0.6038, 3y 0.6212, 5y 0.6192, off 0.6144, at K=0).
+# The corpus starts in 2020, so the spread decay can act on is ~6 years.
+# MEASUREMENT PLAN before turning it on: `fit_evidence_weights.py --affinity-only
+# --half-life H` for H in 2/3/5/8, plus the same sweep on a core's human-decided
+# (claimed vs rejected) rows once there are >=100 of them — SPS claim decisions on core
+# 14 are the panel that grows. Ship H only if it beats OFF on both by more than one
+# pair's worth of AUC and the refit buckets stay monotone; then refit WEIGHTS with it.
+AFFINITY_HALF_LIFE_YEARS = None
+
+# Tenure window lags, in years, around identity's WCM appointment span (see
+# ingest.fetch_author_tenure). An author's history only lights up a paper published
+# inside [start - BEFORE, end + AFTER], and only confirmations / corpus papers inside
+# that window build the rate (numerator and denominator gated alike).
+#   BEFORE = 3: identity's start is the FACULTY (or student) appointment, not arrival.
+#   Postdocs, fellows and research staff who later join the faculty carry no earlier
+#   date, so a tight start gate drops real users — panel B bucket AUC 0.6722 / 0.6715
+#   / 0.6753 at BEFORE = 0 / 1 / 2 (human-labelled "yes" papers lose their author),
+#   back to 0.6786 at 3 and flat beyond. Smallest lag that costs nothing.
+#   AFTER = 2: NOT measurable here (panel B is flat for AFTER 0..5: no labelled paper
+#   post-dates its author's departure). Chosen on the publishing tail — work done at WCM
+#   keeps appearing for a year or two after someone leaves — and it is the side identity
+#   records reliably. On core 14 the whole gate moves 1 of 486 open candidates.
+TENURE_LAG_BEFORE = 3
+TENURE_LAG_AFTER = 2
+
+
+def tenure_window(span):
+    """(earliest, latest) publication year an author's affinity may speak for, or None.
+
+    `span` is (start_year, end_year) from ingest.fetch_author_tenure; end None means
+    still here (open-ended). None, or no start, means unknown, which is NOT gated —
+    absent evidence takes nothing away, as everywhere else in this model."""
+    if not span or not span[0]:
+        return None
+    start, end = span
+    return (start - TENURE_LAG_BEFORE, end + TENURE_LAG_AFTER if end else None)
+
+
+def _in_window(year, window) -> bool:
+    if year is None or window is None:
+        return True
+    lo, hi = window
+    return year >= lo and (hi is None or year <= hi)
+
+
+def _by_year(value) -> dict:
+    """{year|None: n}. A bare count is a year-UNKNOWN count, which neither the tenure
+    gate nor decay can act on; callers without years (batch_screen's selection, the
+    spread script) keep the plain-count contract they had."""
+    if isinstance(value, dict):
+        return {y: n for y, n in value.items() if n}
+    return {None: value} if value else {}
+
+
+class AffinityIndex:
+    """cwid x core -> repeat-user RATE, resolved per scored paper's year.
+
+    Not a plain dict any more because the rate is no longer one number per author: the
+    tenure gate depends on WHEN the scored paper was published, and so would decay."""
+
+    def __init__(self, papers: dict, totals: dict, windows: dict, *,
+                 shrink_k: float, half_life):
+        self.papers, self.totals, self.windows = papers, totals, windows
+        self.shrink_k, self.half_life = shrink_k, half_life
+
+    def _w(self, year, ref) -> float:
+        if self.half_life is None or year is None or ref is None:
+            return 1.0
+        return 0.5 ** (abs(ref - year) / self.half_life)
+
+    def rate(self, cwid: str, core_id: str, year=None) -> float:
+        by_year = self.papers.get(cwid, {}).get(core_id)
+        if not by_year or not _in_window(year, self.windows.get(cwid)):
+            return 0.0
+        num = sum(n * self._w(y, year) for y, n in by_year.items())
+        den = sum(n * self._w(y, year) for y, n in self.totals[cwid].items())
+        return min(num / (den + self.shrink_k), 1.0) if den > 0 else 0.0
+
+
+_DEFAULT = object()
+
+
+def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure: dict = None,
+                         shrink_k=_DEFAULT, half_life=_DEFAULT) -> AffinityIndex:
+    """cwid x core -> each author's SHARE of their own corpus output that already
+    belongs to the core, as an AffinityIndex.
+
+    `user_paper_counts` maps cwid -> {core_id: n} or cwid -> {core_id: {year: n}},
+    aggregated from this run's confirmations plus prior confirmed/claimed records.
     `author_totals` maps cwid -> that author's TOTAL papers in the scoreable WCM
-    corpus (ingest.fetch_author_totals). The denominator is the CORPUS (80,203
-    pubs / 13,960 resolved authors), NOT all of analysis_summary_author (392,769
-    pmids): the unrestricted form deflates every rate by ~4x, which walks real
-    core regulars down out of the top bucket.
+    corpus (ingest.fetch_author_totals), likewise a count or {year: n}. The
+    denominator is the CORPUS (~82k pubs), NOT all of analysis_summary_author
+    (392,769 pmids): the unrestricted form deflates every rate by ~4x, which walks
+    real core regulars down out of the top bucket.
+
+    `tenure` maps cwid -> (start_year, end_year) (ingest.fetch_author_tenure). Per
+    author, confirmations and corpus papers outside tenure_window() are dropped from
+    BOTH sides of the ratio before it is taken — an out-of-tenure confirmation should
+    not build the rate, and an out-of-tenure paper should not dilute it. An author with
+    no tenure row, or a year-unknown count, is not gated.
+
+    rate = n / (total + shrink_k) — see AFFINITY_SHRINK_K — and recency-weighted by
+    `half_life` when set (AFFINITY_HALF_LIFE_YEARS; None = off).
 
     An author with NO corpus total is DROPPED, not floored. "We could not measure this
     author's output" and "this author's entire output is this core's work" are opposite
-    claims, and flooring conflated them into rate 1.0 = `aff:core` = +4.93 nats, which
-    alone clears DEFAULT_CONFIRM_THRESHOLD — so an unmeasurable author auto-confirmed
-    every paper they touched, with no acknowledgement, no staff co-author and no LLM
-    score behind it. Absent evidence contributes nothing here, as everywhere else.
+    claims, and flooring conflated them into rate 1.0 = `aff:core`, which (at the then
+    +4.93 nats) alone cleared DEFAULT_CONFIRM_THRESHOLD — so an unmeasurable author
+    auto-confirmed every paper they touched, with no acknowledgement, no staff
+    co-author and no LLM score behind it. Absent evidence contributes nothing here, as everywhere else.
 
     n > total should be impossible once the caller gates its numerator through
     ingest.filter_corpus_pmids (both sides of the ratio on the corpus), so it is clamped
     AND logged rather than silently floored: it means a caller skipped the gate.
     """
-    index: dict = {}
+    shrink_k = AFFINITY_SHRINK_K if shrink_k is _DEFAULT else shrink_k
+    half_life = AFFINITY_HALF_LIFE_YEARS if half_life is _DEFAULT else half_life
+    tenure = tenure or {}
+    papers, totals, windows = {}, {}, {}
     missing, over = [], []
     for cwid, by_core in user_paper_counts.items():
-        total = author_totals.get(cwid, 0)
-        if not total:
+        window = tenure_window(tenure.get(cwid))
+        total = {y: n for y, n in _by_year(author_totals.get(cwid, 0)).items()
+                 if _in_window(y, window)}
+        if not sum(total.values()):
             missing.append(cwid)
             continue
-        if any(n > total for n in by_core.values()):
+        gated = {}
+        for core_id, value in by_core.items():
+            kept = {y: n for y, n in _by_year(value).items() if _in_window(y, window)}
+            if kept:
+                gated[core_id] = kept
+        if not gated:
+            continue
+        if any(sum(v.values()) > sum(total.values()) for v in gated.values()):
             over.append(cwid)
-        index[cwid] = {core_id: min(n / total, 1.0) for core_id, n in by_core.items()}
+        papers[cwid], totals[cwid], windows[cwid] = gated, total, window
     if missing:
         logger.warning("build_affinity_index: %d authors have no corpus paper total and "
                        "were DROPPED from the affinity index (rate unknown, not maximal)",
@@ -304,10 +432,11 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict) -> dict:
         logger.warning("build_affinity_index: %d authors have more core confirms than "
                        "corpus papers — the numerator was not gated through "
                        "ingest.filter_corpus_pmids; rates clamped to 1.0", len(over))
-    return index
+    return AffinityIndex(papers, totals, windows, shrink_k=shrink_k, half_life=half_life)
 
 
-def author_affinity(affinity_index: dict, byline_cwids: list, core_id: str) -> float:
+def author_affinity(affinity_index: AffinityIndex, byline_cwids: list, core_id: str,
+                    pub_year=None) -> float:
     """Prior that THIS paper used the core: the MAX rate across its byline.
 
     MAX, not noisy-OR. Noisy-OR over the byline is a monotone function of HOW MANY
@@ -316,15 +445,15 @@ def author_affinity(affinity_index: dict, byline_cwids: list, core_id: str) -> f
     is largely this core's work is the evidence; four people who each used the core
     once are not four times that, and under noisy-OR they outscored the core's
     heaviest single user. Returns 0.0 when no author on the byline has any history
-    with the core. `affinity_index` is the output of build_affinity_index
-    (cwid -> {core_id: rate}).
+    with the core.
 
-    TODO(calibration): per-author time decay — weight each confirmation by recency
-    so a 2014 paper counts less than a 2024 one. Deferred: needs the publication
-    year carried into persist.scan_prior_core_usage and a half-life tuned on
-    analysis/labeled_set.csv before it can be trusted.
+    `pub_year` is the scored paper's year. Each author is gated on it individually
+    (tenure_window): an author who had left WCM years before this paper lends it
+    nothing, while a co-author still here keeps theirs — the PAPER is not dropped, and
+    the acknowledgement / staff signals never pass through here at all. None = not
+    gated (and no decay reference).
     """
-    return max((affinity_index.get(cwid, {}).get(core_id, 0.0) for cwid in byline_cwids),
+    return max((affinity_index.rate(cwid, core_id, pub_year) for cwid in byline_cwids),
                default=0.0)
 
 

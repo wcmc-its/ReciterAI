@@ -83,7 +83,7 @@ def load_prior_user_pmids(core_id: str, bylines: dict, *, enabled: bool, engine=
     denominator is a real paper count. `build_affinity_index` only warns when the
     doubled value exceeds the author's corpus total (2 authors on the 2026-09-05
     full-corpus run); everyone still under their total was inflated SILENTLY, and
-    `aff:core` (rate >= 0.70, +4.93 nats) clears DEFAULT_CONFIRM_THRESHOLD on its own —
+    `aff:core` (rate >= 0.70, then +4.93 nats) cleared DEFAULT_CONFIRM_THRESHOLD on its own —
     so an inflated author's next paper auto-confirms with no acknowledgement, no staff
     co-author and no LLM score behind it. A set unions instead of adding, so the same
     paper arriving from both sources counts once by construction rather than by a
@@ -284,14 +284,16 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             for cwid in bylines.get(rec.pmid, []):
                 if cwid.lower() not in staff:
                     papers[cwid][core.core_id].add(rec.pmid)
-    # len() at the boundary: build_affinity_index takes counts, and keeping the sets on
-    # this side of it means the dedupe cannot be undone by a caller that builds its own.
-    counts = {cwid: {cid: len(p) for cid, p in by_core.items()} for cwid, by_core in papers.items()}
-    # The rate's denominator, for the authors that actually have confirmations. Scoped
-    # to those cwids rather than the whole corpus: it is the same number either way,
-    # and this run may only be scoring a pool.
-    author_totals = ingest.fetch_author_totals(engine, list(counts))
-    affinity_index = signals.build_affinity_index(counts, author_totals)
+    # Counted at the boundary (ingest.affinity_inputs turns each set into {year: n}), and
+    # keeping the sets on this side of it means the dedupe cannot be undone by a caller
+    # that builds its own. The rate's denominator and the tenure spans are read for the
+    # authors that actually have confirmations: the same numbers as for the whole
+    # corpus, and this run may only be scoring a pool. Years: this run's pubs carry
+    # theirs; prior papers outside the pool are dated on demand.
+    known_years = {p["pmid"]: p.get("year") for p in pubs if p.get("year")}
+    counts, author_totals, tenure, pub_years = ingest.affinity_inputs(
+        engine, papers, years=known_years)
+    affinity_index = signals.build_affinity_index(counts, author_totals, tenure=tenure)
 
     out = []
     for rec in records:
@@ -299,7 +301,8 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
             out.append(rec)
             continue
         sig = sigs[rec.pmid]
-        sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []), core.core_id)
+        sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []),
+                                                      core.core_id, pub_years.get(rec.pmid))
         out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
                                     core=core, triage_threshold=threshold))
     return out

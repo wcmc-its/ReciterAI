@@ -21,7 +21,7 @@ working tree, `Projects/Inferring Cores and Services/analysis/`.)
 
 | # | Signal | Module | Role | Fitted weight |
 |---|---|---|---|---|
-| 1 | author × core affinity (repeat-user prior) | `signals.author_affinity` | recall prior | `aff:trace` +0.79 / `aff:regular` +3.43 / `aff:core` +4.93 |
+| 1 | author × core affinity (repeat-user prior) | `signals.author_affinity` | recall prior | `aff:trace` +1.22 / `aff:regular` +3.51 / `aff:core` +4.11 |
 | 1b | curated known clients (asserted, not inferred) | `run_core`, `persist.get_curated_clients` | recall on cores with no history | `client` **0.00 — unfitted** |
 | 2 | core-staff co-authorship (resolved `personIdentifier`) | `signals.coauthorship_index` | deterministic recall | `staff` +4.89 |
 | 3 | acknowledgement / alias name-match | `signals.acknowledgement_signal` | strongest single weight | `ack` +6.37, plus conditional terms |
@@ -48,7 +48,7 @@ separately inspectable via `combine.explain()`, and it spreads by construction.
 
 **Absent evidence contributes no key.** A never-scored `llm_score` is `None`, which is
 not the claim "scored 1"; an affinity rate of 0 emits nothing even though the cell
-measures −0.99, because pricing that one absence and no other would bias every pair with
+measures −0.45, because pricing that one absence and no other would bias every pair with
 no author history.
 
 ### What one piece of evidence is worth on its own
@@ -59,10 +59,10 @@ after any weight change:
 | evidence alone | P | status |
 |---|---|---|
 | distinctive alias beside a home institution | 1.000 | confirmed |
-| aff:core (rate ≥ 0.70) | 0.738 | confirmed |
+| aff:core (rate ≥ 0.70) | 0.554 | candidate |
 | staff co-author | 0.731 | candidate (held — never the deciding vote, see below) |
 | LLM 9 or 10 | 0.591 | candidate |
-| aff:regular (rate 0.30) | 0.387 | candidate |
+| aff:regular (rate 0.30) | 0.406 | candidate |
 | **curated client** | **0.020** | **below_threshold** |
 | **curated method family, any tier** | **0.020** | **below_threshold** |
 | **MeSH descriptor under the core's E-tree branch** | **0.020** | **below_threshold** |
@@ -77,10 +77,13 @@ acknowledgement still confirms, with or without staff.
 
 Two things to read off it. **The LLM alone never confirms** — it tops out at 0.591
 against a 0.65 bar, deliberately, and that is the one doctrine kept from the old
-hard-coded precedence. And **`aff:core` alone confirms**, at 0.738: an author who has
-already given ≥70% of their corpus output to this core confirms their next paper on the
-strength of that history. That is measured, not chosen (55/137 labelled-yes vs 3/1200
-corpus), but it makes the affinity numerator's correctness load-bearing — see #391 below.
+hard-coded precedence. And **`aff:core` alone no longer confirms** (0.554, refit
+2026-10-06). It did, at 0.738, while the fit priced it at +4.93 (55/137 labelled-yes vs
+3/1200) — but 40 of those 55 were core staff's self-affinity, which production stopped
+computing in #418, and production's 1-of-1 authors were riding it to auto-confirmation.
+With staff out of the panel and K=1 shrinkage the cell is a 3-positive floor of +4.11, so
+a usage prior now needs one more piece of evidence to confirm. The numerator's
+correctness is still load-bearing — see #391 below.
 A core's **own staff earn no rate for that core** and so lend none: publishing through
 their own core is their job, not client usage, and left in they lent `aff:core` to every
 byline they were on (and fed it back through each confirmation). The co-author signal
@@ -232,6 +235,17 @@ them honest:
   `build_affinity_index` only *warns* when the doubled value exceeds the author's own
   corpus total, so most of the inflation was silent. Fixing it moved a live full-corpus
   run from 216→186 confirmed and 1632→1434 candidates.
+- **Only in-tenure history counts** (`ingest.fetch_author_tenure`, reciterdb `identity`
+  faculty + student appointment years). Per author, confirmations and corpus papers
+  outside `[start − 3, end + 2]` are dropped from both sides of the ratio, and an author
+  lends nothing to a scored paper published outside that window — the paper itself is
+  never dropped, and ack / staff never pass through here. No identity row = not gated.
+  The start lag is generous because identity dates the FACULTY appointment, not arrival.
+- **Small denominators are shrunk**: rate = n / (total + 1), so a 1-of-1 author is 0.50
+  (`aff:regular`), not 1.0 (`aff:core`). Time decay is implemented but OFF
+  (`signals.AFFINITY_HALF_LIFE_YEARS = None`); the constants' comments in `signals.py`
+  carry the measurements and the plan for turning it on. Re-measure all three with
+  `python3 scripts/fit_evidence_weights.py --affinity-only` (reciterdb reads only).
 
 ### A worked example
 
@@ -246,13 +260,13 @@ arithmetic around them):
 | `ack` — an alias matched at all | +6.37 |
 | `staff` — a tracked core-staff member on the byline | +4.89 |
 | `inst:home` — the match sits beside WCM or a Tri-I partner | +3.47 |
-| `aff:regular=0.420` — best byline author has given 42% of their output to this core | +3.43 |
+| `aff:regular=0.420` — best byline author has given 42% of their output to this core | +3.51 |
 | `llm:7` — Sonnet dense score 7 → −1.86 + 0.68×7 | +2.90 |
 | `ack.spec:moderate` — "Epigenomics Core", 666 global PMC hits | +1.90 |
 | `client` — a curated known client on the byline | +0.00 |
 | `method:strong` — an Electronic-health-record-datasets tool named in the abstract | +0.00 |
 | `mesh:tree` — a bare MeSH descriptor under the core's E-tree branch | +0.00 |
-| **= logit** | **+19.07** |
+| **= logit** | **+19.15** |
 | **= P** | **1.000 → confirmed** |
 
 Note `ack` + `ack.spec:moderate` + `inst:home` is the chain rule on one match, not three
