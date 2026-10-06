@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""What a core's `affinity_min_confirms` does to its live queue and its human labels.
+"""What a core's affinity prior strength s does to its live queue and its human labels.
 
 READ-ONLY: one paginated DynamoDB Scan of the core's CORE#<id> rows plus reciterdb
 SELECTs (bylines, corpus filter, per-year corpus totals, identity tenure, pub years).
 Nothing is written, no Bedrock, no full text.
 
-For each minimum in --mins it rebuilds the affinity index the way run_core builds it
+For each s in --strengths it rebuilds the affinity index the way run_core builds it
 (non-staff authors of the core's confirmed + claimed in-corpus papers, through
 ingest.affinity_inputs and signals.build_affinity_index, numerator-only self-exclusion,
-tenure gate, shipped K and weights) and reports:
+tenure gate, shrinkage rate = (n + s*p0) / (total + s) with p0 = the core's confirmed +
+claimed in-corpus papers / the corpus size, shipped weights) and reports:
 
   * status moves: each stored row's logit with its stored `aff:*` term swapped for the
     recomputed one, re-banded with combine()'s thresholds and the LLM / staff holds.
@@ -16,12 +17,12 @@ tenure gate, shipped K and weights) and reports:
     default is the pre-2026-10-06 set, 0.79 / 3.43 / 4.93, which is what the live table
     holds until the next run rescored it).
   * claimed vs rejected affinity AUC (rate and bucket) on the core's human-decided rows,
-    the panel that decides whether a minimum helps THIS core.
+    the panel that says whether THIS core wants a different s from the global default.
 
-Written for core 14 (Research Informatics, minimum 3 at its owner's request); the
-numbers it printed on 2026-10-06 are in config/core_dictionary.yaml beside the key.
+Written for core 14 (Research Informatics); the numbers it printed on 2026-10-06 are in
+config/core_dictionary.yaml beside core 14.
 
-    python3 scripts/measure_affinity_min_confirms.py --core 14 --mins 1 2 3
+    python3 scripts/measure_affinity_prior_strength.py --core 14 --strengths 0 1 2 5 10 20
 """
 from __future__ import annotations
 
@@ -96,7 +97,7 @@ def auc(pos, neg) -> float:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--core", default="14")
-    ap.add_argument("--mins", type=int, nargs="+", default=[1, 2, 3])
+    ap.add_argument("--strengths", type=float, nargs="+", default=[0, 1, 2, 5, 10, 20])
     ap.add_argument("--stored-weights", type=float, nargs=3, default=None,
                     metavar=("TRACE", "REGULAR", "CORE"),
                     help="aff:* weights the stored rows were scored with (default 0.79 3.43 4.93)")
@@ -122,27 +123,32 @@ def main(argv=None) -> int:
                 if cwid.lower() not in staff:
                     papers[cwid][core.core_id].add(r["pmid"])
     counts, totals, tenure, _ = ingest.affinity_inputs(engine, papers)
+    core_pmids = {r["pmid"] for r in rows
+                  if r["status"] in ("confirmed", "claimed") and r["pmid"] in in_corpus}
+    corpus_size = ingest.fetch_corpus_size(engine)
+    p0 = signals.affinity_base_rate(len(core_pmids), corpus_size)
     years = ingest.fetch_pub_years(engine, pmids)
     status_n = collections.Counter(r["status"] for r in rows)
     print(f"core {core.core_id} {core.name}: {len(rows)} rows {dict(status_n)}; "
           f"{len(papers)} non-staff authors in the numerator; shipped "
           f"{ {k: C.WEIGHTS[k] for k in PRE_REFIT} }, stored {stored_w}; "
-          f"dictionary affinity_min_confirms={core.affinity_min_confirms}")
+          f"dictionary affinity_prior_strength={core.affinity_prior_strength} "
+          f"(global {signals.AFFINITY_PRIOR_STRENGTH:g}); p0 = {len(core_pmids)}/{corpus_size} "
+          f"= {p0:.5f}")
 
     groups = [(s, [r for r in rows if r["status"] == s])
               for s in ("candidate", "confirmed", "below_threshold")]
     decided = [r for r in rows if r["status"] in ("claimed", "rejected")]
-    for m in args.mins:
+    for strength in args.strengths:
         idx = signals.build_affinity_index(counts, totals, tenure=tenure, members=papers,
-                                           min_confirms={core.core_id: m})
+                                           prior_strength={core.core_id: strength},
+                                           base_rate={core.core_id: p0})
 
         def rate(p):
             return signals.author_affinity(idx, bylines.get(p, []), core.core_id,
                                            years.get(p), pmid=p)
-        eligible = sum(1 for by_core in idx.papers.values()
-                       if sum(by_core.get(core.core_id, {}).values()) >= m)
-        print(f"\n=== min_confirms={m}: {eligible} of {len(idx.papers)} measurable authors "
-              f"have >= {m} in-tenure confirmations (before excluding a scored paper)")
+        print(f"\n=== prior_strength s={strength:g} (p0={p0:.5f}): "
+              f"{len(idx.papers)} measurable authors")
         for name, group in groups:
             moves, visible = collections.Counter(), 0
             for r in group:

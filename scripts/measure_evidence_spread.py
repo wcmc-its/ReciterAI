@@ -161,8 +161,13 @@ def label_set(engine, old):
             counts[cwid][LABEL_CORE] += 1
     # Same rate denominator production uses — an author's own corpus output — so the
     # AFTER column is scored on the feature the shipped weights were fitted against.
-    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)),
-                                         min_confirms={LABEL_CORE: signals.affinity_min_confirms(core)})
+    # Production's shrinkage: s = the core's prior strength, p0 = its confirms' share of
+    # the corpus (signals.affinity_base_rate).
+    index = signals.build_affinity_index(
+        counts, ingest.fetch_author_totals(engine, list(counts)),
+        prior_strength={LABEL_CORE: signals.affinity_prior_strength(core)},
+        base_rate={LABEL_CORE: signals.affinity_base_rate(len(outside),
+                                                          ingest.fetch_corpus_size(engine))})
     # Self-exclusion as run_core applies it (signals.author_affinity, numerator only): a
     # labelled paper is never in this numerator (outside excludes the label set), so it
     # is a no-op here; passed anyway so this stays the production call.

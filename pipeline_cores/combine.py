@@ -229,16 +229,18 @@ WEIGHTS = {
     # Refit 2026-10-06 (`fit_evidence_weights.py --affinity-only`) on the rate production
     # now computes: core staff left out of their own core's rate (#418 — the panel had
     # kept them, so 40 of the old 55 `aff:core` positives were staff self-affinity, a
-    # second copy of `staff`), the tenure gate, shrinkage K=1 and self-exclusion (the
-    # scored paper left out of its own rate; signals.py). Was 0.79 / 3.43 / 4.93;
-    # self-exclusion moved none of the three cells (rerun after it became numerator-only:
-    # same 9/24, 40/10, 3/0; rate AUC 0.6796, bucket 0.6786). Fitted at the global
-    # affinity_min_confirms default 1; a core that raises its own (core 14: 3) removes
-    # authors from the feature but does not reprice it. `aff:core` is now a FLOOR on 3 positives and no longer
-    # clears DEFAULT_CONFIRM_THRESHOLD alone (see there).
-    "aff:trace": 1.22,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 24/1200
-    "aff:regular": 3.51,               # 0.05 <= rate < 0.70; n=40/137 vs 10/1200
-    "aff:core": 4.11,                  # rate >= 0.70;       n=3/137 vs 0/1200 — bound only
+    # second copy of `staff`), the tenure gate, self-exclusion (the scored paper left out
+    # of its own numerator; signals.py) and base-rate shrinkage
+    # rate = (n + s*p0) / (total + s) at the global s = signals.AFFINITY_PRIOR_STRENGTH = 5
+    # (panel B p0 = 56/82203). Was 0.79 / 3.43 / 4.93, then 1.22 / 3.51 / 4.11 under
+    # n / (total + 1). At s = 5 no panel-B rate reaches 0.70, so `aff:core` is an EMPTY
+    # cell (0/0) and fit_evidence_weights.pool_empty_affinity prices it as the cell
+    # below — the strongest rates are worth `aff:regular`, not a refused 0.00 below it.
+    # Panel B bucket AUC 0.6777 (rate 0.6785). A core with its own
+    # affinity_prior_strength reshapes its rates, not these prices.
+    "aff:trace": 1.18,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 25/1200
+    "aff:regular": 3.49,               # 0.05 <= rate < 0.70; n=43/137 vs 11/1200
+    "aff:core": 3.49,                  # rate >= 0.70;       n=0/137 vs 0/1200 — EMPTY, pooled with aff:regular
     # NOT a key, on purpose: rate == 0 measures -0.45 (n=85/137 vs 1166/1200), and it is
     # held at 0 rather than shipped as a fourth bucket because evidence_features()'s
     # convention is that ABSENT evidence contributes no key — the same reason a
@@ -271,9 +273,11 @@ _GENERIC_MIN = 800
 # relationship" (3.43) at 0.05, and that from "this is largely what they do" (4.93)
 # at 0.70. Every bucket clears MIN_PANEL=30 on the positive side and the three are
 # monotone, so the edges are supported rather than drawn to taste. (Those are the
-# fit the edges were drawn on. The 2026-10-06 refit keeps them — still monotone,
-# 1.22 / 3.51 / 4.11 — but `aff:core` now holds 3 positives, so the top edge is no
-# longer independently supported; re-derive it when a larger panel exists.)
+# fit the edges were drawn on. Under the 2026-10-06 base-rate shrinkage (s = 5) no
+# panel-B rate reaches 0.70: the top cell is empty and pooled with `aff:regular`, so
+# the 0.70 edge currently prices nothing differently. Kept rather than deleted so a
+# larger panel, or a smaller s, can re-populate it without a code change; re-derive
+# both edges when a larger panel exists.)
 _AFF_REGULAR_MIN = 0.05
 _AFF_CORE_MIN = 0.70
 
@@ -292,14 +296,15 @@ _AFF_CORE_MIN = 0.70
 # 0.591, keeping the one doctrine from the old hard-coded precedence worth keeping.
 # Nothing sits within 0.05 of the bar, so it is not balanced on a rounding decision.
 #
-# `aff:core` alone does NOT clear it (0.554, refit 2026-10-06). It did, at 0.738, while
+# `aff:core` alone does NOT clear it (0.401 at 3.49, refit 2026-10-06). It did, at 0.738, while
 # the fit priced it at 4.93 — but that cell was mostly core STAFF's self-affinity
 # (#418 stopped production computing it), and production fed it a self-confirmation
 # loop: a confirmed paper was re-scored with its OWN confirmation in its byline's
 # numerator, so it kept itself confirmed with its own label (all 47 of core 14's
 # affinity-carried confirmations on 2026-10-06 counted themselves; signals.author_affinity
-# now leaves the scored paper out). With staff out and K=1 shrinkage it is a 3-positive
-# floor of 4.11, so a usage prior now needs a second piece of evidence to confirm.
+# now leaves the scored paper out). With staff out and base-rate shrinkage (s = 5) the
+# cell is empty and pooled with `aff:regular` (3.49), so a usage prior needs a second
+# piece of evidence to confirm.
 # Measured, not chosen; it IS a behaviour change, and the first thing to eyeball in a
 # live queue.
 DEFAULT_CONFIRM_THRESHOLD = 0.65

@@ -7,8 +7,9 @@
 #
 # Optional per-core keys, all with safe defaults (an entry without them runs). Besides
 # the four below: confirm_threshold / triage_threshold (combine() status bands) and
-# affinity_min_confirms (repeat-user minimum, default 1 = signals.AFFINITY_MIN_CONFIRMS;
-# see core 14 for why and how it was measured).
+# affinity_prior_strength (s in the repeat-user rate (n + s*p0) / (total + s), default
+# signals.AFFINITY_PRIOR_STRENGTH = 5; signals.py carries the measurement; see core 14
+# for why it has no override).
 # The four with the longest stories:
 #   partner_institutions: institutions that count as HOME for an alias match, beside
 #     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
@@ -460,30 +461,21 @@ cores:
       - { cwid: saa3011, name: "Sajjad Abedian", dept: "" }
       - { cwid: nik2004, name: "Nivedita Chang", dept: "" }
     grant_ids: []
-    # Repeat-user minimum (signals.AFFINITY_MIN_CONFIRMS, global default 1). Set to 3 at
-    # the core owner's request (2026-10 feedback): an author needs >= 3 confirmed
-    # or claimed core-14 papers — the paper being scored excluded, in tenure — before
-    # their history lends any affinity; below it they lend 0.
-    # MEASURED 2026-10-06, read-only (DynamoDB scan of CORE#14 = 5,365 rows + reciterdb
-    # SELECTs), statuses recomputed through the real signals code with the shipped
-    # weights, numerator-only self-exclusion, tenure gate, K=1:
-    #   min                                1        2        3
-    #   claimed(26) vs rejected(20) AUC  0.6212   0.6317   0.7279   (bucket 0.5558/0.6000/0.6962)
-    #   rejected rows with affinity > 0   17/20    14/20     4/20
-    #   claimed rows with affinity > 0    17/26    16/26    16/26
-    #   open candidates -> below (of 486)   12      131      174
-    #   engine-confirmed (72) -> candidate  59       59       59   (+1 -> below at every min)
-    #   below_threshold (4,761) -> candidate 59      46       25   (4 of them >= 0.40 at every min)
-    #   measurable authors with >= min       217       56       33   (of 217)
-    # So on this core 3 HELPS: it strips the prior from most rejected rows and keeps it on
-    # nearly every claimed one. Small panel (46 rows, 520 pairs) — re-measure at >= 100
-    # decided rows. The same gate on core 2's fit panel (panel B, labelled-yes vs random
-    # corpus) LOWERS affinity AUC 0.6786 / 0.6027 / 0.5637 at 1 / 2 / 3, which is why the
-    # global default stays 1 and this is a core-14 setting, not a model change.
-    # Re-measure: python3 scripts/measure_affinity_min_confirms.py --core 14 --mins 1 2 3
-    # (core 14 rows) and, for the cross-check on core 2, signals.AFFINITY_MIN_CONFIRMS
-    # patched to 2 / 3 under `python3 scripts/fit_evidence_weights.py --affinity-only`.
-    affinity_min_confirms: 3
+    # No `affinity_prior_strength` override: the global s = 5 applies. A repeat-user
+    # MINIMUM of 3 sat here briefly (2026-10-06, at the owner's request) and was replaced
+    # by the global sliding scale (n + s*p0) / (total + s) — 2 confirmations now count
+    # for less than 3, not for nothing. MEASURED 2026-10-06, read-only, on this core's
+    # 26 claimed vs 20 rejected rows (p0 = 79 / 82,203 = 0.00096):
+    #   s                          0       1       2       5       10      20
+    #   AUC rate                 0.6144  0.6212  0.6250  0.6250  0.6144  0.5894
+    #   AUC bucket               0.5558  0.5558  0.5558  0.5404  0.5654  0.5981
+    #   open candidates -> below    8      14      25      32      54     106   (of 486)
+    #   claimed / rejected rows with a prior: 17/26 and 17/20 at every s
+    # (the minimum of 3 measured 0.7279 / 0.6962 by zeroing 13 of those 17 rejected rows).
+    # 46 rows is too few to set a core-specific s against a flat global sweep, and rate
+    # and bucket AUC point opposite ways. Re-measure at >= 100 decided rows:
+    #   python3 scripts/measure_affinity_prior_strength.py --core 14 --strengths 0 1 2 5 10 20
+    # and set `affinity_prior_strength: <s>` here only if it clearly beats the global.
     llm_description: >
       research informatics service core: EHR-based reporting and clinical data
       extraction, clinical trial support, secure environments for analysis of

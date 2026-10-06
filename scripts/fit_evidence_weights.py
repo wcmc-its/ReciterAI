@@ -165,6 +165,29 @@ def fit(pos, neg, keys, label: str, forced=()) -> dict:
     return out
 
 
+AFF_KEYS = ["aff:trace", "aff:regular", "aff:core"]   # bucket order, lowest rate first
+
+
+def pool_empty_affinity(table: dict) -> dict:
+    """An EMPTY aff:* bucket (0 rows on either side) takes the weight of the bucket below.
+
+    The buckets are ordered cells of one feature, so an empty top cell is not "no
+    evidence" the way a refused unordered key is: shipping its refused 0.00 would price
+    the strongest rates below `aff:regular`, a cliff no panel row measured. Pooling it
+    with the cell below is that pooled cell's own fit — the empty cell adds 0/0 to it —
+    so this is still the panel's number, not a chosen one. It happens when the prior
+    strength s pulls every panel rate under the 0.70 edge (panel B at s >= 2,
+    2026-10-06). Only EMPTY cells pool; a populated non-monotone cell is printed as
+    fitted and blocks the paste on review instead."""
+    for lower, upper in zip(AFF_KEYS, AFF_KEYS[1:]):
+        if upper in table and lower in table and table[upper][1].startswith(
+                "REFUSED: never observed"):
+            table[upper] = (table[lower][0], f"POOLED with {lower}: empty cell "
+                                             "(0 rows either side) priced as the cell below")
+            print(f"  {upper}: empty -> pooled with {lower} = {table[lower][0]:.2f}")
+    return table
+
+
 def fit_line(bins, pos_n: int, neg_n: int, label: str):
     """Weighted least squares of the binned log-LRs against the bin's x value.
 
@@ -284,7 +307,7 @@ def alias_negatives(corpus_set, n_sample: int, seed: int):
 # ---------------------------------------------------------------------------
 # panel B — staff / LLM / affinity: human labels vs the random corpus
 # ---------------------------------------------------------------------------
-def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._DEFAULT,
+def affinity_panel(engine, labels: dict, neg_pmids, core, *, prior_strength=None,
                    half_life=signals._DEFAULT, tenure_gate: bool = True):
     """(bylines, years, score) for panel B's affinity prior, built the way run_core builds
     it; `score(pmid)` is that paper's author_affinity.
@@ -294,9 +317,11 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._D
     passed through author_affinity's self-exclusion, exactly as run_core passes it:
     that is a no-op on a labelled paper's numerator (it is not in it) but not on a
     random-corpus negative that happens to be a signal-2 confirm. Numerator only, as in
-    production: the scored paper stays in its authors' corpus totals. The core's
-    minimum confirmations (signals.affinity_min_confirms) applies too — core 2 has no
-    `affinity_min_confirms`, so the fit runs at the global default 1. Its denominator is each
+    production: the scored paper stays in its authors' corpus totals. Shrinkage is
+    production's too: rate = (n + s*p0) / (total + s), s = the core's
+    affinity_prior_strength (core 2 has none, so the global default) unless
+    `prior_strength` overrides it, p0 = this panel's core confirms / the corpus size
+    (signals.affinity_base_rate). Its denominator is each
     author's total output in the SAME corpus these negatives are drawn from — the
     unrestricted author count deflates every rate ~4x and would fit the buckets against a
     scale production never sees — and the numerator is gated to that corpus exactly as
@@ -307,7 +332,7 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._D
         signal-2 confirms — every one has a staff member on the byline — so leaving
         staff in fitted `aff:*` largely on staff self-affinity, i.e. a second copy of
         the `staff` key, against a feature production no longer computes.
-      * tenure gate + shrinkage + (optional) decay, through the same
+      * tenure gate + base-rate shrinkage + (optional) decay, through the same
         ingest.affinity_inputs / signals.build_affinity_index path, with each scored
         paper's own year.
     The keyword knobs exist for the measurement (--affinity-only); defaults = shipped.
@@ -323,10 +348,14 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._D
             if cwid.lower() not in staff:
                 papers[cwid][core.core_id].add(pmid)
     counts, totals, tenure, _ = ingest.affinity_inputs(engine, papers)
+    corpus_size = ingest.fetch_corpus_size(engine)
+    base_rate = signals.affinity_base_rate(len(outside), corpus_size)
+    strength = (signals.affinity_prior_strength(core) if prior_strength is None
+                else prior_strength)
     index = signals.build_affinity_index(counts, totals, tenure=tenure if tenure_gate else {},
-                                         shrink_k=shrink_k, half_life=half_life,
-                                         members=papers,
-                                         min_confirms={core.core_id: signals.affinity_min_confirms(core)})
+                                         prior_strength={core.core_id: strength},
+                                         base_rate={core.core_id: base_rate},
+                                         half_life=half_life, members=papers)
     years = ingest.fetch_pub_years(engine, everyone)
     corpus = ingest.filter_corpus_pmids(engine, everyone)
 
@@ -335,8 +364,9 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, shrink_k=signals._D
                                        years.get(pmid), pmid=pmid)
     print(f"  affinity index: {len(outside)} confirms outside the label set, "
           f"{len(index.papers)} non-staff authors, tenure rows for {len(tenure)}"
-          f"{'' if tenure_gate else ' (gate OFF)'}; shrink_k={index.shrink_k}, "
-          f"half_life={index.half_life}, min_confirms={index.min_for(core.core_id)}; {len(corpus)}/{len(everyone)} scored papers in corpus, "
+          f"{'' if tenure_gate else ' (gate OFF)'}; prior_strength={strength:g}, "
+          f"base_rate={base_rate:.5f} ({len(outside)}/{corpus_size}), "
+          f"half_life={index.half_life}; {len(corpus)}/{len(everyone)} scored papers in corpus, "
           f"{len(set(neg_pmids) & set(outside))} random negatives are confirms "
           f"(self-excluded)")
     return bylines, years, score
@@ -411,17 +441,17 @@ def affinity_only(engine, neg_pmids, args) -> int:
     labels = {r["pmid"]: r["label"] for r in csv.DictReader(LABELS.open())}
     core = load_core(LABEL_CORE)
     kw = {"tenure_gate": not args.no_tenure_gate}
-    if args.shrink_k is not None:
-        kw["shrink_k"] = args.shrink_k
+    if args.prior_strength is not None:
+        kw["prior_strength"] = args.prior_strength
     if args.half_life is not None:
         kw["half_life"] = args.half_life or None
     _bylines, _years, aff = affinity_panel(engine, labels, neg_pmids, core, **kw)
 
     pos = [SignalResult(author_affinity=aff(p)) for p in sorted(labels) if labels[p] == "yes"]
     neg = [SignalResult(author_affinity=aff(p)) for p in neg_pmids]
-    keys = ["aff:trace", "aff:regular", "aff:core"]
-    table = fit(pos, neg, keys, "PANEL B — author x core affinity RATE only "
-                                "(labelled yes vs random corpus)")
+    keys = AFF_KEYS
+    table = pool_empty_affinity(fit(pos, neg, keys, "PANEL B — author x core affinity RATE "
+                                                    "only (labelled yes vs random corpus)"))
     zp = sum(1 for s in pos if not s.author_affinity)
     zn = sum(1 for s in neg if not s.author_affinity)
     print(f"  {'aff: rate == 0':<24}{zp:>6}{zn:>7}{zp / max(len(pos), 1):>9.4f}"
@@ -465,8 +495,9 @@ def main(argv=None) -> int:
     ap.add_argument("--affinity-only", action="store_true",
                     help="fit only panel B's aff:* cells (reciterdb reads only; no Bedrock, "
                          "no full text) and print their AUC")
-    ap.add_argument("--shrink-k", type=float, default=None,
-                    help="with --affinity-only: override signals.AFFINITY_SHRINK_K")
+    ap.add_argument("--prior-strength", type=float, default=None,
+                    help="with --affinity-only: override the prior strength s "
+                         "(signals.AFFINITY_PRIOR_STRENGTH / the core's affinity_prior_strength)")
     ap.add_argument("--half-life", type=float, default=None,
                     help="with --affinity-only: override signals.AFFINITY_HALF_LIFE_YEARS "
                          "(0 = off)")
@@ -500,12 +531,12 @@ def main(argv=None) -> int:
 
     pos_b, easy_b, hard_b = panel_b(engine, neg_pmids, args.llm_negatives, args.seed)
     # In bucket order, not alphabetical: the three must come out monotone to be shippable.
-    aff_keys = ["aff:trace", "aff:regular", "aff:core"]
+    aff_keys = AFF_KEYS
     fit(pos_b, easy_b, ["staff", "client"] + aff_keys,
         "PANEL B foil — vs the label set's own EASY negatives (NOT SHIPPED)")
-    table.update(fit(pos_b, hard_b, ["staff", "client"] + aff_keys,
+    table.update(pool_empty_affinity(fit(pos_b, hard_b, ["staff", "client"] + aff_keys,
                      "PANEL B — core-staff co-authorship, curated clients and the "
-                     "author x core affinity RATE (labelled yes vs random corpus)"))
+                     "author x core affinity RATE (labelled yes vs random corpus)")))
     # The rate == 0 cell, printed because combine.py cites it and NOT shipped: there is no
     # aff:none key for fit() to count, because evidence_features() emits nothing for absent
     # evidence. Pricing this absence while every other absent feature stays silent would

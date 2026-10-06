@@ -5,6 +5,8 @@ import math
 import re
 import statistics
 
+import pytest
+
 from pipeline_cores.combine import (
     DEFAULT_CONFIRM_THRESHOLD,
     DEFAULT_TRIAGE_THRESHOLD,
@@ -156,12 +158,13 @@ def test_a_trace_user_no_longer_carries_a_weak_paper_on_its_own():
     # ...and it compounds: a working relationship plus a real LLM score reaches the queue.
     assert combine("1", "2", SignalResult(llm_score=4, author_affinity=0.6)).status == STATUS_CANDIDATE
     # A rate that says this core IS most of what the author does reaches the queue but no
-    # longer confirms on its own: refit 2026-10-06 at 4.11 (3/137 vs 0/1200, a floor) once
-    # core staff stopped lending their own core affinity (#418) and K=1 shrinkage kept
-    # 1-of-1 authors out of the bucket. It confirmed at 4.93; that was the fit, not a rule.
+    # longer confirms on its own: refit 2026-10-06 once core staff stopped lending their
+    # own core affinity (#418) and base-rate shrinkage (s = 5) emptied the bucket on
+    # panel B, so it is priced as aff:regular (3.49). It confirmed at 4.93; that was the
+    # fit, not a rule.
     alone = combine("1", "2", SignalResult(author_affinity=0.85))
     assert alone.status == STATUS_CANDIDATE
-    assert 0.55 < alone.likelihood < DEFAULT_CONFIRM_THRESHOLD
+    assert 0.38 < alone.likelihood < DEFAULT_CONFIRM_THRESHOLD
 
 
 # --- full-text loader (pure + cache, no network) ---------------------------
@@ -312,7 +315,7 @@ def test_with_s3_targets_artifacts_bucket():
 def test_build_affinity_index_is_a_rate_not_a_count():
     """The share of an author's OWN corpus output that already belongs to the core."""
     idx = build_affinity_index({"djb2001": {"2": 3}, "abc1001": {"5": 1}},
-                               {"djb2001": 4, "abc1001": 50}, shrink_k=0)
+                               {"djb2001": 4, "abc1001": 50}, prior_strength=0)
     assert idx.rate("djb2001", "2") == 0.75                   # 3 of their 4 papers
     assert idx.rate("abc1001", "5") == 0.02                   # 1 of their 50
     assert author_affinity(idx, ["djb2001"], "2") == 0.75
@@ -340,7 +343,7 @@ def test_many_confirms_no_longer_score_the_same_as_four_single_ones():
     -> 3.91 nats, exactly. 83.9% of core 14's live queue sat on that one value."""
     idx = build_affinity_index(
         {"heavy": {"2": 24}, "a": {"2": 1}, "b": {"2": 1}, "c": {"2": 1}, "d": {"2": 1}},
-        {"heavy": 30, "a": 40, "b": 40, "c": 40, "d": 40}, shrink_k=0)
+        {"heavy": 30, "a": 40, "b": 40, "c": 40, "d": 40}, prior_strength=0)
     heavy = author_affinity(idx, ["heavy"], "2")                  # 24/30 = 0.80
     four_light = author_affinity(idx, ["a", "b", "c", "d"], "2")  # 1/40  = 0.025
     assert heavy == 0.8 and four_light == 0.025
@@ -353,7 +356,7 @@ def test_author_affinity_is_the_max_not_a_noisy_or():
     each used the core once out-scored one author with a real working relationship."""
     idx = build_affinity_index(
         {"a": {"2": 1}, "b": {"2": 1}, "c": {"2": 1}, "d": {"2": 1}, "solo": {"2": 2}},
-        {"a": 40, "b": 40, "c": 40, "d": 40, "solo": 10}, shrink_k=0)
+        {"a": 40, "b": 40, "c": 40, "d": 40, "solo": 10}, prior_strength=0)
     four = author_affinity(idx, ["a", "b", "c", "d"], "2")
     assert four == author_affinity(idx, ["a"], "2") == 0.025      # adding bodies adds nothing
     assert four < 1 - 0.975 ** 4                                  # what noisy-OR would have given
@@ -389,7 +392,7 @@ def test_an_unmeasurable_author_is_dropped_not_read_as_maximal(caplog):
     import logging
     with caplog.at_level(logging.WARNING):
         idx = build_affinity_index({"unknown": {"2": 2}, "stale": {"2": 5}}, {"stale": 3},
-                                   shrink_k=0)
+                                   prior_strength=0)
     assert "unknown" not in idx.papers                # dropped, NOT floored to 1.0
     assert idx.rate("unknown", "2") == 0.0
     assert idx.rate("stale", "2") == 1.0              # clamped...
@@ -612,16 +615,16 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
     full_text = _ack_confirms(monkeypatch, {"100"})
     # Both papers share author cli0001 on the byline.
     monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"100": ["cli0001"], "200": ["cli0001"]})
-    # ...and cli0001 has 19 corpus papers, so one confirm is 1/(19 + K=1) = a 5% rate:
-    # aff:regular.
-    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"cli0001": 19})
+    # ...and cli0001 has 15 corpus papers, so one confirm is 1/(15 + s=5) = a 5% rate
+    # (no corpus_size given, so p0 is the 0.0 fallback): aff:regular.
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"cli0001": 15})
 
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=None, dry_run=True,
                                             full_text=full_text)}
     assert recs["100"].status == STATUS_CONFIRMED
-    # 200 has no direct signal; it inherits cli0001's affinity. One confirm out of 19
-    # corpus papers is a 5% rate (aff:regular), so the sibling reaches the queue and
+    # 200 has no direct signal; it inherits cli0001's affinity. One confirm out of 15
+    # corpus papers, shrunk, is a 5% rate (aff:regular), so the sibling reaches the queue and
     # still sits well below the paper that was actually confirmed.
     assert recs["200"].status == STATUS_CANDIDATE
     assert 1 / (1 + math.exp(-PRIOR_LOGIT)) < recs["200"].likelihood < recs["100"].likelihood
@@ -647,7 +650,7 @@ def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
     staff = core.staff_cwids[0]
     pubs = [{"pmid": "200", "title": "t", "abstract": ""}]
     monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
-    # 4 corpus papers each, all 4 confirmed (and >= core 14's affinity_min_confirms of 3)
+    # 4 corpus papers each, all 4 confirmed
     monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {staff: 4, "cli0001": 4})
     prior = {staff: {"14": {"1", "2", "3", "4"}}, "cli0001": {"14": {"1", "2", "3", "4"}}}
 
@@ -658,9 +661,9 @@ def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
         return rec
 
     assert score_200([staff]).signals.author_affinity == 0.0
-    # a client at 4 of 4 -> 4/(4 + K=1) = 0.8: aff:core, which reaches the queue (it no
-    # longer confirms alone since the 2026-10-06 refit)
-    assert score_200(["cli0001"]).signals.author_affinity == 0.8
+    # a client at 4 of 4 -> 4/(4 + s=5) (p0 fallback 0.0): aff:regular, which reaches
+    # the queue but does not confirm alone
+    assert score_200(["cli0001"]).signals.author_affinity == pytest.approx(4 / 9)
     assert score_200(["cli0001"]).status == STATUS_CANDIDATE
 
 
@@ -1635,7 +1638,9 @@ def test_score_is_monotone_in_the_evidence():
 
     # ...and monotone WITHIN a signal, not only across signals.
     assert score(SignalResult(llm_score=3)) < score(SignalResult(llm_score=7))
-    assert score(SignalResult(author_affinity=0.45)) < score(SignalResult(author_affinity=0.85))
+    assert score(SignalResult(author_affinity=0.02)) < score(SignalResult(author_affinity=0.45))
+    # aff:core is an empty cell at s = 5, pooled with aff:regular: equal, never lower
+    assert score(SignalResult(author_affinity=0.45)) <= score(SignalResult(author_affinity=0.85))
     assert score(_ack(23544, "home")) < score(_ack(20, "home"))          # specificity
     assert score(_ack(20, "other")) < score(_ack(20, "none")) < score(_ack(20, "home"))
 

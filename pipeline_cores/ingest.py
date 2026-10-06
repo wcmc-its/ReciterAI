@@ -93,6 +93,22 @@ def filter_corpus_pmids(engine, pmids) -> set:
         return {str(row.pmid) for row in conn.execute(stmt, {"pmids": pmids})}
 
 
+def fetch_corpus_size(engine) -> int:
+    """How many publications the scoreable corpus (PUBLICATION_EXTRACTION_SQL) holds.
+
+    The DENOMINATOR of a core's affinity base rate p0 (signals.affinity_base_rate): the
+    share of the corpus that is the core's confirmed/claimed work. Same corpus as each
+    author's total (fetch_author_totals) and the numerator gate (filter_corpus_pmids),
+    so p0 and every author's rate are shares of one universe."""
+    from sqlalchemy import text  # lazy
+    from utils.sql_queries import PUBLICATION_EXTRACTION_SQL  # lazy
+
+    corpus = PUBLICATION_EXTRACTION_SQL.replace("ORDER BY a1.pmid DESC", "")
+    with engine.connect() as conn:
+        return int(conn.execute(text(f"SELECT COUNT(DISTINCT corpus.pmid) FROM ({corpus}) corpus"))
+                   .scalar() or 0)
+
+
 def fetch_author_totals(engine, cwids: list = None) -> dict:
     """Map cwid -> {publication year: n}, that author's publications in the scoreable
     corpus, by year (sum the values for the plain total).

@@ -129,7 +129,7 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
              # TRAP: mesh_index=None records NO mesh_evidence, and mesh_evidence is in
              # _OWNED_ATTRS — a second caller that forgets this kwarg makes put_core_usage
              # REMOVE it from every row an earlier run wrote. One caller today: main().
-             mesh_index: dict = None, triage_only: set = None):
+             mesh_index: dict = None, triage_only: set = None, corpus_size: int = None):
     """Two-phase: deterministic+LLM signals, then the repeat-user affinity prior.
 
     Phase 1 builds each record from acknowledgement / co-authorship / LLM. Phase 2
@@ -297,11 +297,22 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     # earlier run confirmed (or a human claimed) arrives in prior_user_pmids AND is
     # re-scored below, and counting it in its own byline's numerator kept it confirmed
     # with its own label (signals.author_affinity, SELF-EXCLUSION).
-    # `min_confirms`: the core's affinity_min_confirms (core_dictionary.yaml), else the
-    # global default 1 — an author below it lends this core's papers nothing.
+    # Shrinkage toward the core's base rate, rate = (n + s*p0) / (total + s): s is the
+    # core's affinity_prior_strength (core_dictionary.yaml, else the global default), p0
+    # this run's share of the corpus (`corpus_size`, which main() reads once) that is the
+    # core's confirmed/claimed work — every author's, staff included, since p0 describes
+    # the core, not its clients. corpus_size None (unit tests) = the documented fallback.
+    core_pmids = {p for by_core in (prior_user_pmids or {}).values()
+                  for p in by_core.get(core.core_id, ())}
+    core_pmids |= {rec.pmid for rec in records if rec.status == STATUS_CONFIRMED}
+    base_rate = signals.affinity_base_rate(len(core_pmids), corpus_size)
+    strength = signals.affinity_prior_strength(core)
+    print(f"[{core.core_id} {core.name}] affinity prior: s={strength:g}, p0={base_rate:.5f} "
+          + (f"({len(core_pmids)} core papers / {corpus_size} corpus)" if corpus_size
+             else "(corpus size not given: fallback)"))
     affinity_index = signals.build_affinity_index(
         counts, author_totals, tenure=tenure, members=papers,
-        min_confirms={core.core_id: signals.affinity_min_confirms(core)})
+        prior_strength={core.core_id: strength}, base_rate={core.core_id: base_rate})
 
     out = []
     for rec in records:
@@ -656,6 +667,8 @@ def main(argv=None):
     # run_core reads only its own core's slice — so passing the whole prior is
     # identical to a per-core filtered scan, at 1/len(cores) the table reads.
     prior_pmids = load_prior_user_pmids(args.core, bylines, enabled=args.with_affinity, engine=engine)
+    # The affinity base rate's denominator (signals.affinity_base_rate), read once per run.
+    corpus_size = ingest.fetch_corpus_size(engine) if args.with_affinity else None
     # Stored LLM evidence: the same trade as the affinity prior above — ONE Scan
     # grouped by core_id in memory rather than one Scan per core, since each run_core
     # reads only its own core's slice.
@@ -696,7 +709,8 @@ def main(argv=None):
                            # keeps them apart.
                            carry_forward=(None if carry_forward is None
                                           else carry_forward.get(core.core_id, {})),
-                           family_index=family_index, mesh_index=mesh_index)
+                           family_index=family_index, mesh_index=mesh_index,
+                           corpus_size=corpus_size)
         triage_only = None
         if args.llm_triage_candidates_only:
             # ponytail: a whole second no-LLM pass (DB reads + combine, no Bedrock) just
