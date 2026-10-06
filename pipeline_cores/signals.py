@@ -490,8 +490,8 @@ def author_affinity(affinity_index: AffinityIndex, byline_cwids: list, core_id: 
     denominator total - [pmid is in the corpus]. Without it the prior was circular. A
     paper confirmed (or claimed) once is re-scored on every run, and its own row sat in
     each byline author's numerator, so it kept itself confirmed with its own label: all
-    47 of core 14's affinity-only confirmations counted themselves, and 10 had no other
-    confirmed paper behind them at all. The fit already scores papers this way (labelled
+    47 of core 14's affinity-only confirmations counted themselves, and 1 had no other
+    confirmed paper behind it at all. The fit already scores papers this way (labelled
     papers are never in its numerator), so leaving the paper out is also what makes the
     production feature the one the weights were fitted on. A 3-of-3 author scoring one
     of their own three reads as 2-of-2; an author whose only confirmation is this paper
