@@ -270,8 +270,8 @@ them honest:
   3-of-3 → 0.38, 10-of-10 → 0.67, 1-of-80 → 0.012. More confirmations at the same share
   always score higher, and there is no count below which an author stops counting. An
   author with no other confirmed paper (n = 0 after self-exclusion) still lends 0. This
-  replaces both the old n / (total + 1) and the binary per-core
-  repeat-user minimum (core 14 = 3) that briefly sat on top of it.
+  replaces the old n / (total + 1) as the global rate; core 14 adds a hard minimum on top
+  (next bullet).
 
   Choosing s, measured 2026-10-06 (`python3 scripts/fit_evidence_weights.py
   --affinity-only --prior-strength S`, reciterdb reads only; panel B p0 = 56 / 82,203):
@@ -288,14 +288,42 @@ them honest:
   Panel B is flat from s = 0 to 10 (bucket AUC within 0.0005) and drops at 20, so it
   cannot pick s; 5 is the middle of that flat range, which is the choice least exposed to
   either end moving, and it ties for the best core-14 rate AUC (with s = 2). s = 0 is no
-  shrinkage at all (1-of-1 = 1.0). Core 14 (`python3 scripts/measure_affinity_prior_strength.py
-  --core 14`, read-only) does not clearly prefer a different s — 46 rows, 520 pairs, and
-  its rate and bucket AUCs disagree on direction — so it has no override. Note what the
-  sliding scale does NOT do on core 14: the minimum of 3 measured 0.7279 / 0.6962 there,
-  because it zeroed 13 of the 17 rejected rows that carried a prior; shrinkage keeps
-  17/26 claimed and 17/20 rejected rows with a prior at every s. Re-measure at >= 100
-  decided rows. Time decay is implemented but OFF (`signals.AFFINITY_HALF_LIFE_YEARS =
-  None`); the constants' comments in `signals.py` carry the measurements.
+  shrinkage at all (1-of-1 = 1.0). Core 14 (`python3 scripts/measure_affinity_gates.py
+  --core 14 --strengths 0 1 2 5 10 20`, read-only) does not clearly prefer a different s
+  — 46 rows, 520 pairs, and its rate and bucket AUCs disagree on direction — so it has no
+  s override. Shrinkage keeps 17/26 claimed and 17/20 rejected core-14 rows with a prior
+  at every s, which is why core 14 also gets the minimum below. Time decay is
+  implemented but OFF (`signals.AFFINITY_HALF_LIFE_YEARS = None`); the constants'
+  comments in `signals.py` carry the measurements.
+- **Per-core gates on the repeat-user count** n (the author's confirmed/claimed papers
+  for the core, in tenure, undecayed, the scored paper left out). Two
+  `config/core_dictionary.yaml` keys, both off by default:
+  - `affinity_min_confirms: N` (global `signals.AFFINITY_MIN_CONFIRMS = 1`): below N the
+    author lends 0; at or above it the shrunk rate is unchanged. **Core 14 sets 3.**
+  - `affinity_soft_threshold: {c: C, h: H}` (global `signals.AFFINITY_SOFT_THRESHOLD =
+    None`; `false` = off for one core): affinity = rate × n^h / (n^h + c^h). **No core
+    sets it.**
+
+  Measured 2026-10-06, read-only, against a rule fixed before the run: ship the soft
+  threshold c = 3, h = 2 globally if its bucket AUC is >= 0.66 on core 14 AND on panel B;
+  core 14 only if just core 14 passes; otherwise restore the minimum of 3 on core 14 only.
+
+  | s = 5 plus | core 14 AUC rate / bucket | panel B AUC rate / bucket | panel B refit trace / regular / core |
+  |---|---|---|---|
+  | nothing (global) | 0.6250 / 0.5404 | 0.6785 / 0.6777 | 1.18 / 3.49 / 3.49 |
+  | soft c = 3, h = 2 | 0.5913 / 0.5981 | 0.6780 / 0.6755 | 2.38 / 3.19 / 3.19 |
+  | minimum 3 | 0.7279 / 0.6962 | 0.5632 / 0.5632 | 3.01 / 3.20 / 3.20 |
+
+  The soft threshold failed core 14 (0.5981 < 0.66), and no point of the grid c in
+  {2, 3, 4} × h in {1, 2, 4, 8}, at s = 5 or s = 0, reached 0.66 there (best 0.6144):
+  it shrinks the 17 rejected rows' prior but never removes it, while the minimum of 3
+  leaves it on 4 of 20 rejected and 16 of 26 claimed. So core 14 runs the minimum of 3
+  with the sliding shrinkage; the global default stays at no minimum and no soft
+  threshold, and WEIGHTS (fitted on panel B, core 2, at those defaults) is unchanged.
+  n = 46, so the bootstrap CIs are wide: minimum 3 minus sliding, bucket AUC +0.156
+  [95% CI +0.075, +0.240]. Re-measure at >= 100 decided rows:
+  `python3 scripts/measure_affinity_gates.py --core 14 --min-confirms 1 3
+  --soft-threshold off --soft-threshold 3 2 --bootstrap 2000`.
 
 ### A worked example
 

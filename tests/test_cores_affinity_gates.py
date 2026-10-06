@@ -447,3 +447,282 @@ def test_a_populated_cell_is_never_pooled():
 def test_shipped_aff_weights_are_monotone():
     from pipeline_cores.combine import WEIGHTS
     assert WEIGHTS["aff:trace"] < WEIGHTS["aff:regular"] <= WEIGHTS["aff:core"]
+
+
+# --- per-core repeat-user MINIMUM (core 14 = 3; global default 1) ------------------
+def test_the_global_default_minimum_is_one_and_changes_nothing():
+    from pipeline_cores.dictionary import load_core
+    assert signals.AFFINITY_MIN_CONFIRMS == 1
+    assert signals.affinity_min_confirms(None) == 1
+    assert load_core("2").affinity_min_confirms is None          # no key: global default
+    assert signals.affinity_min_confirms(load_core("2")) == 1
+    plain = build_affinity_index({"a": {"2": 1}}, {"a": 4})
+    gated = build_affinity_index({"a": {"2": 1}}, {"a": 4}, min_confirms={"2": 1})
+    assert plain.rate("a", "2") == gated.rate("a", "2") == pytest.approx(1 / 9)  # s=5, p0 0
+
+
+def test_core_14_requires_three_confirmations():
+    """The soft threshold c=3, h=2 failed its pre-registered bar on core 14 (bucket AUC
+    0.5981 < 0.66, 2026-10-06), so the decision rule restored the hard minimum of 3 as a
+    core-14 setting (core_dictionary.yaml carries the measurement)."""
+    from pipeline_cores.dictionary import load_core
+    core = load_core("14")
+    assert core.affinity_min_confirms == 3
+    assert signals.affinity_min_confirms(core) == 3
+
+
+def test_below_the_minimum_an_author_lends_nothing():
+    idx = build_affinity_index({"two": {"14": 2}, "three": {"14": 3}},
+                               {"two": 4, "three": 4}, prior_strength=0, min_confirms={"14": 3})
+    assert idx.rate("two", "14") == 0.0                        # 2 < 3: not a repeat user
+    assert idx.rate("three", "14") == pytest.approx(3 / 4)     # rate itself unchanged
+
+
+def test_the_minimum_counts_after_self_exclusion():
+    """'>= 3 confirmed publications, self excluded': an author with exactly 3, scoring
+    one of them, has 2 OTHER confirmations and lends that paper nothing — while still
+    lending a paper that is not one of the three."""
+    idx = build_affinity_index({"a": {"14": 3}}, {"a": 10}, prior_strength=0, min_confirms={"14": 3},
+                               members={"a": {"14": {"P1", "P2", "P3"}}})
+    assert idx.rate("a", "14", pmid="P1") == 0.0
+    assert idx.rate("a", "14", pmid="X") == pytest.approx(3 / 10)
+    four = build_affinity_index({"a": {"14": 4}}, {"a": 10}, prior_strength=0, min_confirms={"14": 3},
+                                members={"a": {"14": {"P1", "P2", "P3", "P4"}}})
+    assert four.rate("a", "14", pmid="P1") == pytest.approx(3 / 10)
+
+
+def test_the_minimum_is_per_core():
+    idx = build_affinity_index({"a": {"14": 1, "2": 1}}, {"a": 4}, prior_strength=0,
+                               min_confirms={"14": 3})
+    assert idx.rate("a", "14") == 0.0
+    assert idx.rate("a", "2") == 0.25                          # core 2: the global 1
+    every = build_affinity_index({"a": {"14": 2, "2": 2}}, {"a": 4}, min_confirms=3)
+    assert every.rate("a", "14") == every.rate("a", "2") == 0.0  # an int applies to all
+
+
+def test_the_minimum_counts_in_tenure_and_undecayed():
+    """Out-of-tenure confirmations are already gone from the count; decay never shrinks
+    a confirmation below 'one confirmation'."""
+    idx = build_affinity_index({"x": {"14": {2010: 2, 2022: 2}}}, {"x": {2010: 2, 2022: 8}},
+                               tenure={"x": (2018, None)}, prior_strength=0, min_confirms={"14": 3})
+    assert idx.rate("x", "14", 2023) == 0.0                    # only 2 in tenure
+    old = build_affinity_index({"x": {"14": {2015: 3}}}, {"x": {2015: 3, 2025: 3}},
+                               prior_strength=0, half_life=1, min_confirms={"14": 3})
+    assert old.rate("x", "14", 2025) > 0.0                     # 3 decayed confirms are 3
+
+
+@pytest.mark.parametrize("bad", ["0", "-2", "2.5", "true", '"3"'])
+def test_dictionary_rejects_a_bad_minimum(tmp_path, bad):
+    from pipeline_cores.dictionary import load_cores
+    y = tmp_path / "d.yaml"
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], affinity_min_confirms: '
+                 + bad + '}\n')
+    with pytest.raises(ValueError, match="affinity_min_confirms"):
+        load_cores(y)
+
+
+def test_dictionary_reads_a_minimum(tmp_path):
+    from pipeline_cores.dictionary import load_cores
+    y = tmp_path / "d.yaml"
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], affinity_min_confirms: 2}\n')
+    assert load_cores(y)[0].affinity_min_confirms == 2
+
+
+def test_run_core_applies_the_cores_minimum(monkeypatch):
+    """Core 14 (minimum 3): an author with 2 prior confirmations lends nothing, one with 3
+    does. The same history on core 2 (global default 1) lends in both cases."""
+    from pipeline_cores import run
+    from pipeline_cores.dictionary import load_core
+
+    pubs = [{"pmid": "900", "title": "t", "abstract": "", "year": 2022}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_pub_years", lambda e, p: {str(x): 2022 for x in p})
+    monkeypatch.setattr(ingest, "fetch_author_tenure", lambda e, c: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals",
+                        lambda e, c=None: {"two0001": {2022: 9}, "thr0001": {2022: 9}})
+
+    def score(core_id, cwid, n):
+        core = load_core(core_id)
+        monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"900": [cwid]})
+        prior = {cwid: {core_id: {str(i) for i in range(1, n + 1)}}}
+        (rec,) = run.run_core(core, pubs, bedrock=None, threshold=0.30, scored_at="t",
+                              engine=object(), dry_run=True, prior_user_pmids=prior)
+        return rec.signals.author_affinity
+
+    assert score("14", "two0001", 2) == 0.0
+    assert score("14", "thr0001", 3) == pytest.approx(3 / 14)        # s=5, p0 fallback 0
+    assert score("2", "two0001", 2) == pytest.approx(2 / 14)
+
+
+def test_batch_screen_applies_the_cores_minimum(monkeypatch):
+    """batch_screen's 'does the prior fire' set honours the minimum too."""
+    from pipeline_cores import batch_screen, persist
+    from pipeline_cores.dictionary import load_core
+
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda core_id: [
+        {"pmid": p, "core_id": core_id} for p in ("1", "2", "3", "4", "5")])
+    monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda e, p: set(p))
+    monkeypatch.setattr(ingest, "fetch_author_totals",
+                        lambda e, c=None: {"two0001": 10, "thr0001": 10})
+    bylines = {"1": ["two0001"], "2": ["two0001"],
+               "3": ["thr0001"], "4": ["thr0001"], "5": ["thr0001"],
+               "A": ["two0001"], "B": ["thr0001"]}
+    _confirmed, author = batch_screen._prior_signals(load_core("14"), ["A", "B"], bylines, None)
+    assert author == {"B"}
+    _confirmed, author = batch_screen._prior_signals(load_core("2"), ["A", "B"], bylines, None)
+    assert author == {"A", "B"}     # the same history on core 2: global minimum 1
+
+
+# --- soft threshold g(n) = n^h / (n^h + c^h) (measured; global default OFF) ----------
+def test_soft_threshold_is_off_globally_and_on_no_core():
+    from pipeline_cores.dictionary import load_cores
+    assert signals.AFFINITY_SOFT_THRESHOLD is None
+    assert signals.soft_threshold_gate(1, None) == 1.0
+    assert all(signals.affinity_soft_threshold(c) is None for c in load_cores())
+    plain = build_affinity_index({"a": {"2": 1}}, {"a": 4})
+    off = build_affinity_index({"a": {"2": 1}}, {"a": 4}, soft_threshold={"2": None})
+    assert plain.rate("a", "2") == off.rate("a", "2") == pytest.approx(1 / 9)
+
+
+def test_soft_threshold_values_at_the_pre_registered_c3_h2():
+    g = [signals.soft_threshold_gate(n, (3, 2)) for n in (1, 2, 3, 5, 10)]
+    assert g == pytest.approx([0.1, 4 / 13, 0.5, 25 / 34, 100 / 109])  # .10 .31 .50 .74 .92
+    assert signals.soft_threshold_gate(0, (3, 2)) == 0.0
+    assert signals.soft_threshold_gate(-1, (3, 2)) == 0.0
+
+
+@pytest.mark.parametrize("c", [2, 3, 4])
+@pytest.mark.parametrize("h", [1, 2, 4, 8, 64])
+def test_soft_threshold_is_monotone_and_bounded(c, h):
+    g = [signals.soft_threshold_gate(n, (c, h)) for n in range(0, 40)]
+    assert g[0] == 0.0
+    assert all(0.0 < x < 1.0 or x == pytest.approx(1.0) for x in g[1:])
+    assert all(lo <= hi for lo, hi in zip(g, g[1:]))
+    assert signals.soft_threshold_gate(c, (c, h)) == pytest.approx(0.5)
+
+
+def test_large_h_approaches_a_hard_minimum():
+    assert signals.soft_threshold_gate(2, (3, 64)) < 1e-10
+    assert signals.soft_threshold_gate(4, (3, 64)) > 1 - 1e-7
+
+
+def test_soft_threshold_multiplies_the_shrunk_rate():
+    idx = build_affinity_index({"a": {"14": 2}}, {"a": 4}, prior_strength=5, base_rate=0.01,
+                               soft_threshold={"14": (3, 2)})
+    assert idx.rate("a", "14") == pytest.approx((2 + 0.05) / 9 * 4 / 13)
+
+
+def test_soft_threshold_counts_after_self_exclusion():
+    """n_excl leaves the scored paper out: 3 confirmations scoring one of them is g(2)."""
+    idx = build_affinity_index({"a": {"14": 3}}, {"a": 10}, prior_strength=0,
+                               members={"a": {"14": {"P1", "P2", "P3"}}},
+                               soft_threshold={"14": (3, 2)})
+    assert idx.rate("a", "14", pmid="X") == pytest.approx(0.3 * 0.5)       # g(3)
+    assert idx.rate("a", "14", pmid="P1") == pytest.approx(0.2 * 4 / 13)   # g(2)
+    one = build_affinity_index({"a": {"14": 1}}, {"a": 2}, members={"a": {"14": {"P"}}},
+                               soft_threshold=(3, 2))
+    assert one.rate("a", "14", pmid="P") == 0.0                            # n_excl = 0
+
+
+def test_soft_threshold_counts_in_tenure_and_undecayed():
+    idx = build_affinity_index({"x": {"14": {2010: 5, 2022: 1}}}, {"x": {2010: 5, 2022: 4}},
+                               tenure={"x": (2018, None)}, prior_strength=0,
+                               soft_threshold={"14": (3, 2)})
+    assert idx.rate("x", "14", 2023) == pytest.approx(0.25 * 0.1)         # g(1), not g(6)
+    dec = build_affinity_index({"x": {"14": {2015: 3}}}, {"x": {2015: 3, 2025: 3}},
+                               prior_strength=0, half_life=1, soft_threshold={"14": (3, 2)})
+    undecayed_gate = build_affinity_index({"x": {"14": {2015: 3}}}, {"x": {2015: 3, 2025: 3}},
+                                          prior_strength=0, half_life=1, soft_threshold=None)
+    # 3 confirms decayed ~1000x are still n = 3: decayed rate x g(3), not g(0.003)
+    assert dec.rate("x", "14", 2025) == pytest.approx(undecayed_gate.rate("x", "14", 2025) * 0.5)
+
+
+def test_soft_threshold_one_of_two_still_beats_one_of_eighty():
+    idx = build_affinity_index({"close": {"14": 1}, "passer": {"14": 1}},
+                               {"close": 2, "passer": 80}, base_rate=0.001,
+                               soft_threshold=(3, 2))
+    assert idx.rate("close", "14") > idx.rate("passer", "14") > 0.0
+
+
+def test_soft_threshold_more_confirms_at_the_same_share_score_higher():
+    for c, h in ((2, 1), (3, 2), (4, 8)):
+        for share in (1.0, 0.5):
+            rates = []
+            for k in range(1, 30):
+                idx = build_affinity_index({"a": {"14": k}}, {"a": int(k / share)},
+                                           base_rate=0.001, soft_threshold=(c, h))
+                rates.append(idx.rate("a", "14"))
+            assert rates[0] > 0.0
+            assert all(lo < hi for lo, hi in zip(rates, rates[1:])), (c, h, share)
+
+
+def test_soft_threshold_is_per_core():
+    idx = build_affinity_index({"a": {"14": 1, "2": 1}}, {"a": 4}, prior_strength=0,
+                               soft_threshold={"14": (3, 2)})
+    assert idx.rate("a", "14") == pytest.approx(0.25 * 0.1)
+    assert idx.rate("a", "2") == 0.25                                      # global: off
+
+
+def test_dictionary_reads_a_soft_threshold(tmp_path):
+    from pipeline_cores.dictionary import load_cores
+    y = tmp_path / "d.yaml"
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], '
+                 'affinity_soft_threshold: {c: 3, h: 2}}\n')
+    core = load_cores(y)[0]
+    assert core.affinity_soft_threshold == (3.0, 2.0)
+    assert signals.affinity_soft_threshold(core) == (3.0, 2.0)
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], '
+                 'affinity_soft_threshold: false}\n')
+    core = load_cores(y)[0]
+    assert core.affinity_soft_threshold is False
+    assert signals.affinity_soft_threshold(core) is None                    # explicitly off
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X]}\n')
+    assert load_cores(y)[0].affinity_soft_threshold is None                 # absent: global
+
+
+@pytest.mark.parametrize("bad", ["{c: 3}", "{h: 2}", "{c: 3, h: 2, k: 1}", "{c: 0, h: 2}",
+                                 "{c: 3, h: -1}", "{c: 3, h: .inf}", "{c: true, h: 2}",
+                                 '{c: "3", h: 2}', "3", "[3, 2]", "true"])
+def test_dictionary_rejects_a_bad_soft_threshold(tmp_path, bad):
+    from pipeline_cores.dictionary import load_cores
+    y = tmp_path / "d.yaml"
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], affinity_soft_threshold: '
+                 + bad + '}\n')
+    with pytest.raises(ValueError, match="affinity_soft_threshold"):
+        load_cores(y)
+
+
+def test_run_core_applies_a_cores_soft_threshold(monkeypatch, capsys):
+    import dataclasses
+
+    from pipeline_cores import run
+    from pipeline_cores.dictionary import load_core
+
+    pubs = [{"pmid": "900", "title": "t", "abstract": "", "year": 2022}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"900": ["cli0001"]})
+    monkeypatch.setattr(ingest, "fetch_pub_years", lambda e, p: {str(x): 2022 for x in p})
+    monkeypatch.setattr(ingest, "fetch_author_tenure", lambda e, c: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"cli0001": {2022: 9}})
+    prior = {"cli0001": {"2": {"1", "2"}}}
+    core = dataclasses.replace(load_core("2"), affinity_soft_threshold=(3.0, 2.0))
+    (rec,) = run.run_core(core, pubs, bedrock=None, threshold=0.30, scored_at="t",
+                          engine=object(), dry_run=True, prior_user_pmids=prior)
+    assert rec.signals.author_affinity == pytest.approx(2 / 14 * 4 / 13)
+    assert "min confirms 1, soft threshold c=3 h=2" in capsys.readouterr().out
+
+
+def test_batch_screen_soft_threshold_never_changes_whether_the_prior_fires(monkeypatch):
+    import dataclasses
+
+    from pipeline_cores import batch_screen, persist
+    from pipeline_cores.dictionary import load_core
+
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda core_id: [
+        {"pmid": "1", "core_id": core_id}])
+    monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda e, p: set(p))
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"one0001": 50})
+    bylines = {"1": ["one0001"], "A": ["one0001"]}
+    core = dataclasses.replace(load_core("2"), affinity_soft_threshold=(4.0, 8.0))
+    _confirmed, author = batch_screen._prior_signals(core, ["A"], bylines, None)
+    assert author == {"A"}

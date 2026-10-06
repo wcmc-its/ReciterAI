@@ -237,7 +237,10 @@ WEIGHTS = {
     # cell (0/0) and fit_evidence_weights.pool_empty_affinity prices it as the cell
     # below — the strongest rates are worth `aff:regular`, not a refused 0.00 below it.
     # Panel B bucket AUC 0.6777 (rate 0.6785). A core with its own
-    # affinity_prior_strength reshapes its rates, not these prices.
+    # affinity_prior_strength reshapes its rates, not these prices; fitted at the global
+    # affinity_min_confirms = 1 and no soft threshold, so core 14's minimum of 3 removes
+    # authors from the feature without repricing it. (The soft threshold c=3 h=2, which
+    # would have needed 2.38 / 3.19 / 3.19 here, failed its core-14 bar; signals.py.)
     "aff:trace": 1.18,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 25/1200
     "aff:regular": 3.49,               # 0.05 <= rate < 0.70; n=43/137 vs 11/1200
     "aff:core": 3.49,                  # rate >= 0.70;       n=0/137 vs 0/1200 — EMPTY, pooled with aff:regular

@@ -308,7 +308,8 @@ def alias_negatives(corpus_set, n_sample: int, seed: int):
 # panel B — staff / LLM / affinity: human labels vs the random corpus
 # ---------------------------------------------------------------------------
 def affinity_panel(engine, labels: dict, neg_pmids, core, *, prior_strength=None,
-                   half_life=signals._DEFAULT, tenure_gate: bool = True):
+                   half_life=signals._DEFAULT, tenure_gate: bool = True,
+                   soft_threshold=signals._DEFAULT, min_confirms=None):
     """(bylines, years, score) for panel B's affinity prior, built the way run_core builds
     it; `score(pmid)` is that paper's author_affinity.
 
@@ -335,6 +336,11 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, prior_strength=None
       * tenure gate + base-rate shrinkage + (optional) decay, through the same
         ingest.affinity_inputs / signals.build_affinity_index path, with each scored
         paper's own year.
+    The core's gates too: its minimum (affinity_min_confirms, else
+    signals.AFFINITY_MIN_CONFIRMS) and soft threshold g(n) (affinity_soft_threshold, else
+    signals.AFFINITY_SOFT_THRESHOLD) unless `min_confirms` / `soft_threshold` override them
+    (soft_threshold None = off). Core 2 sets neither, so the fit runs at the global
+    defaults (no minimum, g = 1).
     The keyword knobs exist for the measurement (--affinity-only); defaults = shipped.
     """
     everyone = sorted(labels) + list(neg_pmids)
@@ -352,10 +358,15 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, prior_strength=None
     base_rate = signals.affinity_base_rate(len(outside), corpus_size)
     strength = (signals.affinity_prior_strength(core) if prior_strength is None
                 else prior_strength)
+    soft = (signals.affinity_soft_threshold(core) if soft_threshold is signals._DEFAULT
+            else soft_threshold)
+    minimum = signals.affinity_min_confirms(core) if min_confirms is None else min_confirms
     index = signals.build_affinity_index(counts, totals, tenure=tenure if tenure_gate else {},
                                          prior_strength={core.core_id: strength},
                                          base_rate={core.core_id: base_rate},
-                                         half_life=half_life, members=papers)
+                                         half_life=half_life, members=papers,
+                                         soft_threshold={core.core_id: soft},
+                                         min_confirms={core.core_id: minimum})
     years = ingest.fetch_pub_years(engine, everyone)
     corpus = ingest.filter_corpus_pmids(engine, everyone)
 
@@ -366,7 +377,8 @@ def affinity_panel(engine, labels: dict, neg_pmids, core, *, prior_strength=None
           f"{len(index.papers)} non-staff authors, tenure rows for {len(tenure)}"
           f"{'' if tenure_gate else ' (gate OFF)'}; prior_strength={strength:g}, "
           f"base_rate={base_rate:.5f} ({len(outside)}/{corpus_size}), "
-          f"half_life={index.half_life}; {len(corpus)}/{len(everyone)} scored papers in corpus, "
+          f"half_life={index.half_life}, min_confirms={minimum}, soft_threshold={soft}; "
+          f"{len(corpus)}/{len(everyone)} scored papers in corpus, "
           f"{len(set(neg_pmids) & set(outside))} random negatives are confirms "
           f"(self-excluded)")
     return bylines, years, score
@@ -445,6 +457,12 @@ def affinity_only(engine, neg_pmids, args) -> int:
         kw["prior_strength"] = args.prior_strength
     if args.half_life is not None:
         kw["half_life"] = args.half_life or None
+    if args.min_confirms is not None:
+        kw["min_confirms"] = args.min_confirms
+    if args.no_soft_threshold:
+        kw["soft_threshold"] = None
+    elif args.soft_threshold is not None:
+        kw["soft_threshold"] = tuple(args.soft_threshold)
     _bylines, _years, aff = affinity_panel(engine, labels, neg_pmids, core, **kw)
 
     pos = [SignalResult(author_affinity=aff(p)) for p in sorted(labels) if labels[p] == "yes"]
@@ -501,6 +519,14 @@ def main(argv=None) -> int:
     ap.add_argument("--half-life", type=float, default=None,
                     help="with --affinity-only: override signals.AFFINITY_HALF_LIFE_YEARS "
                          "(0 = off)")
+    ap.add_argument("--soft-threshold", type=float, nargs=2, default=None, metavar=("C", "H"),
+                    help="with --affinity-only: override the soft threshold g(n) = n^h / "
+                         "(n^h + c^h) (signals.AFFINITY_SOFT_THRESHOLD / the core's key)")
+    ap.add_argument("--min-confirms", type=int, default=None,
+                    help="with --affinity-only: override the repeat-user minimum "
+                         "(signals.AFFINITY_MIN_CONFIRMS / the core's affinity_min_confirms)")
+    ap.add_argument("--no-soft-threshold", action="store_true",
+                    help="with --affinity-only: build the index with g = 1")
     ap.add_argument("--no-tenure-gate", action="store_true",
                     help="with --affinity-only: build the index without the tenure gate")
     args = ap.parse_args(argv)

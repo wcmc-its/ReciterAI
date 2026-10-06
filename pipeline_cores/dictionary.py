@@ -1,6 +1,7 @@
 """Load and validate the core dictionary (config/core_dictionary.yaml)."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import yaml
@@ -70,6 +71,13 @@ def load_cores(path: Path = None) -> list:
                 triage_threshold=_opt_float(c.get("triage_threshold")),
                 # Absent = signals.AFFINITY_PRIOR_STRENGTH, same contract as the two above.
                 affinity_prior_strength=_opt_float(c.get("affinity_prior_strength")),
+                # Absent = signals.AFFINITY_SOFT_THRESHOLD; `{c: 3, h: 2}` = (3.0, 2.0);
+                # `false` = this core explicitly off. Shape errors raise here.
+                affinity_soft_threshold=_soft_threshold(c.get("core_id"),
+                                                        c.get("affinity_soft_threshold")),
+                # Absent = signals.AFFINITY_MIN_CONFIRMS (1). A whole number >= 1.
+                affinity_min_confirms=_min_confirms(c.get("core_id"),
+                                                    c.get("affinity_min_confirms")),
             )
         )
     _validate(cores)
@@ -104,6 +112,41 @@ def _labels(seq) -> list:
         if label and label not in out:
             out.append(label)
     return out
+
+
+def _soft_threshold(core_id, value):
+    """`affinity_soft_threshold` -> None (absent), False (off) or (c, h), both > 0.
+
+    Strict on shape for the same reason as `_labels`: a hand-typed `{c: 3}` or
+    `{c: 3, k: 2}` must fail the load, not silently fall back to the global default or
+    run with a made-up steepness."""
+    if value is None:
+        return None
+    if value is False:
+        return False
+    if not isinstance(value, dict) or set(value) != {"c", "h"}:
+        raise ValueError(f"core {core_id} affinity_soft_threshold must be a mapping with "
+                         f"exactly keys c and h (or false), got {value!r}")
+    out = []
+    for k in ("c", "h"):
+        v = value[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0:
+            raise ValueError(f"core {core_id} affinity_soft_threshold.{k} must be a finite "
+                             f"number > 0, got {v!r}")
+        out.append(float(v))
+    return tuple(out)
+
+
+def _min_confirms(core_id, value):
+    """`affinity_min_confirms` -> None (absent) or an int >= 1. A float like 2.5, a bool or
+    a string raises rather than being truncated into a different minimum; 0 or a negative
+    would read as "no minimum" while looking like a setting."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"core {core_id} affinity_min_confirms must be a whole number >= 1, "
+                         f"got {value!r}")
+    return value
 
 
 def _opt_float(value):

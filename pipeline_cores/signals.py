@@ -284,8 +284,9 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
 # 10-of-10 -> 0.67, 1-of-80 -> 0.012. p0 is small for every core (a core's work is a
 # sliver of the corpus), so in practice s*p0 barely lifts a rate and s does the work of
 # pulling small denominators down. It replaces both the old n / (total + K) (K=1, which
-# is this with p0 = 0 and s = K) and the binary per-core minimum it briefly grew
-# (removed: a minimum of 3 treated 2 confirmations as 0 and 3 as full strength). An
+# is this with p0 = 0 and s = K) as the global rate. A per-core hard minimum sits on top
+# of it for core 14 only (AFFINITY_MIN_CONFIRMS, below, with the soft-threshold
+# measurement that decided it). An
 # author with NO other confirmed paper (n = 0 after self-exclusion) still lends 0 — the
 # prior shrinks evidence, it never invents it for an author with none (absent evidence
 # contributes nothing, as everywhere else in this model).
@@ -298,7 +299,7 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
 #     core 14 AUC, rate     0.6144  0.6212  0.6250  0.6250  0.6144  0.5894
 #     core 14 AUC, bucket   0.5558  0.5558  0.5558  0.5404  0.5654  0.5981
 # (panel B = `fit_evidence_weights.py --affinity-only --prior-strength S`, p0 56/82,203;
-# core 14 = its 26 claimed vs 20 rejected rows, `measure_affinity_prior_strength.py`.)
+# core 14 = its 26 claimed vs 20 rejected rows, `measure_affinity_gates.py --strengths`.)
 # Panel B is FLAT from 0 to 10 (bucket AUC within 0.0005) and drops at 20: it cannot pick
 # s. 5 is the middle of that flat range — least exposed to either end moving as labels
 # accrue — and ties core 14's best rate AUC (with 2). s = 0 is no shrinkage (1-of-1 =
@@ -310,7 +311,7 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
 # where another s beats this one on bucket AUC by more than one pair's worth and the
 # refit aff:* cells stay monotone (then refit WEIGHTS at it). A per-core override, the
 # same sweep on that core's human-decided rows (`python3
-# scripts/measure_affinity_prior_strength.py --core <id>`, read-only) once there are
+# scripts/measure_affinity_gates.py --core <id> --strengths ...`, read-only) once there are
 # >= 100 of them and they clearly prefer a different s.
 AFFINITY_PRIOR_STRENGTH = 5.0
 
@@ -336,6 +337,88 @@ def affinity_base_rate(n_core_papers: int, corpus_size) -> float:
     if not corpus_size:
         return AFFINITY_BASE_RATE_FALLBACK
     return min(max(n_core_papers / corpus_size, 0.0), 1.0)
+
+# SOFT THRESHOLD on the repeat-user count (per core; global default OFF, no core sets it):
+#
+#     affinity = rate * g(n),   g(n) = n^h / (n^h + c^h)
+#
+# n = the author's confirmed/claimed papers for this core counted the way a minimum
+# would count them: inside their tenure window, undecayed, the scored paper itself left
+# out (self-exclusion). c is the count at which g = 0.5, h the steepness. At c = 3,
+# h = 2: 1 confirmation -> 0.10, 2 -> 0.31, 3 -> 0.50, 5 -> 0.74, 10 -> 0.92. Large h
+# approaches a hard minimum (h = 8: 2 -> 0.04, 3 -> 0.5, 4 -> 0.91); h = 1 is gentle.
+# g(0) = 0 and g rises strictly with n, so it never makes a zero rate positive or a
+# positive one zero: "does the prior fire" (batch_screen) cannot change. It is a
+# MULTIPLIER on the (already shrunk) rate, so it moves rates across the 0.05 / 0.70
+# bucket edges, and a core running it globally would need the `aff:*` weights refitted
+# with the same g.
+#
+# MEASURED 2026-10-06 (read-only), pre-registered primary c = 3, h = 2 at s = 5, against
+# the bar "bucket AUC >= 0.66 on core 14 (claimed 26 vs rejected 20) AND on panel B":
+#                                  core 14 AUC         panel B AUC        panel B refit
+#                                  rate    bucket      rate    bucket     trace/reg/core
+#   sliding s=5, g=1 (global)      0.6250  0.5404      0.6785  0.6777     1.18/3.49/3.49
+#   s=5, c=3 h=2 (primary)         0.5913  0.5981      0.6780  0.6755     2.38/3.19/3.19
+#   s=5, minimum 3 (core 14)       0.7279  0.6962      0.5632  0.5632     3.01/3.20/3.20
+# Grid c in {2,3,4} x h in {1,2,4,8}, at s = 5 and at s = 0: core 14 bucket AUC 0.5712 to
+# 0.6144 everywhere (never >= 0.66); panel B bucket 0.6754 to 0.6783. The soft threshold
+# keeps the prior on 17 of the 20 rejected core-14 rows at every setting — it shrinks
+# them, it never removes them — and the minimum of 3 helped there by REMOVING 13 of them
+# (4/20 left). So the primary FAILED the core-14 bar and is not shipped anywhere; the
+# decision rule restored the minimum of 3 as a core-14 setting (AFFINITY_MIN_CONFIRMS).
+# Paired bootstrap (2000 resamples, n = 46): c3/h2 minus minimum-3 bucket AUC -0.098
+# [95% CI -0.181, -0.021]; c3/h2 minus sliding +0.058 [+0.010, +0.120].
+# Kept as a per-core key (`affinity_soft_threshold: {c: 3, h: 2}`, or `false`) so it can
+# be re-measured at >= 100 decided rows:
+#   python3 scripts/measure_affinity_gates.py --core <id> --min-confirms 1 3 \
+#       --soft-threshold off --soft-threshold 3 2 --bootstrap 2000
+#   python3 scripts/fit_evidence_weights.py --affinity-only --soft-threshold 3 2
+AFFINITY_SOFT_THRESHOLD = None
+
+
+def soft_threshold_gate(n: float, threshold) -> float:
+    """g(n) = n^h / (n^h + c^h) for threshold (c, h); 1.0 when threshold is None.
+
+    n <= 0 gives 0 (an author with no other confirmed paper lends nothing either way)."""
+    if threshold is None:
+        return 1.0
+    if n <= 0:
+        return 0.0
+    c, h = threshold
+    # n^h / (n^h + c^h) == 1 / (1 + (c/n)^h): no overflow at large h.
+    return 1.0 / (1.0 + (c / n) ** h)
+
+
+def affinity_soft_threshold(core):
+    """The core's `affinity_soft_threshold` as (c, h), else the global default (None = off)."""
+    value = getattr(core, "affinity_soft_threshold", None) if core is not None else None
+    if value is None:
+        return AFFINITY_SOFT_THRESHOLD
+    return None if value is False else tuple(value)   # False = this core explicitly off
+
+
+# HARD MINIMUM on the same count n (per core; global default 1 = no minimum). An author
+# with n < the core's minimum lends 0 — not a smaller rate — and above it the shrunk rate
+# is unchanged. Core 14 sets 3 (`affinity_min_confirms: 3`, core_dictionary.yaml) because
+# the soft threshold failed its pre-registered bar there (table above): on core 14's 46
+# human-decided rows the minimum of 3 at s = 5 gives AUC 0.7279 rate / 0.6962 bucket vs
+# 0.6250 / 0.5404 for the sliding scale alone (paired bootstrap, 2000 resamples: +0.103
+# [+0.034, +0.185] rate, +0.156 [+0.075, +0.240] bucket). n = 46, so those CIs are wide.
+# NOT global: on core 2's panel B the same minimum drops bucket AUC 0.6777 -> 0.5632.
+# The fit (panel B, core 2) runs at the global default, so a core's minimum removes
+# authors from the feature and never reprices a surviving rate.
+# WHAT WOULD JUSTIFY CHANGING IT: the claimed-vs-rejected sweep on that core's rows at
+# >= 100 decided rows (`python3 scripts/measure_affinity_gates.py --core <id>
+# --min-confirms 1 2 3 --bootstrap 2000`); a global default other than 1 only if it
+# holds on two or more cores AND panel B does not drop.
+AFFINITY_MIN_CONFIRMS = 1
+
+
+def affinity_min_confirms(core) -> int:
+    """The core's `affinity_min_confirms` (core_dictionary.yaml), else the global default."""
+    value = getattr(core, "affinity_min_confirms", None) if core is not None else None
+    return AFFINITY_MIN_CONFIRMS if value is None else int(value)
+
 
 # Per-confirmation time decay, as a half-life in years on |scored paper year - confirmed
 # paper year|, applied to numerator AND denominator alike (so a decayed rate is still a
@@ -404,13 +487,19 @@ class AffinityIndex:
 
     def __init__(self, papers: dict, totals: dict, windows: dict, *,
                  prior_strength, half_life, members: dict | None = None,
-                 base_rate=None):
+                 base_rate=None, soft_threshold=None, min_confirms=None):
         self.papers, self.totals, self.windows = papers, totals, windows
         self.half_life = half_life
         # Each a number (every core) or {core_id: number}; a core missing from a dict
         # falls back to AFFINITY_PRIOR_STRENGTH / AFFINITY_BASE_RATE_FALLBACK.
         self.prior_strength = prior_strength
         self.base_rate = AFFINITY_BASE_RATE_FALLBACK if base_rate is None else base_rate
+        # None / (c, h) for every core, or {core_id: None | (c, h)}; a core missing from
+        # the dict falls back to AFFINITY_SOFT_THRESHOLD.
+        self.soft_threshold = soft_threshold
+        # int (every core) or {core_id: int}; a core missing from the dict falls back to
+        # AFFINITY_MIN_CONFIRMS.
+        self.min_confirms = AFFINITY_MIN_CONFIRMS if min_confirms is None else min_confirms
         # cwid -> {core_id: {pmid, ...}}: WHICH papers make up each numerator, kept so
         # rate() can leave the scored paper out of its own prior (self-exclusion).
         self.members = members or {}
@@ -424,6 +513,23 @@ class AffinityIndex:
         if isinstance(self.prior_strength, dict):
             return float(self.prior_strength.get(core_id, AFFINITY_PRIOR_STRENGTH))
         return float(self.prior_strength)
+
+    def soft_threshold_for(self, core_id: str):
+        if isinstance(self.soft_threshold, dict):
+            return self.soft_threshold.get(core_id, AFFINITY_SOFT_THRESHOLD)
+        return self.soft_threshold
+
+    def min_for(self, core_id: str) -> int:
+        if isinstance(self.min_confirms, dict):
+            return int(self.min_confirms.get(core_id, AFFINITY_MIN_CONFIRMS))
+        return int(self.min_confirms)
+
+    def gate(self, core_id: str, n_excl: float) -> float:
+        """The multiplier on the rate for an author with n_excl confirmations: 0 below the
+        core's minimum, else g(n_excl) (soft_threshold_gate; 1.0 when it has none)."""
+        if n_excl < self.min_for(core_id):
+            return 0.0
+        return soft_threshold_gate(n_excl, self.soft_threshold_for(core_id))
 
     def base_rate_for(self, core_id: str) -> float:
         if isinstance(self.base_rate, dict):
@@ -448,6 +554,11 @@ class AffinityIndex:
         and affinity_base_rate). n = 0 after the exclusion still reads 0: the prior
         shrinks an author's evidence toward the core's base rate, it does not hand an
         author with no other confirmed paper the base rate for free.
+
+        MINIMUM / SOFT THRESHOLD (gate): n_excl = the author's in-tenure confirmations
+        for this core counted UNDECAYED with this paper left out. Below the core's
+        minimum (AFFINITY_MIN_CONFIRMS) the author lends 0; otherwise the rate is
+        multiplied by g(n_excl) (AFFINITY_SOFT_THRESHOLD), 1 for a core without one.
         """
         by_year = self.papers.get(cwid, {}).get(core_id)
         if not by_year or not _in_window(year, self.windows.get(cwid)):
@@ -458,7 +569,8 @@ class AffinityIndex:
         if num <= 1e-9 or den <= 1e-9:
             return 0.0
         s = self.strength_for(core_id)
-        return min((num + s * self.base_rate_for(core_id)) / (den + s), 1.0)
+        rate = min((num + s * self.base_rate_for(core_id)) / (den + s), 1.0)
+        return rate * self.gate(core_id, sum(by_year.values()) - (1 if own else 0))
 
 
 _DEFAULT = object()
@@ -466,7 +578,8 @@ _DEFAULT = object()
 
 def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure: dict = None,
                          prior_strength=_DEFAULT, base_rate=None, half_life=_DEFAULT,
-                         members: dict | None = None) -> AffinityIndex:
+                         members: dict | None = None,
+                         soft_threshold=_DEFAULT, min_confirms=None) -> AffinityIndex:
     """cwid x core -> each author's SHARE of their own corpus output that already
     belongs to the core, as an AffinityIndex.
 
@@ -491,6 +604,12 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure
     pass {core.core_id: affinity_prior_strength(core)} so the core_dictionary.yaml key
     applies, and {core.core_id: affinity_base_rate(...)} computed this run.
 
+    `soft_threshold` is None / (c, h) or {core_id: None | (c, h)}: the multiplier g(n)
+    on each rate (AFFINITY_SOFT_THRESHOLD; omitted = that global default). Callers that
+    score one core pass {core.core_id: affinity_soft_threshold(core)}. `min_confirms` is
+    an int or {core_id: int} (AFFINITY_MIN_CONFIRMS; omitted = 1): below it an author
+    lends 0. Callers pass {core.core_id: affinity_min_confirms(core)}.
+
     `members` is the cwid -> {core_id: {pmid, ...}} the counts were made from. Pass it
     whenever a scored paper can be one of those pmids (run_core: a paper an earlier run
     confirmed, or a human claimed, is re-scored every run). Without it a paper's OWN
@@ -510,6 +629,7 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure
     """
     prior_strength = AFFINITY_PRIOR_STRENGTH if prior_strength is _DEFAULT else prior_strength
     half_life = AFFINITY_HALF_LIFE_YEARS if half_life is _DEFAULT else half_life
+    soft_threshold = AFFINITY_SOFT_THRESHOLD if soft_threshold is _DEFAULT else soft_threshold
     tenure = tenure or {}
     papers, totals, windows = {}, {}, {}
     missing, over = [], []
@@ -539,7 +659,8 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure
                        "corpus papers — the numerator was not gated through "
                        "ingest.filter_corpus_pmids; rates clamped to 1.0", len(over))
     return AffinityIndex(papers, totals, windows, prior_strength=prior_strength,
-                         half_life=half_life, members=members, base_rate=base_rate)
+                         half_life=half_life, members=members, base_rate=base_rate,
+                         soft_threshold=soft_threshold, min_confirms=min_confirms)
 
 
 def author_affinity(affinity_index: AffinityIndex, byline_cwids: list, core_id: str,

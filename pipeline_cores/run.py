@@ -307,12 +307,21 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     core_pmids |= {rec.pmid for rec in records if rec.status == STATUS_CONFIRMED}
     base_rate = signals.affinity_base_rate(len(core_pmids), corpus_size)
     strength = signals.affinity_prior_strength(core)
+    # Gates on each author's repeat-user count (in tenure, this paper excluded): the
+    # core's minimum (`affinity_min_confirms`, else signals.AFFINITY_MIN_CONFIRMS = 1;
+    # below it the author lends 0) and soft threshold g(n) (`affinity_soft_threshold`,
+    # else signals.AFFINITY_SOFT_THRESHOLD; None = off). core_dictionary.yaml keys.
+    soft = signals.affinity_soft_threshold(core)
+    minimum = signals.affinity_min_confirms(core)
     print(f"[{core.core_id} {core.name}] affinity prior: s={strength:g}, p0={base_rate:.5f} "
           + (f"({len(core_pmids)} core papers / {corpus_size} corpus)" if corpus_size
-             else "(corpus size not given: fallback)"))
+             else "(corpus size not given: fallback)")
+          + f", min confirms {minimum}"
+          + (f", soft threshold c={soft[0]:g} h={soft[1]:g}" if soft else ", soft threshold off"))
     affinity_index = signals.build_affinity_index(
         counts, author_totals, tenure=tenure, members=papers,
-        prior_strength={core.core_id: strength}, base_rate={core.core_id: base_rate})
+        prior_strength={core.core_id: strength}, base_rate={core.core_id: base_rate},
+        soft_threshold={core.core_id: soft}, min_confirms={core.core_id: minimum})
 
     out = []
     for rec in records:

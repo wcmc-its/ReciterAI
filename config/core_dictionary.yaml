@@ -9,7 +9,9 @@
 # the four below: confirm_threshold / triage_threshold (combine() status bands) and
 # affinity_prior_strength (s in the repeat-user rate (n + s*p0) / (total + s), default
 # signals.AFFINITY_PRIOR_STRENGTH = 5; signals.py carries the measurement; see core 14
-# for why it has no override).
+# for why it has no override), affinity_min_confirms (repeat-user minimum, default 1;
+# core 14 = 3) and affinity_soft_threshold ({c, h}: rate x n^h / (n^h + c^h), default off,
+# `false` = off for one core; measured and set on no core — see core 14).
 # The four with the longest stories:
 #   partner_institutions: institutions that count as HOME for an alias match, beside
 #     Weill Cornell itself. Absent = the shared Tri-I + NYP default; an explicit []
@@ -461,21 +463,37 @@ cores:
       - { cwid: saa3011, name: "Sajjad Abedian", dept: "" }
       - { cwid: nik2004, name: "Nivedita Chang", dept: "" }
     grant_ids: []
-    # No `affinity_prior_strength` override: the global s = 5 applies. A repeat-user
-    # MINIMUM of 3 sat here briefly (2026-10-06, at the owner's request) and was replaced
-    # by the global sliding scale (n + s*p0) / (total + s) — 2 confirmations now count
-    # for less than 3, not for nothing. MEASURED 2026-10-06, read-only, on this core's
-    # 26 claimed vs 20 rejected rows (p0 = 79 / 82,203 = 0.00096):
-    #   s                          0       1       2       5       10      20
-    #   AUC rate                 0.6144  0.6212  0.6250  0.6250  0.6144  0.5894
-    #   AUC bucket               0.5558  0.5558  0.5558  0.5404  0.5654  0.5981
-    #   open candidates -> below    8      14      25      32      54     106   (of 486)
-    #   claimed / rejected rows with a prior: 17/26 and 17/20 at every s
-    # (the minimum of 3 measured 0.7279 / 0.6962 by zeroing 13 of those 17 rejected rows).
-    # 46 rows is too few to set a core-specific s against a flat global sweep, and rate
-    # and bucket AUC point opposite ways. Re-measure at >= 100 decided rows:
-    #   python3 scripts/measure_affinity_prior_strength.py --core 14 --strengths 0 1 2 5 10 20
-    # and set `affinity_prior_strength: <s>` here only if it clearly beats the global.
+    # No `affinity_prior_strength` override: the global s = 5 applies (46 decided rows
+    # cannot set a core-specific s against a flat global sweep:
+    #   python3 scripts/measure_affinity_gates.py --core 14 --strengths 0 1 2 5 10 20).
+    #
+    # Repeat-user MINIMUM of 3 (signals.AFFINITY_MIN_CONFIRMS, global default 1): an
+    # author needs >= 3 confirmed/claimed core-14 papers — in tenure, the paper being
+    # scored excluded — before their history lends any affinity, on top of the sliding
+    # shrinkage. Restored by a decision rule fixed BEFORE the measurement: the soft
+    # threshold g(n) = n^2 / (n^2 + 3^2) ships if its bucket AUC is >= 0.66 here and on
+    # panel B, else the minimum of 3 returns here only. MEASURED 2026-10-06, read-only
+    # (one DynamoDB Scan of CORE#14 = 5,365 rows + reciterdb SELECTs; 26 claimed vs 20
+    # rejected; p0 = 79 / 82,203; s = 5):
+    #                              AUC rate  AUC bucket  prior on claimed / rejected
+    #   sliding only (global)       0.6250    0.5404      17/26  17/20
+    #   soft c=3 h=2 (primary)      0.5913    0.5981      17/26  17/20   FAILS 0.66
+    #   minimum 3 (shipped here)    0.7279    0.6962      16/26   4/20
+    # Soft grid c 2..4 x h 1/2/4/8 at s = 5 and s = 0: bucket 0.5712..0.6144, never 0.66.
+    # Paired bootstrap (2000 resamples, n = 46 — wide): minimum 3 minus sliding, bucket
+    # +0.156 [95% CI +0.075, +0.240]; soft minus minimum 3, bucket -0.098 [-0.181, -0.021].
+    # Panel B (core 2) with the same minimum: bucket 0.6777 -> 0.5632, hence core 14 only.
+    # Status moves vs the stored live rows (stored aff:* 0.79 / 3.43 / 4.93, re-banded with
+    # shipped WEIGHTS 1.18 / 3.49 / 3.49): open 486 -> 176 below, 310 stay; confirmed 72
+    # -> 59 candidate, 1 below, 12 stay; below 4,761 -> 25 candidate (4 >= 0.40).
+    # No-write dry run (--with-affinity --llm-carry-forward --dry-run): 418 candidates
+    # (601 without the minimum).
+    # Re-measure at >= 100 decided rows:
+    #   python3 scripts/measure_affinity_gates.py --core 14 --min-confirms 1 3 \
+    #       --soft-threshold off --soft-threshold 3 2 --bootstrap 2000
+    # and drop the minimum (or switch to `affinity_soft_threshold: {c: 3, h: 2}`) only if
+    # it no longer clearly wins.
+    affinity_min_confirms: 3
     llm_description: >
       research informatics service core: EHR-based reporting and clinical data
       extraction, clinical trial support, secure environments for analysis of
