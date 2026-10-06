@@ -442,14 +442,42 @@ cores:
     # ONE paper the spelled-out phrase misses, and \bARCH\b matches ARCH
     # econometric models. Signal 3 alone can carry a pair to confirmed, so that
     # trade is wrong.
+    # INSIGHT SURVEY 2026-10-06. INSIGHT Clinical Research Network = the NYC PCORnet
+    # CRN WCM leads; WCM's EHR slice reaches it through ARCH ("ARCH contributes data
+    # on behalf of WCM. As the lead site of the INSIGHT Clinical Research Network…",
+    # PMID 34850911). PMC full-text search (pipeline_cores.pmc_search), then the WCM
+    # corpus filter (ingest.filter_corpus_pmids) and this core's DynamoDB rows:
+    #   alias                                  PMC   in corpus   confirmed/claimed
+    #   "INSIGHT Clinical Research Network"     76          45                  16   <- ADDED
+    #   "INSIGHT CRN"                           33          18                  10   <- ADDED
+    #   "INSIGHT Network"                      124          17                   6   <- REJECTED
+    #   "INSIGHT" (bare)                         -           -                   -   <- REJECTED
+    # Of the 45, 43 have PMC full text that names either phrase (40 the long form;
+    # "INSIGHT CRN" adds 3 the long form misses). 0 are reference-list-only hits
+    # (the REDCap failure mode); 1 names INSIGHT only in an author affiliation; the
+    # rest say the analysis used INSIGHT data (methods 16 / body 13 / ack 11 for the
+    # long form). Only 1 of the 43 also names an ARCH alias, so these are new
+    # matches, not a re-find. 0 of this core's 20 rejected rows are among them.
+    # Bare "INSIGHT" stays OUT: an acronym is matched case-sensitively and never
+    # counted (ack.spec:unknown = 0.00), so +6.37 alone would confirm, and INSIGHT
+    # is also the HIV START/SMART trials network. "INSIGHT Network" is shared with
+    # it: of its 17 corpus PMIDs, 12 name it in text and 4 of those are the NIAID /
+    # Leidos INSIGHT trials network (ACTIV acknowledgements) — a 1-in-3 false
+    # positive at +10 nats. Out.
+    # NB a match is "used INSIGHT CRN data", which is core usage only if the owners
+    # agree INSIGHT pulls count as Research Informatics work — confirm at review.
     aliases:
       - "Architecture for Research Computing"
       - "Architecture for Research Computing in Health"
       - "WCM Research Informatics"
+      - "INSIGHT Clinical Research Network"
+      - "INSIGHT CRN"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Architecture for Research Computing": 25
       "Architecture for Research Computing in Health": 20
       "WCM Research Informatics": 2
+      "INSIGHT Clinical Research Network": 76
+      "INSIGHT CRN": 33
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences" }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences" }
