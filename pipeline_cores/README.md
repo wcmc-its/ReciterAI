@@ -6,6 +6,12 @@ Multi-signal candidate-generation feeding a human claim — not a text-only
 auto-labeler. (Full viability analysis + validation: `ReCiter-Publication-Manager`
 working tree, `Projects/Inferring Cores and Services/analysis/`.)
 
+**Core 14 (Research Informatics), end to end:** every signal, weight, threshold and
+default for the one core with human review data, plus what was tried and rejected and how
+reviewer decisions feed back, is in
+[`docs/cores-research-informatics-scoring.md`](../docs/cores-research-informatics-scoring.md).
+It starts with a plain-language summary for the core's own team.
+
 ## Why this shape (from the validation)
 - **Acknowledgement match** is ~100% precision but **near-zero recall in the wild**
   (0/267 random WCM papers named the imaging core, though 31% used imaging) — a
