@@ -199,8 +199,11 @@ def main(argv=None) -> int:
     else:
         from pipeline_cores.persist import scan_prior_core_usage
 
-        recs = scan_prior_core_usage(str(args.core))
-        pmids = sorted({r.pmid for r in recs if getattr(r, "status", "") in ("confirmed", "claimed")})
+        # strict: an empty scan must fail loudly, not report "0 confirmed papers".
+        # The rows are DICTS — attribute access here read every status as "" and
+        # silently surveyed nothing.
+        recs = scan_prior_core_usage(str(args.core), strict=True)
+        pmids = sorted({r["pmid"] for r in recs if r.get("status") in ("confirmed", "claimed")})
 
     client = PmcFullTextClient(cache_dir=args.cache_dir) if args.cache_dir else PmcFullTextClient()
     suggest_for_core(core, pmids, client, args.min_docs, args.top, foreign)

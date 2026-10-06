@@ -449,14 +449,55 @@ cores:
     # ONE paper the spelled-out phrase misses, and \bARCH\b matches ARCH
     # econometric models. Signal 3 alone can carry a pair to confirmed, so that
     # trade is wrong.
+    # INSIGHT SURVEY 2026-10-06. INSIGHT Clinical Research Network = the NYC PCORnet
+    # CRN WCM leads; WCM's EHR slice reaches it through ARCH ("ARCH contributes data
+    # on behalf of WCM. As the lead site of the INSIGHT Clinical Research Network…",
+    # PMID 34850911). PMC full-text search (pipeline_cores.pmc_search), then the WCM
+    # corpus filter (ingest.filter_corpus_pmids) and this core's DynamoDB rows:
+    #   alias                                  PMC   in corpus   confirmed/claimed
+    #   "INSIGHT Clinical Research Network"     76          45                  16   <- ADDED
+    #   "INSIGHT CRN"                           33          18                  10   <- ADDED
+    #   "INSIGHT Network"                      124          17                   6   <- REJECTED
+    #   "INSIGHT" (bare)                         -           -                   -   <- REJECTED
+    # Of the 45, 43 have PMC full text that names either phrase (40 the long form;
+    # "INSIGHT CRN" adds 3 the long form misses). 0 are reference-list-only hits
+    # (the REDCap failure mode); 1 names INSIGHT only in an author affiliation; the
+    # rest say the analysis used INSIGHT data (methods 16 / body 13 / ack 11 for the
+    # long form). Only 1 of the 43 also names an ARCH alias, so these are new
+    # matches, not a re-find. 0 of this core's 20 rejected rows are among them.
+    # Bare "INSIGHT" stays OUT. It is NOT an acronym to the matcher: signals._ACRONYM
+    # is ^[A-Z0-9]{2,6}$ and INSIGHT has 7 letters, so _alias_pattern compiles it
+    # case-INsensitive and it would match the English word "insight" in any paper.
+    # esearch_count("INSIGHT") = 1,628,883 PMC hits -> ack.spec:generic (-5.07), and
+    # ack + generic = 6.37 - 5.07 = +1.30 nats of evidence for every paper that says
+    # "new insight into". It is also the NIAID HIV START/SMART trials network.
+    # "INSIGHT Network" (124 hits) is shared with that trials network: of its 17
+    # corpus PMIDs, 12 name it in text and 4 of those are the NIAID / Leidos INSIGHT
+    # trials network (ACTIV acknowledgements). 124 hits is the MODERATE bucket, so a
+    # match scores ack + ack.spec:moderate = 6.37 + 1.90 = 8.27 nats — a 1-in-3 false
+    # positive at 8.27 nats. Out.
+    # OWNER DECISION 2026-10-06: YES. A match means "used INSIGHT CRN data"; the core
+    # 14 owner proposed INSIGHT himself, so INSIGHT pulls count as Research
+    # Informatics usage. Revisit if core 14 reviewers REJECT INSIGHT-only matches:
+    # the measure is the rejected share of rows whose only ack alias is one of these
+    # two, read from this core's DynamoDB rows after the next run (0/43 today).
+    # Numbers re-run 2026-10-06 with pmc_search.esearch_count + combine._alias_bucket
+    # + combine.WEIGHTS. The ARCH alias_hits below are stale vs a read-only
+    # `python3 -m pipeline_cores.refresh_alias_hits --core 14` the same day (26 / 21 / 3
+    # live vs 25 / 20 / 2 cached); all three stay in the distinctive bucket, so no
+    # score moves. Refresh with --write when convenient.
     aliases:
       - "Architecture for Research Computing"
       - "Architecture for Research Computing in Health"
       - "WCM Research Informatics"
+      - "INSIGHT Clinical Research Network"
+      - "INSIGHT CRN"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Architecture for Research Computing": 25
       "Architecture for Research Computing in Health": 20
       "WCM Research Informatics": 2
+      "INSIGHT Clinical Research Network": 76
+      "INSIGHT CRN": 33
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences" }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences" }
