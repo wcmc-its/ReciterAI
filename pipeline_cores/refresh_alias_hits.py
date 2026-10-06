@@ -14,6 +14,13 @@ rather than during a scoring run.
 comment out of the dictionary, and the comments are the project's IP. The new text is
 parsed before it replaces the file, so a botched edit fails instead of landing.
 
+AN ALIAS WITH AN "and"/"&" CONNECTOR is counted over BOTH spellings (the union, via
+pmc_search.esearch_count), because the matcher accepts both: "Proteomics & Metabolomics
+Core" counted alone was 192 (moderate) but the phrase the matcher
+actually fires on appears in 1,122 PMC papers (generic). Re-run with --write after
+any change to the connector rule in signals._alias_pattern, or the cached counts
+describe a different alias from the one that matches.
+
 ACRONYM ALIASES ARE SKIPPED, for pmc_search's reason: esearch has no case-sensitive
 mode, so "CBIC" would be counted with the noise the matcher's word-boundary rule
 exists to exclude. Their `ack_alias_hits` stays None — weight them at the floor.

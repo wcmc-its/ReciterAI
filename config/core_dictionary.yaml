@@ -295,8 +295,8 @@ cores:
       - "Ellen and Gary Davis Immune Monitoring Core"
       - "Davis Cancer Immune Monitoring Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Human Immune Monitoring Core": 238
-      "Human Immune Monitoring Core (HIMC)": 39
+      "Human Immune Monitoring Core": 239
+      "Human Immune Monitoring Core (HIMC)": 40
     # hir4001 = mass-cytometry specialist but no resolved-author rows (upstream gap);
     # nia9069 = possible faculty director with a large own lab (over-confirm risk).
     # Both tracked: false -> this core is aliases-only for now.
@@ -319,10 +319,10 @@ cores:
       - "Weill Cornell Medicine Microscopy and Image Analysis Core Facility"
       - "Optical Microscopy Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Microscopy and Image Analysis Core": 206
-      "Microscopy and Image Analysis Core Facility": 66
-      "Weill Cornell Medicine Microscopy and Image Analysis Core Facility": 7
-      "Optical Microscopy Core": 318
+      "Microscopy and Image Analysis Core": 290
+      "Microscopy and Image Analysis Core Facility": 79
+      "Weill Cornell Medicine Microscopy and Image Analysis Core Facility": 9
+      "Optical Microscopy Core": 319
     staff:
       - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics" }
       - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry }
@@ -369,11 +369,11 @@ cores:
       - "Proteomics & Metabolomics Core"
       - "Weill Cornell Proteomics & Metabolomics Core Facility"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Proteomics & Metabolomics Core Facility": 106
-      "Proteomics and Metabolomics Core Facility": 646
-      "Meyer Cancer Center Proteomics and Metabolomics Core Facility": 3
-      "Proteomics & Metabolomics Core": 192
-      "Weill Cornell Proteomics & Metabolomics Core Facility": 3
+      "Proteomics & Metabolomics Core Facility": 764
+      "Proteomics and Metabolomics Core Facility": 764
+      "Meyer Cancer Center Proteomics and Metabolomics Core Facility": 17
+      "Proteomics & Metabolomics Core": 1122
+      "Weill Cornell Proteomics & Metabolomics Core Facility": 10
     # Director Guoan Zhang + scientists Zhu/Yang/Lei are NOT in ReCiter identity;
     # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
     # Aliases-only for now. Distinct from #9 ABAC (do not merge).

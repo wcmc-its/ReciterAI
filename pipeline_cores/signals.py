@@ -51,11 +51,55 @@ _ACK_TITLE = re.compile(r"acknowledg|funding|financial support", re.I)
 _METHODS_TITLE = re.compile(r"method|material|experimental|procedure", re.I)
 
 
+# "and" and "&" name the same facility. Papers write "Microscopy & Image Analysis
+# Core" about as often as the dictionary's "Microscopy and Image Analysis Core", and
+# a plain re.escape(alias) saw only one spelling: 6 aliases on 3 cores (10, 11, 13)
+# missed every paper that used the other. The equivalence
+# lives HERE, in the matcher, not in the dictionary — listing both spellings of
+# every alias doubles the list and drifts the first time someone adds one form only.
+#
+# What counts as a connector, in an alias AND in the text:
+#   - the WORD "and", with whitespace on both sides (so "Andrology" and
+#     "Microscopy andImage" are not connectors);
+#   - "&", with or without surrounding whitespace ("Proteomics&Metabolomics");
+#   - a literal "&amp;" — to_plain_text unescapes entities ONCE, so a JATS source
+#     that double-escaped (&amp;amp;) still leaves "&amp;" in the plain text.
+# An alias with no connector compiles to EXACTLY the regex it always did, so a core
+# whose aliases never say "and" (14: "Architecture for Research Computing", ...) and
+# every acronym alias are untouched by construction.
+#
+# Change it when: labelled matches show a connector form whose precision differs from
+# the others (measure per form on the claim queue's confirmed/rejected ack rows), or a
+# new connector turns up in real ack text ("+", "/") — add it here, with a test.
+_CONNECTOR_SPLIT = re.compile(r"\s+and\s+|\s*&(?:amp;)?\s*", re.IGNORECASE)
+_CONNECTOR_RX = r"(?:\s+and\s+|\s*&(?:amp;)?\s*)"
+
+
 def _alias_pattern(name: str):
-    """Acronym -> case-sensitive word boundary; anything longer -> case-insensitive."""
+    """Acronym -> case-sensitive word boundary; anything longer -> case-insensitive,
+    with every "and"/"&" connector in the alias matching any connector in the text."""
     if _ACRONYM.match(name):
         return re.compile(rf"\b{re.escape(name)}\b")
-    return re.compile(re.escape(name), re.IGNORECASE)
+    return re.compile(_CONNECTOR_RX.join(re.escape(p) for p in _CONNECTOR_SPLIT.split(name)),
+                      re.IGNORECASE)
+
+
+def alias_variants(name: str) -> list:
+    """The spellings of `name` that _alias_pattern treats as one alias, for searches
+    that cannot use the regex (PMC esearch).
+
+    [name] when it has no connector (or is an acronym). Otherwise two forms: every
+    connector as " and ", and every connector as " & ". Mixed forms ("A and B & C")
+    are not enumerated — PMC drops "&" from a phrase, so the "&" form already finds
+    "A B C" and both of its punctuated spellings; nothing in the dictionary has two
+    connectors today.
+    """
+    if _ACRONYM.match(name):
+        return [name]
+    parts = _CONNECTOR_SPLIT.split(name)
+    if len(parts) == 1:
+        return [name]
+    return [" and ".join(parts), " & ".join(parts)]
 
 
 def classify_institution(text: str, match, core: CoreDefinition) -> str:

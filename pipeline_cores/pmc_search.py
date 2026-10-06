@@ -44,7 +44,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from pipeline_cores.signals import _ACRONYM
+from pipeline_cores.signals import _ACRONYM, alias_variants
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +101,27 @@ def _get_json(url: str, params: dict, timeout: int) -> dict:
         time.sleep(wait)
 
 
+def alias_term(phrase: str) -> str:
+    """The esearch term for one alias: each spelling quoted, OR-ed.
+
+    PMC DROPS "&" from a phrase, so '"Microscopy & Image Analysis Core"' runs as
+    "microscopy image analysis core" and finds a DIFFERENT paper set from the "and"
+    spelling — probed 2026-10-06: 207 vs 88 PMC ids with 5 in common, 290 for the
+    OR. Searching only the dictionary's spelling left the other set unfetched, so
+    the matcher never saw those papers whatever it would have said about them.
+
+    One OR request, not one per spelling, for a second reason: inside an OR an
+    unrunnable phrase contributes 0 hits, where on its own PMC silently falls back to
+    a term-ANDed query (7,321 ids for "Davis Cancer Immune Monitoring Core").
+
+    An alias with no connector gives exactly '"phrase"', the term it always sent.
+    """
+    return " OR ".join(f'"{v}"' for v in alias_variants(phrase))
+
+
 def esearch_pmc(phrase: str, *, timeout: int = DEFAULT_TIMEOUT) -> list:
-    """Every PMC id whose full text contains `phrase` (quoted as one phrase).
+    """Every PMC id whose full text contains `phrase` (quoted as one phrase), in any
+    of its "and"/"&" spellings (alias_term).
 
     Pages on retstart until `count` ids are in hand or MAX_IDS trips; a short
     set is always warned about, never returned silently.
@@ -110,7 +129,7 @@ def esearch_pmc(phrase: str, *, timeout: int = DEFAULT_TIMEOUT) -> list:
     ids: list = []
     count = 0
     while True:
-        body = _get_json(ESEARCH, {"db": "pmc", "term": f'"{phrase}"', "retmode": "json",
+        body = _get_json(ESEARCH, {"db": "pmc", "term": alias_term(phrase), "retmode": "json",
                                    "retmax": RETMAX, "retstart": len(ids)}, timeout)
         result = body.get("esearchresult", {})
         count = int(result.get("count") or 0)
@@ -140,12 +159,31 @@ def esearch_count(phrase: str, *, timeout: int = DEFAULT_TIMEOUT):
     into `distinctive` (+4.35) on a quantity that measures nothing. The warning list
     is the only signal that it happened; None routes them to `ack.spec:unknown` (0.00),
     which is the honest answer.
+
+    AN ALIAS WITH AN "and"/"&" CONNECTOR is counted as the UNION of its spellings,
+    because that is what the matcher now accepts (signals._alias_pattern): the count
+    has to describe the set of papers a match can come from, or specificity measures
+    a different alias from the one that matched. Each spelling is first run ALONE to
+    keep the None rule — an OR never raises quotedphrasesnotfound, it just scores the
+    unrunnable spelling 0 — and if NO spelling runs the alias stays None. Otherwise
+    the OR's count is the union (3 requests for such an alias, 1 for any other).
     """
-    body = _get_json(ESEARCH, {"db": "pmc", "term": f'"{phrase}"', "retmode": "json",
+    variants = alias_variants(phrase)
+    singles = [_count(f'"{v}"', timeout) for v in variants]
+    if all(n is None for n in singles):
+        logger.warning("PMC could not run %r as a phrase — no specificity count", phrase)
+        return None
+    if len(variants) == 1:
+        return singles[0]
+    return _count(alias_term(phrase), timeout)
+
+
+def _count(term: str, timeout: int):
+    """esearch's `count` for `term`, or None when PMC could not run a quoted phrase."""
+    body = _get_json(ESEARCH, {"db": "pmc", "term": term, "retmode": "json",
                                "retmax": 0}, timeout)
     result = body.get("esearchresult", {})
     if result.get("warninglist", {}).get("quotedphrasesnotfound"):
-        logger.warning("PMC could not run %r as a phrase — no specificity count", phrase)
         return None
     return int(result.get("count") or 0)
 
