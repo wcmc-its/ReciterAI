@@ -66,9 +66,13 @@ def _prior(**slugs):
 # ---------- load_skip_config ----------
 
 
-def test_skip_config_real_config_is_off_by_default():
-    enabled, _ = load_skip_config()
-    assert enabled is False  # ships flag-off
+def test_skip_config_real_config_enabled_in_prod():
+    # #204 (Shape B): relabel-skip is ENABLED in the shipped config. It was flag-off
+    # through the brick-E build (PR #205); flipped on to skip the per-cluster Sonnet
+    # relabel for low-drift (overlap >= 0.70) reconcile matches.
+    enabled, overlap_min = load_skip_config()
+    assert enabled is True
+    assert overlap_min == 0.70
 
 
 def test_skip_config_absent_enabled_key_is_off(tmp_path):
