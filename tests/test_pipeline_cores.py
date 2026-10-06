@@ -1027,6 +1027,24 @@ def test_suggest_aliases_caps_phrase_length_on_a_long_run():
     assert max(len(p.split()) for p in out) <= MAX_PHRASE_WORDS
 
 
+def test_suggest_aliases_reads_dynamo_rows_as_dicts(monkeypatch):
+    # scan_prior_core_usage returns DICTS. Attribute access read every status as ""
+    # and the default (DynamoDB) path surveyed 0 papers without a word of warning.
+    import pipeline_cores.persist as persist
+    import pipeline_cores.suggest_aliases as sa
+
+    rows = [{"pmid": "1", "core_id": "14", "status": "confirmed"},
+            {"pmid": "2", "core_id": "14", "status": "claimed"},
+            {"pmid": "3", "core_id": "14", "status": "candidate"}]
+    seen = {}
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda core_id, strict=False: rows)
+    monkeypatch.setattr(sa, "PmcFullTextClient", lambda *a, **k: object())
+    monkeypatch.setattr(sa, "suggest_for_core",
+                        lambda core, pmids, *a: seen.setdefault("pmids", pmids))
+    assert sa.main(["--core", "14"]) == 0
+    assert seen["pmids"] == ["1", "2"]
+
+
 # ---------------------------------------------------------------------------
 # pmc_search — signal 3 without the corpus prefetch
 # ---------------------------------------------------------------------------
