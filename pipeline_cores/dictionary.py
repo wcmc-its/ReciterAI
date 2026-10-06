@@ -68,6 +68,8 @@ def load_cores(path: Path = None) -> list:
                 # needs a different bar from everyone else.
                 confirm_threshold=_opt_float(c.get("confirm_threshold")),
                 triage_threshold=_opt_float(c.get("triage_threshold")),
+                # Absent = signals.AFFINITY_MIN_CONFIRMS, same contract as the two above.
+                affinity_min_confirms=_opt_int(c.get("affinity_min_confirms")),
             )
         )
     _validate(cores)
@@ -108,6 +110,10 @@ def _opt_float(value):
     return None if value is None else float(value)
 
 
+def _opt_int(value):
+    return None if value is None else int(value)
+
+
 def _validate(cores: list) -> None:
     seen = set()
     for c in cores:
@@ -118,6 +124,10 @@ def _validate(cores: list) -> None:
         seen.add(c.core_id)
         if not c.aliases:
             raise ValueError(f"core {c.core_id} has no aliases (signal 3 disabled)")
+        # 0 or negative would read as "no minimum" while looking like a setting.
+        if c.affinity_min_confirms is not None and c.affinity_min_confirms < 1:
+            raise ValueError(f"core {c.core_id} affinity_min_confirms must be >= 1, "
+                             f"got {c.affinity_min_confirms}")
         # A tier nobody scores is another silent no-op: combine() would look up
         # "method:medium", find nothing, and the core would carry curation that can
         # never fire. Raise here so a typo costs a failed load, not a dark signal.

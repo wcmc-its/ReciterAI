@@ -297,8 +297,11 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
     # earlier run confirmed (or a human claimed) arrives in prior_user_pmids AND is
     # re-scored below, and counting it in its own byline's numerator kept it confirmed
     # with its own label (signals.author_affinity, SELF-EXCLUSION).
-    affinity_index = signals.build_affinity_index(counts, author_totals, tenure=tenure,
-                                                  members=papers)
+    # `min_confirms`: the core's affinity_min_confirms (core_dictionary.yaml), else the
+    # global default 1 — an author below it lends this core's papers nothing.
+    affinity_index = signals.build_affinity_index(
+        counts, author_totals, tenure=tenure, members=papers,
+        min_confirms={core.core_id: signals.affinity_min_confirms(core)})
 
     out = []
     for rec in records:

@@ -1,4 +1,5 @@
-"""Repeat-user affinity: tenure gate, small-denominator shrinkage, time decay.
+"""Repeat-user affinity: tenure gate, small-denominator shrinkage, time decay,
+self-exclusion (numerator only) and the per-core minimum confirmations.
 
 Pure tests on signals.build_affinity_index / author_affinity, the ingest helpers that
 feed them (against an in-memory SQLite stand-in for reciterdb), and run_core's wiring.
@@ -203,30 +204,41 @@ def test_run_core_gates_a_departed_authors_later_paper(monkeypatch):
     recs = {r.pmid: r for r in run.run_core(core, pubs, bedrock=None, threshold=0.30,
                                             scored_at="t", engine=object(), dry_run=True,
                                             prior_user_pmids=prior)}
-    # in tenure: 3 dated-2018 confirms / (3 + 1 in-window 2020 paper - 500 itself + K=1)
-    assert recs["500"].signals.author_affinity == pytest.approx(3 / 4)
+    # in tenure: 3 dated-2018 confirms / (3 + 1 in-window 2020 paper + K=1); 500 is not
+    # one of the confirms, and self-exclusion never touches the denominator
+    assert recs["500"].signals.author_affinity == pytest.approx(3 / 5)
     assert recs["600"].signals.author_affinity == 0.0
     assert recs["600"].status == STATUS_BELOW
 
 
-# --- self-exclusion -------------------------------------------------------------
+# --- self-exclusion (numerator only) ----------------------------------------------
 def test_a_paper_whose_only_confirmation_is_itself_gets_no_affinity():
     """The loop: P was confirmed once, is re-scored, and its own row was the author's
     whole numerator — so P kept itself confirmed with its own label."""
     idx = build_affinity_index({"a": {"14": 1}}, {"a": 5}, members={"a": {"14": {"P"}}})
     assert author_affinity(idx, ["a"], "14") == pytest.approx(1 / 6)       # not self-scored
     assert author_affinity(idx, ["a"], "14", pmid="P") == 0.0
-    assert author_affinity(idx, ["a"], "14", pmid="Q") == pytest.approx(1 / 5)  # Q's denom
+    assert author_affinity(idx, ["a"], "14", pmid="Q") == pytest.approx(1 / 6)  # Q not a member
 
 
-def test_a_three_of_three_author_scores_as_two_of_two_on_their_own_paper():
+def test_a_three_of_three_author_scores_two_of_three_on_their_own_paper():
+    """Numerator drops the scored paper; the denominator keeps it (2 / (3 + K))."""
     idx = build_affinity_index({"a": {"14": 3}}, {"a": 3},
                                members={"a": {"14": {"P1", "P2", "P3"}}})
     assert author_affinity(idx, ["a"], "14") == pytest.approx(3 / 4)
-    assert author_affinity(idx, ["a"], "14", pmid="P2") == pytest.approx(2 / 3)
-    two = build_affinity_index({"b": {"14": 2}}, {"b": 2})
-    assert author_affinity(idx, ["a"], "14", pmid="P2") == pytest.approx(two.rate("b", "14"))
+    assert author_affinity(idx, ["a"], "14", pmid="P2") == pytest.approx(2 / 4)
     assert _feat(author_affinity(idx, ["a"], "14", pmid="P2")) == ["aff:regular"]
+
+
+def test_self_exclusion_never_touches_the_denominator():
+    """Measured on core 14's human-decided rows (2026-10-06): numerator-only AUC 0.6212,
+    numerator + denominator 0.6115. The scored paper is part of its authors' output;
+    only its LABEL was the leak."""
+    idx = build_affinity_index({"a": {"14": 2}}, {"a": 4}, shrink_k=0,
+                               members={"a": {"14": {"P", "Q"}}})
+    assert idx.rate("a", "14", pmid="X") == 0.5                # a non-member: 2/4, not 2/3
+    assert idx.rate("a", "14", pmid="P") == 0.25               # a member: (2-1)/4
+    assert "in_corpus" not in signals.AffinityIndex.rate.__code__.co_varnames
 
 
 def test_self_exclusion_is_per_author_and_per_core():
@@ -236,22 +248,16 @@ def test_self_exclusion_is_per_author_and_per_core():
                                members={"a": {"14": {"P"}, "2": {"P", "R"}},
                                         "b": {"14": {"S", "T"}}}, shrink_k=0)
     assert idx.rate("a", "14", pmid="P") == 0.0
-    assert idx.rate("a", "2", pmid="P") == pytest.approx(1 / 3)
-    assert idx.rate("b", "14", pmid="P") == pytest.approx(2 / 3)          # denominator only
-    assert author_affinity(idx, ["a", "b"], "14", pmid="P") == pytest.approx(2 / 3)
-
-
-def test_out_of_corpus_paper_keeps_the_denominator():
-    idx = build_affinity_index({"a": {"14": 2}}, {"a": 4}, shrink_k=0)
-    assert idx.rate("a", "14", pmid="X", in_corpus=False) == 0.5
-    assert idx.rate("a", "14", pmid="X") == pytest.approx(2 / 3)
+    assert idx.rate("a", "2", pmid="P") == pytest.approx(1 / 4)
+    assert idx.rate("b", "14", pmid="P") == pytest.approx(2 / 4)          # untouched
+    assert author_affinity(idx, ["a", "b"], "14", pmid="P") == pytest.approx(2 / 4)
 
 
 def test_self_exclusion_with_years_and_tenure():
     idx = build_affinity_index({"a": {"14": {2021: 2}}}, {"a": {2021: 2, 2022: 2}},
                                tenure={"a": (2015, None)}, shrink_k=0,
                                members={"a": {"14": {"P", "Q"}}})
-    assert idx.rate("a", "14", 2021, pmid="P") == pytest.approx(1 / 3)
+    assert idx.rate("a", "14", 2021, pmid="P") == pytest.approx(1 / 4)
 
 
 def test_run_core_excludes_a_prior_confirmed_paper_from_its_own_prior(monkeypatch):
@@ -276,4 +282,118 @@ def test_run_core_excludes_a_prior_confirmed_paper_from_its_own_prior(monkeypatc
                                             prior_user_pmids={"solo001": {"2": {"700"}}})}
     assert recs["700"].signals.author_affinity == 0.0
     assert recs["700"].status == STATUS_BELOW
-    assert recs["800"].signals.author_affinity == pytest.approx(1 / 2)    # 1 / (2 - 1 + K)
+    assert recs["800"].signals.author_affinity == pytest.approx(1 / 3)    # 1 / (2 + K)
+
+
+# --- per-core minimum confirmations ----------------------------------------------
+def test_the_global_default_minimum_is_one_and_changes_nothing():
+    from pipeline_cores.dictionary import load_core
+    assert signals.AFFINITY_MIN_CONFIRMS == 1
+    assert signals.affinity_min_confirms(None) == 1
+    assert load_core("2").affinity_min_confirms is None          # no key: global default
+    assert signals.affinity_min_confirms(load_core("2")) == 1
+    plain = build_affinity_index({"a": {"2": 1}}, {"a": 4})
+    gated = build_affinity_index({"a": {"2": 1}}, {"a": 4}, min_confirms={"2": 1})
+    assert plain.rate("a", "2") == gated.rate("a", "2") == pytest.approx(1 / 5)
+
+
+def test_core_14_requires_three_confirmations_at_its_owners_request():
+    from pipeline_cores.dictionary import load_core
+    core = load_core("14")
+    assert core.affinity_min_confirms == 3
+    assert signals.affinity_min_confirms(core) == 3
+
+
+def test_below_the_minimum_an_author_lends_nothing():
+    idx = build_affinity_index({"two": {"14": 2}, "three": {"14": 3}},
+                               {"two": 4, "three": 4}, shrink_k=0, min_confirms={"14": 3})
+    assert idx.rate("two", "14") == 0.0                        # 2 < 3: not a repeat user
+    assert idx.rate("three", "14") == pytest.approx(3 / 4)     # rate itself unchanged
+
+
+def test_the_minimum_counts_after_self_exclusion():
+    """'>= 3 confirmed publications, self excluded': an author with exactly 3, scoring
+    one of them, has 2 OTHER confirmations and lends that paper nothing — while still
+    lending a paper that is not one of the three."""
+    idx = build_affinity_index({"a": {"14": 3}}, {"a": 10}, shrink_k=0, min_confirms={"14": 3},
+                               members={"a": {"14": {"P1", "P2", "P3"}}})
+    assert idx.rate("a", "14", pmid="P1") == 0.0
+    assert idx.rate("a", "14", pmid="X") == pytest.approx(3 / 10)
+    four = build_affinity_index({"a": {"14": 4}}, {"a": 10}, shrink_k=0, min_confirms={"14": 3},
+                                members={"a": {"14": {"P1", "P2", "P3", "P4"}}})
+    assert four.rate("a", "14", pmid="P1") == pytest.approx(3 / 10)
+
+
+def test_the_minimum_is_per_core():
+    idx = build_affinity_index({"a": {"14": 1, "2": 1}}, {"a": 4}, shrink_k=0,
+                               min_confirms={"14": 3})
+    assert idx.rate("a", "14") == 0.0
+    assert idx.rate("a", "2") == 0.25                          # core 2: the global 1
+    every = build_affinity_index({"a": {"14": 2, "2": 2}}, {"a": 4}, min_confirms=3)
+    assert every.rate("a", "14") == every.rate("a", "2") == 0.0  # an int applies to all
+
+
+def test_the_minimum_counts_in_tenure_and_undecayed():
+    """Out-of-tenure confirmations are already gone from the count; decay never shrinks
+    a confirmation below 'one confirmation'."""
+    idx = build_affinity_index({"x": {"14": {2010: 2, 2022: 2}}}, {"x": {2010: 2, 2022: 8}},
+                               tenure={"x": (2018, None)}, shrink_k=0, min_confirms={"14": 3})
+    assert idx.rate("x", "14", 2023) == 0.0                    # only 2 in tenure
+    old = build_affinity_index({"x": {"14": {2015: 3}}}, {"x": {2015: 3, 2025: 3}},
+                               shrink_k=0, half_life=1, min_confirms={"14": 3})
+    assert old.rate("x", "14", 2025) > 0.0                     # 3 decayed confirms are 3
+
+
+def test_dictionary_rejects_a_minimum_below_one(tmp_path):
+    from pipeline_cores.dictionary import load_cores
+    y = tmp_path / "d.yaml"
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], affinity_min_confirms: 0}\n')
+    with pytest.raises(ValueError, match="affinity_min_confirms"):
+        load_cores(y)
+    y.write_text('cores:\n  - {core_id: "9", name: X, aliases: [X], affinity_min_confirms: 2}\n')
+    assert load_cores(y)[0].affinity_min_confirms == 2
+
+
+def test_run_core_applies_the_cores_minimum(monkeypatch):
+    """Core 14 (minimum 3): an author with 2 prior confirmations lends nothing, one with 3
+    does. The same history on core 2 (global default 1) lends in both cases."""
+    from pipeline_cores import run
+    from pipeline_cores.dictionary import load_core
+
+    pubs = [{"pmid": "900", "title": "t", "abstract": "", "year": 2022}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_pub_years", lambda e, p: {str(x): 2022 for x in p})
+    monkeypatch.setattr(ingest, "fetch_author_tenure", lambda e, c: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals",
+                        lambda e, c=None: {"two0001": {2022: 9}, "thr0001": {2022: 9}})
+
+    def score(core_id, cwid, n):
+        core = load_core(core_id)
+        monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"900": [cwid]})
+        prior = {cwid: {core_id: {str(i) for i in range(1, n + 1)}}}
+        (rec,) = run.run_core(core, pubs, bedrock=None, threshold=0.30, scored_at="t",
+                              engine=object(), dry_run=True, prior_user_pmids=prior)
+        return rec.signals.author_affinity
+
+    assert score("14", "two0001", 2) == 0.0
+    assert score("14", "thr0001", 3) == pytest.approx(3 / 10)
+    assert score("2", "two0001", 2) == pytest.approx(2 / 10)
+
+
+def test_batch_screen_applies_the_cores_minimum(monkeypatch):
+    """batch_screen's 'does the prior fire' set honours the minimum too."""
+    from pipeline_cores import batch_screen, persist
+    from pipeline_cores.dictionary import load_core
+
+    monkeypatch.setattr(persist, "scan_prior_core_usage", lambda core_id: [
+        {"pmid": p, "core_id": core_id} for p in ("1", "2", "3", "4", "5")])
+    monkeypatch.setattr(ingest, "filter_corpus_pmids", lambda e, p: set(p))
+    monkeypatch.setattr(ingest, "fetch_author_totals",
+                        lambda e, c=None: {"two0001": 10, "thr0001": 10})
+    bylines = {"1": ["two0001"], "2": ["two0001"],
+               "3": ["thr0001"], "4": ["thr0001"], "5": ["thr0001"],
+               "A": ["two0001"], "B": ["thr0001"]}
+    _confirmed, author = batch_screen._prior_signals(load_core("14"), ["A", "B"], bylines, None)
+    assert author == {"B"}
+    _confirmed, author = batch_screen._prior_signals(load_core("2"), ["A", "B"], bylines, None)
+    assert author == {"A", "B"}     # the same history on core 2: global minimum 1

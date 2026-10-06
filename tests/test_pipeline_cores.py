@@ -647,8 +647,8 @@ def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
     staff = core.staff_cwids[0]
     pubs = [{"pmid": "200", "title": "t", "abstract": ""}]
     monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
-    # 5 corpus papers each: the 4 confirmed ones plus 200, the paper being scored
-    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {staff: 5, "cli0001": 5})
+    # 4 corpus papers each, all 4 confirmed (and >= core 14's affinity_min_confirms of 3)
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {staff: 4, "cli0001": 4})
     prior = {staff: {"14": {"1", "2", "3", "4"}}, "cli0001": {"14": {"1", "2", "3", "4"}}}
 
     def score_200(byline):
@@ -658,8 +658,7 @@ def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
         return rec
 
     assert score_200([staff]).signals.author_affinity == 0.0
-    # a client at 4 of the 4 OTHER papers -> 4/(5 - 1 + K=1) = 0.8: aff:core, which
-    # reaches the queue (it no
+    # a client at 4 of 4 -> 4/(4 + K=1) = 0.8: aff:core, which reaches the queue (it no
     # longer confirms alone since the 2026-10-06 refit)
     assert score_200(["cli0001"]).signals.author_affinity == 0.8
     assert score_200(["cli0001"]).status == STATUS_CANDIDATE

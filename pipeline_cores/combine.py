@@ -231,7 +231,10 @@ WEIGHTS = {
     # kept them, so 40 of the old 55 `aff:core` positives were staff self-affinity, a
     # second copy of `staff`), the tenure gate, shrinkage K=1 and self-exclusion (the
     # scored paper left out of its own rate; signals.py). Was 0.79 / 3.43 / 4.93;
-    # self-exclusion moved none of the three cells. `aff:core` is now a FLOOR on 3 positives and no longer
+    # self-exclusion moved none of the three cells (rerun after it became numerator-only:
+    # same 9/24, 40/10, 3/0; rate AUC 0.6796, bucket 0.6786). Fitted at the global
+    # affinity_min_confirms default 1; a core that raises its own (core 14: 3) removes
+    # authors from the feature but does not reprice it. `aff:core` is now a FLOOR on 3 positives and no longer
     # clears DEFAULT_CONFIRM_THRESHOLD alone (see there).
     "aff:trace": 1.22,                 # 0 < rate < 0.05;    n=9/137 labelled yes vs 24/1200
     "aff:regular": 3.51,               # 0.05 <= rate < 0.70; n=40/137 vs 10/1200

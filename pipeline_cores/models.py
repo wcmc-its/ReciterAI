@@ -75,6 +75,10 @@ class CoreDefinition:
     # affinity index has saturated to the point of carrying no information.
     confirm_threshold: Optional[float] = None
     triage_threshold: Optional[float] = None
+    # Minimum confirmed/claimed papers before an author counts as a repeat user of this
+    # core (affinity prior). None = signals.AFFINITY_MIN_CONFIRMS (1). See
+    # signals.affinity_min_confirms and core 14 in core_dictionary.yaml.
+    affinity_min_confirms: Optional[int] = None
 
     @property
     def staff_cwids(self) -> list:

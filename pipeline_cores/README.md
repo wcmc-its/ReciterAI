@@ -246,16 +246,45 @@ them honest:
   never dropped, and ack / staff never pass through here. No identity row = not gated.
   The start lag is generous because identity dates the FACULTY appointment, not arrival.
 - **A paper is never its own evidence** (self-exclusion, `signals.author_affinity(...,
-  pmid=)`). When P is scored, each author's rate leaves P out: the numerator drops P if it
-  is one of their confirmed/claimed papers for the core, and the denominator drops P (it
-  is a corpus paper). Every confirmed or claimed pair is re-scored on every run, and
-  before this its own row sat in its byline's numerator — a self-confirmation loop: all
-  47 of core 14's affinity-only confirmations counted themselves, 20 had a byline author
-  whose ONLY confirmation was that paper, and 15 drop out of `aff:core` once they are
-  left out. The fit already scored papers this way (labelled papers are not in its
-  numerator), so this is also what makes production compute the fitted feature. A 3-of-3
-  author scoring one of their own three reads as 2-of-2. `batch_screen` needs none: its
-  pool already drops every pmid its numerator is built from.
+  pmid=)`, NUMERATOR ONLY). When P is scored, each author's numerator drops P if it is one
+  of their confirmed/claimed papers for the core; the denominator keeps P — it is honestly
+  part of the author's corpus output, and only its LABEL was the leak. Every confirmed or
+  claimed pair is re-scored on every run, and before this its own row sat in its byline's
+  numerator — a self-confirmation loop: all 47 of core 14's affinity-only confirmations
+  counted themselves, 20 had a byline author whose ONLY confirmation was that paper, and
+  15 drop out of `aff:core` once they are left out. The fit already scored papers this
+  way (labelled papers are not in its numerator), so this is also what makes production
+  compute the fitted feature. A 3-of-3 author scoring one of their own three reads 2 /
+  (3 + K) = 0.50. Why not the denominator too: on core 14's 46 human-decided rows (26
+  claimed / 20 rejected, gate + K=1) affinity AUC is 0.6212 numerator-only vs 0.6115 with
+  both sides, and panel B is unchanged either way (weights 1.22 / 3.51 / 4.11, bucket AUC
+  0.6786). `batch_screen` needs no self-exclusion: its pool already drops every pmid its
+  numerator is built from.
+- **Per-core minimum confirmations** (`affinity_min_confirms` in
+  `config/core_dictionary.yaml`, default `signals.AFFINITY_MIN_CONFIRMS = 1`). An author
+  with fewer confirmed/claimed papers for the core than its minimum — counted in tenure,
+  undecayed, the scored paper excluded — lends that core's papers 0, in `run_core` and
+  `batch_screen` alike. It is a gate on the author, not a change to the rate: a surviving
+  author's rate and its fitted weight are untouched. The global default 1 is no behaviour
+  change; the fit (panel B, core 2) runs at it. **Core 14 sets 3** at its owner's
+  request. Measured 2026-10-06 with `python3 scripts/measure_affinity_min_confirms.py
+  --core 14 --mins 1 2 3` (read-only):
+
+  | min | claimed vs rejected AUC (rate / bucket) | rejected with affinity | claimed with affinity | open candidates → below (of 486) | below → candidate (of 4,761) |
+  |---|---|---|---|---|---|
+  | 1 | 0.6212 / 0.5558 | 17/20 | 17/26 | 12 | 59 |
+  | 2 | 0.6317 / 0.6000 | 14/20 | 16/26 | 131 | 46 |
+  | 3 | **0.7279 / 0.6962** | **4/20** | 16/26 | 174 | 25 |
+
+  Engine-confirmed rows move the same at every minimum (59 → candidate, 1 → below, 12
+  stay). On core 14 the minimum helps: it removes the prior from 13 of the 17 rejected
+  rows that carried one and keeps it on 16 of 17 claimed ones. The panel is small (520
+  pairs), so re-measure at >= 100 decided rows. The same gate on panel B (core 2,
+  labelled-yes vs random corpus) LOWERS affinity bucket AUC 0.6786 / 0.6027 / 0.5637 at
+  1 / 2 / 3 — there it throws away real users with one or two confirmations — which is
+  why the global default stays 1 and 3 is a per-core setting. A core with an owner who
+  can review claims is the place to set one; data that would justify raising the
+  global default is the same win on two or more cores' human-decided rows.
 - **Small denominators are shrunk**: rate = n / (total + 1), so a 1-of-1 author is 0.50
   (`aff:regular`), not 1.0 (`aff:core`). Time decay is implemented but OFF
   (`signals.AFFINITY_HALF_LIFE_YEARS = None`); the constants' comments in `signals.py`

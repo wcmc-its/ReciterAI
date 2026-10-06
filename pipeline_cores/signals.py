@@ -279,11 +279,38 @@ def coauthorship_index(engine, core: CoreDefinition, pmids: list = None,
 # 0.6786 at K=0.5 and K=1, 0.6785 at K=2 (where `aff:core` has no rows left at all);
 # K=1 moves 12 of the 15 panel-B `aff:core` positives into `aff:regular` and no
 # negatives anywhere. Core 14 AUC 0.6144 (K=0) -> 0.6212 (K=1), with only the numerator
-# left out; with full self-exclusion (denominator too, as shipped) 0.6010 (K=0, no gate)
-# and 0.6115 (K=1 + tenure gate). A hard minimum-n floor
-# (2 or 3 confirms before `aff:core`) was measured too and is IDENTICAL to K=1 on panel
-# B (same 12 authors move), so it is not built — one smooth knob, not two.
+# left out (numerator-only self-exclusion, as shipped); taking the scored paper out of the
+# denominator too measured 0.6010 (K=0, no gate) and 0.6115 (K=1 + tenure gate), so it is
+# not done (see AffinityIndex.rate). A minimum-n floor before `aff:core` alone was
+# measured too and is IDENTICAL to K=1 on panel B (same 12 authors move). The floor that
+# IS built is a different thing — a minimum before an author counts at ALL, per core,
+# AFFINITY_MIN_CONFIRMS below.
 AFFINITY_SHRINK_K = 1.0
+
+# Minimum confirmed/claimed papers (for this core, the scored paper itself excluded, in
+# tenure) before an author counts as a repeat user at all. Below it the author lends 0
+# — not a smaller rate — so it is a GATE on top of the shrunk rate, not a second shrink.
+# Global default 1 = the rate as fitted (any confirmation counts; no behaviour change).
+# A core sets its own with `affinity_min_confirms:` in config/core_dictionary.yaml when
+# its owner's notion of "a user of this core" is stricter than one prior paper — core 14
+# (Research Informatics) sets 3 at its owner's request; the measurement is in the yaml
+# comment there. The FIT (panel B, core 2) runs at the global default, so the fitted
+# `aff:*` weights price the ungated rate; a core that raises its minimum only removes
+# authors from the feature, never changes what a surviving rate is worth.
+# Measured 2026-10-06: core 14's claimed(26)-vs-rejected(20) affinity AUC 0.6212 /
+# 0.6317 / 0.7279 at min 1 / 2 / 3 (helps there), but panel B bucket AUC 0.6786 / 0.6027
+# / 0.5637 (hurts on core 2's recall panel) — hence per core, default 1.
+# WHAT WOULD JUSTIFY CHANGING IT: per core, the claimed-vs-rejected affinity AUC on that
+# core's human-decided rows at min 1/2/3 (`python3 scripts/measure_affinity_min_confirms.py
+# --core <id>`, read-only) once there are >=100 decided rows; a global default other
+# than 1 only if that holds on two or more cores with owners AND panel B does not drop.
+AFFINITY_MIN_CONFIRMS = 1
+
+
+def affinity_min_confirms(core) -> int:
+    """The core's `affinity_min_confirms` (core_dictionary.yaml), else the global default."""
+    value = getattr(core, "affinity_min_confirms", None) if core is not None else None
+    return AFFINITY_MIN_CONFIRMS if value is None else int(value)
 
 # Per-confirmation time decay, as a half-life in years on |scored paper year - confirmed
 # paper year|, applied to numerator AND denominator alike (so a decayed rate is still a
@@ -351,9 +378,12 @@ class AffinityIndex:
     tenure gate depends on WHEN the scored paper was published, and so would decay."""
 
     def __init__(self, papers: dict, totals: dict, windows: dict, *,
-                 shrink_k: float, half_life, members: dict | None = None):
+                 shrink_k: float, half_life, members: dict | None = None,
+                 min_confirms=None):
         self.papers, self.totals, self.windows = papers, totals, windows
         self.shrink_k, self.half_life = shrink_k, half_life
+        # int (every core) or {core_id: int} (others fall back to AFFINITY_MIN_CONFIRMS).
+        self.min_confirms = AFFINITY_MIN_CONFIRMS if min_confirms is None else min_confirms
         # cwid -> {core_id: {pmid, ...}}: WHICH papers make up each numerator, kept so
         # rate() can leave the scored paper out of its own prior (self-exclusion).
         self.members = members or {}
@@ -363,28 +393,37 @@ class AffinityIndex:
             return 1.0
         return 0.5 ** (abs(ref - year) / self.half_life)
 
-    def rate(self, cwid: str, core_id: str, year=None, *, pmid=None,
-             in_corpus: bool = True) -> float:
+    def min_for(self, core_id: str) -> int:
+        if isinstance(self.min_confirms, dict):
+            return int(self.min_confirms.get(core_id, AFFINITY_MIN_CONFIRMS))
+        return int(self.min_confirms)
+
+    def rate(self, cwid: str, core_id: str, year=None, *, pmid=None) -> float:
         """The author's rate for a paper published in `year`, leaving that paper out.
 
-        `pmid` is the paper being scored. It is subtracted from the author's numerator
-        when it is one of their confirmed/claimed papers for this core, and from the
-        denominator when it is in the scoreable corpus (`in_corpus`; run_core only
-        scores corpus papers). Its weight is 1 on both sides: the paper is its own
-        decay reference and, if the gate let the author speak for it at all, inside
-        their tenure window. None = nothing excluded (callers that never score a paper
-        from their own numerator, e.g. batch_screen's pool, which drops confirmed pubs).
+        `pmid` is the paper being scored. It is subtracted from the author's NUMERATOR
+        when it is one of their confirmed/claimed papers for this core (weight 1: the
+        paper is its own decay reference and, if the gate let the author speak for it
+        at all, inside their tenure window). It is NOT subtracted from the denominator.
+        Measured 2026-10-06 on core 14's 46 human-decided rows (26 claimed / 20
+        rejected): affinity AUC 0.6212 numerator-only vs 0.6115 with the denominator
+        side too (gate + K=1). The denominator is "the author's corpus output", of
+        which the scored paper is honestly a part; only its LABEL was the leak. None =
+        nothing excluded (callers that never score a paper from their own numerator,
+        e.g. batch_screen's pool, which drops confirmed pubs).
+
+        MINIMUM CONFIRMATIONS: an author with fewer than this core's minimum
+        (AFFINITY_MIN_CONFIRMS, per core via core_dictionary.yaml) confirmed papers —
+        counted in tenure, undecayed, the scored paper excluded — lends 0.
         """
         by_year = self.papers.get(cwid, {}).get(core_id)
         if not by_year or not _in_window(year, self.windows.get(cwid)):
             return 0.0
-        num = sum(n * self._w(y, year) for y, n in by_year.items())
+        own = pmid is not None and pmid in self.members.get(cwid, {}).get(core_id, ())
+        if sum(by_year.values()) - (1 if own else 0) < self.min_for(core_id):
+            return 0.0
+        num = sum(n * self._w(y, year) for y, n in by_year.items()) - (1.0 if own else 0.0)
         den = sum(n * self._w(y, year) for y, n in self.totals[cwid].items())
-        if pmid is not None:
-            if pmid in self.members.get(cwid, {}).get(core_id, ()):
-                num -= 1.0
-            if in_corpus:
-                den -= 1.0
         if num <= 1e-9 or den <= 1e-9:
             return 0.0
         return min(num / (den + self.shrink_k), 1.0)
@@ -395,7 +434,7 @@ _DEFAULT = object()
 
 def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure: dict = None,
                          shrink_k=_DEFAULT, half_life=_DEFAULT,
-                         members: dict | None = None) -> AffinityIndex:
+                         members: dict | None = None, min_confirms=None) -> AffinityIndex:
     """cwid x core -> each author's SHARE of their own corpus output that already
     belongs to the core, as an AffinityIndex.
 
@@ -415,6 +454,10 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure
 
     rate = n / (total + shrink_k) — see AFFINITY_SHRINK_K — and recency-weighted by
     `half_life` when set (AFFINITY_HALF_LIFE_YEARS; None = off).
+
+    `min_confirms` is an int (every core) or {core_id: int}; None = AFFINITY_MIN_CONFIRMS.
+    Callers that score one core pass {core.core_id: affinity_min_confirms(core)} so the
+    core_dictionary.yaml key applies.
 
     `members` is the cwid -> {core_id: {pmid, ...}} the counts were made from. Pass it
     whenever a scored paper can be one of those pmids (run_core: a paper an earlier run
@@ -464,11 +507,11 @@ def build_affinity_index(user_paper_counts: dict, author_totals: dict, *, tenure
                        "corpus papers — the numerator was not gated through "
                        "ingest.filter_corpus_pmids; rates clamped to 1.0", len(over))
     return AffinityIndex(papers, totals, windows, shrink_k=shrink_k, half_life=half_life,
-                         members=members)
+                         members=members, min_confirms=min_confirms)
 
 
 def author_affinity(affinity_index: AffinityIndex, byline_cwids: list, core_id: str,
-                    pub_year=None, *, pmid=None, in_corpus: bool = True) -> float:
+                    pub_year=None, *, pmid=None) -> float:
     """Prior that THIS paper used the core: the MAX rate across its byline.
 
     MAX, not noisy-OR. Noisy-OR over the byline is a monotone function of HOW MANY
@@ -485,19 +528,22 @@ def author_affinity(affinity_index: AffinityIndex, byline_cwids: list, core_id: 
     the acknowledgement / staff signals never pass through here at all. None = not
     gated (and no decay reference).
 
-    SELF-EXCLUSION. `pmid` is the paper being scored, and each author's rate leaves it
-    out: numerator n - [pmid is one of their confirmed/claimed papers for this core],
-    denominator total - [pmid is in the corpus]. Without it the prior was circular. A
+    SELF-EXCLUSION (numerator only). `pmid` is the paper being scored, and each
+    author's numerator leaves it out: n - [pmid is one of their confirmed/claimed papers
+    for this core]. The denominator keeps it (see AffinityIndex.rate for the measurement
+    that decided that). Without it the prior was circular. A
     paper confirmed (or claimed) once is re-scored on every run, and its own row sat in
     each byline author's numerator, so it kept itself confirmed with its own label: all
     47 of core 14's affinity-only confirmations counted themselves, and 1 had no other
     confirmed paper behind it at all. The fit already scores papers this way (labelled
     papers are never in its numerator), so leaving the paper out is also what makes the
     production feature the one the weights were fitted on. A 3-of-3 author scoring one
-    of their own three reads as 2-of-2; an author whose only confirmation is this paper
-    reads 0.
+    of their own three reads as 2-of-3 (2 / (3 + K)); an author whose only confirmation
+    is this paper reads 0. The per-core minimum (AFFINITY_MIN_CONFIRMS) is counted
+    after the exclusion, so under a minimum of 3 that 3-of-3 author lends this paper
+    nothing — they have 2 OTHER confirmed papers.
     """
-    return max((affinity_index.rate(cwid, core_id, pub_year, pmid=pmid, in_corpus=in_corpus)
+    return max((affinity_index.rate(cwid, core_id, pub_year, pmid=pmid)
                 for cwid in byline_cwids), default=0.0)
 
 

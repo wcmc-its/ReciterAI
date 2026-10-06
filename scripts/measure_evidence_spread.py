@@ -161,11 +161,11 @@ def label_set(engine, old):
             counts[cwid][LABEL_CORE] += 1
     # Same rate denominator production uses — an author's own corpus output — so the
     # AFTER column is scored on the feature the shipped weights were fitted against.
-    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
-    # Self-exclusion as run_core applies it (signals.author_affinity): a labelled paper is
-    # never in this numerator (outside excludes the label set), so only the denominator
-    # side applies — take each in-corpus paper out of its own authors' totals.
-    in_corpus = ingest.filter_corpus_pmids(engine, pmids)
+    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)),
+                                         min_confirms={LABEL_CORE: signals.affinity_min_confirms(core)})
+    # Self-exclusion as run_core applies it (signals.author_affinity, numerator only): a
+    # labelled paper is never in this numerator (outside excludes the label set), so it
+    # is a no-op here; passed anyway so this stays the production call.
     xml = fetch_xml(pmids)
 
     sigs = []
@@ -175,7 +175,7 @@ def label_set(engine, old):
         sig.coauthor_cwids = coauthors.get(pmid, [])
         sig.llm_score = llm.get(pmid, {}).get("score")
         sig.author_affinity = signals.author_affinity(index, bylines.get(pmid, []), LABEL_CORE,
-                                                      pmid=pmid, in_corpus=pmid in in_corpus)
+                                                      pmid=pmid)
         sigs.append(sig)
 
     truth = [labels[p] for p in pmids]

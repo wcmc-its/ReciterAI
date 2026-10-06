@@ -132,6 +132,10 @@ def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: b
     the prior is consulted, so no screened paper can be in its own numerator. Taking it
     out of the denominator cannot change whether the prior FIRES either: a positive
     numerator is some OTHER corpus paper, so total - 1 stays positive.
+
+    The core's minimum confirmations (signals.affinity_min_confirms — core_dictionary.yaml
+    `affinity_min_confirms`, default 1) DOES apply: an author below it is not a repeat
+    user, here as in run_core. At the default 1 the set is unchanged.
     """
     from collections import defaultdict
     from pipeline_cores import ingest  # lazy
@@ -148,7 +152,9 @@ def _prior_signals(core, pmids: list, bylines: dict, engine, *, with_affinity: b
             continue
         for cwid in bylines.get(str(rec["pmid"]), []):
             counts[cwid][rec["core_id"]] += 1
-    index = signals.build_affinity_index(counts, ingest.fetch_author_totals(engine, list(counts)))
+    index = signals.build_affinity_index(
+        counts, ingest.fetch_author_totals(engine, list(counts)),
+        min_confirms={core.core_id: signals.affinity_min_confirms(core)})
     author = {str(p) for p in pmids
               if signals.author_affinity(index, bylines.get(str(p), []), core.core_id) > 0.0}
     return confirmed, author
