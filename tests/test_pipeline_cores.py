@@ -1299,7 +1299,7 @@ def test_pmcids_to_pmids_chunks_at_the_idconv_limit(monkeypatch):
 
     sizes = []
 
-    def fake_get(url, params, timeout):
+    def fake_get(url, params, timeout, **kw):
         ids = params["ids"].split(",")
         sizes.append(len(ids))
         return {"records": [{"pmid": i[len("PMC"):]} for i in ids]}
