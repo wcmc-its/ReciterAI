@@ -7,7 +7,7 @@ cold cache) to find, typically, a couple of dozen papers — PMC has already
 indexed that text, so the same answer is a handful of searches per alias:
 
     esearch(db=pmc, term='"Architecture for Research Computing"')  ->  25 PMC ids
-    idconv                                                         ->  25 PMIDs
+    idconv (esummary db=pmc when idconv fails)                     ->  25 PMIDs
 
 Full text is then fetched for those PMIDs ONLY, which keeps the ack_snippet the
 claim queue shows as evidence. 25 fetches instead of 80,203.
@@ -36,6 +36,7 @@ path and needs `--with-fulltext`.
 """
 from __future__ import annotations
 
+import http.client
 import json
 import logging
 import os
@@ -49,6 +50,10 @@ from pipeline_cores.signals import _ACRONYM, alias_variants
 logger = logging.getLogger(__name__)
 
 ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+# 301s to https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/ (urllib follows
+# it). Not pointed there directly: on 2026-10-07 the new URL 429'd even a single
+# unkeyed request, so it could not be verified to serve.
 IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 DEFAULT_TIMEOUT = 45
 RETMAX = 500        # ids per esearch page
@@ -59,6 +64,7 @@ IDCONV_CHUNK = 200  # idconv's documented per-request id limit (a bigger GET is 
 
 RETRY_WAITS = (2, 4, 8, 16, 32)  # seconds between attempts on a 429/5xx/network error
                                 # (~1 min); Retry-After wins when NCBI sends one
+IDCONV_WAITS = (2,)  # idconv has a fallback (esummary), so ONE retry, not the full minute
 
 _last_request = 0.0
 
@@ -68,8 +74,10 @@ def _api_key() -> str:
     return os.getenv("PUBMED_API_KEY") or os.getenv("NCBI_API_KEY") or ""
 
 
-def _get_json(url: str, params: dict, timeout: int) -> dict:
-    """One paced, keyed NCBI request. Every call in this module goes through here."""
+def _get_json(url: str, params: dict, timeout: int, waits: tuple = RETRY_WAITS) -> dict:
+    """One paced, keyed NCBI request. Every call in this module goes through here.
+
+    `waits` is the retry schedule; a caller with a fallback passes a shorter one."""
     global _last_request
     key = _api_key()
     if key:
@@ -82,7 +90,7 @@ def _get_json(url: str, params: dict, timeout: int) -> dict:
     q = urllib.parse.urlencode(params)
     # Retried, because one 429 used to cost the alias (#415): unkeyed Fargate egress
     # shares NCBI's 3 req/s per-IP budget with whoever else is on that IP.
-    for wait in (*RETRY_WAITS, None):
+    for wait in (*waits, None):
         try:
             with urllib.request.urlopen(f"{url}?{q}", timeout=timeout) as resp:
                 return json.load(resp)
@@ -188,14 +196,60 @@ def _count(term: str, timeout: int):
     return int(result.get("count") or 0)
 
 
+# What an idconv chunk can fail with before esummary takes over: HTTPError (429/5xx
+# after its short retry, or any 4xx), URLError / timeouts / resets (all OSError), a
+# truncated body (HTTPException), or a 200 that is not JSON (ValueError).
+_IDCONV_FAILURES = (OSError, ValueError, http.client.HTTPException)
+
+
 def pmcids_to_pmids(pmcids: list, *, timeout: int = DEFAULT_TIMEOUT) -> set:
-    """Map PMC ids to PMIDs. Records without a PMID (rare) are dropped."""
-    pmcids = list(pmcids)
+    """Map PMC ids to PMIDs. Records without a PMID (rare) are dropped.
+
+    Each chunk asks idconv first; if idconv fails for that chunk the same ids go to
+    esummary(db=pmc), whose `articleids` carry the PMID. idconv 301s to a new host
+    that, since 2026-10-07, 429s even a single request, which made every core with an
+    alias hit fail (#415's guard, correctly). esummary is E-utilities, the host esearch
+    already uses, so it shares the key and pacing. If esummary ALSO fails it raises,
+    and pmids_naming refuses the core exactly as before.
+    """
+    pmcids = [str(p).removeprefix("PMC") for p in pmcids]
     out: set = set()
     for i in range(0, len(pmcids), IDCONV_CHUNK):
-        body = _get_json(IDCONV, {"ids": ",".join("PMC" + str(p) for p in pmcids[i:i + IDCONV_CHUNK]),
-                                  "format": "json", "tool": "pipeline_cores"}, timeout)
-        out |= {str(r["pmid"]) for r in body.get("records", []) if r.get("pmid")}
+        chunk = pmcids[i:i + IDCONV_CHUNK]
+        try:
+            body = _get_json(IDCONV, {"ids": ",".join("PMC" + p for p in chunk),
+                                      "format": "json", "tool": "pipeline_cores"},
+                             timeout, waits=IDCONV_WAITS)
+            got = {str(r["pmid"]) for r in body.get("records", []) if r.get("pmid")}
+            logger.info("PMC->PMID: idconv mapped %d of %d PMC ids", len(got), len(chunk))
+        except _IDCONV_FAILURES as err:
+            logger.info("PMC->PMID: idconv failed (%s) — falling back to esummary for %d PMC ids",
+                        type(err).__name__ + (f" {err.code}" if hasattr(err, "code") else ""),
+                        len(chunk))
+            got = esummary_pmids(chunk, timeout=timeout)
+            logger.info("PMC->PMID: esummary mapped %d of %d PMC ids", len(got), len(chunk))
+        out |= got
+    return out
+
+
+def esummary_pmids(pmcids: list, *, timeout: int = DEFAULT_TIMEOUT) -> set:
+    """PMIDs for numeric PMC uids via esummary(db=pmc). Entries with no PMID are skipped.
+
+    Callers keep the list at or under IDCONV_CHUNK (200), which fits a GET. A response
+    with no `result` (an E-utilities error body) raises rather than reading as "no
+    PMIDs", so a failure here can never pass for an empty answer.
+    """
+    body = _get_json(ESUMMARY, {"db": "pmc", "id": ",".join(str(p) for p in pmcids),
+                                "retmode": "json", "tool": "pipeline_cores"}, timeout)
+    result = body.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError(f"esummary db=pmc returned no result: {str(body)[:200]}")
+    out: set = set()
+    for uid in result.get("uids", []):
+        for aid in (result.get(uid) or {}).get("articleids", []):
+            if aid.get("idtype") == "pmid" and str(aid.get("value") or "0") != "0":
+                out.add(str(aid["value"]))
+                break
     return out
 
 
