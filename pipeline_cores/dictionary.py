@@ -78,6 +78,8 @@ def load_cores(path: Path = None) -> list:
                 # Absent = signals.AFFINITY_MIN_CONFIRMS (1). A whole number >= 1.
                 affinity_min_confirms=_min_confirms(c.get("core_id"),
                                                     c.get("affinity_min_confirms")),
+                # Absent = identity (combine.DEFAULT_CALIBRATION_*), same contract.
+                **_calibration(c.get("calibration"), c.get("core_id")),
             )
         )
     _validate(cores)
@@ -149,6 +151,25 @@ def _min_confirms(core_id, value):
     return value
 
 
+def _calibration(raw, core_id) -> dict:
+    """`calibration: {intercept: a, slope: b}` -> the two CoreDefinition fields.
+
+    Either key may be left out (it then keeps its identity value in combine). Anything
+    else raises: a misspelt key ("slop:") would otherwise load as identity and silently
+    calibrate nothing, the dark-curation failure `_labels` guards against too."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"core {core_id} calibration must be a mapping "
+                         f"{{intercept, slope}}, got {raw!r}")
+    unknown = set(raw) - {"intercept", "slope"}
+    if unknown:
+        raise ValueError(f"core {core_id} calibration has unknown key(s) {sorted(unknown)}; "
+                         "expected intercept / slope")
+    return {"calibration_intercept": _opt_float(raw.get("intercept")),
+            "calibration_slope": _opt_float(raw.get("slope"))}
+
+
 def _opt_float(value):
     return None if value is None else float(value)
 
@@ -168,6 +189,15 @@ def _validate(cores: list) -> None:
         if c.affinity_prior_strength is not None and c.affinity_prior_strength < 0:
             raise ValueError(f"core {c.core_id} affinity_prior_strength must be >= 0, "
                              f"got {c.affinity_prior_strength}")
+        # A slope <= 0 would flatten or INVERT the ranking (the best-evidenced pair would
+        # score lowest); a non-finite value poisons every score. Neither is a calibration.
+        for name in ("calibration_intercept", "calibration_slope"):
+            v = getattr(c, name)
+            if v is not None and not math.isfinite(v):
+                raise ValueError(f"core {c.core_id} {name} must be finite, got {v}")
+        if c.calibration_slope is not None and c.calibration_slope <= 0:
+            raise ValueError(f"core {c.core_id} calibration slope must be > 0, "
+                             f"got {c.calibration_slope}")
         # A tier nobody scores is another silent no-op: combine() would look up
         # "method:medium", find nothing, and the core would carry curation that can
         # never fire. Raise here so a typo costs a failed load, not a dark signal.

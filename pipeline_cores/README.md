@@ -52,6 +52,17 @@ Both thresholds are per-core overridable via `confirm_threshold` / `triage_thres
 `config/core_dictionary.yaml`. Naive Bayes on purpose: one line, every contribution
 separately inspectable via `combine.explain()`, and it spreads by construction.
 
+**Per-core calibration (identity by default).** A core may set
+`calibration: {intercept: a, slope: b}`. `combine()` then bands
+`sigmoid(a + b · logit)` instead of `sigmoid(logit)`, and the LLM and staff holds use the
+same map. Summing marginal weights double-counts correlated evidence, which makes the
+probability overconfident even when the ranking is fine. Panel B without ack gives a
+Platt slope of 0.82 [0.70, 1.06], and a joint refit beats a Platt rescale by
+0.0055 [0.0004, 0.0114] nats. No core sets the key. Core 14 was measured and left at
+identity, and its dictionary entry and
+`docs/experiments/core14-calibration-2026-10-06.md` give the reasons.
+`python3 scripts/measure_calibration.py` re-measures it.
+
 **Absent evidence contributes no key.** A never-scored `llm_score` is `None`, which is
 not the claim "scored 1"; an affinity rate of 0 emits nothing even though the cell
 measures −0.45, because pricing that one absence and no other would bias every pair with

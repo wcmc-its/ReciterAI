@@ -88,6 +88,12 @@ class CoreDefinition:
     # counts as a repeat user at all. None = signals.AFFINITY_MIN_CONFIRMS (1). See
     # signals.affinity_min_confirms.
     affinity_min_confirms: Optional[int] = None
+    # Per-core probability calibration, logit' = intercept + slope * logit, applied by
+    # combine() to the summed log-odds before banding (`calibration: {intercept, slope}`
+    # in core_dictionary.yaml). None = combine.DEFAULT_CALIBRATION_* = identity. See
+    # combine.calibrated_logit for what would justify a non-identity value.
+    calibration_intercept: Optional[float] = None
+    calibration_slope: Optional[float] = None
 
     @property
     def staff_cwids(self) -> list:
