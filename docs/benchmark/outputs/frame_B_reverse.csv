@@ -1,0 +1,14 @@
+ref,name,best,areas
+care_ai_ds,AI and data science driven across missions,overlap,Biomedical Informatics [overlap]
+care_rs_ai_ds,AI/Data Science,overlap,Biomedical Informatics [overlap]; Biostatistics & Quantitative Health Sciences [overlap]
+care_rs_organoids_genomics,Organoids and Genomics,overlap,"Genetics, Genomics & Precision Medicine [overlap]; Single-Cell & Spatial Biology [overlap]; Stem Cell & Regenerative Medicine [overlap]"
+care_rs_comp_biomed,Computational Biomedicine,overlap,Biomedical Informatics [overlap]; Systems Biology [overlap]
+care_rs_adv_imaging,Advanced Imaging,overlap,"Radiology, Medical Imaging & Medical Physics [overlap]"
+care_rs_data_sci_facilities,Data science facilities,overlap,Research Infrastructure & Scientific Workforce [overlap]
+care_rs_clinical_research_pipeline,Clinical research pipeline,area_broader,Translational & Clinical Science [area_broader]
+care_rs_physician_scientists,"Mentor, train and develop physician-scientists",area_broader,Medical Education & Healthcare Workforce [overlap]; Research Infrastructure & Scientific Workforce [area_broader]
+care_cl_clinical_research,Grow clinical research as bridge between missions,overlap,Translational & Clinical Science [overlap]
+care_cl_point_of_care_research,Point-of-care research,area_broader,Translational & Clinical Science [area_broader]
+care_ed_implementation_science,Implementation science,area_broader,Health Services Research & Health Policy [area_broader]
+care_ed_comp_bio,Computational bio,overlap,Systems Biology [overlap]
+care_ed_data_sci_ai,Data science/AI,overlap,Biomedical Informatics [overlap]

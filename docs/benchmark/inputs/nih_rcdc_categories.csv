@@ -1,0 +1,332 @@
+id,name,fy2025_amount_musd
+rcdc_1,Acquired Cognitive Impairment,3789
+rcdc_2,Acute Respiratory Distress Syndrome,160
+rcdc_3,Adolescent Sexual Activity,62
+rcdc_356,Adult/Somatic Stem Cell and Progenitor Cell Research,1393
+rcdc_4,Agent Orange & Dioxin,6
+rcdc_5,Aging,5833
+rcdc_6,"Alcoholism, Alcohol Use and Health",613
+rcdc_7,Allergic Rhinitis (Hay Fever),11
+rcdc_9,Alzheimer's Disease,3620
+rcdc_10,Alzheimer's Disease including Alzheimer's Disease Related Dementias (AD/ADRD),3882
+rcdc_11,Alzheimer's Disease Related Dementias (ADRD),970
+rcdc_12,American Indian or Alaska Native,238
+rcdc_8,Amyotrophic Lateral Sclerosis (ALS),252
+rcdc_13,Anorexia,14
+rcdc_14,Anthrax,5
+rcdc_15,Antimicrobial Resistance,703
+rcdc_16,Anxiety Disorders,253
+rcdc_17,Aphasia,55
+rcdc_18,Arctic,8
+rcdc_19,Arthritis,334
+rcdc_20,Assistive Technology,376
+rcdc_21,Asthma,242
+rcdc_22,Ataxia Telangiectasia,6
+rcdc_23,Atherosclerosis,403
+rcdc_24,Attention Deficit Hyperactivity Disorder (ADHD),73
+rcdc_25,Autism,339
+rcdc_26,Autoimmune Disease,1155
+rcdc_27,Back Pain,80
+rcdc_28,Basic Behavioral and Social Science,3226
+rcdc_29,Batten Disease,19
+rcdc_30,Behavioral and Social Science,8413
+rcdc_337,Biodefense and Related Countermeasures,2628
+rcdc_32,Bioengineering,7212
+rcdc_33,Biomedical Imaging,3288
+rcdc_34,Biotechnology,8846
+rcdc_35,Bipolar Disorder,72
+rcdc_36,Brain Cancer,434
+rcdc_37,Brain Disorders,9090
+rcdc_38,Breast Cancer,757
+rcdc_39,"Breastfeeding, Lactation and Breast Milk",146
+rcdc_327,Building Research Capacity at Institutions with Limited NIH Funding,738
+rcdc_40,Burden of Illness,164
+rcdc_41,Cachexia,30
+rcdc_42,Cancer,7853
+rcdc_43,Cancer Genomics,1401
+rcdc_44,Cannabidiol Research,44
+rcdc_45,Cannabinoid Research,233
+rcdc_46,Cardiovascular,2884
+rcdc_47,Caregiving Research,313
+rcdc_310,Celiac Disease,12
+rcdc_48,Cerebral Palsy,26
+rcdc_346,Cerebral Visual Impairment (CVI),2
+rcdc_49,Cerebrovascular,1089
+rcdc_50,Cervical Cancer,135
+rcdc_51,Charcot-Marie-Tooth Disease,9
+rcdc_52,Child Abuse and Neglect Research,41
+rcdc_143,Childhood Injury,273
+rcdc_53,Childhood Leukemia,260
+rcdc_54,Childhood Obesity,262
+rcdc_55,Chronic Fatigue Syndrome (ME/CFS),12
+rcdc_56,Chronic Liver Disease and Cirrhosis,470
+rcdc_57,Chronic Obstructive Pulmonary Disease,158
+rcdc_58,Chronic Pain,810
+rcdc_60,Climate-Related Exposures and Conditions,332
+rcdc_61,Clinical Research,18392
+rcdc_62,Clinical Trials and Supportive Activities,7029
+rcdc_320,Cocaine,147
+rcdc_63,Colorectal Cancer,361
+rcdc_64,Comparative Effectiveness Research,1255
+rcdc_65,Complementary and Integrative Health,696
+rcdc_66,Conditions Affecting the Embryonic and Fetal Periods,274
+rcdc_67,Congenital Heart Disease,139
+rcdc_68,Congenital Muscular Dystrophy,13
+rcdc_69,Congenital Structural Anomalies,607
+rcdc_70,Contraception/Reproduction,792
+rcdc_71,Cooley's Anemia,13
+rcdc_307,Coronaviruses,764
+rcdc_317,Coronaviruses Diagnostics and Prognostics,23
+rcdc_313,Coronaviruses Disparities and At-Risk Populations,284
+rcdc_314,Coronaviruses Therapeutics and Interventions,149
+rcdc_315,Coronaviruses Vaccines,110
+rcdc_72,Cost Effectiveness Research,350
+rcdc_73,Crohn's Disease,50
+rcdc_74,Cystic Fibrosis,86
+rcdc_295,Data Science,2317
+rcdc_75,Dementia,3701
+rcdc_76,"Dental, Oral, and Craniofacial Disease",788
+rcdc_77,Depression,694
+rcdc_78,Diabetes,1102
+rcdc_79,Dietary Supplements,250
+rcdc_80,Diethylstilbestrol (DES),2
+rcdc_81,Digestive Diseases,2823
+rcdc_82,Digestive Diseases - (Gallbladder),17
+rcdc_83,Digestive Diseases - (Peptic Ulcer),7
+rcdc_359,Digital Health,2042
+rcdc_342,Disability Research,587
+rcdc_312,Dissemination and Implementation Research,1306
+rcdc_84,Down Syndrome,124
+rcdc_85,Drug Abuse (NIDA only),1663
+rcdc_86,Duchenne/ Becker Muscular Dystrophy,37
+rcdc_87,Dystonia,17
+rcdc_88,Eating Disorders,53
+rcdc_89,Eczema / Atopic Dermatitis,72
+rcdc_300,Electronic Nicotine Delivery Systems,70
+rcdc_90,Emergency Care,255
+rcdc_91,Emerging Infectious Diseases,3379
+rcdc_92,Emphysema,26
+rcdc_347,End Stage Renal Disease,151
+rcdc_93,Endocannabinoid System Research,74
+rcdc_94,Endocrine Disruptors,255
+rcdc_95,Endometriosis,37
+rcdc_96,Epilepsy,216
+rcdc_303,Esophageal Cancer,61
+rcdc_97,Estrogen,326
+rcdc_98,Eye Disease and Disorders of Vision,1069
+rcdc_99,Facioscapulohumeral Muscular Dystrophy,10
+rcdc_338,Fentanyl Misuse and Addiction,109
+rcdc_100,Fetal Alcohol Spectrum Disorders (FASD),46
+rcdc_101,Fibroid Tumors (Uterine),21
+rcdc_102,Fibromyalgia,15
+rcdc_301,Firearms Research,22
+rcdc_103,Food Allergies,90
+rcdc_104,Foodborne Illness,166
+rcdc_105,Fragile X Syndrome,40
+rcdc_106,Frontotemporal Dementia (FTD),286
+rcdc_107,Gene Therapy,808
+rcdc_108,Gene Therapy Clinical Trials,113
+rcdc_109,Genetic Testing,263
+rcdc_110,Genetics,12140
+rcdc_352,Geroscience,244
+rcdc_332,Harm Reduction for Substance Misuse,126
+rcdc_112,Headaches,54
+rcdc_336,Health Disparities and Racial or Ethnic Minority Health Research,4412
+rcdc_330,Health Disparities Research,4103
+rcdc_115,Health Effects of Household Energy Combustion,28
+rcdc_116,Health Effects of Indoor Air Pollution,150
+rcdc_117,Health Services,3175
+rcdc_296,Hearing Loss,197
+rcdc_118,Heart Disease,1778
+rcdc_119,Heart Disease - Coronary Heart Disease,404
+rcdc_120,Hematology,1811
+rcdc_121,Hepatitis,387
+rcdc_122,Hepatitis - A,1
+rcdc_123,Hepatitis - B,173
+rcdc_124,Hepatitis - C,86
+rcdc_125,HIV/AIDS,3294
+rcdc_126,Hodgkin's Disease,24
+rcdc_127,Homelessness,39
+rcdc_128,Homicide and Legal Interventions,10
+rcdc_129,HPV and/or Cervical Cancer Vaccines,38
+rcdc_351,Human Embryonic Stem Cell Research,358
+rcdc_130,Human Fetal Tissue,53
+rcdc_131,Human Genome,5230
+rcdc_132,Huntington's Disease,39
+rcdc_133,Hydrocephalus,20
+rcdc_134,Hyperbaric Oxygen,9
+rcdc_135,Hypertension,377
+rcdc_136,Immunization,2140
+rcdc_297,Immunotherapy,2264
+rcdc_357,Induced Pluripotent Stem Cell Research,994
+rcdc_137,Infant Mortality,151
+rcdc_139,Infectious Diseases,7710
+rcdc_140,Infertility,242
+rcdc_141,Inflammatory Bowel Disease,186
+rcdc_142,Influenza,418
+rcdc_148,Intellectual and Developmental Disabilities (IDD),757
+rcdc_149,Interstitial Cystitis,22
+rcdc_150,Kidney Disease,745
+rcdc_151,Lead Poisoning,12
+rcdc_152,Lewy Body Dementia,114
+rcdc_153,Liver Cancer,195
+rcdc_154,Liver Disease,1000
+rcdc_155,Lung,2704
+rcdc_156,Lung Cancer,439
+rcdc_157,Lupus,148
+rcdc_158,Lyme Disease,54
+rcdc_309,Lymphatic Research,456
+rcdc_311,Lymphedema,18
+rcdc_159,Lymphoma,281
+rcdc_298,Machine Learning and Artificial Intelligence,3009
+rcdc_160,Macular Degeneration,96
+rcdc_161,Major Depressive Disorder,176
+rcdc_162,Malaria,218
+rcdc_163,Malaria Vaccine,66
+rcdc_164,Maternal Health,681
+rcdc_306,Maternal Morbidity and Mortality,425
+rcdc_333,Menopause,78
+rcdc_349,Men's Health Research,768
+rcdc_165,Mental Health,4196
+rcdc_166,Mental Illness,1304
+rcdc_168,Methamphetamine,85
+rcdc_299,Microbiome,1095
+rcdc_169,Migraine,43
+rcdc_172,Mucopolysaccharidoses (MPS),16
+rcdc_173,Multiple Sclerosis,112
+rcdc_174,Muscular Dystrophy,92
+rcdc_175,Myasthenia Gravis,7
+rcdc_176,Myotonic Dystrophy,11
+rcdc_177,Nanotechnology,751
+rcdc_328,Natural Products,374
+rcdc_178,Neck Pain,4
+rcdc_179,Neonatal Respiratory Distress,76
+rcdc_180,Networking and Information Technology R&D (NITRD),3242
+rcdc_181,Neuroblastoma,128
+rcdc_182,Neurodegenerative,5139
+rcdc_183,Neurofibromatosis,33
+rcdc_184,Neurosciences,11904
+rcdc_185,Nutrition,2129
+rcdc_186,Obesity,1172
+rcdc_187,Opioid Misuse and Addiction,662
+rcdc_188,Opioids,857
+rcdc_189,Organ Transplantation,319
+rcdc_190,Orphan Drug,2935
+rcdc_241,Orthopoxviruses,32
+rcdc_191,Osteoarthritis,147
+rcdc_192,Osteogenesis Imperfecta,14
+rcdc_193,Osteoporosis,118
+rcdc_194,Otitis Media,15
+rcdc_195,Ovarian Cancer,177
+rcdc_196,Paget's Disease,1
+rcdc_197,Pain Research,1026
+rcdc_339,Palliative Care,305
+rcdc_198,Pancreatic Cancer,288
+rcdc_199,Parkinson's Disease,255
+rcdc_200,Patient Safety,1838
+rcdc_201,Pediatric,6377
+rcdc_202,Pediatric - AIDS,148
+rcdc_203,Pediatric Cancer,732
+rcdc_204,Pediatric Cardiomyopathy,31
+rcdc_206,Pelvic Inflammatory Disease,2
+rcdc_354,Penile Diseases,24
+rcdc_207,Perinatal Period - Conditions Originating in Perinatal Period,970
+rcdc_208,Peripheral Neuropathy,194
+rcdc_209,Physical Activity,767
+rcdc_147,Physical Injury - Accidents and Adverse Effects,834
+rcdc_210,Physical Rehabilitation,271
+rcdc_212,Pneumonia,159
+rcdc_213,Pneumonia and Influenza,562
+rcdc_214,Polycystic Kidney Disease,41
+rcdc_321,Polycystic Ovary Syndrome (PCOS),9
+rcdc_319,Post-Acute Sequelae of SARS-CoV-2 infection (PASC) including Long COVID,98
+rcdc_215,Post-Traumatic Stress Disorder (PTSD),141
+rcdc_304,Postural Orthostatic Tachycardia Syndrome,4
+rcdc_216,Precision Medicine,2401
+rcdc_217,Pregnancy,717
+rcdc_218,Prescription Drug Misuse,41
+rcdc_219,"Preterm, Low Birth Weight and Health of the Newborn",461
+rcdc_220,Prevention,11869
+rcdc_334,Primary Health Care,781
+rcdc_343,Primary Immunodeficiencies,244
+rcdc_221,Prostate Cancer,314
+rcdc_360,Prostate Disease,370
+rcdc_222,Psoriasis,21
+rcdc_344,Psychosis,151
+rcdc_322,Pulmonary Fibrosis,165
+rcdc_325,Pulmonary Hypertension,106
+rcdc_335,Racial and Ethnic Minority Health Research,1944
+rcdc_223,Radiation Oncology,462
+rcdc_224,Rare Diseases,6881
+rcdc_331,Recovery Support Services,39
+rcdc_225,Regenerative Medicine,1087
+rcdc_226,Rehabilitation,972
+rcdc_227,Rett Syndrome,13
+rcdc_229,Rheumatoid Arthritis,66
+rcdc_230,Rural Health,915
+rcdc_324,Sarcoidosis,11
+rcdc_231,Sarcopenia,37
+rcdc_232,Schizophrenia,262
+rcdc_233,Scleroderma,38
+rcdc_234,Screening and Brief Intervention for Substance Misuse,25
+rcdc_235,Sepsis,207
+rcdc_236,Serious Mental Illness,556
+rcdc_238,Sexually Transmitted Infections,452
+rcdc_239,Sickle Cell Disease,155
+rcdc_350,Sjogren's Disease,30
+rcdc_340,Skin Cancer,285
+rcdc_240,Sleep Research,614
+rcdc_302,Social Determinants of Health,4314
+rcdc_242,Spina Bifida,10
+rcdc_243,Spinal Cord Injury,82
+rcdc_244,Spinal Muscular Atrophy,13
+rcdc_358,Stem Cell and Progenitor Cell Research,2592
+rcdc_323,Stimulant Use and Misuse,315
+rcdc_305,Stomach Cancer,56
+rcdc_256,Stroke,422
+rcdc_257,Substance Misuse,2483
+rcdc_258,Substance Misuse Prevention,75
+rcdc_259,Sudden Infant Death Syndrome,12
+rcdc_260,Suicide,217
+rcdc_261,Suicide Prevention,138
+rcdc_262,Teenage Pregnancy,18
+rcdc_316,Telehealth,495
+rcdc_263,Temporomandibular Muscle/Joint Disorder (TMJD),35
+rcdc_355,Testicular Cancer,12
+rcdc_264,Therapeutic Cannabinoid Research,65
+rcdc_318,Tickborne Diseases,129
+rcdc_265,Tobacco,312
+rcdc_266,Tobacco Smoke and Health,263
+rcdc_267,Topical Microbicides,58
+rcdc_268,Tourette Syndrome,9
+rcdc_361,Translational Research,14480
+rcdc_269,Transmissible Spongiform Encephalopathy (TSE),34
+rcdc_270,Transplantation,827
+rcdc_145,Traumatic Brain Injury (TBI),195
+rcdc_144,Traumatic Head and Spine Injury,297
+rcdc_271,Tuberculosis,588
+rcdc_272,Tuberculosis Vaccine,99
+rcdc_273,Tuberous Sclerosis,23
+rcdc_274,Underage Drinking,83
+rcdc_275,Underage Drinking - Prevention & Treatment (NIAAA Only),69
+rcdc_146,Unintentional Childhood Injury,75
+rcdc_353,Urinary Incontinence,23
+rcdc_348,Urinary Infection,49
+rcdc_276,Urologic Diseases,623
+rcdc_277,Usher Syndrome,20
+rcdc_278,Uterine Cancer,49
+rcdc_279,Vaccine Related,1860
+rcdc_280,Vaccine Related - AIDS,555
+rcdc_281,Vaginal Cancer,2
+rcdc_282,Valley Fever,17
+rcdc_283,Vascular Contributions to Cognitive Impairment and Dementia (VCID),496
+rcdc_284,Vector-Borne Diseases,743
+rcdc_285,Violence Against Women,56
+rcdc_286,Violence Research,220
+rcdc_287,Vulvodynia,6
+rcdc_288,West Nile Virus,20
+rcdc_345,Women's Health Research,3334
+rcdc_308,Wound Healing and Care,190
+rcdc_290,Youth Violence,74
+rcdc_291,Youth Violence Prevention,31
+rcdc_341,Zika Virus,37

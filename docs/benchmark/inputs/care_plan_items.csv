@@ -1,0 +1,21 @@
+id,item,pillar,section,in_scope,note
+care_ai_ds,AI and data science driven across missions,A (tenet),Guiding ethos,yes,One of the four CARE tenets
+care_rs_ai_ds,AI/Data Science,Research,Cross-cutting tools and resources,yes,
+care_rs_organoids_genomics,Organoids and Genomics,Research,Cross-cutting tools and resources,yes,
+care_rs_comp_biomed,Computational Biomedicine,Research,Cross-cutting tools and resources,yes,
+care_rs_adv_imaging,Advanced Imaging,Research,Cross-cutting tools and resources,yes,
+care_rs_data_sci_facilities,Data science facilities,Research,Objective (core facilities),yes,
+care_rs_clinical_research_pipeline,Clinical research pipeline,Research,Objective (partners),yes,
+care_rs_physician_scientists,"Mentor, train and develop physician-scientists",Research,Objective 4,yes,
+care_cl_clinical_research,Grow clinical research as bridge between missions,Clinical,Objective 4,yes,
+care_cl_point_of_care_research,Point-of-care research,Clinical,Objective 4,yes,
+care_ed_implementation_science,Implementation science,Education,Objective (curriculum),yes,
+care_ed_comp_bio,Computational bio,Education,Objective (curriculum),yes,
+care_ed_data_sci_ai,Data science/AI,Education,Objective (curriculum),yes,
+care_rs_thematic_areas,Thematic areas,Research,Objective 5 (recruitment),no,Named but not enumerated in the plan
+care_rs_funding,Diversify funding towards industry and non-federal sources,Research,Objective 1,no,Operational
+care_rs_core_facilities,Maximize use and efficiency of core facilities,Research,Objective 2,no,Operational
+care_rs_partners,"Advance opportunities with partners (Tri-I, One Cornell, venture fund, Qatar, Brooklyn/Queens, Columbia, Haiti/India/Tanzania)",Research,Objective 3,no,Operational/geographic
+care_rs_recruitment,Advance strategic institutional recruitment,Research,Objective 5,no,Operational
+care_rs_structures,Optimize institutional structures,Research,Objective 6,no,Operational
+care_rs_tech_licensing,Technology Licensing,Research,Cross-cutting tools and resources,no,Operational

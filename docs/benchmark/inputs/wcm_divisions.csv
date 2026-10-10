@@ -1,0 +1,43 @@
+code,dept_code,name,scholar_count
+N6382,N1280,Cardiology,270
+N6383,N1280,Endocrinology Diabetes and Metabolism,119
+N7453,N1280,Gastroenterology and Hepatology,201
+N2856,N1280,General Internal Medicine,632
+N8555,N1280,Geriatrics and Palliative Medicine,86
+N3632,N1280,Hematology and Medical Oncology,240
+N7575,N1280,Immunology,7
+N4967,N1280,Infectious Diseases,130
+N5687,N1280,Medical Ethics,19
+N7812,N1280,Nephrology and Hypertension,94
+N4237,N1280,Public Health Programs,7
+N6252,N1280,Pulmonary Medicine and Critical Care,125
+N9332,N1280,Regenerative Medicine,20
+N6943,N1280,Women's Health Center,2
+N8524,N1300,Neurophysiology,7
+N8764,N1340,General Obstetrics and Gynecology,49
+N7773,N1340,Gyn-Oncology,9
+N3628,N1340,Maternal Fetal Medicine,23
+N5676,N1440,Cardiology,27
+N7225,N1440,Child Development,7
+N4328,N1440,Endocrinology,11
+N3252,N1440,Gastroenterology,18
+N5382,N1440,General Pediatrics,133
+N7284,N1440,Genetics,6
+N8288,N1440,Hematology and Oncology,63
+N8537,N1440,Infectious Disease,18
+N5472,N1440,Nephrology,7
+N3343,N1440,Newborn Medicine,40
+N3385,N1440,Pulmonary and Allergy,28
+N2466,N1480,Comparative Effectiveness and Outcomes,24
+N2787,N1480,Epidemiology,26
+N3436,N1480,Health Policy and Economics,40
+N2483,N1480,Healthcare Delivery Srvc and Innovation,1
+N7724,N1500,Hospital Programs,150
+N8835,N1520,Diagnostic and Interventional Radiology,38
+N6235,N1560,"Critical Care, Trauma and Burn Surgery",39
+N8758,N1560,General Surgery,40
+N3623,N1560,Liver Transplantation Surgery,10
+N3763,N1560,Oral and Maxillofacial Surgery,1
+N7237,N1560,Pediatric Surgery,17
+N7778,N1560,Plastic and Reconstructive Surgery,83
+N7324,N1560,Vascular Surgery,43

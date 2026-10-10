@@ -1,0 +1,68 @@
+area,label,best,matches
+aging_geroscience,Aging & Geroscience,exact,National Institute on Aging [exact]
+anesthesiology,Anesthesiology,area_narrower,National Institute of General Medical Sciences [area_narrower]
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,area_narrower,National Institute of Allergy and Infectious Diseases [overlap]; National Institute of Arthritis and Musculoskeletal and Skin Diseases [area_narrower]
+basic_neuroscience,Basic Neuroscience,overlap,National Institute of Mental Health [overlap]; National Institute of Neurological Disorders and Stroke [overlap]
+biochemistry_biophysics,Biochemistry & Biophysics,area_narrower,National Institute of General Medical Sciences [area_narrower]
+bioethics_medical_humanities,"Bioethics, Medical Humanities & Clinician Wellbeing",none,
+biomedical_engineering,Biomedical Engineering,area_narrower,National Institute of Biomedical Imaging and Bioengineering [area_narrower]
+biomedical_informatics,Biomedical Informatics,area_narrower,National Library of Medicine [area_narrower]
+biostatistics_quantitative_sciences,Biostatistics & Quantitative Health Sciences,none,
+breast_cancer,Breast Cancer,area_narrower,National Cancer Institute [area_narrower]
+cancer_biology_general,Cancer Biology (General),area_narrower,National Cancer Institute [area_narrower]
+cardiovascular_disease,Cardiovascular Disease,area_narrower,"National Heart, Lung, and Blood Institute [area_narrower]"
+cell_molecular_biology,Cell & Molecular Biology,area_narrower,National Institute of General Medical Sciences [area_narrower]
+clinical_neurology,Clinical Neurology,area_narrower,National Institute of Neurological Disorders and Stroke [area_narrower]
+dermatology_skin_disease,Dermatology & Skin Disease,area_narrower,National Institute of Arthritis and Musculoskeletal and Skin Diseases [area_narrower]
+developmental_biology,Developmental Biology,area_narrower,Eunice Kennedy Shriver National Institute of Child Health and Human Development [area_narrower]; National Institute of General Medical Sciences [overlap]
+digital_health_telemedicine,Digital Health & Telemedicine,none,
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,overlap,National Center for Advancing Translational Sciences [overlap]; National Institute of General Medical Sciences [overlap]
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,overlap,National Institute of General Medical Sciences [overlap]
+environmental_planetary_health,Environmental & Planetary Health,exact,National Institute of Environmental Health Sciences [exact]
+epidemiology_population_health,Epidemiology & Population Health,none,
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",area_narrower,National Institute of Diabetes and Digestive and Kidney Diseases [area_narrower]
+gi_cancer,Gastrointestinal Cancer,area_narrower,National Cancer Institute [area_narrower]
+gene_cell_therapy,Gene & Cell Therapy,none,
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",overlap,National Human Genome Research Institute [overlap]
+global_public_health,Global & Public Health,overlap,Fogarty International Center [overlap]
+gynecologic_oncology,Gynecologic Oncology,area_narrower,National Cancer Institute [area_narrower]
+health_economics,Health Economics,none,
+health_equity_social_determinants,Health Equity & Social Determinants of Health,exact,National Institute on Minority Health and Health Disparities [exact]
+health_services_policy,Health Services Research & Health Policy,none,
+hematology,Hematology,overlap,"National Cancer Institute [overlap]; National Heart, Lung, and Blood Institute [overlap]"
+immunology_inflammation,Immunology & Inflammation,area_narrower,National Institute of Allergy and Infectious Diseases [area_narrower]
+infectious_disease_immunology,Infectious Disease & Host Defense,area_narrower,National Institute of Allergy and Infectious Diseases [area_narrower]
+lung_cancer,Lung Cancer,area_narrower,National Cancer Institute [area_narrower]
+maternal_child_health,Maternal & Child Health,area_narrower,Eunice Kennedy Shriver National Institute of Child Health and Human Development [area_narrower]
+medical_education_workforce,Medical Education & Healthcare Workforce,none,
+melanoma_skin_cancer,Melanoma & Skin Cancer,area_narrower,National Cancer Institute [area_narrower]
+mental_health_psychiatry,Mental Health & Psychiatry,exact,National Institute of Mental Health [exact]
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,area_narrower,National Institute of Diabetes and Digestive and Kidney Diseases [area_narrower]
+microbiome_research,Microbiome Research,none,
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,area_narrower,National Institute of Arthritis and Musculoskeletal and Skin Diseases [area_narrower]
+nephrology_renal_disease,Nephrology & Renal Disease,area_narrower,National Institute of Diabetes and Digestive and Kidney Diseases [area_narrower]
+neuro_oncology,Neuro-Oncology,area_narrower,National Cancer Institute [area_narrower]; National Institute of Neurological Disorders and Stroke [area_narrower]
+neurodegenerative_disease,Neurodegenerative Disease,area_narrower,National Institute on Aging [overlap]; National Institute of Neurological Disorders and Stroke [area_narrower]
+nutrition_metabolism,Nutrition & Metabolism,overlap,National Institute of Diabetes and Digestive and Kidney Diseases [overlap]
+ophthalmology_vision_science,Ophthalmology & Vision Science,exact,National Eye Institute [exact]
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,overlap,National Institute on Deafness and Other Communication Disorders [overlap]; National Institute of Dental and Craniofacial Research [overlap]
+pain_medicine,Pain Medicine,overlap,National Center for Complementary and Integrative Health [overlap]; National Institute of Neurological Disorders and Stroke [overlap]
+palliative_end_of_life_care,Palliative & End-of-Life Care,area_narrower,National Institute of Nursing Research [area_narrower]
+pathology_laboratory_medicine,Pathology & Laboratory Medicine,none,
+pediatrics_neonatology,Pediatrics & Neonatology,area_narrower,Eunice Kennedy Shriver National Institute of Child Health and Human Development [area_narrower]
+primary_care_general_medicine,Primary Care & General Internal Medicine,none,
+prostate_urologic_cancer,Prostate & Urologic Cancer,area_narrower,National Cancer Institute [area_narrower]
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,area_narrower,"National Heart, Lung, and Blood Institute [area_narrower]"
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",overlap,National Institute of Biomedical Imaging and Bioengineering [overlap]
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,overlap,Eunice Kennedy Shriver National Institute of Child Health and Human Development [overlap]
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,overlap,National Institute of General Medical Sciences [overlap]
+single_cell_spatial_biology,Single-Cell & Spatial Biology,none,
+sleep_medicine_circadian_biology,Sleep Medicine & Circadian Biology,overlap,"National Heart, Lung, and Blood Institute [overlap]"
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,none,
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,area_broader,National Institute on Alcohol Abuse and Alcoholism [area_broader]; National Institute on Drug Abuse [area_broader]
+surgery_perioperative_medicine,Surgery & Perioperative Medicine,none,
+systems_biology,Systems Biology,area_narrower,National Institute of General Medical Sciences [area_narrower]
+translational_clinical_science,Translational & Clinical Science,exact,National Center for Advancing Translational Sciences [exact]
+transplantation_medicine,Transplantation Medicine,overlap,National Institute of Allergy and Infectious Diseases [overlap]
+urology_mens_health,Urology & Men's Health,overlap,National Institute of Diabetes and Digestive and Kidney Diseases [overlap]
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,overlap,Eunice Kennedy Shriver National Institute of Child Health and Human Development [overlap]

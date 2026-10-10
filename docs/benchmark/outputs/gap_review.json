@@ -1,0 +1,152 @@
+[
+ {
+  "frame": "C1",
+  "decisions": [
+   {
+    "area_id": "pain_medicine",
+    "ref_id": "NCCIH",
+    "relation": "overlap",
+    "rationale": "Chronic pain management via nonpharmacologic/integrative approaches is NCCIH's top strategic research priority."
+   },
+   {
+    "area_id": "otolaryngology_head_neck",
+    "ref_id": "NIDCR",
+    "relation": "overlap",
+    "rationale": "NIDCR funds oral/oropharyngeal cancer, craniofacial, salivary and swallowing research within head and neck scope."
+   }
+  ],
+  "confirmed_unmatched": [
+   "bioethics_medical_humanities",
+   "biostatistics_quantitative_sciences",
+   "digital_health_telemedicine",
+   "epidemiology_population_health",
+   "gene_cell_therapy",
+   "health_economics",
+   "health_services_policy",
+   "medical_education_workforce",
+   "microbiome_research",
+   "pathology_laboratory_medicine",
+   "primary_care_general_medicine",
+   "single_cell_spatial_biology",
+   "stem_cell_regenerative_medicine",
+   "surgery_perioperative_medicine"
+  ]
+ },
+ {
+  "frame": "C2",
+  "decisions": [
+   {
+    "area_id": "health_equity_social_determinants",
+    "ref_id": "rcdc_12",
+    "relation": "area_broader",
+    "rationale": "AI/AN health is a specific minority-population focus within health equity/disparities research."
+   },
+   {
+    "area_id": "biomedical_engineering",
+    "ref_id": "rcdc_34",
+    "relation": "overlap",
+    "rationale": "Biotechnology and biomedical engineering share engineered biological systems, devices and platforms."
+   },
+   {
+    "area_id": "drug_discovery_pharmacology",
+    "ref_id": "rcdc_44",
+    "relation": "overlap",
+    "rationale": "CBD research is largely therapeutic pharmacology, parallel to Therapeutic Cannabinoid match."
+   },
+   {
+    "area_id": "otolaryngology_head_neck",
+    "ref_id": "rcdc_76",
+    "relation": "overlap",
+    "rationale": "Oral and craniofacial conditions, incl. oral cancers, overlap head and neck medicine."
+   },
+   {
+    "area_id": "pediatrics_neonatology",
+    "ref_id": "rcdc_84",
+    "relation": "area_broader",
+    "rationale": "Down syndrome is a neurodevelopmental condition central to pediatric research, like Rett."
+   },
+   {
+    "area_id": "pediatrics_neonatology",
+    "ref_id": "rcdc_105",
+    "relation": "area_broader",
+    "rationale": "Fragile X is a pediatric neurodevelopmental genetic disorder."
+   },
+   {
+    "area_id": "pediatrics_neonatology",
+    "ref_id": "rcdc_181",
+    "relation": "area_broader",
+    "rationale": "Neuroblastoma is a pediatric cancer; Pediatric Cancer already maps area_broader here."
+   },
+   {
+    "area_id": "pediatrics_neonatology",
+    "ref_id": "rcdc_146",
+    "relation": "area_broader",
+    "rationale": "Unintentional childhood injury is a subset of Childhood Injury, mapped to pediatrics."
+   },
+   {
+    "area_id": "drug_discovery_pharmacology",
+    "ref_id": "rcdc_190",
+    "relation": "overlap",
+    "rationale": "Orphan drug research is therapeutic development for rare diseases."
+   },
+   {
+    "area_id": "substance_use_addiction_medicine",
+    "ref_id": "rcdc_266",
+    "relation": "overlap",
+    "rationale": "Tobacco smoking health effects overlap tobacco use research, consistent with Tobacco mapping."
+   },
+   {
+    "area_id": "clinical_neurology",
+    "ref_id": "rcdc_273",
+    "relation": "area_broader",
+    "rationale": "Tuberous sclerosis is a neurocutaneous disorder (epilepsy), like Neurofibromatosis mapped here."
+   },
+   {
+    "area_id": "neurodegenerative_disease",
+    "ref_id": "rcdc_22",
+    "relation": "area_broader",
+    "rationale": "Ataxia telangiectasia is a progressive cerebellar neurodegenerative disorder."
+   },
+   {
+    "area_id": "metabolic_endocrine_disease",
+    "ref_id": "rcdc_97",
+    "relation": "overlap",
+    "rationale": "Estrogen research centers on hormonal regulation, core endocrine scope."
+   }
+  ],
+  "confirmed_unmatched": [
+   "anesthesiology",
+   "biochemistry_biophysics",
+   "bioethics_medical_humanities",
+   "cell_molecular_biology",
+   "medical_education_workforce",
+   "pathology_laboratory_medicine",
+   "single_cell_spatial_biology",
+   "surgery_perioperative_medicine",
+   "systems_biology",
+   "rcdc_3",
+   "rcdc_18",
+   "rcdc_28",
+   "rcdc_30",
+   "rcdc_55",
+   "rcdc_65",
+   "rcdc_80",
+   "rcdc_93",
+   "rcdc_301",
+   "rcdc_128",
+   "rcdc_130",
+   "rcdc_134",
+   "rcdc_309",
+   "rcdc_311",
+   "rcdc_172",
+   "rcdc_209",
+   "rcdc_304",
+   "rcdc_224",
+   "rcdc_308",
+   "rcdc_285",
+   "rcdc_286",
+   "rcdc_290",
+   "rcdc_291"
+  ]
+ }
+]

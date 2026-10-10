@@ -1,0 +1,19 @@
+area,area_label,ref,ref_name,relation,source,rationale
+biomedical_informatics,Biomedical Informatics,care_ai_ds,AI and data science driven across missions,overlap,agreed,Informatics applies ML/AI and data infrastructure to biomedicine; tenet spans all missions.
+biomedical_informatics,Biomedical Informatics,care_ed_data_sci_ai,Data science/AI,overlap,agreed,Data science and AI applied to biomedicine.
+biomedical_informatics,Biomedical Informatics,care_rs_ai_ds,AI/Data Science,overlap,agreed,"Machine learning, NLP and data infrastructure for biomedical research."
+biomedical_informatics,Biomedical Informatics,care_rs_comp_biomed,Computational Biomedicine,overlap,agreed,Computational methods applied to biomedical problems.
+biostatistics_quantitative_sciences,Biostatistics & Quantitative Health Sciences,care_rs_ai_ds,AI/Data Science,overlap,adjudicated,"Statistics and data science share core quantitative methods, and neither contains the other."
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",care_rs_organoids_genomics,Organoids and Genomics,overlap,agreed,Genomics half of the item.
+health_services_policy,Health Services Research & Health Policy,care_ed_implementation_science,Implementation science,area_broader,adjudicated,Implementation science is generally treated as a subdomain of health services research.
+medical_education_workforce,Medical Education & Healthcare Workforce,care_rs_physician_scientists,"Mentor, train and develop physician-scientists",overlap,agreed,Training and professional development of physicians.
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",care_rs_adv_imaging,Advanced Imaging,overlap,agreed,Imaging technologies shared; advanced imaging also includes research microscopy.
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,care_rs_data_sci_facilities,Data science facilities,overlap,agreed,Research data systems and institutional research capacity.
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,care_rs_physician_scientists,"Mentor, train and develop physician-scientists",area_broader,adjudicated,Physician-scientist training is a specific case of scientific workforce development.
+single_cell_spatial_biology,Single-Cell & Spatial Biology,care_rs_organoids_genomics,Organoids and Genomics,overlap,agreed,Single-cell genomics is a core genomics platform.
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,care_rs_organoids_genomics,Organoids and Genomics,overlap,agreed,Area explicitly covers organoid models.
+systems_biology,Systems Biology,care_ed_comp_bio,Computational bio,overlap,agreed,Computational modeling and network analysis of biological systems.
+systems_biology,Systems Biology,care_rs_comp_biomed,Computational Biomedicine,overlap,adjudicated,"Computational systems modeling is core to computational biomedicine, but systems biology also has experimental scope."
+translational_clinical_science,Translational & Clinical Science,care_cl_clinical_research,Grow clinical research as bridge between missions,overlap,agreed,Clinical research bridging bench and bedside.
+translational_clinical_science,Translational & Clinical Science,care_cl_point_of_care_research,Point-of-care research,area_broader,adjudicated,Point-of-care research is a form of patient-oriented clinical research covered by the area.
+translational_clinical_science,Translational & Clinical Science,care_rs_clinical_research_pipeline,Clinical research pipeline,area_broader,adjudicated,The clinical research pipeline is one component of translational and clinical research infrastructure.

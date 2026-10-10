@@ -1,0 +1,447 @@
+source,entry_id,entry,detail,how_represented,match_basis,represented_by
+WCM department,N1140,Anesthesiology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Anesthesiology (lift 19.669, n=101); Pain Medicine (lift 4.91, n=45); Emergency & Critical Care Medicine (lift 3.133, n=62); Biochemistry & Biophysics (lift 2.899, n=56)"
+WCM department,N1700,Biochemistry and Biophysics,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Biochemistry & Biophysics (lift 12.48, n=115); Cell & Molecular Biology (lift 5.374, n=161); Basic Neuroscience (lift 5.318, n=48); Drug Discovery & Pharmacology (lift 2.534, n=36)"
+WCM department,N1760,Brain and Mind Research,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Basic Neuroscience (lift 10.658, n=144); Neurodegenerative Disease (lift 7.701, n=58); Single-Cell & Spatial Biology (lift 3.841, n=26); Cell & Molecular Biology (lift 3.746, n=168)"
+WCM department,N1160,Cardiothoracic Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Lung Cancer (lift 10.239, n=40); Cardiovascular Disease (lift 6.363, n=262); Surgery & Perioperative Medicine (lift 5.546, n=263); Biostatistics & Quantitative Health Sciences (lift 2.054, n=58)"
+WCM department,N1710,Cell and Developmental Biology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Cell & Molecular Biology (lift 5.051, n=37)"
+WCM department,N1220,Dermatology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Dermatology & Skin Disease (lift 59.307, n=89)"
+WCM department,N1240,Emergency Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Emergency & Critical Care Medicine (lift 10.387, n=144); Global & Public Health (lift 4.342, n=93); Aging & Geroscience (lift 4.073, n=55); Medical Education & Healthcare Workforce (lift 3.571, n=58)"
+WCM department,N1720,Genetic Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Gene & Cell Therapy (lift 15.112, n=28); Metabolic & Endocrine Disease (lift 3.443, n=27); Genetics, Genomics & Precision Medicine (lift 3.055, n=36); Cell & Molecular Biology (lift 2.265, n=47)"
+WCM department,N1932,Library,,"Aligned research area, but under 25 papers",publication data,"Research Infrastructure & Scientific Workforce (lift 14.01, n=15); Environmental & Planetary Health (lift 8.625, n=4); Microbiome Research (lift 4.606, n=3); Sleep Medicine & Circadian Biology (lift 3.118, n=1)"
+WCM department,N1280,Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Transplantation Medicine (lift 2.068, n=154); Primary Care & General Internal Medicine (lift 2.015, n=184)"
+WCM department,N1730,Microbiology and Immunology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Biochemistry & Biophysics (lift 6.376, n=72); Infectious Disease & Host Defense (lift 4.247, n=113); Cell & Molecular Biology (lift 3.949, n=145); Drug Discovery & Pharmacology (lift 3.848, n=67)"
+WCM department,N1320,Neurological Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Neuro-Oncology (lift 12.685, n=57); Musculoskeletal & Orthopedic Medicine (lift 12.466, n=163); Clinical Neurology (lift 5.347, n=179); Surgery & Perioperative Medicine (lift 4.76, n=269)"
+WCM department,N1300,Neurology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Clinical Neurology (lift 9.573, n=288); Neuro-Oncology (lift 6.934, n=28); Neurodegenerative Disease (lift 4.221, n=41); Emergency & Critical Care Medicine (lift 2.963, n=54)"
+WCM department,N1340,Obstetrics and Gynecology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Gynecologic Oncology (lift 13.095, n=55); Women's Health & Reproductive Medicine (lift 10.276, n=251); Maternal & Child Health (lift 9.757, n=150); Genetics, Genomics & Precision Medicine (lift 2.2, n=81)"
+WCM department,N1360,Ophthalmology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Ophthalmology & Vision Science (lift 58.782, n=94)"
+WCM department,N8265,Orthopaedic Surgery,,No scored papers from this unit,publication data,
+WCM department,N1400,Otolaryngology Head and Neck Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Otolaryngology & Head and Neck Medicine (lift 41.248, n=203); Surgery & Perioperative Medicine (lift 2.784, n=73); Biomedical Informatics (lift 2.225, n=27)"
+WCM department,N1420,Pathology and Laboratory Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pathology & Laboratory Medicine (lift 5.36, n=341); Cancer Biology (General) (lift 4.048, n=234); Neuro-Oncology (lift 3.43, n=33); Gastrointestinal Cancer (lift 2.979, n=55)"
+WCM department,N1440,Pediatrics,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pediatrics & Neonatology (lift 8.241, n=318); Maternal & Child Health (lift 2.837, n=63); Immunology & Inflammation (lift 2.55, n=134); Hematology (lift 2.405, n=70)"
+WCM department,N1750,Pharmacology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Biochemistry & Biophysics (lift 6.255, n=81); Nutrition & Metabolism (lift 5.37, n=32); Cancer Biology (General) (lift 4.812, n=85); Drug Discovery & Pharmacology (lift 4.457, n=89)"
+WCM department,N1480,Population Health Sciences,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Health Economics (lift 3.501, n=199); Substance Use & Addiction Medicine (lift 3.421, n=153); Biomedical Informatics (lift 2.684, n=280); Biostatistics & Quantitative Health Sciences (lift 2.646, n=355)"
+WCM department,N1500,Psychiatry,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Mental Health & Psychiatry (lift 12.593, n=230); Basic Neuroscience (lift 5.178, n=76); Digital Health & Telemedicine (lift 4.376, n=46); Substance Use & Addiction Medicine (lift 4.006, n=34)"
+WCM department,N1530,Radiation Oncology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Cancer Biology (General) (lift 4.902, n=31); Immunology & Inflammation (lift 4.611, n=39); Cell & Molecular Biology (lift 2.056, n=31)"
+WCM department,N1520,Radiology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Radiology, Medical Imaging & Medical Physics (lift 7.661, n=612); Neurodegenerative Disease (lift 4.258, n=91); Neuro-Oncology (lift 3.377, n=30); Palliative & End-of-Life Care (lift 3.092, n=49)"
+WCM department,N1540,Rehabilitation Medicine,,"Aligned research area, but under 25 papers",publication data,"Rehabilitation & Disability Medicine (lift 34.924, n=19); Musculoskeletal & Orthopedic Medicine (lift 23.036, n=23); Pain Medicine (lift 18.128, n=13); Sleep Medicine & Circadian Biology (lift 4.977, n=1)"
+WCM department,N1180,Reproductive Medicine,,No scored papers from this unit,publication data,
+WCM department,N1560,Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Surgery & Perioperative Medicine (lift 4.405, n=344); Gastrointestinal Cancer (lift 4.197, n=50); Breast Cancer (lift 3.761, n=77); Biomedical Engineering (lift 3.669, n=47)"
+WCM department,N1740,Systems and Computational Biomedicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Systems Biology (lift 6.542, n=109); Single-Cell & Spatial Biology (lift 4.621, n=62); Genetics, Genomics & Precision Medicine (lift 4.298, n=217); Cancer Biology (General) (lift 4.103, n=153)"
+WCM department,N1580,Urology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Urology & Men's Health (lift 21.755, n=178); Prostate & Urologic Cancer (lift 17.25, n=105); Surgery & Perioperative Medicine (lift 2.144, n=66)"
+WCM division,N6382,Medicine / Cardiology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Cardiovascular Disease (lift 8.407, n=381); Biomedical Engineering (lift 3.153, n=27); Pulmonary & Critical Care Medicine (lift 2.682, n=34)"
+WCM division,N6383,Medicine / Endocrinology Diabetes and Metabolism,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Metabolic & Endocrine Disease (lift 11.619, n=165); Ophthalmology & Vision Science (lift 10.764, n=44); Nutrition & Metabolism (lift 4.89, n=26); Clinical Neurology (lift 3.122, n=61)"
+WCM division,N7453,Medicine / Gastroenterology and Hepatology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Gastroenterology, Hepatology & Pancreatic Disease (lift 10.72, n=348); Microbiome Research (lift 5.658, n=38); Gastrointestinal Cancer (lift 3.691, n=40); Transplantation Medicine (lift 3.245, n=35)"
+WCM division,N2856,Medicine / General Internal Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Primary Care & General Internal Medicine (lift 6.645, n=116); Health Equity & Social Determinants of Health (lift 3.275, n=217); Global & Public Health (lift 2.675, n=139); Epidemiology & Population Health (lift 2.477, n=317)"
+WCM division,N8555,Medicine / Geriatrics and Palliative Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Palliative & End-of-Life Care (lift 19.882, n=86); Aging & Geroscience (lift 13.132, n=140); Digital Health & Telemedicine (lift 7.34, n=55); Pain Medicine (lift 6.511, n=33)"
+WCM division,N3632,Medicine / Hematology and Medical Oncology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Hematology (lift 5.929, n=207); Prostate & Urologic Cancer (lift 5.331, n=104); Cancer Biology (General) (lift 3.903, n=184); Urology & Men's Health (lift 3.737, n=98)"
+WCM division,N7575,Medicine / Immunology,,No scored papers from this unit,publication data,
+WCM division,N4967,Medicine / Infectious Diseases,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Infectious Disease & Host Defense (lift 5.472, n=329); Global & Public Health (lift 4.035, n=163); Substance Use & Addiction Medicine (lift 2.006, n=29)"
+WCM division,N5687,Medicine / Medical Ethics,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Bioethics, Medical Humanities & Clinician Wellbeing (lift 41.108, n=65)"
+WCM division,N7812,Medicine / Nephrology and Hypertension,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Nephrology & Renal Disease (lift 24.625, n=97); Transplantation Medicine (lift 17.133, n=57); Pathology & Laboratory Medicine (lift 3.212, n=37); Immunology & Inflammation (lift 2.715, n=38)"
+WCM division,N4237,Medicine / Public Health Programs,,No scored papers from this unit,publication data,
+WCM division,N6252,Medicine / Pulmonary Medicine and Critical Care,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pulmonary & Critical Care Medicine (lift 17.803, n=134); Emergency & Critical Care Medicine (lift 3.326, n=37); Infectious Disease & Host Defense (lift 2.346, n=60); Immunology & Inflammation (lift 2.222, n=44)"
+WCM division,N9332,Medicine / Regenerative Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Stem Cell & Regenerative Medicine (lift 15.183, n=41); Developmental Biology (lift 14.682, n=25); Cell & Molecular Biology (lift 3.808, n=61)"
+WCM division,N6943,Medicine / Women's Health Center,,No scored papers from this unit,publication data,
+WCM division,N8524,Neurology / Neurophysiology,,"Aligned research area, but under 25 papers",publication data,"Clinical Neurology (lift 9.388, n=9); Emergency & Critical Care Medicine (lift 6.888, n=4); Neurodegenerative Disease (lift 6.462, n=2); Hematology (lift 3.493, n=2)"
+WCM division,N8764,Obstetrics and Gynecology / General Obstetrics and Gynecology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Gynecologic Oncology (lift 35.043, n=28); Women's Health & Reproductive Medicine (lift 12.052, n=56)"
+WCM division,N7773,Obstetrics and Gynecology / Gyn-Oncology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Gynecologic Oncology (lift 49.787, n=41); Women's Health & Reproductive Medicine (lift 10.231, n=49); Genetics, Genomics & Precision Medicine (lift 5.54, n=40)"
+WCM division,N3628,Obstetrics and Gynecology / Maternal Fetal Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Maternal & Child Health (lift 17.249, n=69); Women's Health & Reproductive Medicine (lift 8.811, n=56)"
+WCM division,N5676,Pediatrics / Cardiology,,"Aligned research area, but under 25 papers",publication data,"Developmental Biology (lift 11.85, n=5); Stem Cell & Regenerative Medicine (lift 8.967, n=6); Pediatrics & Neonatology (lift 7.95, n=13); Cardiovascular Disease (lift 6.61, n=20)"
+WCM division,N7225,Pediatrics / Child Development,,"Aligned research area, but under 25 papers",publication data,"Nutrition & Metabolism (lift 16.615, n=1); Bioethics, Medical Humanities & Clinician Wellbeing (lift 13.351, n=1); Pediatrics & Neonatology (lift 11.415, n=2); Mental Health & Psychiatry (lift 6.272, n=1)"
+WCM division,N4328,Pediatrics / Endocrinology,,"Aligned research area, but under 25 papers",publication data,"Metabolic & Endocrine Disease (lift 13.062, n=14); Pediatrics & Neonatology (lift 12.842, n=15); Nutrition & Metabolism (lift 7.477, n=3); Environmental & Planetary Health (lift 5.965, n=1)"
+WCM division,N3252,Pediatrics / Gastroenterology,,"Aligned research area, but under 25 papers",publication data,"Microbiome Research (lift 16.769, n=5); Gastroenterology, Hepatology & Pancreatic Disease (lift 11.102, n=16); Pediatrics & Neonatology (lift 8.786, n=13); Single-Cell & Spatial Biology (lift 5.534, n=3)"
+WCM division,N5382,Pediatrics / General Pediatrics,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pediatrics & Neonatology (lift 9.524, n=61); Medical Education & Healthcare Workforce (lift 6.272, n=36)"
+WCM division,N7284,Pediatrics / Genetics,,"Aligned research area, but under 25 papers",publication data,"Maternal & Child Health (lift 15.749, n=3); Ophthalmology & Vision Science (lift 11.44, n=1); Nephrology & Renal Disease (lift 7.885, n=1); Substance Use & Addiction Medicine (lift 7.145, n=1)"
+WCM division,N8288,Pediatrics / Hematology and Oncology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Hematology (lift 7.653, n=30); Immunology & Inflammation (lift 3.532, n=25); Translational & Clinical Science (lift 2.467, n=25); Cell & Molecular Biology (lift 2.061, n=26)"
+WCM division,N8537,Pediatrics / Infectious Disease,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pediatrics & Neonatology (lift 8.35, n=33); Infectious Disease & Host Defense (lift 6.762, n=47); Immunology & Inflammation (lift 5.017, n=27)"
+WCM division,N5472,Pediatrics / Nephrology,,"Aligned research area, but under 25 papers",publication data,"Nephrology & Renal Disease (lift 33.052, n=18); Pediatrics & Neonatology (lift 10.555, n=15); Ophthalmology & Vision Science (lift 5.328, n=2); Hematology (lift 3.732, n=4)"
+WCM division,N3343,Pediatrics / Newborn Medicine,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pediatrics & Neonatology (lift 16.052, n=35)"
+WCM division,N3385,Pediatrics / Pulmonary and Allergy,,"Aligned research area, but under 25 papers",publication data,"Pulmonary & Critical Care Medicine (lift 18.282, n=21); Environmental & Planetary Health (lift 9.419, n=3); Pediatrics & Neonatology (lift 7.66, n=17); Nutrition & Metabolism (lift 6.558, n=5)"
+WCM division,N2466,Population Health Sciences / Comparative Effectiveness and Outcomes,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Substance Use & Addiction Medicine (lift 12.035, n=130); Health Economics (lift 4.954, n=68); Health Services Research & Health Policy (lift 3.647, n=219); Biostatistics & Quantitative Health Sciences (lift 2.839, n=92)"
+WCM division,N2787,Population Health Sciences / Epidemiology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Breast Cancer (lift 5.906, n=92); Global & Public Health (lift 4.675, n=154); Epidemiology & Population Health (lift 3.378, n=274); Biostatistics & Quantitative Health Sciences (lift 3.054, n=108)"
+WCM division,N3436,Population Health Sciences / Health Policy and Economics,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Health Economics (lift 11.934, n=112); Health Services Research & Health Policy (lift 5.139, n=211); Primary Care & General Internal Medicine (lift 4.184, n=29); Substance Use & Addiction Medicine (lift 3.927, n=29)"
+WCM division,N2483,Population Health Sciences / Healthcare Delivery Srvc and Innovation,,No scored papers from this unit,publication data,
+WCM division,N7724,Psychiatry / Hospital Programs,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Mental Health & Psychiatry (lift 16.742, n=78)"
+WCM division,N8835,Radiology / Diagnostic and Interventional Radiology,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Neurodegenerative Disease (lift 13.142, n=51); Radiology, Medical Imaging & Medical Physics (lift 8.549, n=124); Clinical Neurology (lift 4.909, n=59)"
+WCM division,N6235,"Surgery / Critical Care, Trauma and Burn Surgery",,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Emergency & Critical Care Medicine (lift 12.29, n=28)"
+WCM division,N8758,Surgery / General Surgery,,"Aligned research area, but under 25 papers",publication data,"Surgery & Perioperative Medicine (lift 6.886, n=8); Breast Cancer (lift 6.566, n=2); Metabolic & Endocrine Disease (lift 5.998, n=3); Women's Health & Reproductive Medicine (lift 4.012, n=2)"
+WCM division,N3623,Surgery / Liver Transplantation Surgery,,"Aligned research area, but under 25 papers",publication data,"Transplantation Medicine (lift 35.267, n=10); Nephrology & Renal Disease (lift 20.851, n=7); Single-Cell & Spatial Biology (lift 6.231, n=2); Stem Cell & Regenerative Medicine (lift 5.58, n=2)"
+WCM division,N3763,Surgery / Oral and Maxillofacial Surgery,,No scored papers from this unit,publication data,
+WCM division,N7237,Surgery / Pediatric Surgery,,"Aligned research area, but under 25 papers",publication data,"Sleep Medicine & Circadian Biology (lift 15.224, n=1); Medical Education & Healthcare Workforce (lift 11.801, n=7); Gastrointestinal Cancer (lift 4.646, n=1); Biomedical Engineering (lift 4.321, n=1)"
+WCM division,N7778,Surgery / Plastic and Reconstructive Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Pain Medicine (lift 13.27, n=28); Breast Cancer (lift 10.815, n=36); Surgery & Perioperative Medicine (lift 8.349, n=106); Clinical Neurology (lift 3.457, n=26)"
+WCM division,N7324,Surgery / Vascular Surgery,,"Home unit of a research area (lift >= 2, >= 25 papers)",publication data,"Cardiovascular Disease (lift 7.592, n=32); Surgery & Perioperative Medicine (lift 7.004, n=34)"
+CARE Strategic Plan,care_ai_ds,AI and data science driven across missions,A (tenet): Guiding ethos,Partial overlap,agreed,Biomedical Informatics (partial overlap)
+CARE Strategic Plan,care_rs_ai_ds,AI/Data Science,Research: Cross-cutting tools and resources,Partial overlap,adjudicated + agreed,Biomedical Informatics (partial overlap); Biostatistics & Quantitative Health Sciences (partial overlap)
+CARE Strategic Plan,care_rs_organoids_genomics,Organoids and Genomics,Research: Cross-cutting tools and resources,Partial overlap,agreed,"Genetics, Genomics & Precision Medicine (partial overlap); Single-Cell & Spatial Biology (partial overlap); Stem Cell & Regenerative Medicine (partial overlap)"
+CARE Strategic Plan,care_rs_comp_biomed,Computational Biomedicine,Research: Cross-cutting tools and resources,Partial overlap,adjudicated + agreed,Biomedical Informatics (partial overlap); Systems Biology (partial overlap)
+CARE Strategic Plan,care_rs_adv_imaging,Advanced Imaging,Research: Cross-cutting tools and resources,Partial overlap,agreed,"Radiology, Medical Imaging & Medical Physics (partial overlap)"
+CARE Strategic Plan,care_rs_data_sci_facilities,Data science facilities,Research: Objective (core facilities),Partial overlap,agreed,Research Infrastructure & Scientific Workforce (partial overlap)
+CARE Strategic Plan,care_rs_clinical_research_pipeline,Clinical research pipeline,Research: Objective (partners),Contained in a broader research area,adjudicated,Translational & Clinical Science (contains it)
+CARE Strategic Plan,care_rs_physician_scientists,"Mentor, train and develop physician-scientists",Research: Objective 4,Contained in a broader research area,adjudicated + agreed,Medical Education & Healthcare Workforce (partial overlap); Research Infrastructure & Scientific Workforce (contains it)
+CARE Strategic Plan,care_cl_clinical_research,Grow clinical research as bridge between missions,Clinical: Objective 4,Partial overlap,agreed,Translational & Clinical Science (partial overlap)
+CARE Strategic Plan,care_cl_point_of_care_research,Point-of-care research,Clinical: Objective 4,Contained in a broader research area,adjudicated,Translational & Clinical Science (contains it)
+CARE Strategic Plan,care_ed_implementation_science,Implementation science,Education: Objective (curriculum),Contained in a broader research area,adjudicated,Health Services Research & Health Policy (contains it)
+CARE Strategic Plan,care_ed_comp_bio,Computational bio,Education: Objective (curriculum),Partial overlap,agreed,Systems Biology (partial overlap)
+CARE Strategic Plan,care_ed_data_sci_ai,Data science/AI,Education: Objective (curriculum),Partial overlap,agreed,Biomedical Informatics (partial overlap)
+CARE Strategic Plan,care_rs_thematic_areas,Thematic areas,Research: Objective 5 (recruitment),"Out of scope (operational, not a research domain)",Named but not enumerated in the plan,
+CARE Strategic Plan,care_rs_funding,Diversify funding towards industry and non-federal sources,Research: Objective 1,"Out of scope (operational, not a research domain)",Operational,
+CARE Strategic Plan,care_rs_core_facilities,Maximize use and efficiency of core facilities,Research: Objective 2,"Out of scope (operational, not a research domain)",Operational,
+CARE Strategic Plan,care_rs_partners,"Advance opportunities with partners (Tri-I, One Cornell, venture fund, Qatar, Brooklyn/Queens, Columbia, Haiti/India/Tanzania)",Research: Objective 3,"Out of scope (operational, not a research domain)",Operational/geographic,
+CARE Strategic Plan,care_rs_recruitment,Advance strategic institutional recruitment,Research: Objective 5,"Out of scope (operational, not a research domain)",Operational,
+CARE Strategic Plan,care_rs_structures,Optimize institutional structures,Research: Objective 6,"Out of scope (operational, not a research domain)",Operational,
+CARE Strategic Plan,care_rs_tech_licensing,Technology Licensing,Research: Cross-cutting tools and resources,"Out of scope (operational, not a research domain)",Operational,
+NIH Institute/Center,FIC,Fogarty International Center,,Partial overlap,agreed,Global & Public Health (partial overlap)
+NIH Institute/Center,NCATS,National Center for Advancing Translational Sciences,,Exact match,agreed,Drug Discovery & Pharmacology (partial overlap); Translational & Clinical Science (exact match)
+NIH Institute/Center,NCCIH,National Center for Complementary and Integrative Health,,Partial overlap,gap_review,Pain Medicine (partial overlap)
+NIH Institute/Center,NCI,National Cancer Institute,,Covered by narrower research areas,agreed,Breast Cancer (part of it); Cancer Biology (General) (part of it); Gastrointestinal Cancer (part of it); Gynecologic Oncology (part of it); Hematology (partial overlap); Lung Cancer (part of it); Melanoma & Skin Cancer (part of it); Neuro-Oncology (part of it); Prostate & Urologic Cancer (part of it)
+NIH Institute/Center,NEI,National Eye Institute,,Exact match,agreed,Ophthalmology & Vision Science (exact match)
+NIH Institute/Center,NHGRI,National Human Genome Research Institute,,Partial overlap,adjudicated,"Genetics, Genomics & Precision Medicine (partial overlap)"
+NIH Institute/Center,NHLBI,"National Heart, Lung, and Blood Institute",,Covered by narrower research areas,agreed,Cardiovascular Disease (part of it); Hematology (partial overlap); Pulmonary & Critical Care Medicine (part of it); Sleep Medicine & Circadian Biology (partial overlap)
+NIH Institute/Center,NIA,National Institute on Aging,,Exact match,agreed,Aging & Geroscience (exact match); Neurodegenerative Disease (partial overlap)
+NIH Institute/Center,NIAAA,National Institute on Alcohol Abuse and Alcoholism,,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH Institute/Center,NIAID,National Institute of Allergy and Infectious Diseases,,Covered by narrower research areas,agreed,Autoimmune & Rheumatologic Disease (partial overlap); Immunology & Inflammation (part of it); Infectious Disease & Host Defense (part of it); Transplantation Medicine (partial overlap)
+NIH Institute/Center,NIAMS,National Institute of Arthritis and Musculoskeletal and Skin Diseases,,Covered by narrower research areas,agreed,Autoimmune & Rheumatologic Disease (part of it); Dermatology & Skin Disease (part of it); Musculoskeletal & Orthopedic Medicine (part of it)
+NIH Institute/Center,NIBIB,National Institute of Biomedical Imaging and Bioengineering,,Covered by narrower research areas,agreed,"Biomedical Engineering (part of it); Radiology, Medical Imaging & Medical Physics (partial overlap)"
+NIH Institute/Center,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,,Covered by narrower research areas,adjudicated + agreed,Developmental Biology (part of it); Maternal & Child Health (part of it); Pediatrics & Neonatology (part of it); Rehabilitation & Disability Medicine (partial overlap); Women's Health & Reproductive Medicine (partial overlap)
+NIH Institute/Center,NIDA,National Institute on Drug Abuse,,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH Institute/Center,NIDCD,National Institute on Deafness and Other Communication Disorders,,Partial overlap,agreed,Otolaryngology & Head and Neck Medicine (partial overlap)
+NIH Institute/Center,NIDCR,National Institute of Dental and Craniofacial Research,,Partial overlap,gap_review,Otolaryngology & Head and Neck Medicine (partial overlap)
+NIH Institute/Center,NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,,Covered by narrower research areas,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (part of it); Metabolic & Endocrine Disease (part of it); Nephrology & Renal Disease (part of it); Nutrition & Metabolism (partial overlap); Urology & Men's Health (partial overlap)"
+NIH Institute/Center,NIEHS,National Institute of Environmental Health Sciences,,Exact match,agreed,Environmental & Planetary Health (exact match)
+NIH Institute/Center,NIGMS,National Institute of General Medical Sciences,,Covered by narrower research areas,adjudicated + agreed,Anesthesiology (part of it); Biochemistry & Biophysics (part of it); Cell & Molecular Biology (part of it); Developmental Biology (partial overlap); Drug Discovery & Pharmacology (partial overlap); Emergency & Critical Care Medicine (partial overlap); Research Infrastructure & Scientific Workforce (partial overlap); Systems Biology (part of it)
+NIH Institute/Center,NIMH,National Institute of Mental Health,,Exact match,agreed,Basic Neuroscience (partial overlap); Mental Health & Psychiatry (exact match)
+NIH Institute/Center,NIMHD,National Institute on Minority Health and Health Disparities,,Exact match,agreed,Health Equity & Social Determinants of Health (exact match)
+NIH Institute/Center,NINDS,National Institute of Neurological Disorders and Stroke,,Covered by narrower research areas,adjudicated + agreed,Basic Neuroscience (partial overlap); Clinical Neurology (part of it); Neuro-Oncology (part of it); Neurodegenerative Disease (part of it); Pain Medicine (partial overlap)
+NIH Institute/Center,NINR,National Institute of Nursing Research,,Covered by narrower research areas,adjudicated,Palliative & End-of-Life Care (part of it)
+NIH Institute/Center,NLM,National Library of Medicine,,Covered by narrower research areas,adjudicated,Biomedical Informatics (part of it)
+NIH RCDC category,rcdc_1,Acquired Cognitive Impairment,FY2025 $3789M,Partial overlap,adjudicated,Neurodegenerative Disease (partial overlap)
+NIH RCDC category,rcdc_2,Acute Respiratory Distress Syndrome,FY2025 $160M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_3,Adolescent Sexual Activity,FY2025 $62M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_356,Adult/Somatic Stem Cell and Progenitor Cell Research,FY2025 $1393M,Contained in a broader research area,agreed,Stem Cell & Regenerative Medicine (contains it)
+NIH RCDC category,rcdc_4,Agent Orange & Dioxin,FY2025 $6M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_5,Aging,FY2025 $5833M,Exact match,agreed,Aging & Geroscience (exact match)
+NIH RCDC category,rcdc_6,"Alcoholism, Alcohol Use and Health",FY2025 $613M,Partial overlap,adjudicated,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_7,Allergic Rhinitis (Hay Fever),FY2025 $11M,Contained in a broader research area,agreed,Otolaryngology & Head and Neck Medicine (contains it)
+NIH RCDC category,rcdc_9,Alzheimer's Disease,FY2025 $3620M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_10,Alzheimer's Disease including Alzheimer's Disease Related Dementias (AD/ADRD),FY2025 $3882M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_11,Alzheimer's Disease Related Dementias (ADRD),FY2025 $970M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_12,American Indian or Alaska Native,FY2025 $238M,Contained in a broader research area,gap_review,Health Equity & Social Determinants of Health (contains it)
+NIH RCDC category,rcdc_8,Amyotrophic Lateral Sclerosis (ALS),FY2025 $252M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_13,Anorexia,FY2025 $14M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_14,Anthrax,FY2025 $5M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_15,Antimicrobial Resistance,FY2025 $703M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_16,Anxiety Disorders,FY2025 $253M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_17,Aphasia,FY2025 $55M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_18,Arctic,FY2025 $8M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_19,Arthritis,FY2025 $334M,Partial overlap,agreed,Autoimmune & Rheumatologic Disease (partial overlap); Musculoskeletal & Orthopedic Medicine (partial overlap)
+NIH RCDC category,rcdc_20,Assistive Technology,FY2025 $376M,Contained in a broader research area,adjudicated + agreed,Biomedical Engineering (partial overlap); Rehabilitation & Disability Medicine (contains it)
+NIH RCDC category,rcdc_21,Asthma,FY2025 $242M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_22,Ataxia Telangiectasia,FY2025 $6M,Contained in a broader research area,gap_review,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_23,Atherosclerosis,FY2025 $403M,Contained in a broader research area,agreed,Cardiovascular Disease (contains it)
+NIH RCDC category,rcdc_24,Attention Deficit Hyperactivity Disorder (ADHD),FY2025 $73M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_25,Autism,FY2025 $339M,Contained in a broader research area,adjudicated,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_26,Autoimmune Disease,FY2025 $1155M,Partial overlap,agreed,Autoimmune & Rheumatologic Disease (partial overlap)
+NIH RCDC category,rcdc_27,Back Pain,FY2025 $80M,Contained in a broader research area,adjudicated + agreed,Musculoskeletal & Orthopedic Medicine (partial overlap); Pain Medicine (contains it)
+NIH RCDC category,rcdc_28,Basic Behavioral and Social Science,FY2025 $3226M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_29,Batten Disease,FY2025 $19M,Contained in a broader research area,adjudicated,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_30,Behavioral and Social Science,FY2025 $8413M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_337,Biodefense and Related Countermeasures,FY2025 $2628M,Partial overlap,agreed,Infectious Disease & Host Defense (partial overlap)
+NIH RCDC category,rcdc_32,Bioengineering,FY2025 $7212M,Exact match,agreed,Biomedical Engineering (exact match)
+NIH RCDC category,rcdc_33,Biomedical Imaging,FY2025 $3288M,Exact match,agreed,"Radiology, Medical Imaging & Medical Physics (exact match)"
+NIH RCDC category,rcdc_34,Biotechnology,FY2025 $8846M,Partial overlap,gap_review,Biomedical Engineering (partial overlap)
+NIH RCDC category,rcdc_35,Bipolar Disorder,FY2025 $72M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_36,Brain Cancer,FY2025 $434M,Exact match,agreed,Neuro-Oncology (exact match)
+NIH RCDC category,rcdc_37,Brain Disorders,FY2025 $9090M,Covered by narrower research areas,adjudicated,Clinical Neurology (partial overlap); Neuro-Oncology (part of it); Neurodegenerative Disease (part of it)
+NIH RCDC category,rcdc_38,Breast Cancer,FY2025 $757M,Exact match,agreed,Breast Cancer (exact match)
+NIH RCDC category,rcdc_39,"Breastfeeding, Lactation and Breast Milk",FY2025 $146M,Contained in a broader research area,agreed,Maternal & Child Health (contains it)
+NIH RCDC category,rcdc_327,Building Research Capacity at Institutions with Limited NIH Funding,FY2025 $738M,Contained in a broader research area,agreed,Research Infrastructure & Scientific Workforce (contains it)
+NIH RCDC category,rcdc_40,Burden of Illness,FY2025 $164M,Partial overlap,adjudicated + agreed,Epidemiology & Population Health (partial overlap); Global & Public Health (partial overlap); Health Economics (partial overlap)
+NIH RCDC category,rcdc_41,Cachexia,FY2025 $30M,Partial overlap,adjudicated,Nutrition & Metabolism (partial overlap)
+NIH RCDC category,rcdc_42,Cancer,FY2025 $7853M,Covered by narrower research areas,agreed,Breast Cancer (part of it); Cancer Biology (General) (part of it); Gastrointestinal Cancer (part of it); Gynecologic Oncology (part of it); Lung Cancer (part of it); Melanoma & Skin Cancer (part of it); Neuro-Oncology (part of it); Prostate & Urologic Cancer (part of it)
+NIH RCDC category,rcdc_43,Cancer Genomics,FY2025 $1401M,Partial overlap,agreed,"Cancer Biology (General) (partial overlap); Genetics, Genomics & Precision Medicine (partial overlap)"
+NIH RCDC category,rcdc_44,Cannabidiol Research,FY2025 $44M,Partial overlap,gap_review,Drug Discovery & Pharmacology (partial overlap)
+NIH RCDC category,rcdc_45,Cannabinoid Research,FY2025 $233M,Partial overlap,adjudicated,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_46,Cardiovascular,FY2025 $2884M,Exact match,agreed,Cardiovascular Disease (exact match)
+NIH RCDC category,rcdc_47,Caregiving Research,FY2025 $313M,Partial overlap,adjudicated,Palliative & End-of-Life Care (partial overlap)
+NIH RCDC category,rcdc_310,Celiac Disease,FY2025 $12M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_48,Cerebral Palsy,FY2025 $26M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_346,Cerebral Visual Impairment (CVI),FY2025 $2M,Contained in a broader research area,adjudicated,Ophthalmology & Vision Science (contains it)
+NIH RCDC category,rcdc_49,Cerebrovascular,FY2025 $1089M,Partial overlap,adjudicated + agreed,Cardiovascular Disease (partial overlap); Clinical Neurology (partial overlap)
+NIH RCDC category,rcdc_50,Cervical Cancer,FY2025 $135M,Contained in a broader research area,adjudicated + agreed,Gynecologic Oncology (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_51,Charcot-Marie-Tooth Disease,FY2025 $9M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_52,Child Abuse and Neglect Research,FY2025 $41M,Contained in a broader research area,adjudicated,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_143,Childhood Injury,FY2025 $273M,Contained in a broader research area,adjudicated,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_53,Childhood Leukemia,FY2025 $260M,Contained in a broader research area,adjudicated + agreed,Hematology (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_54,Childhood Obesity,FY2025 $262M,Contained in a broader research area,adjudicated,Metabolic & Endocrine Disease (contains it); Nutrition & Metabolism (partial overlap); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_55,Chronic Fatigue Syndrome (ME/CFS),FY2025 $12M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_56,Chronic Liver Disease and Cirrhosis,FY2025 $470M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_57,Chronic Obstructive Pulmonary Disease,FY2025 $158M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_58,Chronic Pain,FY2025 $810M,Contained in a broader research area,agreed,Pain Medicine (contains it)
+NIH RCDC category,rcdc_60,Climate-Related Exposures and Conditions,FY2025 $332M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_61,Clinical Research,FY2025 $18392M,Partial overlap,agreed,Translational & Clinical Science (partial overlap)
+NIH RCDC category,rcdc_62,Clinical Trials and Supportive Activities,FY2025 $7029M,Partial overlap,agreed,Translational & Clinical Science (partial overlap)
+NIH RCDC category,rcdc_320,Cocaine,FY2025 $147M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_63,Colorectal Cancer,FY2025 $361M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Gastrointestinal Cancer (contains it)"
+NIH RCDC category,rcdc_64,Comparative Effectiveness Research,FY2025 $1255M,Contained in a broader research area,adjudicated,Biostatistics & Quantitative Health Sciences (contains it); Health Services Research & Health Policy (contains it)
+NIH RCDC category,rcdc_65,Complementary and Integrative Health,FY2025 $696M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_66,Conditions Affecting the Embryonic and Fetal Periods,FY2025 $274M,Partial overlap,adjudicated + agreed,Developmental Biology (partial overlap); Maternal & Child Health (partial overlap)
+NIH RCDC category,rcdc_67,Congenital Heart Disease,FY2025 $139M,Contained in a broader research area,adjudicated + agreed,Cardiovascular Disease (contains it); Pediatrics & Neonatology (partial overlap)
+NIH RCDC category,rcdc_68,Congenital Muscular Dystrophy,FY2025 $13M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_69,Congenital Structural Anomalies,FY2025 $607M,Partial overlap,adjudicated + agreed,Developmental Biology (partial overlap); Pediatrics & Neonatology (partial overlap)
+NIH RCDC category,rcdc_70,Contraception/Reproduction,FY2025 $792M,Partial overlap,agreed,Women's Health & Reproductive Medicine (partial overlap)
+NIH RCDC category,rcdc_71,Cooley's Anemia,FY2025 $13M,Contained in a broader research area,agreed,Hematology (contains it)
+NIH RCDC category,rcdc_307,Coronaviruses,FY2025 $764M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_317,Coronaviruses Diagnostics and Prognostics,FY2025 $23M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_313,Coronaviruses Disparities and At-Risk Populations,FY2025 $284M,Partial overlap,adjudicated,Health Equity & Social Determinants of Health (partial overlap); Infectious Disease & Host Defense (partial overlap)
+NIH RCDC category,rcdc_314,Coronaviruses Therapeutics and Interventions,FY2025 $149M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_315,Coronaviruses Vaccines,FY2025 $110M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_72,Cost Effectiveness Research,FY2025 $350M,Contained in a broader research area,adjudicated + agreed,Health Economics (contains it); Health Services Research & Health Policy (contains it)
+NIH RCDC category,rcdc_73,Crohn's Disease,FY2025 $50M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_74,Cystic Fibrosis,FY2025 $86M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_295,Data Science,FY2025 $2317M,Partial overlap,agreed,Biomedical Informatics (partial overlap); Biostatistics & Quantitative Health Sciences (partial overlap)
+NIH RCDC category,rcdc_75,Dementia,FY2025 $3701M,Partial overlap,adjudicated,Neurodegenerative Disease (partial overlap)
+NIH RCDC category,rcdc_76,"Dental, Oral, and Craniofacial Disease",FY2025 $788M,Partial overlap,gap_review,Otolaryngology & Head and Neck Medicine (partial overlap)
+NIH RCDC category,rcdc_77,Depression,FY2025 $694M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_78,Diabetes,FY2025 $1102M,Contained in a broader research area,agreed,Metabolic & Endocrine Disease (contains it)
+NIH RCDC category,rcdc_79,Dietary Supplements,FY2025 $250M,Contained in a broader research area,adjudicated,Nutrition & Metabolism (contains it)
+NIH RCDC category,rcdc_80,Diethylstilbestrol (DES),FY2025 $2M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_81,Digestive Diseases,FY2025 $2823M,Exact match,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (exact match)"
+NIH RCDC category,rcdc_82,Digestive Diseases - (Gallbladder),FY2025 $17M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_83,Digestive Diseases - (Peptic Ulcer),FY2025 $7M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_359,Digital Health,FY2025 $2042M,Exact match,agreed,Digital Health & Telemedicine (exact match)
+NIH RCDC category,rcdc_342,Disability Research,FY2025 $587M,Partial overlap,agreed,Rehabilitation & Disability Medicine (partial overlap)
+NIH RCDC category,rcdc_312,Dissemination and Implementation Research,FY2025 $1306M,Partial overlap,agreed,Health Services Research & Health Policy (partial overlap)
+NIH RCDC category,rcdc_84,Down Syndrome,FY2025 $124M,Contained in a broader research area,gap_review,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_85,Drug Abuse (NIDA only),FY2025 $1663M,Partial overlap,adjudicated,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_86,Duchenne/ Becker Muscular Dystrophy,FY2025 $37M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_87,Dystonia,FY2025 $17M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_88,Eating Disorders,FY2025 $53M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_89,Eczema / Atopic Dermatitis,FY2025 $72M,Contained in a broader research area,agreed,Dermatology & Skin Disease (contains it)
+NIH RCDC category,rcdc_300,Electronic Nicotine Delivery Systems,FY2025 $70M,Partial overlap,adjudicated,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_90,Emergency Care,FY2025 $255M,Partial overlap,agreed,Emergency & Critical Care Medicine (partial overlap)
+NIH RCDC category,rcdc_91,Emerging Infectious Diseases,FY2025 $3379M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_92,Emphysema,FY2025 $26M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_347,End Stage Renal Disease,FY2025 $151M,Contained in a broader research area,agreed,Nephrology & Renal Disease (contains it)
+NIH RCDC category,rcdc_93,Endocannabinoid System Research,FY2025 $74M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_94,Endocrine Disruptors,FY2025 $255M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_95,Endometriosis,FY2025 $37M,Contained in a broader research area,agreed,Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_96,Epilepsy,FY2025 $216M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_303,Esophageal Cancer,FY2025 $61M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Gastrointestinal Cancer (contains it)"
+NIH RCDC category,rcdc_97,Estrogen,FY2025 $326M,Partial overlap,gap_review,Metabolic & Endocrine Disease (partial overlap)
+NIH RCDC category,rcdc_98,Eye Disease and Disorders of Vision,FY2025 $1069M,Exact match,agreed,Ophthalmology & Vision Science (exact match)
+NIH RCDC category,rcdc_99,Facioscapulohumeral Muscular Dystrophy,FY2025 $10M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_338,Fentanyl Misuse and Addiction,FY2025 $109M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_100,Fetal Alcohol Spectrum Disorders (FASD),FY2025 $46M,Contained in a broader research area,adjudicated,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_101,Fibroid Tumors (Uterine),FY2025 $21M,Contained in a broader research area,agreed,Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_102,Fibromyalgia,FY2025 $15M,Contained in a broader research area,adjudicated + agreed,Autoimmune & Rheumatologic Disease (contains it); Pain Medicine (contains it)
+NIH RCDC category,rcdc_301,Firearms Research,FY2025 $22M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_103,Food Allergies,FY2025 $90M,Contained in a broader research area,adjudicated,Immunology & Inflammation (contains it)
+NIH RCDC category,rcdc_104,Foodborne Illness,FY2025 $166M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_105,Fragile X Syndrome,FY2025 $40M,Contained in a broader research area,gap_review,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_106,Frontotemporal Dementia (FTD),FY2025 $286M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_107,Gene Therapy,FY2025 $808M,Contained in a broader research area,agreed,Gene & Cell Therapy (contains it)
+NIH RCDC category,rcdc_108,Gene Therapy Clinical Trials,FY2025 $113M,Contained in a broader research area,agreed,Gene & Cell Therapy (contains it)
+NIH RCDC category,rcdc_109,Genetic Testing,FY2025 $263M,Contained in a broader research area,agreed,"Genetics, Genomics & Precision Medicine (contains it)"
+NIH RCDC category,rcdc_110,Genetics,FY2025 $12140M,Partial overlap,agreed,"Genetics, Genomics & Precision Medicine (partial overlap)"
+NIH RCDC category,rcdc_352,Geroscience,FY2025 $244M,Contained in a broader research area,adjudicated,Aging & Geroscience (contains it)
+NIH RCDC category,rcdc_332,Harm Reduction for Substance Misuse,FY2025 $126M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_112,Headaches,FY2025 $54M,Contained in a broader research area,agreed,Clinical Neurology (contains it); Pain Medicine (contains it)
+NIH RCDC category,rcdc_336,Health Disparities and Racial or Ethnic Minority Health Research,FY2025 $4412M,Exact match,adjudicated,Health Equity & Social Determinants of Health (exact match)
+NIH RCDC category,rcdc_330,Health Disparities Research,FY2025 $4103M,Exact match,agreed,Health Equity & Social Determinants of Health (exact match)
+NIH RCDC category,rcdc_115,Health Effects of Household Energy Combustion,FY2025 $28M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_116,Health Effects of Indoor Air Pollution,FY2025 $150M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_117,Health Services,FY2025 $3175M,Exact match,adjudicated + agreed,Health Economics (partial overlap); Health Services Research & Health Policy (exact match); Primary Care & General Internal Medicine (partial overlap)
+NIH RCDC category,rcdc_296,Hearing Loss,FY2025 $197M,Contained in a broader research area,agreed,Otolaryngology & Head and Neck Medicine (contains it)
+NIH RCDC category,rcdc_118,Heart Disease,FY2025 $1778M,Contained in a broader research area,agreed,Cardiovascular Disease (contains it)
+NIH RCDC category,rcdc_119,Heart Disease - Coronary Heart Disease,FY2025 $404M,Contained in a broader research area,agreed,Cardiovascular Disease (contains it)
+NIH RCDC category,rcdc_120,Hematology,FY2025 $1811M,Exact match,agreed,Hematology (exact match)
+NIH RCDC category,rcdc_121,Hepatitis,FY2025 $387M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Infectious Disease & Host Defense (partial overlap)"
+NIH RCDC category,rcdc_122,Hepatitis - A,FY2025 $1M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Infectious Disease & Host Defense (contains it)"
+NIH RCDC category,rcdc_123,Hepatitis - B,FY2025 $173M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Infectious Disease & Host Defense (contains it)"
+NIH RCDC category,rcdc_124,Hepatitis - C,FY2025 $86M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Infectious Disease & Host Defense (contains it)"
+NIH RCDC category,rcdc_125,HIV/AIDS,FY2025 $3294M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_126,Hodgkin's Disease,FY2025 $24M,Contained in a broader research area,agreed,Hematology (contains it)
+NIH RCDC category,rcdc_127,Homelessness,FY2025 $39M,Contained in a broader research area,adjudicated,Health Equity & Social Determinants of Health (contains it)
+NIH RCDC category,rcdc_128,Homicide and Legal Interventions,FY2025 $10M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_129,HPV and/or Cervical Cancer Vaccines,FY2025 $38M,Contained in a broader research area,adjudicated + agreed,Gynecologic Oncology (partial overlap); Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_351,Human Embryonic Stem Cell Research,FY2025 $358M,Contained in a broader research area,agreed,Stem Cell & Regenerative Medicine (contains it)
+NIH RCDC category,rcdc_130,Human Fetal Tissue,FY2025 $53M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_131,Human Genome,FY2025 $5230M,Partial overlap,adjudicated,"Genetics, Genomics & Precision Medicine (partial overlap)"
+NIH RCDC category,rcdc_132,Huntington's Disease,FY2025 $39M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_133,Hydrocephalus,FY2025 $20M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_134,Hyperbaric Oxygen,FY2025 $9M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_135,Hypertension,FY2025 $377M,Contained in a broader research area,agreed,Cardiovascular Disease (contains it)
+NIH RCDC category,rcdc_136,Immunization,FY2025 $2140M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_297,Immunotherapy,FY2025 $2264M,Partial overlap,agreed,Gene & Cell Therapy (partial overlap); Immunology & Inflammation (partial overlap)
+NIH RCDC category,rcdc_357,Induced Pluripotent Stem Cell Research,FY2025 $994M,Contained in a broader research area,agreed,Stem Cell & Regenerative Medicine (contains it)
+NIH RCDC category,rcdc_137,Infant Mortality,FY2025 $151M,Contained in a broader research area,adjudicated + agreed,Maternal & Child Health (contains it); Pediatrics & Neonatology (partial overlap)
+NIH RCDC category,rcdc_139,Infectious Diseases,FY2025 $7710M,Exact match,agreed,Infectious Disease & Host Defense (exact match)
+NIH RCDC category,rcdc_140,Infertility,FY2025 $242M,Contained in a broader research area,agreed,Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_141,Inflammatory Bowel Disease,FY2025 $186M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_142,Influenza,FY2025 $418M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_148,Intellectual and Developmental Disabilities (IDD),FY2025 $757M,Partial overlap,agreed,Pediatrics & Neonatology (partial overlap)
+NIH RCDC category,rcdc_149,Interstitial Cystitis,FY2025 $22M,Contained in a broader research area,adjudicated,Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_150,Kidney Disease,FY2025 $745M,Exact match,agreed,Nephrology & Renal Disease (exact match)
+NIH RCDC category,rcdc_151,Lead Poisoning,FY2025 $12M,Contained in a broader research area,agreed,Environmental & Planetary Health (contains it)
+NIH RCDC category,rcdc_152,Lewy Body Dementia,FY2025 $114M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_153,Liver Cancer,FY2025 $195M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Gastrointestinal Cancer (contains it)"
+NIH RCDC category,rcdc_154,Liver Disease,FY2025 $1000M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it)"
+NIH RCDC category,rcdc_155,Lung,FY2025 $2704M,Covered by narrower research areas,adjudicated + agreed,Lung Cancer (part of it); Pulmonary & Critical Care Medicine (partial overlap)
+NIH RCDC category,rcdc_156,Lung Cancer,FY2025 $439M,Exact match,agreed,Lung Cancer (exact match)
+NIH RCDC category,rcdc_157,Lupus,FY2025 $148M,Contained in a broader research area,agreed,Autoimmune & Rheumatologic Disease (contains it)
+NIH RCDC category,rcdc_158,Lyme Disease,FY2025 $54M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_309,Lymphatic Research,FY2025 $456M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_311,Lymphedema,FY2025 $18M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_159,Lymphoma,FY2025 $281M,Contained in a broader research area,agreed,Hematology (contains it)
+NIH RCDC category,rcdc_298,Machine Learning and Artificial Intelligence,FY2025 $3009M,Partial overlap,agreed,Biomedical Informatics (partial overlap)
+NIH RCDC category,rcdc_160,Macular Degeneration,FY2025 $96M,Contained in a broader research area,agreed,Ophthalmology & Vision Science (contains it)
+NIH RCDC category,rcdc_161,Major Depressive Disorder,FY2025 $176M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_162,Malaria,FY2025 $218M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_163,Malaria Vaccine,FY2025 $66M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_164,Maternal Health,FY2025 $681M,Partial overlap,adjudicated + agreed,Maternal & Child Health (partial overlap); Women's Health & Reproductive Medicine (partial overlap)
+NIH RCDC category,rcdc_306,Maternal Morbidity and Mortality,FY2025 $425M,Contained in a broader research area,agreed,Maternal & Child Health (contains it)
+NIH RCDC category,rcdc_333,Menopause,FY2025 $78M,Contained in a broader research area,agreed,Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_349,Men's Health Research,FY2025 $768M,Partial overlap,agreed,Urology & Men's Health (partial overlap)
+NIH RCDC category,rcdc_165,Mental Health,FY2025 $4196M,Exact match,agreed,Mental Health & Psychiatry (exact match)
+NIH RCDC category,rcdc_166,Mental Illness,FY2025 $1304M,Exact match,adjudicated,Mental Health & Psychiatry (exact match)
+NIH RCDC category,rcdc_168,Methamphetamine,FY2025 $85M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_299,Microbiome,FY2025 $1095M,Exact match,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (partial overlap); Microbiome Research (exact match)"
+NIH RCDC category,rcdc_169,Migraine,FY2025 $43M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_172,Mucopolysaccharidoses (MPS),FY2025 $16M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_173,Multiple Sclerosis,FY2025 $112M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_174,Muscular Dystrophy,FY2025 $92M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_175,Myasthenia Gravis,FY2025 $7M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_176,Myotonic Dystrophy,FY2025 $11M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_177,Nanotechnology,FY2025 $751M,Partial overlap,adjudicated,Biomedical Engineering (partial overlap)
+NIH RCDC category,rcdc_328,Natural Products,FY2025 $374M,Partial overlap,adjudicated,Drug Discovery & Pharmacology (partial overlap)
+NIH RCDC category,rcdc_178,Neck Pain,FY2025 $4M,Contained in a broader research area,agreed,Musculoskeletal & Orthopedic Medicine (contains it); Pain Medicine (contains it)
+NIH RCDC category,rcdc_179,Neonatal Respiratory Distress,FY2025 $76M,Contained in a broader research area,agreed,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_180,Networking and Information Technology R&D (NITRD),FY2025 $3242M,Partial overlap,adjudicated,Biomedical Informatics (partial overlap)
+NIH RCDC category,rcdc_181,Neuroblastoma,FY2025 $128M,Contained in a broader research area,gap_review,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_182,Neurodegenerative,FY2025 $5139M,Exact match,agreed,Neurodegenerative Disease (exact match)
+NIH RCDC category,rcdc_183,Neurofibromatosis,FY2025 $33M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_184,Neurosciences,FY2025 $11904M,Covered by narrower research areas,agreed,Basic Neuroscience (part of it); Clinical Neurology (part of it); Neurodegenerative Disease (part of it)
+NIH RCDC category,rcdc_185,Nutrition,FY2025 $2129M,Exact match,adjudicated,Nutrition & Metabolism (exact match)
+NIH RCDC category,rcdc_186,Obesity,FY2025 $1172M,Contained in a broader research area,adjudicated + agreed,Metabolic & Endocrine Disease (contains it); Nutrition & Metabolism (partial overlap)
+NIH RCDC category,rcdc_187,Opioid Misuse and Addiction,FY2025 $662M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_188,Opioids,FY2025 $857M,Partial overlap,agreed,Pain Medicine (partial overlap); Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_189,Organ Transplantation,FY2025 $319M,Contained in a broader research area,adjudicated + agreed,Nephrology & Renal Disease (partial overlap); Transplantation Medicine (contains it)
+NIH RCDC category,rcdc_190,Orphan Drug,FY2025 $2935M,Partial overlap,gap_review,Drug Discovery & Pharmacology (partial overlap)
+NIH RCDC category,rcdc_241,Orthopoxviruses,FY2025 $32M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_191,Osteoarthritis,FY2025 $147M,Contained in a broader research area,agreed,Musculoskeletal & Orthopedic Medicine (contains it)
+NIH RCDC category,rcdc_192,Osteogenesis Imperfecta,FY2025 $14M,Contained in a broader research area,agreed,Musculoskeletal & Orthopedic Medicine (contains it)
+NIH RCDC category,rcdc_193,Osteoporosis,FY2025 $118M,Contained in a broader research area,agreed,Musculoskeletal & Orthopedic Medicine (contains it)
+NIH RCDC category,rcdc_194,Otitis Media,FY2025 $15M,Contained in a broader research area,agreed,Otolaryngology & Head and Neck Medicine (contains it)
+NIH RCDC category,rcdc_195,Ovarian Cancer,FY2025 $177M,Contained in a broader research area,adjudicated + agreed,Gynecologic Oncology (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_196,Paget's Disease,FY2025 $1M,Contained in a broader research area,agreed,Musculoskeletal & Orthopedic Medicine (contains it)
+NIH RCDC category,rcdc_197,Pain Research,FY2025 $1026M,Exact match,agreed,Pain Medicine (exact match)
+NIH RCDC category,rcdc_339,Palliative Care,FY2025 $305M,Exact match,agreed,Palliative & End-of-Life Care (exact match)
+NIH RCDC category,rcdc_198,Pancreatic Cancer,FY2025 $288M,Contained in a broader research area,agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Gastrointestinal Cancer (contains it)"
+NIH RCDC category,rcdc_199,Parkinson's Disease,FY2025 $255M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_200,Patient Safety,FY2025 $1838M,Contained in a broader research area,agreed,Health Services Research & Health Policy (contains it)
+NIH RCDC category,rcdc_201,Pediatric,FY2025 $6377M,Exact match,adjudicated + agreed,Maternal & Child Health (partial overlap); Pediatrics & Neonatology (exact match)
+NIH RCDC category,rcdc_202,Pediatric - AIDS,FY2025 $148M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_203,Pediatric Cancer,FY2025 $732M,Contained in a broader research area,agreed,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_204,Pediatric Cardiomyopathy,FY2025 $31M,Contained in a broader research area,adjudicated + agreed,Cardiovascular Disease (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_206,Pelvic Inflammatory Disease,FY2025 $2M,Contained in a broader research area,adjudicated + agreed,Infectious Disease & Host Defense (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_354,Penile Diseases,FY2025 $24M,Contained in a broader research area,agreed,Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_207,Perinatal Period - Conditions Originating in Perinatal Period,FY2025 $970M,Partial overlap,agreed,Maternal & Child Health (partial overlap); Pediatrics & Neonatology (partial overlap)
+NIH RCDC category,rcdc_208,Peripheral Neuropathy,FY2025 $194M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_209,Physical Activity,FY2025 $767M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_147,Physical Injury - Accidents and Adverse Effects,FY2025 $834M,Partial overlap,agreed,Emergency & Critical Care Medicine (partial overlap)
+NIH RCDC category,rcdc_210,Physical Rehabilitation,FY2025 $271M,Contained in a broader research area,agreed,Rehabilitation & Disability Medicine (contains it)
+NIH RCDC category,rcdc_212,Pneumonia,FY2025 $159M,Contained in a broader research area,adjudicated + agreed,Infectious Disease & Host Defense (contains it); Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_213,Pneumonia and Influenza,FY2025 $562M,Contained in a broader research area,adjudicated + agreed,Infectious Disease & Host Defense (contains it); Pulmonary & Critical Care Medicine (partial overlap)
+NIH RCDC category,rcdc_214,Polycystic Kidney Disease,FY2025 $41M,Contained in a broader research area,agreed,Nephrology & Renal Disease (contains it)
+NIH RCDC category,rcdc_321,Polycystic Ovary Syndrome (PCOS),FY2025 $9M,Contained in a broader research area,agreed,Metabolic & Endocrine Disease (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_319,Post-Acute Sequelae of SARS-CoV-2 infection (PASC) including Long COVID,FY2025 $98M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_215,Post-Traumatic Stress Disorder (PTSD),FY2025 $141M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_304,Postural Orthostatic Tachycardia Syndrome,FY2025 $4M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_216,Precision Medicine,FY2025 $2401M,Partial overlap,adjudicated,"Genetics, Genomics & Precision Medicine (partial overlap)"
+NIH RCDC category,rcdc_217,Pregnancy,FY2025 $717M,Partial overlap,adjudicated + agreed,Maternal & Child Health (partial overlap); Women's Health & Reproductive Medicine (partial overlap)
+NIH RCDC category,rcdc_218,Prescription Drug Misuse,FY2025 $41M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_219,"Preterm, Low Birth Weight and Health of the Newborn",FY2025 $461M,Contained in a broader research area,adjudicated,Maternal & Child Health (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_220,Prevention,FY2025 $11869M,Partial overlap,adjudicated,Epidemiology & Population Health (partial overlap)
+NIH RCDC category,rcdc_334,Primary Health Care,FY2025 $781M,Exact match,agreed,Primary Care & General Internal Medicine (exact match)
+NIH RCDC category,rcdc_343,Primary Immunodeficiencies,FY2025 $244M,Contained in a broader research area,adjudicated,Immunology & Inflammation (contains it)
+NIH RCDC category,rcdc_221,Prostate Cancer,FY2025 $314M,Contained in a broader research area,agreed,Prostate & Urologic Cancer (contains it); Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_360,Prostate Disease,FY2025 $370M,Contained in a broader research area,agreed,Prostate & Urologic Cancer (partial overlap); Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_222,Psoriasis,FY2025 $21M,Contained in a broader research area,agreed,Dermatology & Skin Disease (contains it)
+NIH RCDC category,rcdc_344,Psychosis,FY2025 $151M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_322,Pulmonary Fibrosis,FY2025 $165M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_325,Pulmonary Hypertension,FY2025 $106M,Contained in a broader research area,adjudicated + agreed,Cardiovascular Disease (contains it); Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_335,Racial and Ethnic Minority Health Research,FY2025 $1944M,Partial overlap,adjudicated,Health Equity & Social Determinants of Health (partial overlap)
+NIH RCDC category,rcdc_223,Radiation Oncology,FY2025 $462M,Partial overlap,agreed,"Radiology, Medical Imaging & Medical Physics (partial overlap)"
+NIH RCDC category,rcdc_224,Rare Diseases,FY2025 $6881M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_331,Recovery Support Services,FY2025 $39M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_225,Regenerative Medicine,FY2025 $1087M,Contained in a broader research area,adjudicated,Biomedical Engineering (partial overlap); Stem Cell & Regenerative Medicine (contains it)
+NIH RCDC category,rcdc_226,Rehabilitation,FY2025 $972M,Exact match,agreed,Rehabilitation & Disability Medicine (exact match)
+NIH RCDC category,rcdc_227,Rett Syndrome,FY2025 $13M,Contained in a broader research area,adjudicated,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_229,Rheumatoid Arthritis,FY2025 $66M,Contained in a broader research area,agreed,Autoimmune & Rheumatologic Disease (contains it)
+NIH RCDC category,rcdc_230,Rural Health,FY2025 $915M,Partial overlap,adjudicated,Health Equity & Social Determinants of Health (partial overlap)
+NIH RCDC category,rcdc_324,Sarcoidosis,FY2025 $11M,Contained in a broader research area,agreed,Pulmonary & Critical Care Medicine (contains it)
+NIH RCDC category,rcdc_231,Sarcopenia,FY2025 $37M,Contained in a broader research area,adjudicated,Aging & Geroscience (contains it)
+NIH RCDC category,rcdc_232,Schizophrenia,FY2025 $262M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_233,Scleroderma,FY2025 $38M,Contained in a broader research area,agreed,Autoimmune & Rheumatologic Disease (contains it)
+NIH RCDC category,rcdc_234,Screening and Brief Intervention for Substance Misuse,FY2025 $25M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_235,Sepsis,FY2025 $207M,Contained in a broader research area,adjudicated + agreed,Emergency & Critical Care Medicine (contains it); Infectious Disease & Host Defense (partial overlap)
+NIH RCDC category,rcdc_236,Serious Mental Illness,FY2025 $556M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_238,Sexually Transmitted Infections,FY2025 $452M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_239,Sickle Cell Disease,FY2025 $155M,Contained in a broader research area,agreed,Hematology (contains it)
+NIH RCDC category,rcdc_350,Sjogren's Disease,FY2025 $30M,Contained in a broader research area,agreed,Autoimmune & Rheumatologic Disease (contains it)
+NIH RCDC category,rcdc_340,Skin Cancer,FY2025 $285M,Exact match,agreed,Dermatology & Skin Disease (contains it); Melanoma & Skin Cancer (exact match)
+NIH RCDC category,rcdc_240,Sleep Research,FY2025 $614M,Exact match,agreed,Sleep Medicine & Circadian Biology (exact match)
+NIH RCDC category,rcdc_302,Social Determinants of Health,FY2025 $4314M,Contained in a broader research area,adjudicated,Epidemiology & Population Health (partial overlap); Health Equity & Social Determinants of Health (contains it)
+NIH RCDC category,rcdc_242,Spina Bifida,FY2025 $10M,Contained in a broader research area,adjudicated,Developmental Biology (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_243,Spinal Cord Injury,FY2025 $82M,Contained in a broader research area,adjudicated + agreed,Clinical Neurology (contains it); Rehabilitation & Disability Medicine (partial overlap)
+NIH RCDC category,rcdc_244,Spinal Muscular Atrophy,FY2025 $13M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_358,Stem Cell and Progenitor Cell Research,FY2025 $2592M,Contained in a broader research area,adjudicated,Stem Cell & Regenerative Medicine (contains it)
+NIH RCDC category,rcdc_323,Stimulant Use and Misuse,FY2025 $315M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_305,Stomach Cancer,FY2025 $56M,Contained in a broader research area,adjudicated + agreed,"Gastroenterology, Hepatology & Pancreatic Disease (contains it); Gastrointestinal Cancer (contains it)"
+NIH RCDC category,rcdc_256,Stroke,FY2025 $422M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_257,Substance Misuse,FY2025 $2483M,Exact match,agreed,Substance Use & Addiction Medicine (exact match)
+NIH RCDC category,rcdc_258,Substance Misuse Prevention,FY2025 $75M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_259,Sudden Infant Death Syndrome,FY2025 $12M,Contained in a broader research area,agreed,Maternal & Child Health (contains it); Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_260,Suicide,FY2025 $217M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_261,Suicide Prevention,FY2025 $138M,Contained in a broader research area,agreed,Mental Health & Psychiatry (contains it)
+NIH RCDC category,rcdc_262,Teenage Pregnancy,FY2025 $18M,Contained in a broader research area,adjudicated,Maternal & Child Health (contains it)
+NIH RCDC category,rcdc_316,Telehealth,FY2025 $495M,Contained in a broader research area,adjudicated,Digital Health & Telemedicine (contains it)
+NIH RCDC category,rcdc_263,Temporomandibular Muscle/Joint Disorder (TMJD),FY2025 $35M,Contained in a broader research area,adjudicated,Musculoskeletal & Orthopedic Medicine (contains it)
+NIH RCDC category,rcdc_355,Testicular Cancer,FY2025 $12M,Contained in a broader research area,agreed,Prostate & Urologic Cancer (contains it); Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_264,Therapeutic Cannabinoid Research,FY2025 $65M,Partial overlap,adjudicated,Drug Discovery & Pharmacology (partial overlap)
+NIH RCDC category,rcdc_318,Tickborne Diseases,FY2025 $129M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_265,Tobacco,FY2025 $312M,Partial overlap,adjudicated,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_266,Tobacco Smoke and Health,FY2025 $263M,Partial overlap,gap_review,Substance Use & Addiction Medicine (partial overlap)
+NIH RCDC category,rcdc_267,Topical Microbicides,FY2025 $58M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_268,Tourette Syndrome,FY2025 $9M,Contained in a broader research area,adjudicated,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_361,Translational Research,FY2025 $14480M,Partial overlap,agreed,Translational & Clinical Science (partial overlap)
+NIH RCDC category,rcdc_269,Transmissible Spongiform Encephalopathy (TSE),FY2025 $34M,Contained in a broader research area,agreed,Neurodegenerative Disease (contains it)
+NIH RCDC category,rcdc_270,Transplantation,FY2025 $827M,Exact match,agreed,Transplantation Medicine (exact match)
+NIH RCDC category,rcdc_145,Traumatic Brain Injury (TBI),FY2025 $195M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_144,Traumatic Head and Spine Injury,FY2025 $297M,Contained in a broader research area,agreed,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_271,Tuberculosis,FY2025 $588M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_272,Tuberculosis Vaccine,FY2025 $99M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_273,Tuberous Sclerosis,FY2025 $23M,Contained in a broader research area,gap_review,Clinical Neurology (contains it)
+NIH RCDC category,rcdc_274,Underage Drinking,FY2025 $83M,Contained in a broader research area,agreed,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_275,Underage Drinking - Prevention & Treatment (NIAAA Only),FY2025 $69M,Contained in a broader research area,adjudicated,Substance Use & Addiction Medicine (contains it)
+NIH RCDC category,rcdc_146,Unintentional Childhood Injury,FY2025 $75M,Contained in a broader research area,gap_review,Pediatrics & Neonatology (contains it)
+NIH RCDC category,rcdc_353,Urinary Incontinence,FY2025 $23M,Contained in a broader research area,agreed,Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_348,Urinary Infection,FY2025 $49M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it); Urology & Men's Health (contains it)
+NIH RCDC category,rcdc_276,Urologic Diseases,FY2025 $623M,Partial overlap,agreed,Urology & Men's Health (partial overlap)
+NIH RCDC category,rcdc_277,Usher Syndrome,FY2025 $20M,Contained in a broader research area,adjudicated + agreed,Ophthalmology & Vision Science (contains it); Otolaryngology & Head and Neck Medicine (partial overlap)
+NIH RCDC category,rcdc_278,Uterine Cancer,FY2025 $49M,Contained in a broader research area,agreed,Gynecologic Oncology (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_279,Vaccine Related,FY2025 $1860M,Partial overlap,adjudicated,Infectious Disease & Host Defense (partial overlap)
+NIH RCDC category,rcdc_280,Vaccine Related - AIDS,FY2025 $555M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_281,Vaginal Cancer,FY2025 $2M,Contained in a broader research area,adjudicated + agreed,Gynecologic Oncology (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_282,Valley Fever,FY2025 $17M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_283,Vascular Contributions to Cognitive Impairment and Dementia (VCID),FY2025 $496M,Partial overlap,adjudicated,Neurodegenerative Disease (partial overlap)
+NIH RCDC category,rcdc_284,Vector-Borne Diseases,FY2025 $743M,Contained in a broader research area,agreed,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_285,Violence Against Women,FY2025 $56M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_286,Violence Research,FY2025 $220M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_287,Vulvodynia,FY2025 $6M,Contained in a broader research area,agreed,Pain Medicine (contains it); Women's Health & Reproductive Medicine (contains it)
+NIH RCDC category,rcdc_288,West Nile Virus,FY2025 $20M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
+NIH RCDC category,rcdc_345,Women's Health Research,FY2025 $3334M,Covered by narrower research areas,adjudicated,Gynecologic Oncology (part of it); Women's Health & Reproductive Medicine (partial overlap)
+NIH RCDC category,rcdc_308,Wound Healing and Care,FY2025 $190M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_290,Youth Violence,FY2025 $74M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_291,Youth Violence Prevention,FY2025 $31M,Not represented,both mappers + gap review: none,
+NIH RCDC category,rcdc_341,Zika Virus,FY2025 $37M,Contained in a broader research area,adjudicated,Infectious Disease & Host Defense (contains it)
