@@ -1,0 +1,163 @@
+{
+  "B": {
+    "frame": "CARE Strategic Plan 2026-2029 (scientific items)",
+    "areas": 67,
+    "reference_entries": 13,
+    "mapper1_pairs": 17,
+    "mapper2_pairs": 18,
+    "invalid_ids_dropped": 0,
+    "kappa_any": 0.971,
+    "kappa_relation": 0.826,
+    "positive_agree": 0.971,
+    "disagreements": 6,
+    "adjudicated": 6,
+    "unresolved": 0,
+    "gap_review_added": 0,
+    "final_pairs": 18,
+    "final_by_source": {
+      "agreed": 12,
+      "adjudicated": 6
+    },
+    "areas_matched": 11,
+    "areas_by_best": {
+      "none": 56,
+      "overlap": 8,
+      "area_broader": 3
+    },
+    "refs_matched": 13,
+    "refs_by_best": {
+      "overlap": 9,
+      "area_broader": 4
+    },
+    "mapper_slices": [
+      {
+        "m": "ref_first",
+        "slice": 1,
+        "considered": 13
+      },
+      {
+        "m": "area_first",
+        "slice": 1,
+        "considered": 68
+      }
+    ]
+  },
+  "C1": {
+    "frame": "NIH Institutes & Centers (grant-funding)",
+    "areas": 67,
+    "reference_entries": 24,
+    "mapper1_pairs": 58,
+    "mapper2_pairs": 60,
+    "invalid_ids_dropped": 0,
+    "kappa_any": 0.965,
+    "kappa_relation": 0.904,
+    "positive_agree": 0.966,
+    "disagreements": 11,
+    "adjudicated": 11,
+    "unresolved": 0,
+    "gap_review_added": 2,
+    "final_pairs": 63,
+    "final_by_source": {
+      "agreed": 50,
+      "adjudicated": 11,
+      "gap_review": 2
+    },
+    "areas_matched": 53,
+    "areas_by_best": {
+      "exact": 6,
+      "area_narrower": 30,
+      "overlap": 16,
+      "none": 14,
+      "area_broader": 1
+    },
+    "refs_matched": 24,
+    "refs_by_best": {
+      "overlap": 5,
+      "exact": 6,
+      "area_narrower": 11,
+      "area_broader": 2
+    },
+    "mapper_slices": [
+      {
+        "m": "ref_first",
+        "slice": 1,
+        "considered": 24
+      },
+      {
+        "m": "area_first",
+        "slice": 1,
+        "considered": 67
+      }
+    ]
+  },
+  "C2": {
+    "frame": "NIH RCDC spending categories (FY2025)",
+    "areas": 67,
+    "reference_entries": 331,
+    "mapper1_pairs": 366,
+    "mapper2_pairs": 291,
+    "invalid_ids_dropped": 0,
+    "kappa_any": 0.816,
+    "kappa_relation": 0.778,
+    "positive_agree": 0.819,
+    "disagreements": 144,
+    "adjudicated": 144,
+    "unresolved": 0,
+    "gap_review_added": 13,
+    "final_pairs": 389,
+    "final_by_source": {
+      "adjudicated": 132,
+      "agreed": 244,
+      "gap_review": 13
+    },
+    "areas_matched": 58,
+    "areas_by_best": {
+      "exact": 28,
+      "none": 9,
+      "area_broader": 23,
+      "area_narrower": 2,
+      "overlap": 5
+    },
+    "refs_matched": 308,
+    "refs_by_best": {
+      "overlap": 55,
+      "area_broader": 218,
+      "none": 23,
+      "exact": 30,
+      "area_narrower": 5
+    },
+    "mapper_slices": [
+      {
+        "m": "ref_first",
+        "slice": 1,
+        "considered": 111
+      },
+      {
+        "m": "ref_first",
+        "slice": 2,
+        "considered": 110
+      },
+      {
+        "m": "ref_first",
+        "slice": 3,
+        "considered": 111
+      },
+      {
+        "m": "area_first",
+        "slice": 1,
+        "considered": 23
+      },
+      {
+        "m": "area_first",
+        "slice": 2,
+        "considered": 22
+      },
+      {
+        "m": "area_first",
+        "slice": 3,
+        "considered": 22
+      }
+    ],
+    "category_dollars_matched_pct": 93.6
+  }
+}

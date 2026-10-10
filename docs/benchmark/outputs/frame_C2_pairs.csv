@@ -1,0 +1,390 @@
+area,area_label,ref,ref_name,relation,source,rationale
+aging_geroscience,Aging & Geroscience,rcdc_231,Sarcopenia,area_broader,adjudicated,Sarcopenia is an age-related frailty condition.
+aging_geroscience,Aging & Geroscience,rcdc_352,Geroscience,area_broader,adjudicated,Geroscience is the mechanistic part of the broader aging area.
+aging_geroscience,Aging & Geroscience,rcdc_5,Aging,exact,agreed,Both cover aging biology and age-related conditions
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_102,Fibromyalgia,area_broader,adjudicated,Fibromyalgia is a rheumatologic condition managed in rheumatology practice.
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_157,Lupus,area_broader,agreed,Lupus is a systemic autoimmune disease.
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_19,Arthritis,overlap,agreed,Inflammatory arthritis shared; osteoarthritis falls outside autoimmune scope
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_229,Rheumatoid Arthritis,area_broader,agreed,Rheumatoid arthritis named in area
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_233,Scleroderma,area_broader,agreed,Scleroderma named in area
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_26,Autoimmune Disease,overlap,agreed,"Systemic autoimmunity shared; RCDC includes organ-specific autoimmunity, area includes non-autoimmune rheumatology"
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,rcdc_350,Sjogren's Disease,area_broader,agreed,Sjogren's is systemic autoimmune disease
+basic_neuroscience,Basic Neuroscience,rcdc_184,Neurosciences,area_narrower,agreed,Basic neuroscience is a subset of neurosciences.
+biomedical_engineering,Biomedical Engineering,rcdc_177,Nanotechnology,overlap,adjudicated,Nanotechnology shares biomaterials/device scope with bioengineering.
+biomedical_engineering,Biomedical Engineering,rcdc_20,Assistive Technology,overlap,adjudicated,Shared assistive device engineering; RCDC also covers rehabilitation and usability research.
+biomedical_engineering,Biomedical Engineering,rcdc_225,Regenerative Medicine,overlap,adjudicated,Tissue engineering scaffolds and biomaterials are core to regenerative medicine.
+biomedical_engineering,Biomedical Engineering,rcdc_32,Bioengineering,exact,agreed,Bioengineering equals biomedical engineering scope
+biomedical_engineering,Biomedical Engineering,rcdc_34,Biotechnology,overlap,gap_review,"Biotechnology and biomedical engineering share engineered biological systems, devices and platforms."
+biomedical_informatics,Biomedical Informatics,rcdc_180,Networking and Information Technology R&D (NITRD),overlap,adjudicated,"Shared computing, data infrastructure, and information technology scope."
+biomedical_informatics,Biomedical Informatics,rcdc_295,Data Science,overlap,agreed,Biomedical data science and informatics share methods
+biomedical_informatics,Biomedical Informatics,rcdc_298,Machine Learning and Artificial Intelligence,overlap,agreed,Biomedical ML/AI shared; RCDC also covers non-informatics AI.
+biostatistics_quantitative_sciences,Biostatistics & Quantitative Health Sciences,rcdc_295,Data Science,overlap,agreed,Quantitative data analysis methods shared
+biostatistics_quantitative_sciences,Biostatistics & Quantitative Health Sciences,rcdc_64,Comparative Effectiveness Research,area_broader,adjudicated,The area explicitly names comparative effectiveness research.
+breast_cancer,Breast Cancer,rcdc_38,Breast Cancer,exact,agreed,Same disease scope
+breast_cancer,Breast Cancer,rcdc_42,Cancer,area_narrower,agreed,Breast cancer is a cancer type
+cancer_biology_general,Cancer Biology (General),rcdc_42,Cancer,area_narrower,agreed,General cancer biology is a subset of all cancer research
+cancer_biology_general,Cancer Biology (General),rcdc_43,Cancer Genomics,overlap,agreed,Tumor genomics is cross-cutting cancer biology
+cardiovascular_disease,Cardiovascular Disease,rcdc_118,Heart Disease,area_broader,agreed,Heart disease falls within cardiovascular disease.
+cardiovascular_disease,Cardiovascular Disease,rcdc_119,Heart Disease - Coronary Heart Disease,area_broader,agreed,Coronary heart disease is a cardiovascular condition.
+cardiovascular_disease,Cardiovascular Disease,rcdc_135,Hypertension,area_broader,agreed,Hypertension is a cardiovascular condition.
+cardiovascular_disease,Cardiovascular Disease,rcdc_204,Pediatric Cardiomyopathy,area_broader,agreed,Cardiomyopathy is cardiovascular disease
+cardiovascular_disease,Cardiovascular Disease,rcdc_23,Atherosclerosis,area_broader,agreed,Atherosclerosis is a vascular disease
+cardiovascular_disease,Cardiovascular Disease,rcdc_325,Pulmonary Hypertension,area_broader,adjudicated,Pulmonary hypertension is a vascular/cardiopulmonary condition.
+cardiovascular_disease,Cardiovascular Disease,rcdc_46,Cardiovascular,exact,agreed,Same heart and vascular scope
+cardiovascular_disease,Cardiovascular Disease,rcdc_49,Cerebrovascular,overlap,adjudicated,"Shared vascular pathology and risk factors, but stroke is largely neurology."
+cardiovascular_disease,Cardiovascular Disease,rcdc_67,Congenital Heart Disease,area_broader,agreed,Congenital heart disease is structural heart disease
+clinical_neurology,Clinical Neurology,rcdc_112,Headaches,area_broader,agreed,Headache is a listed clinical neurology condition.
+clinical_neurology,Clinical Neurology,rcdc_133,Hydrocephalus,area_broader,adjudicated,Hydrocephalus is a neurologic condition.
+clinical_neurology,Clinical Neurology,rcdc_144,Traumatic Head and Spine Injury,area_broader,agreed,Brain and spinal cord injury in area
+clinical_neurology,Clinical Neurology,rcdc_145,Traumatic Brain Injury (TBI),area_broader,agreed,Brain injury named in clinical neurology
+clinical_neurology,Clinical Neurology,rcdc_169,Migraine,area_broader,agreed,Migraine is a neurologic headache disorder.
+clinical_neurology,Clinical Neurology,rcdc_17,Aphasia,area_broader,adjudicated,"Aphasia is a neurologic language disorder, often caused by stroke."
+clinical_neurology,Clinical Neurology,rcdc_173,Multiple Sclerosis,area_broader,agreed,MS is a listed clinical neurology condition.
+clinical_neurology,Clinical Neurology,rcdc_174,Muscular Dystrophy,area_broader,agreed,Muscular dystrophy is a neuromuscular disease.
+clinical_neurology,Clinical Neurology,rcdc_175,Myasthenia Gravis,area_broader,agreed,Myasthenia gravis is a neuromuscular disease.
+clinical_neurology,Clinical Neurology,rcdc_176,Myotonic Dystrophy,area_broader,adjudicated,"Myotonic dystrophy is a neuromuscular disease, explicitly in area."
+clinical_neurology,Clinical Neurology,rcdc_183,Neurofibromatosis,area_broader,adjudicated,Neurofibromatosis is a neurologic condition within clinical neurology.
+clinical_neurology,Clinical Neurology,rcdc_184,Neurosciences,area_narrower,agreed,Clinical neurology is a subset of neurosciences.
+clinical_neurology,Clinical Neurology,rcdc_208,Peripheral Neuropathy,area_broader,agreed,Peripheral neuropathy is neuromuscular neurologic disease
+clinical_neurology,Clinical Neurology,rcdc_243,Spinal Cord Injury,area_broader,agreed,Spinal cord injury named in area
+clinical_neurology,Clinical Neurology,rcdc_244,Spinal Muscular Atrophy,area_broader,agreed,SMA is neuromuscular disease
+clinical_neurology,Clinical Neurology,rcdc_256,Stroke,area_broader,agreed,Stroke named in clinical neurology
+clinical_neurology,Clinical Neurology,rcdc_268,Tourette Syndrome,area_broader,adjudicated,Tourette is a tic/movement disorder.
+clinical_neurology,Clinical Neurology,rcdc_273,Tuberous Sclerosis,area_broader,gap_review,"Tuberous sclerosis is a neurocutaneous disorder (epilepsy), like Neurofibromatosis mapped here."
+clinical_neurology,Clinical Neurology,rcdc_37,Brain Disorders,overlap,adjudicated,"Brain disease is shared; neurology adds spinal and neuromuscular disease, and RCDC adds psychiatric disorders."
+clinical_neurology,Clinical Neurology,rcdc_48,Cerebral Palsy,area_broader,adjudicated,Cerebral palsy is a neurologic motor disorder.
+clinical_neurology,Clinical Neurology,rcdc_49,Cerebrovascular,overlap,agreed,Stroke and cerebrovascular disease are core neurology
+clinical_neurology,Clinical Neurology,rcdc_51,Charcot-Marie-Tooth Disease,area_broader,agreed,CMT is a hereditary peripheral neuropathy
+clinical_neurology,Clinical Neurology,rcdc_68,Congenital Muscular Dystrophy,area_broader,adjudicated,Congenital muscular dystrophy is a neuromuscular disease.
+clinical_neurology,Clinical Neurology,rcdc_86,Duchenne/ Becker Muscular Dystrophy,area_broader,adjudicated,Duchenne/Becker dystrophy is a neuromuscular disease.
+clinical_neurology,Clinical Neurology,rcdc_87,Dystonia,area_broader,agreed,Dystonia is a movement disorder
+clinical_neurology,Clinical Neurology,rcdc_96,Epilepsy,area_broader,agreed,Epilepsy is a core clinical neurology condition.
+clinical_neurology,Clinical Neurology,rcdc_99,Facioscapulohumeral Muscular Dystrophy,area_broader,adjudicated,FSHD is a neuromuscular disease.
+dermatology_skin_disease,Dermatology & Skin Disease,rcdc_222,Psoriasis,area_broader,agreed,Psoriasis is named in dermatology area
+dermatology_skin_disease,Dermatology & Skin Disease,rcdc_340,Skin Cancer,area_broader,agreed,Area includes neoplastic skin conditions
+dermatology_skin_disease,Dermatology & Skin Disease,rcdc_89,Eczema / Atopic Dermatitis,area_broader,agreed,Atopic dermatitis is a skin disease
+developmental_biology,Developmental Biology,rcdc_242,Spina Bifida,area_broader,adjudicated,Neural tube defect is a congenital developmental condition.
+developmental_biology,Developmental Biology,rcdc_66,Conditions Affecting the Embryonic and Fetal Periods,overlap,agreed,Embryonic development disorders shared
+developmental_biology,Developmental Biology,rcdc_69,Congenital Structural Anomalies,overlap,agreed,Structural birth defects arise from developmental errors
+digital_health_telemedicine,Digital Health & Telemedicine,rcdc_316,Telehealth,area_broader,adjudicated,Telehealth is a named component of the area.
+digital_health_telemedicine,Digital Health & Telemedicine,rcdc_359,Digital Health,exact,agreed,Same digital health scope
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,rcdc_190,Orphan Drug,overlap,gap_review,Orphan drug research is therapeutic development for rare diseases.
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,rcdc_264,Therapeutic Cannabinoid Research,overlap,adjudicated,Therapeutic cannabinoid research shares pharmacology; also clinical use studies.
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,rcdc_328,Natural Products,overlap,adjudicated,Natural products research largely concerns bioactive compound discovery.
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,rcdc_44,Cannabidiol Research,overlap,gap_review,"CBD research is largely therapeutic pharmacology, parallel to Therapeutic Cannabinoid match."
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,rcdc_147,Physical Injury - Accidents and Adverse Effects,overlap,agreed,Trauma and injury care shared
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,rcdc_235,Sepsis,area_broader,agreed,Sepsis named in area
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,rcdc_90,Emergency Care,overlap,agreed,Emergency care shared; area also includes critical care
+environmental_planetary_health,Environmental & Planetary Health,rcdc_115,Health Effects of Household Energy Combustion,area_broader,agreed,Household combustion is an environmental exposure.
+environmental_planetary_health,Environmental & Planetary Health,rcdc_116,Health Effects of Indoor Air Pollution,area_broader,agreed,Indoor air pollution is an environmental exposure.
+environmental_planetary_health,Environmental & Planetary Health,rcdc_151,Lead Poisoning,area_broader,agreed,Lead poisoning is an environmental exposure.
+environmental_planetary_health,Environmental & Planetary Health,rcdc_4,Agent Orange & Dioxin,area_broader,agreed,Dioxin exposure is an environmental health topic
+environmental_planetary_health,Environmental & Planetary Health,rcdc_60,Climate-Related Exposures and Conditions,area_broader,agreed,Climate exposures are planetary health
+environmental_planetary_health,Environmental & Planetary Health,rcdc_94,Endocrine Disruptors,area_broader,agreed,Endocrine disruptors are environmental exposures
+epidemiology_population_health,Epidemiology & Population Health,rcdc_220,Prevention,overlap,adjudicated,Risk factors and community interventions substantially overlap prevention research.
+epidemiology_population_health,Epidemiology & Population Health,rcdc_302,Social Determinants of Health,overlap,adjudicated,Social determinants modeling is explicitly in scope; both extend beyond each other.
+epidemiology_population_health,Epidemiology & Population Health,rcdc_40,Burden of Illness,overlap,agreed,Disease burden estimation is population epidemiology
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_121,Hepatitis,area_broader,agreed,Hepatitis is a liver disease within hepatology.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_122,Hepatitis - A,area_broader,agreed,Hepatitis A is a liver disease.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_123,Hepatitis - B,area_broader,agreed,Hepatitis B is a liver disease.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_124,Hepatitis - C,area_broader,agreed,Hepatitis C is a liver disease.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_141,Inflammatory Bowel Disease,area_broader,agreed,IBD is a gastrointestinal disease.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_153,Liver Cancer,area_broader,adjudicated,Liver cancer is a hepatobiliary disease within the area.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_154,Liver Disease,area_broader,agreed,Liver disease is within hepatology.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_198,Pancreatic Cancer,area_broader,agreed,Area explicitly includes pancreatic cancer
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_299,Microbiome,overlap,adjudicated,Gut microbiome biology explicit; RCDC microbiome spans other body sites.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_303,Esophageal Cancer,area_broader,adjudicated,Esophageal cancer is a GI-tract disease within the area.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_305,Stomach Cancer,area_broader,adjudicated,Stomach cancer is a GI-tract disease within the area.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_310,Celiac Disease,area_broader,agreed,Celiac disease is a GI disorder
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_56,Chronic Liver Disease and Cirrhosis,area_broader,agreed,Chronic liver disease is hepatology
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_63,Colorectal Cancer,area_broader,adjudicated,Colorectal conditions explicitly included; colorectal cancer is a GI disease.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_73,Crohn's Disease,area_broader,agreed,Crohn's disease is inflammatory bowel disease
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_81,Digestive Diseases,exact,agreed,Digestive diseases equals gastroenterology/hepatology scope
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_82,Digestive Diseases - (Gallbladder),area_broader,agreed,Gallbladder disease is digestive disease
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",rcdc_83,Digestive Diseases - (Peptic Ulcer),area_broader,agreed,Peptic ulcer is digestive disease
+gene_cell_therapy,Gene & Cell Therapy,rcdc_107,Gene Therapy,area_broader,agreed,Gene therapy is a component of gene and cell therapy.
+gene_cell_therapy,Gene & Cell Therapy,rcdc_108,Gene Therapy Clinical Trials,area_broader,agreed,Gene therapy trials fall within gene and cell therapy.
+gene_cell_therapy,Gene & Cell Therapy,rcdc_297,Immunotherapy,overlap,agreed,CAR-T and cellular immunotherapies shared.
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",rcdc_109,Genetic Testing,area_broader,agreed,Genetic testing is part of genomics and precision medicine.
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",rcdc_110,Genetics,overlap,agreed,"Shared genetics scope; RCDC includes basic genetics, area adds precision medicine."
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",rcdc_131,Human Genome,overlap,adjudicated,Human genome research is core genomics but extends into broad basic biology.
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",rcdc_216,Precision Medicine,overlap,adjudicated,Precision medicine shared; RCDC category extends beyond genomics.
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",rcdc_43,Cancer Genomics,overlap,agreed,Genomic methods applied to cancer
+gi_cancer,Gastrointestinal Cancer,rcdc_153,Liver Cancer,area_broader,agreed,Hepatocellular carcinoma is included in GI cancer.
+gi_cancer,Gastrointestinal Cancer,rcdc_198,Pancreatic Cancer,area_broader,agreed,Pancreatic cancer is a GI cancer
+gi_cancer,Gastrointestinal Cancer,rcdc_303,Esophageal Cancer,area_broader,agreed,Esophageal cancer is a GI tract cancer.
+gi_cancer,Gastrointestinal Cancer,rcdc_305,Stomach Cancer,area_broader,agreed,Gastric cancer named in area
+gi_cancer,Gastrointestinal Cancer,rcdc_42,Cancer,area_narrower,agreed,GI cancers are cancer types
+gi_cancer,Gastrointestinal Cancer,rcdc_63,Colorectal Cancer,area_broader,agreed,Colorectal cancer is a GI cancer
+global_public_health,Global & Public Health,rcdc_40,Burden of Illness,overlap,adjudicated,Disease burden is explicitly central to the area.
+gynecologic_oncology,Gynecologic Oncology,rcdc_129,HPV and/or Cervical Cancer Vaccines,overlap,agreed,Cervical cancer prevention shared; vaccine immunology outside oncology.
+gynecologic_oncology,Gynecologic Oncology,rcdc_195,Ovarian Cancer,area_broader,agreed,Ovarian cancer is a gynecologic cancer.
+gynecologic_oncology,Gynecologic Oncology,rcdc_278,Uterine Cancer,area_broader,agreed,Uterine cancer named in area
+gynecologic_oncology,Gynecologic Oncology,rcdc_281,Vaginal Cancer,area_broader,agreed,Vaginal cancer is gynecologic malignancy
+gynecologic_oncology,Gynecologic Oncology,rcdc_345,Women's Health Research,area_narrower,adjudicated,Gynecologic cancers are a recognized sub-field of women's health research.
+gynecologic_oncology,Gynecologic Oncology,rcdc_42,Cancer,area_narrower,agreed,Gynecologic cancers are cancer types
+gynecologic_oncology,Gynecologic Oncology,rcdc_50,Cervical Cancer,area_broader,agreed,Cervical cancer is a gynecologic cancer
+health_economics,Health Economics,rcdc_117,Health Services,overlap,adjudicated,Healthcare financing and delivery economics shared with health services research.
+health_economics,Health Economics,rcdc_40,Burden of Illness,overlap,adjudicated,Economic burden of disease is explicitly in scope.
+health_economics,Health Economics,rcdc_72,Cost Effectiveness Research,area_broader,agreed,Cost-effectiveness analysis is health economics
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_12,American Indian or Alaska Native,area_broader,gap_review,AI/AN health is a specific minority-population focus within health equity/disparities research.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_127,Homelessness,area_broader,adjudicated,Homelessness is a structural social determinant of health.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_230,Rural Health,overlap,adjudicated,Geographic disparities and rural access shared.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_302,Social Determinants of Health,area_broader,adjudicated,Social determinants of health is named in the area.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_313,Coronaviruses Disparities and At-Risk Populations,overlap,adjudicated,"Disparities and at-risk populations are shared, limited here to COVID."
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_330,Health Disparities Research,exact,agreed,Both cover health disparities research.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_335,Racial and Ethnic Minority Health Research,overlap,adjudicated,Shares racial/ethnic disparities; minority health research extends beyond disparities.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,rcdc_336,Health Disparities and Racial or Ethnic Minority Health Research,exact,adjudicated,Both cover racial and ethnic health disparities and minority health research.
+health_services_policy,Health Services Research & Health Policy,rcdc_117,Health Services,exact,agreed,Both cover health services delivery research.
+health_services_policy,Health Services Research & Health Policy,rcdc_200,Patient Safety,area_broader,agreed,Patient safety is a quality-of-care health services topic
+health_services_policy,Health Services Research & Health Policy,rcdc_312,Dissemination and Implementation Research,overlap,agreed,Implementation science is health services research
+health_services_policy,Health Services Research & Health Policy,rcdc_64,Comparative Effectiveness Research,area_broader,adjudicated,Comparative effectiveness research is a core subfield of health services research.
+health_services_policy,Health Services Research & Health Policy,rcdc_72,Cost Effectiveness Research,area_broader,adjudicated,Cost-effectiveness studies fall within the area's cost and value scope.
+hematology,Hematology,rcdc_120,Hematology,exact,agreed,Both cover blood disorders and hematology.
+hematology,Hematology,rcdc_126,Hodgkin's Disease,area_broader,agreed,Hodgkin lymphoma is a hematologic malignancy.
+hematology,Hematology,rcdc_159,Lymphoma,area_broader,agreed,Lymphoma is a hematologic malignancy.
+hematology,Hematology,rcdc_239,Sickle Cell Disease,area_broader,agreed,Sickle cell named in hematology
+hematology,Hematology,rcdc_53,Childhood Leukemia,area_broader,agreed,Leukemia is a hematologic malignancy
+hematology,Hematology,rcdc_71,Cooley's Anemia,area_broader,agreed,Thalassemia is a hematologic disorder
+immunology_inflammation,Immunology & Inflammation,rcdc_103,Food Allergies,area_broader,adjudicated,Food allergy is a systemic immune hypersensitivity driven by fundamental immune mechanisms.
+immunology_inflammation,Immunology & Inflammation,rcdc_297,Immunotherapy,overlap,agreed,Immunotherapy applies immune modulation therapeutically.
+immunology_inflammation,Immunology & Inflammation,rcdc_343,Primary Immunodeficiencies,area_broader,adjudicated,Primary immunodeficiencies are disorders of immune function.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_104,Foodborne Illness,area_broader,adjudicated,Foodborne illness is a pathogen-driven infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_121,Hepatitis,overlap,adjudicated,Viral hepatitis is shared; RCDC hepatitis also includes non-infectious forms.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_122,Hepatitis - A,area_broader,adjudicated,Hepatitis A is a viral infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_123,Hepatitis - B,area_broader,adjudicated,Hepatitis B is a viral infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_124,Hepatitis - C,area_broader,adjudicated,Hepatitis C is a viral infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_125,HIV/AIDS,area_broader,agreed,HIV/AIDS is a viral infectious disease.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_129,HPV and/or Cervical Cancer Vaccines,area_broader,adjudicated,HPV vaccine development falls within infectious disease and vaccine research.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_136,Immunization,area_broader,agreed,Vaccination is host defense against pathogens.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_139,Infectious Diseases,exact,agreed,Both cover infectious diseases broadly.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_14,Anthrax,area_broader,adjudicated,Anthrax is a bacterial infection within infectious disease research.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_142,Influenza,area_broader,agreed,Influenza is a viral infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_15,Antimicrobial Resistance,area_broader,agreed,Antimicrobial resistance is an infectious disease topic
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_158,Lyme Disease,area_broader,adjudicated,Lyme disease is a bacterial infection within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_162,Malaria,area_broader,agreed,Malaria is a parasitic infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_163,Malaria Vaccine,area_broader,adjudicated,"Malaria vaccine combines parasitic infection and vaccine development, both in area."
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_202,Pediatric - AIDS,area_broader,adjudicated,Pediatric HIV/AIDS is an infection within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_206,Pelvic Inflammatory Disease,area_broader,adjudicated,PID is a bacterial reproductive tract infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_212,Pneumonia,area_broader,adjudicated,Pneumonia is an infection within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_213,Pneumonia and Influenza,area_broader,adjudicated,Pneumonia and influenza are infections within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_235,Sepsis,overlap,adjudicated,Sepsis is infection-driven but substantially critical-care research.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_238,Sexually Transmitted Infections,area_broader,agreed,STIs are infections
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_241,Orthopoxviruses,area_broader,adjudicated,Orthopoxviruses are viral pathogens within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_267,Topical Microbicides,area_broader,adjudicated,Microbicides prevent HIV/STI infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_271,Tuberculosis,area_broader,agreed,Tuberculosis named in area
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_272,Tuberculosis Vaccine,area_broader,adjudicated,TB vaccine development falls within area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_279,Vaccine Related,overlap,adjudicated,Vaccine development shared; category includes non-infectious vaccines.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_280,Vaccine Related - AIDS,area_broader,adjudicated,HIV vaccines fall within the area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_282,Valley Fever,area_broader,adjudicated,Coccidioidomycosis is a fungal infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_284,Vector-Borne Diseases,area_broader,agreed,Vector-borne infections
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_288,West Nile Virus,area_broader,adjudicated,West Nile is a viral infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_307,Coronaviruses,area_broader,agreed,Coronaviruses are infectious pathogens
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_313,Coronaviruses Disparities and At-Risk Populations,overlap,adjudicated,"COVID-19 is shared, but the category's disparities focus lies outside pathogen research."
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_314,Coronaviruses Therapeutics and Interventions,area_broader,adjudicated,Coronavirus therapeutics falls within infectious disease research.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_315,Coronaviruses Vaccines,area_broader,adjudicated,Vaccine development is explicitly in the area's scope.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_317,Coronaviruses Diagnostics and Prognostics,area_broader,adjudicated,Coronavirus diagnostics falls within COVID-19 infectious disease research.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_318,Tickborne Diseases,area_broader,agreed,Tickborne diseases are infections
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_319,Post-Acute Sequelae of SARS-CoV-2 infection (PASC) including Long COVID,area_broader,adjudicated,Long COVID is COVID-19 sequelae; COVID-19 explicitly in area.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_337,Biodefense and Related Countermeasures,overlap,agreed,Biodefense pathogens and countermeasures overlap infectious disease research
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_341,Zika Virus,area_broader,adjudicated,"Zika is an emerging viral infection, within the area's explicit scope."
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_348,Urinary Infection,area_broader,adjudicated,UTI is a bacterial infection.
+infectious_disease_immunology,Infectious Disease & Host Defense,rcdc_91,Emerging Infectious Diseases,area_broader,agreed,Emerging infections are infectious disease
+lung_cancer,Lung Cancer,rcdc_155,Lung,area_narrower,agreed,Lung cancer is a subset of lung research.
+lung_cancer,Lung Cancer,rcdc_156,Lung Cancer,exact,agreed,Both cover lung cancer.
+lung_cancer,Lung Cancer,rcdc_42,Cancer,area_narrower,agreed,Lung cancer is a cancer type
+maternal_child_health,Maternal & Child Health,rcdc_137,Infant Mortality,area_broader,agreed,Infant mortality is perinatal/child health outcome.
+maternal_child_health,Maternal & Child Health,rcdc_164,Maternal Health,overlap,agreed,Maternal health shared; area adds child health.
+maternal_child_health,Maternal & Child Health,rcdc_201,Pediatric,overlap,adjudicated,Child health shared; pediatric category also covers clinical research.
+maternal_child_health,Maternal & Child Health,rcdc_207,Perinatal Period - Conditions Originating in Perinatal Period,overlap,agreed,Perinatal outcomes shared scope
+maternal_child_health,Maternal & Child Health,rcdc_217,Pregnancy,overlap,agreed,Pregnancy outcomes and prenatal care shared
+maternal_child_health,Maternal & Child Health,rcdc_219,"Preterm, Low Birth Weight and Health of the Newborn",area_broader,adjudicated,Preterm birth and low birth weight are core birth outcomes.
+maternal_child_health,Maternal & Child Health,rcdc_259,Sudden Infant Death Syndrome,area_broader,agreed,Infant mortality named in area
+maternal_child_health,Maternal & Child Health,rcdc_262,Teenage Pregnancy,area_broader,adjudicated,Teenage pregnancy is a maternal-child population topic.
+maternal_child_health,Maternal & Child Health,rcdc_306,Maternal Morbidity and Mortality,area_broader,agreed,Maternal morbidity is perinatal health outcome.
+maternal_child_health,Maternal & Child Health,rcdc_39,"Breastfeeding, Lactation and Breast Milk",area_broader,agreed,Breastfeeding and lactation are maternal-child health topics
+maternal_child_health,Maternal & Child Health,rcdc_66,Conditions Affecting the Embryonic and Fetal Periods,overlap,adjudicated,Shared perinatal and fetal outcomes; RCDC also covers developmental biology.
+melanoma_skin_cancer,Melanoma & Skin Cancer,rcdc_340,Skin Cancer,exact,agreed,Skin cancer is same scope
+melanoma_skin_cancer,Melanoma & Skin Cancer,rcdc_42,Cancer,area_narrower,agreed,Skin cancers are cancer types
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_13,Anorexia,area_broader,agreed,Anorexia is a psychiatric eating disorder
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_16,Anxiety Disorders,area_broader,agreed,Anxiety disorders are psychiatric conditions
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_161,Major Depressive Disorder,area_broader,agreed,Depression is a psychiatric condition.
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_165,Mental Health,exact,agreed,Both cover mental health research.
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_166,Mental Illness,exact,adjudicated,Mental illness matches psychiatric conditions scope.
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_215,Post-Traumatic Stress Disorder (PTSD),area_broader,agreed,PTSD explicitly in psychiatry area
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_232,Schizophrenia,area_broader,agreed,Schizophrenia named in area
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_236,Serious Mental Illness,area_broader,agreed,Serious mental illness within psychiatry
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_24,Attention Deficit Hyperactivity Disorder (ADHD),area_broader,agreed,ADHD is a psychiatric neurodevelopmental disorder
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_25,Autism,area_broader,adjudicated,Autism is a DSM neurodevelopmental condition within behavioral health research.
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_260,Suicide,area_broader,agreed,Suicide is psychiatric research topic
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_261,Suicide Prevention,area_broader,agreed,Suicide prevention within mental health
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_344,Psychosis,area_broader,agreed,Psychosis is a psychiatric condition
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_35,Bipolar Disorder,area_broader,agreed,Bipolar disorder is a psychiatric condition
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_77,Depression,area_broader,agreed,Depression is a psychiatric disorder
+mental_health_psychiatry,Mental Health & Psychiatry,rcdc_88,Eating Disorders,area_broader,agreed,Eating disorders are psychiatric conditions
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,rcdc_186,Obesity,area_broader,agreed,Obesity is explicitly listed in metabolic disease.
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,rcdc_321,Polycystic Ovary Syndrome (PCOS),area_broader,agreed,PCOS is an endocrine/metabolic disorder
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,rcdc_54,Childhood Obesity,area_broader,adjudicated,Obesity explicitly in scope; childhood obesity is a subset.
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,rcdc_78,Diabetes,area_broader,agreed,Diabetes is a metabolic endocrine disease
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,rcdc_97,Estrogen,overlap,gap_review,"Estrogen research centers on hormonal regulation, core endocrine scope."
+microbiome_research,Microbiome Research,rcdc_299,Microbiome,exact,agreed,Both cover microbiome research.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_178,Neck Pain,area_broader,agreed,Neck pain is a spine/musculoskeletal condition.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_19,Arthritis,overlap,agreed,Osteoarthritis and joint disease shared with musculoskeletal medicine
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_191,Osteoarthritis,area_broader,agreed,Osteoarthritis is a joint condition.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_192,Osteogenesis Imperfecta,area_broader,agreed,OI is a bone/connective tissue disorder.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_193,Osteoporosis,area_broader,agreed,Osteoporosis is a bone condition.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_196,Paget's Disease,area_broader,agreed,Paget's disease of bone is a skeletal disorder.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_263,Temporomandibular Muscle/Joint Disorder (TMJD),area_broader,adjudicated,TMJ disorder is a joint/musculoskeletal condition.
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,rcdc_27,Back Pain,overlap,adjudicated,Spinal causes are shared; back pain research also covers pain science and neurology.
+nephrology_renal_disease,Nephrology & Renal Disease,rcdc_150,Kidney Disease,exact,agreed,Both cover kidney disease.
+nephrology_renal_disease,Nephrology & Renal Disease,rcdc_189,Organ Transplantation,overlap,adjudicated,Kidney transplantation shared; organ transplantation covers other organs.
+nephrology_renal_disease,Nephrology & Renal Disease,rcdc_214,Polycystic Kidney Disease,area_broader,agreed,PKD is a kidney disease
+nephrology_renal_disease,Nephrology & Renal Disease,rcdc_347,End Stage Renal Disease,area_broader,agreed,ESRD is kidney disease
+neuro_oncology,Neuro-Oncology,rcdc_36,Brain Cancer,exact,agreed,Brain cancer is the core of neuro-oncology
+neuro_oncology,Neuro-Oncology,rcdc_37,Brain Disorders,area_narrower,adjudicated,Brain tumors are included in RCDC Brain Disorders.
+neuro_oncology,Neuro-Oncology,rcdc_42,Cancer,area_narrower,agreed,Brain tumors are cancer types
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_1,Acquired Cognitive Impairment,overlap,adjudicated,Neurodegenerative dementia is a major share; RCDC also covers injury and other acquired causes.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_10,Alzheimer's Disease including Alzheimer's Disease Related Dementias (AD/ADRD),area_broader,agreed,AD/ADRD are neurodegenerative dementias
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_106,Frontotemporal Dementia (FTD),area_broader,agreed,FTD is a neurodegenerative dementia.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_11,Alzheimer's Disease Related Dementias (ADRD),area_broader,agreed,Related dementias are neurodegenerative diseases
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_132,Huntington's Disease,area_broader,agreed,Huntington's is a neurodegenerative disease.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_152,Lewy Body Dementia,area_broader,agreed,Lewy body dementia is neurodegenerative.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_182,Neurodegenerative,exact,agreed,Both cover neurodegenerative disease.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_184,Neurosciences,area_narrower,agreed,Neurodegeneration is a subset of neurosciences.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_199,Parkinson's Disease,area_broader,agreed,Parkinson's is a core neurodegenerative disease
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_22,Ataxia Telangiectasia,area_broader,gap_review,Ataxia telangiectasia is a progressive cerebellar neurodegenerative disorder.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_269,Transmissible Spongiform Encephalopathy (TSE),area_broader,agreed,Prion diseases are neurodegenerative proteinopathies
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_283,Vascular Contributions to Cognitive Impairment and Dementia (VCID),overlap,adjudicated,Shared dementia scope; vascular etiology outside neurodegeneration proper.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_29,Batten Disease,area_broader,adjudicated,Batten disease is a progressive neurodegenerative lysosomal disorder.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_37,Brain Disorders,area_narrower,adjudicated,Neurodegenerative diseases are a recognized subset of brain disorders.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_75,Dementia,overlap,adjudicated,Dementia is mostly neurodegenerative but includes vascular dementia; the area also covers PD and ALS.
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_8,Amyotrophic Lateral Sclerosis (ALS),area_broader,agreed,ALS is a neurodegenerative disease
+neurodegenerative_disease,Neurodegenerative Disease,rcdc_9,Alzheimer's Disease,area_broader,agreed,Alzheimer's is a neurodegenerative disease
+nutrition_metabolism,Nutrition & Metabolism,rcdc_185,Nutrition,exact,adjudicated,Both cover nutrition research.
+nutrition_metabolism,Nutrition & Metabolism,rcdc_186,Obesity,overlap,adjudicated,Obesity shares diet and metabolic health scope.
+nutrition_metabolism,Nutrition & Metabolism,rcdc_41,Cachexia,overlap,adjudicated,Cachexia is a metabolic wasting syndrome studied with nutritional interventions.
+nutrition_metabolism,Nutrition & Metabolism,rcdc_54,Childhood Obesity,overlap,adjudicated,Diet and metabolism are shared; childhood obesity also spans behavior and pediatrics.
+nutrition_metabolism,Nutrition & Metabolism,rcdc_79,Dietary Supplements,area_broader,adjudicated,Dietary supplements are a nutrition research topic.
+ophthalmology_vision_science,Ophthalmology & Vision Science,rcdc_160,Macular Degeneration,area_broader,agreed,AMD is an explicitly listed eye disease.
+ophthalmology_vision_science,Ophthalmology & Vision Science,rcdc_277,Usher Syndrome,area_broader,agreed,Usher causes retinitis pigmentosa
+ophthalmology_vision_science,Ophthalmology & Vision Science,rcdc_346,Cerebral Visual Impairment (CVI),area_broader,adjudicated,CVI is a visual impairment within vision science.
+ophthalmology_vision_science,Ophthalmology & Vision Science,rcdc_98,Eye Disease and Disorders of Vision,exact,agreed,Both cover eye disease and vision disorders.
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,rcdc_194,Otitis Media,area_broader,agreed,Otitis media is an ear disorder.
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,rcdc_277,Usher Syndrome,overlap,adjudicated,Usher hearing loss shared; syndrome also involves vision loss.
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,rcdc_296,Hearing Loss,area_broader,agreed,Hearing loss is an ear disorder in otolaryngology.
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,rcdc_7,Allergic Rhinitis (Hay Fever),area_broader,agreed,Nasal allergic disease falls within ENT
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,rcdc_76,"Dental, Oral, and Craniofacial Disease",overlap,gap_review,"Oral and craniofacial conditions, incl. oral cancers, overlap head and neck medicine."
+pain_medicine,Pain Medicine,rcdc_102,Fibromyalgia,area_broader,agreed,Fibromyalgia is a chronic pain syndrome.
+pain_medicine,Pain Medicine,rcdc_112,Headaches,area_broader,agreed,Headache is a primary pain condition.
+pain_medicine,Pain Medicine,rcdc_178,Neck Pain,area_broader,agreed,Neck pain is a pain condition.
+pain_medicine,Pain Medicine,rcdc_188,Opioids,overlap,agreed,Opioid analgesia shared with pain management.
+pain_medicine,Pain Medicine,rcdc_197,Pain Research,exact,agreed,Both cover pain as primary focus.
+pain_medicine,Pain Medicine,rcdc_27,Back Pain,area_broader,agreed,Back pain is a pain medicine condition
+pain_medicine,Pain Medicine,rcdc_287,Vulvodynia,area_broader,agreed,Vulvodynia is chronic pain condition
+pain_medicine,Pain Medicine,rcdc_58,Chronic Pain,area_broader,agreed,Chronic pain is core pain medicine
+palliative_end_of_life_care,Palliative & End-of-Life Care,rcdc_339,Palliative Care,exact,agreed,Palliative care is the same field
+palliative_end_of_life_care,Palliative & End-of-Life Care,rcdc_47,Caregiving Research,overlap,adjudicated,Caregivers of seriously ill patients explicitly in scope.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_100,Fetal Alcohol Spectrum Disorders (FASD),area_broader,adjudicated,FASD is a pediatric neurodevelopmental condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_105,Fragile X Syndrome,area_broader,gap_review,Fragile X is a pediatric neurodevelopmental genetic disorder.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_137,Infant Mortality,overlap,adjudicated,"Neonatal care is shared, but infant mortality is largely population epidemiology."
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_143,Childhood Injury,area_broader,adjudicated,Childhood injury is a pediatric health topic.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_146,Unintentional Childhood Injury,area_broader,gap_review,"Unintentional childhood injury is a subset of Childhood Injury, mapped to pediatrics."
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_148,Intellectual and Developmental Disabilities (IDD),overlap,agreed,"IDD largely pediatric developmental conditions, but lifelong."
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_179,Neonatal Respiratory Distress,area_broader,agreed,Neonatal respiratory distress is a neonatology condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_181,Neuroblastoma,area_broader,gap_review,Neuroblastoma is a pediatric cancer; Pediatric Cancer already maps area_broader here.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_201,Pediatric,exact,agreed,Both cover pediatric populations broadly
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_202,Pediatric - AIDS,area_broader,adjudicated,Pediatric AIDS is a pediatric condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_203,Pediatric Cancer,area_broader,agreed,Pediatric cancer is pediatric disease research
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_204,Pediatric Cardiomyopathy,area_broader,adjudicated,Pediatric cardiomyopathy is pediatric organ-system disease.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_207,Perinatal Period - Conditions Originating in Perinatal Period,overlap,agreed,Neonatal conditions shared with perinatal period
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_219,"Preterm, Low Birth Weight and Health of the Newborn",area_broader,adjudicated,Preterm and newborn health is neonatology.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_227,Rett Syndrome,area_broader,adjudicated,Rett syndrome is a pediatric neurodevelopmental condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_242,Spina Bifida,area_broader,adjudicated,Spina bifida is a congenital pediatric condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_259,Sudden Infant Death Syndrome,area_broader,agreed,SIDS is infant condition
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_48,Cerebral Palsy,area_broader,adjudicated,Cerebral palsy is a pediatric neurodevelopmental condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_52,Child Abuse and Neglect Research,area_broader,adjudicated,Child abuse pediatrics is a recognized pediatric subfield.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_53,Childhood Leukemia,area_broader,adjudicated,Childhood leukemia falls within pediatric oncology.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_54,Childhood Obesity,area_broader,adjudicated,Childhood obesity is a pediatric condition.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_67,Congenital Heart Disease,overlap,adjudicated,Shared pediatric cardiology; congenital heart disease also extends to adult congenital care.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_69,Congenital Structural Anomalies,overlap,adjudicated,Congenital anomalies are managed in pediatrics but also studied embryologically and surgically.
+pediatrics_neonatology,Pediatrics & Neonatology,rcdc_84,Down Syndrome,area_broader,gap_review,"Down syndrome is a neurodevelopmental condition central to pediatric research, like Rett."
+primary_care_general_medicine,Primary Care & General Internal Medicine,rcdc_117,Health Services,overlap,adjudicated,"Care delivery, coordination, and practice organization are health services research."
+primary_care_general_medicine,Primary Care & General Internal Medicine,rcdc_334,Primary Health Care,exact,agreed,Primary care is same field
+prostate_urologic_cancer,Prostate & Urologic Cancer,rcdc_221,Prostate Cancer,area_broader,agreed,Prostate cancer core of area
+prostate_urologic_cancer,Prostate & Urologic Cancer,rcdc_355,Testicular Cancer,area_broader,agreed,Testicular cancer named in area
+prostate_urologic_cancer,Prostate & Urologic Cancer,rcdc_360,Prostate Disease,overlap,agreed,Shares prostate cancer
+prostate_urologic_cancer,Prostate & Urologic Cancer,rcdc_42,Cancer,area_narrower,agreed,Urologic cancers are cancer types
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_155,Lung,overlap,adjudicated,Lung category includes lung cancer; area includes ICU respiratory care.
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_2,Acute Respiratory Distress Syndrome,area_broader,agreed,ARDS is a core pulmonary critical care condition
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_21,Asthma,area_broader,agreed,Asthma is a pulmonary disease
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_212,Pneumonia,area_broader,agreed,Pneumonia is respiratory infection in pulmonary scope
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_213,Pneumonia and Influenza,overlap,agreed,Respiratory infections shared
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_322,Pulmonary Fibrosis,area_broader,agreed,Pulmonary fibrosis named in area
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_324,Sarcoidosis,area_broader,agreed,Sarcoidosis is predominantly pulmonary disease
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_325,Pulmonary Hypertension,area_broader,agreed,Pulmonary vascular lung disease
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_57,Chronic Obstructive Pulmonary Disease,area_broader,agreed,COPD is a pulmonary disease
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_74,Cystic Fibrosis,area_broader,agreed,Cystic fibrosis is primarily a pulmonary disease
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,rcdc_92,Emphysema,area_broader,agreed,Emphysema is a pulmonary disease
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",rcdc_223,Radiation Oncology,overlap,agreed,Radiation physics and treatment planning shared
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",rcdc_33,Biomedical Imaging,exact,agreed,Both cover biomedical imaging technologies and applications
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,rcdc_20,Assistive Technology,area_broader,agreed,Area explicitly includes assistive technology
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,rcdc_210,Physical Rehabilitation,area_broader,agreed,Physical rehabilitation within rehabilitation medicine
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,rcdc_226,Rehabilitation,exact,agreed,Rehabilitation is same field
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,rcdc_243,Spinal Cord Injury,overlap,adjudicated,SCI rehabilitation is a major shared component.
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,rcdc_342,Disability Research,overlap,agreed,Disability research central to disability medicine
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,rcdc_327,Building Research Capacity at Institutions with Limited NIH Funding,area_broader,agreed,Institutional research capacity building is research infrastructure
+sleep_medicine_circadian_biology,Sleep Medicine & Circadian Biology,rcdc_240,Sleep Research,exact,agreed,Sleep research same field
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,rcdc_225,Regenerative Medicine,area_broader,adjudicated,Regenerative medicine is a named half of the area.
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,rcdc_351,Human Embryonic Stem Cell Research,area_broader,agreed,hESC research is stem cell biology.
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,rcdc_356,Adult/Somatic Stem Cell and Progenitor Cell Research,area_broader,agreed,Adult stem cell research is a subset of stem cell biology
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,rcdc_357,Induced Pluripotent Stem Cell Research,area_broader,agreed,iPSC research is explicitly within stem cell area.
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,rcdc_358,Stem Cell and Progenitor Cell Research,area_broader,adjudicated,Stem cell biology is a core named part of area.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_168,Methamphetamine,area_broader,agreed,Methamphetamine use is a substance use disorder.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_187,Opioid Misuse and Addiction,area_broader,agreed,Opioid misuse is explicitly in substance use area.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_188,Opioids,overlap,agreed,Opioid misuse shared; opioids also used for analgesia.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_218,Prescription Drug Misuse,area_broader,agreed,Prescription opioid misuse within addiction area
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_234,Screening and Brief Intervention for Substance Misuse,area_broader,agreed,SBI is a substance misuse intervention
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_257,Substance Misuse,exact,agreed,Substance misuse same field
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_258,Substance Misuse Prevention,area_broader,agreed,Prevention of substance misuse within area
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_265,Tobacco,overlap,adjudicated,Tobacco use/nicotine addiction overlaps; category also covers tobacco health effects.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_266,Tobacco Smoke and Health,overlap,gap_review,"Tobacco smoking health effects overlap tobacco use research, consistent with Tobacco mapping."
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_274,Underage Drinking,area_broader,agreed,Underage alcohol use is substance use
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_275,Underage Drinking - Prevention & Treatment (NIAAA Only),area_broader,adjudicated,Underage drinking prevention/treatment is alcohol use research.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_300,Electronic Nicotine Delivery Systems,overlap,adjudicated,Nicotine use is shared; ENDS research also covers product toxicology and regulation.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_320,Cocaine,area_broader,agreed,Cocaine use is a substance use topic
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_323,Stimulant Use and Misuse,area_broader,agreed,Stimulant misuse is substance use
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_331,Recovery Support Services,area_broader,agreed,Addiction recovery support within area
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_332,Harm Reduction for Substance Misuse,area_broader,agreed,Harm reduction is a substance use intervention topic.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_338,Fentanyl Misuse and Addiction,area_broader,agreed,Fentanyl misuse is an opioid use disorder topic.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_45,Cannabinoid Research,overlap,adjudicated,Cannabis use disorder is shared; RCDC also covers therapeutic cannabinoids and basic biology.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_6,"Alcoholism, Alcohol Use and Health",overlap,adjudicated,Alcohol use disorder is shared; RCDC also covers alcohol's general health effects.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,rcdc_85,Drug Abuse (NIDA only),overlap,adjudicated,Addiction is shared; NIDA excludes alcohol and includes broad basic neuroscience.
+translational_clinical_science,Translational & Clinical Science,rcdc_361,Translational Research,overlap,agreed,Translational research shared; RCDC far broader content
+translational_clinical_science,Translational & Clinical Science,rcdc_61,Clinical Research,overlap,agreed,Patient-oriented clinical research methodology shared
+translational_clinical_science,Translational & Clinical Science,rcdc_62,Clinical Trials and Supportive Activities,overlap,agreed,Clinical trial science and infrastructure shared
+transplantation_medicine,Transplantation Medicine,rcdc_189,Organ Transplantation,area_broader,agreed,Solid organ transplantation is within the area.
+transplantation_medicine,Transplantation Medicine,rcdc_270,Transplantation,exact,agreed,Transplantation same field
+urology_mens_health,Urology & Men's Health,rcdc_149,Interstitial Cystitis,area_broader,adjudicated,Interstitial cystitis is a functional urologic bladder condition.
+urology_mens_health,Urology & Men's Health,rcdc_221,Prostate Cancer,area_broader,agreed,Area lists prostate cancer
+urology_mens_health,Urology & Men's Health,rcdc_276,Urologic Diseases,overlap,agreed,Urologic conditions shared; area adds men's health
+urology_mens_health,Urology & Men's Health,rcdc_348,Urinary Infection,area_broader,adjudicated,Urinary tract infection is a urologic condition.
+urology_mens_health,Urology & Men's Health,rcdc_349,Men's Health Research,overlap,agreed,Men's health shared; area focuses urologic conditions.
+urology_mens_health,Urology & Men's Health,rcdc_353,Urinary Incontinence,area_broader,agreed,Incontinence is functional urologic condition
+urology_mens_health,Urology & Men's Health,rcdc_354,Penile Diseases,area_broader,agreed,Penile disease is male urologic/reproductive health
+urology_mens_health,Urology & Men's Health,rcdc_355,Testicular Cancer,area_broader,agreed,Genitourinary oncology in urology
+urology_mens_health,Urology & Men's Health,rcdc_360,Prostate Disease,area_broader,agreed,Prostate disease incl. BPH within urology
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_101,Fibroid Tumors (Uterine),area_broader,agreed,Uterine fibroids are a gynecologic condition.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_140,Infertility,area_broader,agreed,Infertility is a reproductive medicine topic.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_164,Maternal Health,overlap,adjudicated,Maternal health shares reproductive/female-specific scope; perinatal epidemiology lies elsewhere.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_195,Ovarian Cancer,area_broader,adjudicated,"Area explicitly encompasses gynecologic oncology, including ovarian cancer."
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_206,Pelvic Inflammatory Disease,area_broader,agreed,PID is a gynecologic condition
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_217,Pregnancy,overlap,adjudicated,Pregnancy shares reproductive medicine scope.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_278,Uterine Cancer,area_broader,agreed,Area includes gynecologic oncology
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_281,Vaginal Cancer,area_broader,adjudicated,"Area explicitly encompasses gynecologic oncology, including vaginal cancer."
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_287,Vulvodynia,area_broader,agreed,Vulvodynia is gynecologic condition
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_321,Polycystic Ovary Syndrome (PCOS),area_broader,agreed,PCOS is reproductive endocrinology
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_333,Menopause,area_broader,agreed,Menopause is explicitly in women's health.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_345,Women's Health Research,overlap,adjudicated,Shared women's health scope; RCDC covers all conditions in women.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_50,Cervical Cancer,area_broader,adjudicated,"Area explicitly encompasses gynecologic oncology, including cervical cancer."
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_70,Contraception/Reproduction,overlap,agreed,Contraception and reproduction central to reproductive medicine
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,rcdc_95,Endometriosis,area_broader,agreed,Endometriosis is a gynecologic condition

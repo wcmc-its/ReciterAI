@@ -1,0 +1,64 @@
+area,area_label,ref,ref_name,relation,source,rationale
+aging_geroscience,Aging & Geroscience,NIA,National Institute on Aging,exact,agreed,NIA mission is biology of aging and geriatric health.
+anesthesiology,Anesthesiology,NIGMS,National Institute of General Medical Sciences,area_narrower,adjudicated,"NIGMS is the NIH home for anesthesiology, perioperative and critical care research."
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,NIAID,National Institute of Allergy and Infectious Diseases,overlap,agreed,NIAID funds autoimmunity mechanisms; rheumatology clinical is NIAMS.
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,NIAMS,National Institute of Arthritis and Musculoskeletal and Skin Diseases,area_narrower,agreed,Arthritis and rheumatic diseases are core NIAMS mission.
+basic_neuroscience,Basic Neuroscience,NIMH,National Institute of Mental Health,overlap,agreed,NIMH funds basic behavioral and systems neuroscience.
+basic_neuroscience,Basic Neuroscience,NINDS,National Institute of Neurological Disorders and Stroke,overlap,agreed,NINDS funds basic neuroscience; shared with NIMH and others.
+biochemistry_biophysics,Biochemistry & Biophysics,NIGMS,National Institute of General Medical Sciences,area_narrower,agreed,Biophysics and biochemistry are core NIGMS divisions.
+biomedical_engineering,Biomedical Engineering,NIBIB,National Institute of Biomedical Imaging and Bioengineering,area_narrower,agreed,Bioengineering is one of NIBIB's two mission pillars.
+biomedical_informatics,Biomedical Informatics,NLM,National Library of Medicine,area_narrower,adjudicated,Biomedical informatics is NLM's extramural research mission; NLM also includes library services.
+breast_cancer,Breast Cancer,NCI,National Cancer Institute,area_narrower,agreed,Specific cancer type within NCI mission.
+cancer_biology_general,Cancer Biology (General),NCI,National Cancer Institute,area_narrower,agreed,Cross-cutting cancer biology is core NCI scope.
+cardiovascular_disease,Cardiovascular Disease,NHLBI,"National Heart, Lung, and Blood Institute",area_narrower,agreed,Heart and vascular disease is a core NHLBI division.
+cell_molecular_biology,Cell & Molecular Biology,NIGMS,National Institute of General Medical Sciences,area_narrower,agreed,Cell biology is a core NIGMS basic science division.
+clinical_neurology,Clinical Neurology,NINDS,National Institute of Neurological Disorders and Stroke,area_narrower,agreed,Neurological disorders and stroke are core NINDS mission.
+dermatology_skin_disease,Dermatology & Skin Disease,NIAMS,National Institute of Arthritis and Musculoskeletal and Skin Diseases,area_narrower,agreed,Skin diseases are core NIAMS mission.
+developmental_biology,Developmental Biology,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,area_narrower,adjudicated,Developmental biology and congenital conditions are a core component of NICHD's broader mission.
+developmental_biology,Developmental Biology,NIGMS,National Institute of General Medical Sciences,overlap,adjudicated,NIGMS funds fundamental developmental biology and model-organism developmental genetics.
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,NCATS,National Center for Advancing Translational Sciences,overlap,agreed,NCATS preclinical therapeutics development and repurposing overlap drug discovery.
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,NIGMS,National Institute of General Medical Sciences,overlap,agreed,NIGMS funds pharmacology; translational drug development extends beyond.
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,NIGMS,National Institute of General Medical Sciences,overlap,agreed,"NIGMS funds trauma, sepsis, and burn injury research."
+environmental_planetary_health,Environmental & Planetary Health,NIEHS,National Institute of Environmental Health Sciences,exact,agreed,NIEHS mission is environmental exposures and human health.
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,area_narrower,adjudicated,Digestive and liver diseases are an NIDDK division; pancreatic cancer is a minor exception.
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",NHGRI,National Human Genome Research Institute,overlap,adjudicated,"Genomics/genomic medicine shared; pharmacogenomics, hereditary cancer genetics partly fall under other ICs."
+gi_cancer,Gastrointestinal Cancer,NCI,National Cancer Institute,area_narrower,agreed,Specific cancer type within NCI mission.
+global_public_health,Global & Public Health,FIC,Fogarty International Center,overlap,agreed,FIC funds global health research and training; area also covers domestic public health.
+gynecologic_oncology,Gynecologic Oncology,NCI,National Cancer Institute,area_narrower,agreed,Specific cancer type within NCI mission.
+health_equity_social_determinants,Health Equity & Social Determinants of Health,NIMHD,National Institute on Minority Health and Health Disparities,exact,agreed,NIMHD mission is health disparities and minority health.
+hematology,Hematology,NCI,National Cancer Institute,overlap,agreed,Blood cancers shared; benign hematology belongs to NHLBI.
+hematology,Hematology,NHLBI,"National Heart, Lung, and Blood Institute",overlap,agreed,NHLBI covers benign hematology and transfusion; blood cancers go to NCI.
+immunology_inflammation,Immunology & Inflammation,NIAID,National Institute of Allergy and Infectious Diseases,area_narrower,agreed,Basic immunology is a core NIAID mission component.
+infectious_disease_immunology,Infectious Disease & Host Defense,NIAID,National Institute of Allergy and Infectious Diseases,area_narrower,agreed,Infectious disease is a core NIAID mission component.
+lung_cancer,Lung Cancer,NCI,National Cancer Institute,area_narrower,agreed,Specific cancer type within NCI mission.
+maternal_child_health,Maternal & Child Health,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,area_narrower,agreed,Perinatal and child health is core NICHD mission.
+melanoma_skin_cancer,Melanoma & Skin Cancer,NCI,National Cancer Institute,area_narrower,agreed,Specific cancer type within NCI mission.
+mental_health_psychiatry,Mental Health & Psychiatry,NIMH,National Institute of Mental Health,exact,agreed,NIMH mission is mental illness research.
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,area_narrower,agreed,"Diabetes, obesity, endocrine disease are core NIDDK mission."
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,NIAMS,National Institute of Arthritis and Musculoskeletal and Skin Diseases,area_narrower,agreed,"Bone, joint, and muscle diseases are core NIAMS mission."
+nephrology_renal_disease,Nephrology & Renal Disease,NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,area_narrower,agreed,Kidney disease is core NIDDK mission.
+neuro_oncology,Neuro-Oncology,NCI,National Cancer Institute,area_narrower,agreed,Brain tumors within NCI mission.
+neuro_oncology,Neuro-Oncology,NINDS,National Institute of Neurological Disorders and Stroke,area_narrower,adjudicated,"Brain tumors are within NINDS's neurological disorder scope, shared with NCI."
+neurodegenerative_disease,Neurodegenerative Disease,NIA,National Institute on Aging,overlap,agreed,NIA leads Alzheimer's research; other neurodegeneration is NINDS.
+neurodegenerative_disease,Neurodegenerative Disease,NINDS,National Institute of Neurological Disorders and Stroke,area_narrower,adjudicated,"PD, ALS, HD, ADRD lie within NINDS mission; Alzheimer's co-led with NIA."
+nutrition_metabolism,Nutrition & Metabolism,NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,overlap,agreed,NIDDK covers nutrition and obesity; nutritional epidemiology spans ICs.
+ophthalmology_vision_science,Ophthalmology & Vision Science,NEI,National Eye Institute,exact,agreed,NEI mission is eye disease and vision research.
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,NIDCD,National Institute on Deafness and Other Communication Disorders,overlap,agreed,"Shared hearing, voice, swallowing; NIDCD adds smell/taste, area adds head-neck cancer."
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,NIDCR,National Institute of Dental and Craniofacial Research,overlap,gap_review,"NIDCR funds oral/oropharyngeal cancer, craniofacial, salivary and swallowing research within head and neck scope."
+pain_medicine,Pain Medicine,NCCIH,National Center for Complementary and Integrative Health,overlap,gap_review,Chronic pain management via nonpharmacologic/integrative approaches is NCCIH's top strategic research priority.
+pain_medicine,Pain Medicine,NINDS,National Institute of Neurological Disorders and Stroke,overlap,adjudicated,NINDS leads pain research (HEAL); clinical pain management and opioid stewardship extend beyond.
+palliative_end_of_life_care,Palliative & End-of-Life Care,NINR,National Institute of Nursing Research,area_narrower,adjudicated,"NINR is NIH lead for end-of-life/palliative care, one part of its nursing mission."
+pediatrics_neonatology,Pediatrics & Neonatology,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,area_narrower,agreed,Pediatric and neonatal research is core NICHD mission.
+prostate_urologic_cancer,Prostate & Urologic Cancer,NCI,National Cancer Institute,area_narrower,agreed,Genitourinary cancers within NCI mission.
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,NHLBI,"National Heart, Lung, and Blood Institute",area_narrower,agreed,Lung disease is a core NHLBI division.
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",NIBIB,National Institute of Biomedical Imaging and Bioengineering,overlap,agreed,NIBIB funds imaging technology; area also covers clinical radiology practice.
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,overlap,agreed,NICHD houses the National Center for Medical Rehabilitation Research.
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,NIGMS,National Institute of General Medical Sciences,overlap,adjudicated,"NIGMS leads research training, workforce diversity, and IDeA capacity building; area extends beyond."
+sleep_medicine_circadian_biology,Sleep Medicine & Circadian Biology,NHLBI,"National Heart, Lung, and Blood Institute",overlap,agreed,NHLBI houses the National Center on Sleep Disorders Research.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,NIAAA,National Institute on Alcohol Abuse and Alcoholism,area_broader,agreed,Alcohol use disorders are a subset of substance use research.
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,NIDA,National Institute on Drug Abuse,area_broader,agreed,Drug abuse research is a subset; area also covers alcohol.
+systems_biology,Systems Biology,NIGMS,National Institute of General Medical Sciences,area_narrower,agreed,Computational and systems biology is an NIGMS division.
+translational_clinical_science,Translational & Clinical Science,NCATS,National Center for Advancing Translational Sciences,exact,agreed,NCATS runs CTSA program and translational science; area explicitly covers this.
+transplantation_medicine,Transplantation Medicine,NIAID,National Institute of Allergy and Infectious Diseases,overlap,agreed,NIAID funds transplantation immunology; clinical transplant spans other ICs.
+urology_mens_health,Urology & Men's Health,NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,overlap,agreed,Benign urology is NIDDK; urologic cancers are NCI.
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,overlap,agreed,NICHD covers reproductive health; gynecologic oncology falls outside.

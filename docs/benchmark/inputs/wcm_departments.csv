@@ -1,0 +1,30 @@
+code,name,category,scholar_count
+N1140,Anesthesiology,clinical,436
+N1700,Biochemistry and Biophysics,basic,96
+N1760,Brain and Mind Research,mixed,113
+N1160,Cardiothoracic Surgery,clinical,92
+N1710,Cell and Developmental Biology,basic,31
+N1220,Dermatology,clinical,133
+N1240,Emergency Medicine,clinical,327
+N1720,Genetic Medicine,basic,34
+N1932,Library,administrative,15
+N1280,Medicine,mixed,2645
+N1730,Microbiology and Immunology,basic,74
+N1320,Neurological Surgery,clinical,107
+N1300,Neurology,clinical,214
+N1340,Obstetrics and Gynecology,clinical,345
+N1360,Ophthalmology,clinical,162
+N8265,Orthopaedic Surgery,clinical,284
+N1400,Otolaryngology Head and Neck Surgery,clinical,205
+N1420,Pathology and Laboratory Medicine,mixed,285
+N1440,Pediatrics,clinical,699
+N1750,Pharmacology,basic,83
+N1480,Population Health Sciences,mixed,178
+N1500,Psychiatry,clinical,694
+N1530,Radiation Oncology,clinical,67
+N1520,Radiology,clinical,561
+N1540,Rehabilitation Medicine,clinical,124
+N1180,Reproductive Medicine,clinical,28
+N1560,Surgery,clinical,428
+N1740,Systems and Computational Biomedicine,mixed,85
+N1580,Urology,clinical,155

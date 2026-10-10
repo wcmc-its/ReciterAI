@@ -1,0 +1,25 @@
+ref,name,best,areas
+FIC,Fogarty International Center,overlap,Global & Public Health [overlap]
+NCATS,National Center for Advancing Translational Sciences,exact,Drug Discovery & Pharmacology [overlap]; Translational & Clinical Science [exact]
+NCCIH,National Center for Complementary and Integrative Health,overlap,Pain Medicine [overlap]
+NCI,National Cancer Institute,area_narrower,Breast Cancer [area_narrower]; Cancer Biology (General) [area_narrower]; Gastrointestinal Cancer [area_narrower]; Gynecologic Oncology [area_narrower]; Hematology [overlap]; Lung Cancer [area_narrower]; Melanoma & Skin Cancer [area_narrower]; Neuro-Oncology [area_narrower]; Prostate & Urologic Cancer [area_narrower]
+NEI,National Eye Institute,exact,Ophthalmology & Vision Science [exact]
+NHGRI,National Human Genome Research Institute,overlap,"Genetics, Genomics & Precision Medicine [overlap]"
+NHLBI,"National Heart, Lung, and Blood Institute",area_narrower,Cardiovascular Disease [area_narrower]; Hematology [overlap]; Pulmonary & Critical Care Medicine [area_narrower]; Sleep Medicine & Circadian Biology [overlap]
+NIA,National Institute on Aging,exact,Aging & Geroscience [exact]; Neurodegenerative Disease [overlap]
+NIAAA,National Institute on Alcohol Abuse and Alcoholism,area_broader,Substance Use & Addiction Medicine [area_broader]
+NIAID,National Institute of Allergy and Infectious Diseases,area_narrower,Autoimmune & Rheumatologic Disease [overlap]; Immunology & Inflammation [area_narrower]; Infectious Disease & Host Defense [area_narrower]; Transplantation Medicine [overlap]
+NIAMS,National Institute of Arthritis and Musculoskeletal and Skin Diseases,area_narrower,Autoimmune & Rheumatologic Disease [area_narrower]; Dermatology & Skin Disease [area_narrower]; Musculoskeletal & Orthopedic Medicine [area_narrower]
+NIBIB,National Institute of Biomedical Imaging and Bioengineering,area_narrower,"Biomedical Engineering [area_narrower]; Radiology, Medical Imaging & Medical Physics [overlap]"
+NICHD,Eunice Kennedy Shriver National Institute of Child Health and Human Development,area_narrower,Developmental Biology [area_narrower]; Maternal & Child Health [area_narrower]; Pediatrics & Neonatology [area_narrower]; Rehabilitation & Disability Medicine [overlap]; Women's Health & Reproductive Medicine [overlap]
+NIDA,National Institute on Drug Abuse,area_broader,Substance Use & Addiction Medicine [area_broader]
+NIDCD,National Institute on Deafness and Other Communication Disorders,overlap,Otolaryngology & Head and Neck Medicine [overlap]
+NIDCR,National Institute of Dental and Craniofacial Research,overlap,Otolaryngology & Head and Neck Medicine [overlap]
+NIDDK,National Institute of Diabetes and Digestive and Kidney Diseases,area_narrower,"Gastroenterology, Hepatology & Pancreatic Disease [area_narrower]; Metabolic & Endocrine Disease [area_narrower]; Nephrology & Renal Disease [area_narrower]; Nutrition & Metabolism [overlap]; Urology & Men's Health [overlap]"
+NIEHS,National Institute of Environmental Health Sciences,exact,Environmental & Planetary Health [exact]
+NIGMS,National Institute of General Medical Sciences,area_narrower,Anesthesiology [area_narrower]; Biochemistry & Biophysics [area_narrower]; Cell & Molecular Biology [area_narrower]; Developmental Biology [overlap]; Drug Discovery & Pharmacology [overlap]; Emergency & Critical Care Medicine [overlap]; Research Infrastructure & Scientific Workforce [overlap]; Systems Biology [area_narrower]
+NIMH,National Institute of Mental Health,exact,Basic Neuroscience [overlap]; Mental Health & Psychiatry [exact]
+NIMHD,National Institute on Minority Health and Health Disparities,exact,Health Equity & Social Determinants of Health [exact]
+NINDS,National Institute of Neurological Disorders and Stroke,area_narrower,Basic Neuroscience [overlap]; Clinical Neurology [area_narrower]; Neuro-Oncology [area_narrower]; Neurodegenerative Disease [area_narrower]; Pain Medicine [overlap]
+NINR,National Institute of Nursing Research,area_narrower,Palliative & End-of-Life Care [area_narrower]
+NLM,National Library of Medicine,area_narrower,Biomedical Informatics [area_narrower]

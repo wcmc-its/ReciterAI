@@ -1,0 +1,68 @@
+area,label,best,matches
+aging_geroscience,Aging & Geroscience,none,
+anesthesiology,Anesthesiology,none,
+autoimmune_rheumatologic_disease,Autoimmune & Rheumatologic Disease,none,
+basic_neuroscience,Basic Neuroscience,none,
+biochemistry_biophysics,Biochemistry & Biophysics,none,
+bioethics_medical_humanities,"Bioethics, Medical Humanities & Clinician Wellbeing",none,
+biomedical_engineering,Biomedical Engineering,none,
+biomedical_informatics,Biomedical Informatics,overlap,AI and data science driven across missions [overlap]; Data science/AI [overlap]; AI/Data Science [overlap]; Computational Biomedicine [overlap]
+biostatistics_quantitative_sciences,Biostatistics & Quantitative Health Sciences,overlap,AI/Data Science [overlap]
+breast_cancer,Breast Cancer,none,
+cancer_biology_general,Cancer Biology (General),none,
+cardiovascular_disease,Cardiovascular Disease,none,
+cell_molecular_biology,Cell & Molecular Biology,none,
+clinical_neurology,Clinical Neurology,none,
+dermatology_skin_disease,Dermatology & Skin Disease,none,
+developmental_biology,Developmental Biology,none,
+digital_health_telemedicine,Digital Health & Telemedicine,none,
+drug_discovery_pharmacology,Drug Discovery & Pharmacology,none,
+emergency_critical_care_medicine,Emergency & Critical Care Medicine,none,
+environmental_planetary_health,Environmental & Planetary Health,none,
+epidemiology_population_health,Epidemiology & Population Health,none,
+gastroenterology_hepatology,"Gastroenterology, Hepatology & Pancreatic Disease",none,
+gi_cancer,Gastrointestinal Cancer,none,
+gene_cell_therapy,Gene & Cell Therapy,none,
+genetics_genomics_precision_medicine,"Genetics, Genomics & Precision Medicine",overlap,Organoids and Genomics [overlap]
+global_public_health,Global & Public Health,none,
+gynecologic_oncology,Gynecologic Oncology,none,
+health_economics,Health Economics,none,
+health_equity_social_determinants,Health Equity & Social Determinants of Health,none,
+health_services_policy,Health Services Research & Health Policy,area_broader,Implementation science [area_broader]
+hematology,Hematology,none,
+immunology_inflammation,Immunology & Inflammation,none,
+infectious_disease_immunology,Infectious Disease & Host Defense,none,
+lung_cancer,Lung Cancer,none,
+maternal_child_health,Maternal & Child Health,none,
+medical_education_workforce,Medical Education & Healthcare Workforce,overlap,"Mentor, train and develop physician-scientists [overlap]"
+melanoma_skin_cancer,Melanoma & Skin Cancer,none,
+mental_health_psychiatry,Mental Health & Psychiatry,none,
+metabolic_endocrine_disease,Metabolic & Endocrine Disease,none,
+microbiome_research,Microbiome Research,none,
+musculoskeletal_orthopedic_medicine,Musculoskeletal & Orthopedic Medicine,none,
+nephrology_renal_disease,Nephrology & Renal Disease,none,
+neuro_oncology,Neuro-Oncology,none,
+neurodegenerative_disease,Neurodegenerative Disease,none,
+nutrition_metabolism,Nutrition & Metabolism,none,
+ophthalmology_vision_science,Ophthalmology & Vision Science,none,
+otolaryngology_head_neck,Otolaryngology & Head and Neck Medicine,none,
+pain_medicine,Pain Medicine,none,
+palliative_end_of_life_care,Palliative & End-of-Life Care,none,
+pathology_laboratory_medicine,Pathology & Laboratory Medicine,none,
+pediatrics_neonatology,Pediatrics & Neonatology,none,
+primary_care_general_medicine,Primary Care & General Internal Medicine,none,
+prostate_urologic_cancer,Prostate & Urologic Cancer,none,
+pulmonary_critical_care,Pulmonary & Critical Care Medicine,none,
+radiology_medical_imaging,"Radiology, Medical Imaging & Medical Physics",overlap,Advanced Imaging [overlap]
+rehabilitation_disability_medicine,Rehabilitation & Disability Medicine,none,
+research_infrastructure_workforce,Research Infrastructure & Scientific Workforce,area_broader,"Data science facilities [overlap]; Mentor, train and develop physician-scientists [area_broader]"
+single_cell_spatial_biology,Single-Cell & Spatial Biology,overlap,Organoids and Genomics [overlap]
+sleep_medicine_circadian_biology,Sleep Medicine & Circadian Biology,none,
+stem_cell_regenerative_medicine,Stem Cell & Regenerative Medicine,overlap,Organoids and Genomics [overlap]
+substance_use_addiction_medicine,Substance Use & Addiction Medicine,none,
+surgery_perioperative_medicine,Surgery & Perioperative Medicine,none,
+systems_biology,Systems Biology,overlap,Computational bio [overlap]; Computational Biomedicine [overlap]
+translational_clinical_science,Translational & Clinical Science,area_broader,Grow clinical research as bridge between missions [overlap]; Point-of-care research [area_broader]; Clinical research pipeline [area_broader]
+transplantation_medicine,Transplantation Medicine,none,
+urology_mens_health,Urology & Men's Health,none,
+womens_health_reproductive_medicine,Women's Health & Reproductive Medicine,none,
