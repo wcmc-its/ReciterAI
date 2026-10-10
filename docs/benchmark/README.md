@@ -1,25 +1,29 @@
-# Research-area benchmark
+# Research areas: benchmark against outside reference points
 
-This is the evidence behind the Scholars About page sentence (`#research-areas`):
+**Snapshot: 2026-10-10** (taxonomy_v2, 67 research areas)
 
-> As an independent check, that map was benchmarked against authoritative institutional reference points: Weill Cornell's divisions and departments, its strategic research roadmap, and NIH research designations. It aligned cleanly with all three.
+Scholars at Weill Cornell Medicine describes each scholar's work with research areas that ReciterAI derives from the publications themselves, not from a fixed classification. This document shows how that map compares with three outside reference points:
 
-No artifact for that check was ever committed (it first appeared in the docs-only #235), so it was redone from scratch on 2026-10-10 against the live taxonomy. Everything needed to audit or rerun it is in this directory.
+- Weill Cornell's departments and divisions
+- the research priorities in Weill Cornell's CARE Strategic Plan 2026–2029
+- NIH's Institutes and Centers and its RCDC research, condition and disease categories
+
+It covers the method, the results, and every place the map and the references don't line up. All inputs, code, prompts and outputs are in this directory, so anyone can audit or rerun it.
+
+**Start here:** [`outputs/research-areas-reference-crosswalk-2026-10-10.csv`](outputs/research-areas-reference-crosswalk-2026-10-10.csv) has one row for every department, division, plan item, NIH institute and NIH category, showing how the research-area map represents it.
 
 ## Verdict
 
-| Reference point | What was compared | Result | Does "aligned cleanly" hold? |
+| Reference point | What was compared | Result | Takeaway |
 |---|---|---|---|
-| A. WCM departments and divisions | Where each area's papers concentrate, from publication data | 62 of 67 areas have a clear home unit; the other 5 have an aligned unit with too few papers to call. 25 of 29 departments are the home of at least one area | Yes |
-| B. CARE Strategic Plan 2026–2029 | The plan's 13 scientific items | All 13 correspond to at least one area. But the plan names capabilities (AI/data science, organoids and genomics, imaging, clinical research), not research domains, so only 11 of 67 areas touch it at all | Only as "the plan's priorities are all represented". It cannot validate the map |
-| C1. NIH Institutes and Centers | The 24 grant-funding ICs | All 24 ICs have a corresponding area (NCCIH and NIDCR only weakly). 53 of 67 areas map to an IC; the 14 that don't are method and cross-cutting fields NIH doesn't organize ICs around | Yes, with an explainable gap |
-| C2. NIH RCDC spending categories | All 331 categories with FY2025 funding | 58 of 67 areas match a category (28 exactly). 308 of 331 categories fall under some area | Yes |
-
-The fair public claim is narrower than the current sentence. See [Proposed About-page copy](#proposed-about-page-copy).
+| A. WCM departments and divisions | Where each area's papers concentrate, from publication data | 62 of 67 areas have a clear home unit; the other 5 have an aligned unit with too few papers to call. 25 of 29 departments are the home of at least one area | Strong alignment |
+| B. CARE Strategic Plan 2026–2029 | The plan's 13 scientific items | All 13 correspond to at least one area. But the plan names capabilities (AI/data science, organoids and genomics, imaging, clinical research), not research domains, so only 11 of 67 areas touch it at all | Every named priority is represented, but the plan is too coarse to validate the map on its own |
+| C1. NIH Institutes and Centers | The 24 grant-funding ICs | All 24 ICs have a corresponding area (NCCIH and NIDCR only weakly). 53 of 67 areas map to an IC; the 14 that don't are method and cross-cutting fields NIH doesn't organize ICs around | Strong alignment; the gap is structural |
+| C2. NIH RCDC spending categories | All 331 categories with FY2025 funding | 58 of 67 areas match a category (28 exactly). 308 of 331 categories fall under some area | Strong alignment |
 
 ## The crosswalk
 
-`outputs/crosswalk.csv` is the single table to start from: 446 rows, one per entry in every reference source (29 departments, 42 divisions, 20 CARE plan items, 24 NIH ICs, 331 RCDC categories). Columns:
+`outputs/research-areas-reference-crosswalk-2026-10-10.csv` is the single table to start from: 446 rows, one per entry in every reference source (29 departments, 42 divisions, 20 CARE plan items, 24 NIH ICs, 331 RCDC categories). Columns:
 
 | Column | Meaning |
 |---|---|
@@ -160,20 +164,20 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 
 `outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), with blank `reviewer_agrees` / `reviewer_note` columns. Fill it in and report the agreement rate here before the results are cited publicly.
 
-## Proposed About-page copy
-
-> As an independent check, we compared that map with three outside reference points. Against Weill Cornell's departments and divisions, 62 of 67 research areas are concentrated in a recognizable home unit. Against NIH's research, condition and disease categories, 58 areas have a matching category, and together the areas cover 308 of NIH's 331 categories. And each of the 13 scientific priorities named in Weill Cornell's CARE Strategic Plan corresponds to at least one area. The full comparison, including where the map and these references don't line up, is published [here].
-
 ## Rerun
 
 ```bash
 python3 docs/benchmark/frame_a.py    # from inputs/ aggregates
 python3 docs/benchmark/frames_bc.py  # from outputs/mapping_raw.json + gap_review.json
-python3 docs/benchmark/crosswalk.py  # builds outputs/crosswalk.csv from the two above
+python3 docs/benchmark/crosswalk.py  # builds the dated crosswalk CSV from the two above
 ```
 
 Refreshing the inputs means:
 - **Frame A:** rerun `mapping/sps_probe_frame_a.ts` with SPS `scripts/run-staging-probe.sh <file> prod`. It is read-only and returns aggregates only.
 - **Frames B, C1, C2:** rerun the blind mapping. `mapping/blind_mapping.js` and `mapping/gap_review.js` are the exact Claude Code workflow scripts used, with every mapper, adjudicator and gap-review prompt.
 
-Redo the benchmark whenever `taxonomy_version` changes.
+Redo the benchmark whenever `taxonomy_version` changes. Bump `SNAPSHOT_DATE` in `crosswalk.py` and the snapshot line at the top of this file to the new freeze date; the crosswalk filename carries that date.
+
+## History
+
+An earlier version of the About page described this check without publishing it, and no record of that earlier comparison survives. This version was redone from scratch on 2026-10-10 against the live taxonomy, and its findings are narrower: the CARE Strategic Plan names capabilities rather than research domains, so it corroborates the map less than the department and NIH comparisons do.

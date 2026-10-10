@@ -1,6 +1,7 @@
 """One row per reference entry across every source, and how the research-area map represents it.
 
-Reads the frame outputs written by frame_a.py and frames_bc.py; writes outputs/crosswalk.csv.
+Reads the frame outputs written by frame_a.py and frames_bc.py; writes
+outputs/research-areas-reference-crosswalk-<SNAPSHOT_DATE>.csv.
 Run after both: python3 docs/benchmark/crosswalk.py
 """
 
@@ -10,6 +11,8 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 IN, OUT = HERE / "inputs", HERE / "outputs"
+# Date the inputs were frozen (pulled from SPS prod and the reference sources). Bump it when they are refreshed.
+SNAPSHOT_DATE = "2026-10-10"
 
 HOW = {
     "exact": "Exact match",
@@ -76,11 +79,12 @@ def main():
                          "match_basis": basis.get(r["ref"], "both mappers + gap review: none"),
                          "represented_by": plain(r["areas"])})
 
-    with open(OUT / "crosswalk.csv", "w", newline="") as f:
+    path = OUT / f"research-areas-reference-crosswalk-{SNAPSHOT_DATE}.csv"
+    with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, COLS)
         w.writeheader()
         w.writerows(rows)
-    print(len(rows), "rows")
+    print(len(rows), "rows ->", path.name)
 
 
 if __name__ == "__main__":
