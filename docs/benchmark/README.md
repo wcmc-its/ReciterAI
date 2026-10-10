@@ -5,7 +5,7 @@
 Scholars at Weill Cornell Medicine describes each scholar's work with research areas that ReciterAI derives from the publications themselves, not from a fixed classification. This document shows how that map compares with three outside reference points:
 
 - Weill Cornell's departments and divisions
-- the research priorities in Weill Cornell's CARE Strategic Plan 2026–2029
+- the research priorities in Weill Cornell's [CARE Strategic Plan 2026–2029](https://weill.cornell.edu/careplan)
 - NIH's Institutes and Centers and its RCDC research, condition and disease categories
 
 It covers the method, the results, and every place the map and the references don't line up. All inputs, code, prompts and outputs are in this directory, so anyone can audit or rerun it.
