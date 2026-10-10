@@ -17,6 +17,19 @@ No artifact for that check was ever committed (it first appeared in the docs-onl
 
 The fair public claim is narrower than the current sentence. See [Proposed About-page copy](#proposed-about-page-copy).
 
+## The crosswalk
+
+`outputs/crosswalk.csv` is the single table to start from: 446 rows, one per entry in every reference source (29 departments, 42 divisions, 20 CARE plan items, 24 NIH ICs, 331 RCDC categories). Columns:
+
+| Column | Meaning |
+|---|---|
+| `source` | Which reference list |
+| `entry_id`, `entry` | The department, plan item, IC or category |
+| `detail` | Plan pillar and section, or FY2025 RCDC funding |
+| `how_represented` | Exact match, contained in a broader area, covered by narrower areas, partial overlap, not represented; for units, home unit / low volume / no papers; for operational plan items, out of scope |
+| `match_basis` | How that was decided: publication data, mappers agreed, adjudicated, or gap review |
+| `represented_by` | The research area(s) that represent it, with the relation (or lift and paper count for units) |
+
 ## Inputs (frozen 2026-10-10)
 
 All in `inputs/`. Nothing here is per-person: unit-level counts only.
@@ -156,6 +169,7 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 ```bash
 python3 docs/benchmark/frame_a.py    # from inputs/ aggregates
 python3 docs/benchmark/frames_bc.py  # from outputs/mapping_raw.json + gap_review.json
+python3 docs/benchmark/crosswalk.py  # builds outputs/crosswalk.csv from the two above
 ```
 
 Refreshing the inputs means:
