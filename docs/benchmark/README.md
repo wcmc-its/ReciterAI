@@ -162,7 +162,7 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 
 ## Human spot check
 
-`outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), with blank `reviewer_agrees` / `reviewer_note` columns. Fill it in and report the agreement rate here before the results are cited publicly.
+`outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), reviewed on 2026-10-11 in `reviewer_agrees` / `reviewer_note`. **45 of 47 agree (95.7%).** Both disagreements accept the match but find the relation too strong: Ataxia Telangiectasia and Pulmonary Hypertension are partial overlaps, not contained in Neurodegenerative Disease and Cardiovascular Disease. The reviewer was an independent automated check (Claude, run separately from the mappers, adjudicator and gap reviewer), not a person; a human review would strengthen it.
 
 ## Rerun
 
