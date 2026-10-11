@@ -170,13 +170,14 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 python3 docs/benchmark/frame_a.py    # from inputs/ aggregates
 python3 docs/benchmark/frames_bc.py  # from outputs/mapping_raw.json + gap_review.json
 python3 docs/benchmark/crosswalk.py  # builds the dated crosswalk CSV from the two above
+python3 docs/benchmark/export_json.py  # snapshot JSON for the Scholars site + "latest" copies and index
 ```
 
 Refreshing the inputs means:
 - **Frame A:** rerun `mapping/sps_probe_frame_a.ts` with SPS `scripts/run-staging-probe.sh <file> prod`. It is read-only and returns aggregates only.
 - **Frames B, C1, C2:** rerun the blind mapping. `mapping/blind_mapping.js` and `mapping/gap_review.js` are the exact Claude Code workflow scripts used, with every mapper, adjudicator and gap-review prompt.
 
-Redo the benchmark whenever `taxonomy_version` changes. Bump `SNAPSHOT_DATE` in `crosswalk.py` and the snapshot line at the top of this file to the new freeze date; the crosswalk filename carries that date.
+Redo the benchmark whenever `taxonomy_version` changes. Bump `SNAPSHOT_DATE` in `crosswalk.py` and the snapshot line at the top of this file to the new freeze date; the crosswalk filename carries that date. Also set `CHANGE_NOTE` in `export_json.py` (what moved since the last snapshot) and, once the spot check is done, `SPOT_CHECK_REVIEWED_BY` / `SPOT_CHECK_REVIEWED_ON`. Stable links: `outputs/benchmark-latest.json` and `outputs/research-areas-reference-crosswalk-latest.csv`.
 
 ## History
 
