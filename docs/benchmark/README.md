@@ -90,7 +90,7 @@ Outputs:
 
 These need judgement, so the process was built to keep it honest.
 
-The mappers, adjudicator and gap reviewer were independent LLM agent runs (Claude), each in a fresh context, not human annotators. The human check is the [spot check](#human-spot-check) below.
+The mappers, adjudicator and gap reviewer were independent LLM agent runs (Claude), each in a fresh context, not human annotators. The [spot check](#spot-check) below is a further independent automated run, not a person; no human has reviewed the matches yet.
 
 1. **Two independent mappers per frame.** Neither saw the other's output or the About-page claim, and both were told that "no counterpart" is a valid, expected answer. They traversed in opposite directions: one went reference entry by entry, the other area by area. For RCDC each direction was split into 3 slices.
 2. **Relation types:**
@@ -160,7 +160,7 @@ RCDC is a disease-and-condition scheme, and these are disciplines or methods.
 
 The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are real gaps in WCM's map relative to NIH's.
 
-## Human spot check
+## Spot check
 
 `outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), reviewed on 2026-10-11 in `reviewer_agrees` / `reviewer_note`. **45 of 47 agree (95.7%).** Both disagreements accept the match but find the relation too strong: Ataxia Telangiectasia and Pulmonary Hypertension are partial overlaps, not contained in Neurodegenerative Disease and Cardiovascular Disease. The reviewer was an independent automated check (Claude, run separately from the mappers, adjudicator and gap reviewer), not a person; a human review would strengthen it.
 
