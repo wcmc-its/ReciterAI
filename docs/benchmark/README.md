@@ -162,7 +162,7 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 
 ## Human spot check
 
-`outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), with blank `reviewer_agrees` / `reviewer_note` columns. Fill it in and report the agreement rate here before the results are cited publicly.
+`outputs/spot_check_sample.csv` holds a seeded random 10% of final pairs (47 of 470, seed 20261010), reviewed on 2026-10-11 in `reviewer_agrees` / `reviewer_note`. **45 of 47 agree (95.7%).** Both disagreements accept the match but find the relation too strong: Ataxia Telangiectasia and Pulmonary Hypertension are partial overlaps, not contained in Neurodegenerative Disease and Cardiovascular Disease. The reviewer was an independent automated check (Claude, run separately from the mappers, adjudicator and gap reviewer), not a person; a human review would strengthen it.
 
 ## Rerun
 
@@ -170,13 +170,15 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 python3 docs/benchmark/frame_a.py    # from inputs/ aggregates
 python3 docs/benchmark/frames_bc.py  # from outputs/mapping_raw.json + gap_review.json
 python3 docs/benchmark/crosswalk.py  # builds the dated crosswalk CSV from the two above
+python3 docs/benchmark/spot_check_sample.py  # draws the 10% sample; fill in reviewer_agrees / reviewer_note before exporting
+python3 docs/benchmark/export_json.py  # snapshot JSON for the Scholars site + "latest" copies and index
 ```
 
 Refreshing the inputs means:
 - **Frame A:** rerun `mapping/sps_probe_frame_a.ts` with SPS `scripts/run-staging-probe.sh <file> prod`. It is read-only and returns aggregates only.
 - **Frames B, C1, C2:** rerun the blind mapping. `mapping/blind_mapping.js` and `mapping/gap_review.js` are the exact Claude Code workflow scripts used, with every mapper, adjudicator and gap-review prompt.
 
-Redo the benchmark whenever `taxonomy_version` changes. Bump `SNAPSHOT_DATE` in `crosswalk.py` and the snapshot line at the top of this file to the new freeze date; the crosswalk filename carries that date.
+Redo the benchmark whenever `taxonomy_version` changes. Bump `SNAPSHOT_DATE` in `crosswalk.py` and the snapshot line at the top of this file to the new freeze date; the crosswalk filename carries that date. Also set `CHANGE_NOTE` in `export_json.py` (what moved since the last snapshot) and, once the spot check is done, `SPOT_CHECK_REVIEWED_BY` / `SPOT_CHECK_REVIEWED_ON`. Stable links: `outputs/benchmark-latest.json` and `outputs/research-areas-reference-crosswalk-latest.csv`.
 
 ## History
 
