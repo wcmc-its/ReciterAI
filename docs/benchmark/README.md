@@ -170,6 +170,7 @@ The full list is in `outputs/frame_C2_reverse.csv`. The first two groups are rea
 python3 docs/benchmark/frame_a.py    # from inputs/ aggregates
 python3 docs/benchmark/frames_bc.py  # from outputs/mapping_raw.json + gap_review.json
 python3 docs/benchmark/crosswalk.py  # builds the dated crosswalk CSV from the two above
+python3 docs/benchmark/spot_check_sample.py  # draws the 10% sample; fill in reviewer_agrees / reviewer_note before exporting
 python3 docs/benchmark/export_json.py  # snapshot JSON for the Scholars site + "latest" copies and index
 ```
 
