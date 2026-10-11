@@ -17,11 +17,13 @@ from frame_a import LIFT, MIN_N
 
 SCHEMA_VERSION = 1  # bump on any breaking change to the shape below
 TAXONOMY_VERSION = "taxonomy_v2"
-CHANGE_NOTE = "First published snapshot."  # what moved since the previous snapshot (R4)
-METHODS_URL = "https://github.com/wcmc-its/ReciterAI/blob/main/docs/benchmark/README.md"
-# Set when the spot check in outputs/spot_check_sample.csv is complete (D7).
-SPOT_CHECK_REVIEWED_BY = None
-SPOT_CHECK_REVIEWED_ON = None
+CHANGE_NOTE = "First published benchmark, redone from scratch against the live taxonomy."  # what moved since the previous snapshot (R4)
+REPO = "https://github.com/wcmc-its/ReciterAI"
+METHODS_URL = f"{REPO}/blob/main/docs/benchmark/README.md"
+# Who filled in outputs/spot_check_sample.csv (D7). method is "human" or "automated"; the page says which.
+SPOT_CHECK_METHOD = "automated"
+SPOT_CHECK_REVIEWED_BY = "Independent automated check (Claude, separate run from the mappers, adjudicator and gap reviewer)"
+SPOT_CHECK_REVIEWED_ON = "2026-10-11"
 FRAMES = ("B", "C1", "C2")
 
 
@@ -37,7 +39,7 @@ def build():
     divs = {r["code"]: r["dept_code"] for r in read(IN / "wcm_divisions.csv")}
 
     areas = [{"id": r["area"], "label": r["label"], "papers": int(r["papers"]), "unit_status": r["status"],
-              "best": {k: fwd[k][r["area"]] for k in FRAMES}} for r in fwd_a]
+              "largest_dept": r["largest_dept"], "best": {k: fwd[k][r["area"]] for k in FRAMES}} for r in fwd_a]
     units = [{"id": r["unit"], "level": r["level"], "name": r["unit_name"],
               "parent": divs.get(r["unit"]) if r["level"] == "division" else None, "status": r["status"]}
              for r in rev_a]
@@ -49,8 +51,8 @@ def build():
     best_b = {r["ref"]: r["best"] for r in read(OUT / "frame_B_reverse.csv")}
     for c in care.values():
         refs.append({"frame": "B", "id": c["id"], "name": c["item"], "in_scope": c["in_scope"] == "yes",
-                     "best": best_b.get(c["id"]), "detail": {"pillar": c["pillar"], "section": c["section"],
-                                                              "note": c["note"]}})
+                     "best": best_b.get(c["id"], "out_of_scope"), "note": c["note"] or None,
+                     "detail": {"pillar": c["pillar"], "section": c["section"]}})
     for r in read(OUT / "frame_C1_reverse.csv"):
         refs.append({"frame": "C1", "id": r["ref"], "name": r["name"], "in_scope": True, "best": r["best"],
                      "detail": {}})
@@ -65,6 +67,8 @@ def build():
     done = [r for r in spot if r["reviewer_agrees"].strip()]
     agree = sum(r["reviewer_agrees"].strip().lower() in ("y", "yes", "1", "true") for r in done)
     complete = len(done) == len(spot)
+    usd = {r["id"]: r["detail"]["fy2025_musd"] for r in refs if r["frame"] == "C2"}
+    matched = {p["ref"] for p in pairs if p["frame"] == "C2"}
 
     a = Counter(r["status"] for r in fwd_a)
     u = Counter((r["level"], r["status"]) for r in rev_a)
@@ -75,6 +79,8 @@ def build():
         "snapshot_date": SNAPSHOT_DATE,
         "taxonomy_version": TAXONOMY_VERSION,
         "methods_url": METHODS_URL,
+        "crosswalk_url": f"{REPO}/blob/main/docs/benchmark/outputs/research-areas-reference-crosswalk-{SNAPSHOT_DATE}.csv",
+        "outputs_url": f"{REPO}/tree/main/docs/benchmark/outputs",
         "corpus": {"description": "Academic articles 2020+, WCM faculty first or last author",
                    "home_threshold": {"lift": LIFT, "min_papers": MIN_N}},
         "headline": {
@@ -86,13 +92,19 @@ def build():
             "C1": {"ics_matched": s["C1"]["refs_matched"], "ics_total": s["C1"]["reference_entries"],
                    "areas_matched": s["C1"]["areas_matched"]},
             "C2": {"categories_matched": s["C2"]["refs_matched"], "categories_total": s["C2"]["reference_entries"],
-                   "areas_matched": s["C2"]["areas_matched"], "areas_exact": s["C2"]["areas_by_best"]["exact"]},
+                   "areas_matched": s["C2"]["areas_matched"], "areas_exact": s["C2"]["areas_by_best"]["exact"],
+                   "dollars_matched_pct": round(100 * sum(usd[r] for r in matched) / sum(usd.values()), 1)},
         },
         "agreement": {k: {f: s[k][f] for f in ("positive_agree", "kappa_any", "kappa_relation", "adjudicated",
-                                                 "gap_review_added")} for k in FRAMES},
+                                                 "gap_review_added", "mapper1_pairs", "mapper2_pairs", "final_pairs")}
+                      for k in FRAMES},
         "spot_check": {"sample": len(spot), "agree": agree if complete else None,
                        "rate": round(agree / len(spot), 3) if complete else None,
-                       "reviewed_by": SPOT_CHECK_REVIEWED_BY, "reviewed_on": SPOT_CHECK_REVIEWED_ON},
+                       "method": SPOT_CHECK_METHOD if complete else None,
+                       "reviewed_by": SPOT_CHECK_REVIEWED_BY if complete else None,
+                       "reviewed_on": SPOT_CHECK_REVIEWED_ON if complete else None,
+                       "disagreements": [{"ref_name": r["ref_name"], "note": r["reviewer_note"]} for r in done
+                                         if r["reviewer_agrees"].strip().lower() not in ("y", "yes", "1", "true")]},
         "areas": areas, "units": units, "references": refs, "unit_cells": unit_cells, "pairs": pairs,
     }
 
@@ -124,10 +136,10 @@ def main():
     shutil.copyfile(OUT / f"research-areas-reference-crosswalk-{SNAPSHOT_DATE}.csv",
                     OUT / "research-areas-reference-crosswalk-latest.csv")
     idx_path = OUT / "benchmark-index.json"
-    idx = json.loads(idx_path.read_text()) if idx_path.exists() else []
-    idx = [e for e in idx if e["snapshot_date"] != SNAPSHOT_DATE] + [
-        {"snapshot_date": SNAPSHOT_DATE, "taxonomy_version": TAXONOMY_VERSION, "file": name, "note": CHANGE_NOTE}]
-    idx_path.write_text(json.dumps(sorted(idx, key=lambda e: e["snapshot_date"], reverse=True), indent=2) + "\n")
+    idx = json.loads(idx_path.read_text())["snapshots"] if idx_path.exists() else []
+    idx = [e for e in idx if e["date"] != SNAPSHOT_DATE] + [
+        {"date": SNAPSHOT_DATE, "taxonomy_version": TAXONOMY_VERSION, "file": name, "note": CHANGE_NOTE}]
+    idx_path.write_text(json.dumps({"snapshots": sorted(idx, key=lambda e: e["date"], reverse=True)}, indent=1) + "\n")
     print(name, f'{(OUT / name).stat().st_size // 1024} KB', len(d["pairs"]), "pairs", len(d["unit_cells"]), "cells")
 
 

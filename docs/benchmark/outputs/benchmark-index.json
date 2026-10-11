@@ -1,8 +1,10 @@
-[
+{
+ "snapshots": [
   {
-    "snapshot_date": "2026-10-10",
-    "taxonomy_version": "taxonomy_v2",
-    "file": "benchmark-2026-10-10.json",
-    "note": "First published snapshot."
+   "date": "2026-10-10",
+   "taxonomy_version": "taxonomy_v2",
+   "file": "benchmark-2026-10-10.json",
+   "note": "First published benchmark, redone from scratch against the live taxonomy."
   }
-]
+ ]
+}
