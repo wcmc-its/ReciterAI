@@ -9,7 +9,7 @@ overlays.
 
 ## Files
 
-- **`eventbridge.json`** — eight cron rules and their targets:
+- **`eventbridge.json`** — nine cron rules and their targets:
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
   - `reciterai-spotlight-monthly` → ECS Fargate RunTask on task definition `reciterai-spotlight` (1st of month, 13:00 UTC; #329 shape a2 — the regen shells out to the full `cli.backfill_spotlight`, past Lambda's 15-minute ceiling; template in `spotlight_task_definition.json`).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
@@ -18,6 +18,7 @@ overlays.
   - `reciterai-taxonomy-drift-daily` → Lambda `reciterai-taxonomy-drift` (daily 15:00 UTC; ADR D5 layer 2).
   - `reciterai-grants-daily` → ECS Fargate `RunTask` on task definition `reciterai-grants` (daily 03:00 UTC; #269). Runs the grants.gov opportunity ingest then the SPS submission-queue drain; template in `grants_task_definition.json`. See "Grants ingest launch path" below.
   - `reciterai-cores-daily` → ECS Fargate `RunTask` on task definition `reciterai-cores` (daily 05:00 UTC). Re-scores core-facility usage for core 14 (Research Informatics) over the full ReciterDB corpus and writes the confirmed/candidate `(publication, core)` rows SPS's core claim queue reads; template in `cores_task_definition.json`. Makes ZERO Bedrock calls — `--with-llm` is deliberately absent. See "Cores daily run launch path" below.
+  - `reciterai-area-signals-daily` → ECS Fargate `RunTask` on task definition `reciterai-area-signals` (daily 09:00 UTC). Drains the `AREAINPUT` grant/trial texts SPS's 07:00 UTC nightly queues and writes `AREASIGNAL#` research-area scores for SPS's next nightly; template in `area_signals_task_definition.json`. See "Area signals launch path" below.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role. Changes here are applied to the LIVE role manually (`aws iam put-role-policy`) — and ordering can matter: the ADR-D3 `HotHandshakeReadPeerBundles` statement must reach the live role BEFORE the orchestrator zip that uses it is redeployed, or the next hot run fails closed on AccessDenied.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
@@ -27,6 +28,8 @@ overlays.
 - **`grants_task_iam_policy.json`** (#269) — minimum-privilege policy for the `reciterai-grants-task` role: DynamoDB CRUD on `reciterai`, S3 read/write scoped to `wcmc-reciterai-artifacts/grants/*` + `s3:ListBucket` on the bucket (the shrink guard's `key_exists` probe needs it), CloudWatch Logs on `/ecs/reciterai-grants`. No `bedrock:InvokeModel` (bearer-token auth), no Secrets Manager statement (the one secret is execution-role-injected), no DB secrets (pipeline_grants reads no MariaDB).
 - **`cores_task_definition.json`** — the Fargate task definition for the **daily core-facility usage inference** (`sh -c 'python -m pipeline_cores.run --core 14 --with-affinity --alias-search --llm-carry-forward --with-method-families --reconcile'`). Reuses the same image as the other tasks; only overrides the default CMD. Sized 1 vCPU / 4 GB — an unscoped run holds the whole 80,203-publication corpus (title + abstract) in memory from `ingest.fetch_publications`, plus the byline map and two paginated full-table DynamoDB Scans. `--with-llm` is deliberately ABSENT (a corpus-wide LLM pass is ~80k Haiku screens a night; the Bedrock budget for a nightly is an open decision in its own issue), and `--llm-carry-forward` is what stops `put_core_usage` from REMOVE-ing the stored LLM evidence on a run that does not produce it (#384). See "Cores daily run launch path" below.
 - **`cores_task_iam_policy.json`** — minimum-privilege policy for the `reciterai-cores-task` role: DynamoDB CRUD on `reciterai` (+ `/index/*`) and CloudWatch Logs on `/ecs/reciterai-cores`. The smallest task-role policy in this directory, and the omissions are the content: NO S3 (pipeline_cores publishes no artifact — its output is the DynamoDB rows SPS projects, so there is no `latest/` pointer and no shrink guard), NO Secrets Manager (both secrets are execution-role-injected and nothing in the runtime path calls `GetSecretValue`), NO `bedrock:InvokeModel` (bearer-token auth, and the scheduled command invokes no model at all).
+- **`area_signals_task_definition.json`** — the Fargate task definition for the **daily area-signals drain** (`python -m pipeline_area_signals.run`). 0.5 vCPU / 2 GB. Injects the Bedrock token, the OpenAI key (content-filter fallback) and the Teams webhook, plus the taxonomy preflight baseline and the per-run cost ceiling as env vars.
+- **`area_signals_task_iam_policy.json`** — the `reciterai-area-signals-task` role: DynamoDB `GetItem`/`PutItem`/`UpdateItem`/`Query` on `reciterai`, pinned by `dynamodb:LeadingKeys` to `AREAINPUT`, `AREASIGNAL#*` and `STAGE#area_signals#GLOBAL`, and CloudWatch Logs on `/ecs/reciterai-area-signals`. No S3, no Secrets Manager, no Bedrock IAM.
 - **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
 - **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
 - **`../scripts/apply_backup_config.sh`** (#223) — idempotent wrapper (mirrors `deploy_cron.sh`: `--dry-run`, per-control verify) that enables DDB PITR + deletion protection and S3 versioning + the lifecycle on both buckets. One-time apply + drift recheck (`--verify`), not a cron.
@@ -547,6 +550,63 @@ the alarm cannot see a run that never launched — step 3's `iam:PassRole` omiss
 produces exactly that — so the first-tick eyeball in step 6 is the guard for that
 class.
 
+## Area signals launch path
+
+The **daily area-signals drain** (`python -m pipeline_area_signals.run`, family
+`reciterai-area-signals`, rule `reciterai-area-signals-daily` at 09:00 UTC) turns
+the grant and clinical-trial texts SPS queues into research-area scores for SPS's
+"Scholars in this area" ranking. SPS writes one `PK=AREAINPUT` item per distinct
+text (no person or award identifiers) during its 07:00 UTC nightly; this task
+writes `PK=AREASIGNAL#{kind}:{text_key}` / `SK=META` rows; SPS's next nightly
+projects them. The item contract is in `pipeline_area_signals/drain.py`.
+
+Per run: taxonomy preflight before any spend; due items are `pending` ones plus
+`scored` ones whose `taxonomy_version` or `prompt_version` is not current (a
+taxonomy change or a `PROMPT_VERSION` bump re-scores everything); each item
+re-reads its status and takes a conditional 30-minute lease before spending, so
+an overlapping run (a long backfill still going when the 09:00 rule fires)
+skips it instead of paying for it twice; a transient failure retries on the
+next run and the third one marks the item `failed` with a reason. A circuit
+breaker keeps an outage from doing that to the whole queue: a system-wide
+Bedrock error (bad or expired token, access denied, throttling or an outage
+that outlasted the client's retries) or 8 consecutive failures stop the run
+with no attempt counted against the held items, a `failed` STAGE# row and a
+Teams ERROR. To re-queue items that did reach `failed`, run once with
+`--requeue-failed`. Every model call is costed from its own response, and
+the run stops launching items once the next batch would cross
+`RECITERAI_AREA_SIGNALS_MAX_COST_USD` (default $25), leaving the rest due. One
+`STAGE#area_signals#GLOBAL` row per run carries the measured cost and counts;
+Teams gets ERROR when the run fails or the breaker opens and WARN when items
+reach `failed` or the ceiling stops the drain.
+
+### One-time deploy (in order)
+
+0. **Build and push an image that contains `pipeline_area_signals`** (step 0 of
+   the cores launch path applies unchanged: merging changes nothing in ECR).
+1. **Pre-create the log group:** `aws logs create-log-group --log-group-name /ecs/reciterai-area-signals`.
+2. **IAM role** `reciterai-area-signals-task` with `area_signals_task_iam_policy.json`
+   (strip `$schema_note`). The execution role is reused as-is: its Secrets
+   Manager grant already covers the three secrets, which the enrichment task
+   injects too.
+3. **Extend `reciterai-eventbridge-invoke-ecs`:** `ecs:RunTask` on the
+   `reciterai-area-signals` task-definition family and `iam:PassRole` for
+   `reciterai-area-signals-task` and `ecsTaskExecutionRole`. Skipping this
+   gives a rule that fires and launches nothing, silently.
+4. **Register the task def** with the placeholders substituted (strip
+   `$schema_note` + `deploy_notes`). `{EXPECTED_TAXONOMY_HASH}` is
+   `current_content_hash()` from a checkout of freshly fetched origin/main;
+   re-register whenever the taxonomy changes on main. Then run the
+   `deploy_notes.plumbing_gate` commands: `--dry-run` (no spend, no writes),
+   then `--limit 5`.
+5. **Backfill:** the first run finds every existing grant and trial text due
+   (about 3,700 items, roughly $60-80). Either let the $25 daily ceiling drain
+   it over a few days or launch once with `--max-cost-usd 100`.
+6. **Wire the schedule:** `scripts/deploy_cron.sh --rule reciterai-area-signals-daily`
+   (`--dry-run` first; same env vars as the other ECS rules).
+7. **Watch the first tick:** `aws logs tail /ecs/reciterai-area-signals --follow`.
+   Expect `taxonomy preflight OK`, then `area signals summary: {...}` with
+   `outcomes` and `measured_usd`. No Fargate task timeout exists.
+
 ## D-10 migration trigger — when to adopt CDK
 
 The single-file approach is correct only while ReciterAI's AWS surface
@@ -603,6 +663,10 @@ definition, and a third IAM task-role policy, all under the single-file
 convention. Per the established posture (#80, #37, #240), the CDK migration
 stays its own deferred Phase, not a blocker.
 
+**Area signals update (2026-10) — overshoots again, deliberately.** A ninth
+cron rule (`reciterai-area-signals-daily`), a sixth ECS task definition and a
+fifth task-role policy, under the same posture.
+
 **Cores daily update (2026-09) — overshoots again, deliberately.** The cores
 nightly adds an eighth cron rule (`reciterai-cores-daily`), a fifth ECS task
 definition, and a fourth IAM task-role policy. Same posture as #80/#37/#240/#269:
@@ -641,15 +705,15 @@ they are the rollback path.
   does not fail.
 - **ECS target networking is env-var-driven.** Subnets and security
   groups for the `reciterai-enrichment-daily`,
-  `reciterai-spotlight-monthly`, `reciterai-grants-daily`, and
-  `reciterai-cores-daily` rules come
+  `reciterai-spotlight-monthly`, `reciterai-grants-daily`,
+  `reciterai-cores-daily`, and `reciterai-area-signals-daily` rules come
   from `RECITERAI_ENRICHMENT_SUBNETS` and
   `RECITERAI_ENRICHMENT_SECURITY_GROUPS` at deploy time, not from
   `eventbridge.json` — VPC layout is account-specific and should not be
   committed. The `reciterai-eventbridge-invoke-ecs` role must allow
-  `ecs:RunTask` on ALL FOUR task-definition families
+  `ecs:RunTask` on ALL FIVE task-definition families
   (`reciterai-enrichment`, `reciterai-spotlight`, `reciterai-grants`,
-  `reciterai-cores`)
+  `reciterai-cores`, `reciterai-area-signals`)
   plus `iam:PassRole` for each task/execution role pair — the
   enrichment-era policy predates every later family, and the omission
   has bitten on each new one.

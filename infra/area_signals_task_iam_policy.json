@@ -1,0 +1,37 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for the DAILY AREA-SIGNALS Fargate task role (`python -m pipeline_area_signals.run`). Attach to the role referenced by `area_signals_task_definition.json.taskRoleArn` (`reciterai-area-signals-task`). Narrower than every other task role on purpose: DynamoDB is scoped by `dynamodb:LeadingKeys` to the three partitions this pipeline touches (the same pinning SPS uses for its SUBMISSION writes): `AREAINPUT` (Query the queue, GetItem to re-read status before spending, UpdateItem to claim an item with a lease and mark it scored/failed), `AREASIGNAL#*` (GetItem for the input-hash reuse check, PutItem the output row), and `STAGE#area_signals#GLOBAL` (PutItem the run ledger row). No Scan, no Delete, no BatchWrite, no index access. NO S3 (the output is DynamoDB rows SPS projects). NO SecretsManager: the three secrets (Bedrock bearer token, OpenAI key for the content-filter fallback, Teams webhook) are injected as env vars by the EXECUTION role. NO `bedrock:InvokeModel`: Bedrock authenticates via `AWS_BEARER_TOKEN_BEDROCK` (same posture as every other task). CloudWatch Logs scoped to `/ecs/reciterai-area-signals`.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBAreaSignalPartitions",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai"
+      ],
+      "Condition": {
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": [
+            "AREAINPUT",
+            "AREASIGNAL#*",
+            "STAGE#area_signals#GLOBAL"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/reciterai-area-signals:*"
+    }
+  ]
+}

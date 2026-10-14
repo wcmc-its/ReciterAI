@@ -1,0 +1,63 @@
+{
+  "$schema_note": "ECS Fargate task definition for the DAILY AREA-SIGNALS DRAIN (`python -m pipeline_area_signals.run`): scores the grant and clinical-trial texts SPS queues as `PK=AREAINPUT` items into research areas and writes `PK=AREASIGNAL#{kind}:{text_key}` rows for SPS's next nightly to project. Scheduled by EventBridge rule `reciterai-area-signals-daily` (see eventbridge.json) as a direct RunTask target; EventBridge Input is not forwarded to ECS targets, so the command below IS the invocation. Same image as every other task (the single Dockerfile's `COPY . .` contains pipeline_area_signals). LOG GROUP `/ecs/reciterai-area-signals` MUST be pre-created (`ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, so `awslogs-create-group` is intentionally omitted). Secrets: the Bedrock bearer token, the OpenAI key (the synopsis generator and the dense scorer both fall back to gpt-5.1 when Sonnet content-filters a biomedical text; without the key that item fails), and the Teams webhook for run alerts. The task role carries no Secrets Manager or Bedrock grant; see area_signals_task_iam_policy.json.",
+  "family": "reciterai-area-signals",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "2048",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "taskRoleArn": "{TASK_ROLE_ARN}",
+  "executionRoleArn": "{EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "reciterai-area-signals",
+      "image": "{IMAGE_URI}",
+      "essential": true,
+      "command": ["python", "-m", "pipeline_area_signals.run"],
+      "environment": [
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "RECITERAI_EXPECTED_TAXONOMY_HASH", "value": "{EXPECTED_TAXONOMY_HASH}"},
+        {"name": "RECITERAI_AREA_SIGNALS_MAX_COST_USD", "value": "25"}
+      ],
+      "secrets": [
+        {
+          "name": "AWS_BEARER_TOKEN_BEDROCK",
+          "valueFrom": "{BEDROCK_API_KEY_SECRET_ARN}"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "{OPENAI_SECRET_ARN}:OPENAI_API_KEY::"
+        },
+        {
+          "name": "RECITERAI_TEAMS_WEBHOOK_URL",
+          "valueFrom": "{TEAMS_WEBHOOK_SECRET_ARN}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/reciterai-area-signals",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "area-signals"
+        }
+      }
+    }
+  ],
+  "deploy_notes": {
+    "placeholders": {
+      "{TASK_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/reciterai-area-signals-task, a NEW role carrying area_signals_task_iam_policy.json (DynamoDB pinned by LeadingKeys to AREAINPUT, AREASIGNAL#* and STAGE#area_signals#GLOBAL; CloudWatch Logs on /ecs/reciterai-area-signals). No existing task role is narrow enough to reuse.",
+      "{EXECUTION_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/ecsTaskExecutionRole, reused as-is. Its inline Secrets Manager grant already covers the three secrets below, because the enrichment task injects the same three.",
+      "{IMAGE_URI}": "The `reciterai-enrichment` ECR image, built `docker build --platform linux/amd64` from a commit that contains pipeline_area_signals. There is no image-building CI: merging changes nothing in ECR.",
+      "{EXPECTED_TAXONOMY_HASH}": "`python -c 'from utils.taxonomy import current_content_hash as h; print(h())'` run in a checkout of freshly fetched origin/main, substituted at register-task-definition time. The container has no .git, so this env var is the preflight's only baseline; without it every run fails closed before spending. An image built from a commit whose taxonomy differs from this value is refused, which is the point (a stale image has shipped before). Re-register the task definition whenever the taxonomy changes on main.",
+      "{BEDROCK_API_KEY_SECRET_ARN}": "Full ARN of `reciterai/bedrock-api-key` (plain SecretString; same secret as every other task).",
+      "{OPENAI_SECRET_ARN}": "Full ARN of `reciterai/openai-api-key` (JSON SecretString with an OPENAI_API_KEY key; same secret and selector as the enrichment task).",
+      "{TEAMS_WEBHOOK_SECRET_ARN}": "Full ARN of `reciterai/teams-webhook-url` (plain SecretString; same secret as the enrichment task). alerting.py tolerates its absence (logs only)."
+    },
+    "cost_ceiling": "RECITERAI_AREA_SIGNALS_MAX_COST_USD caps measured spend per run (default 25). The run stops launching new items when the next batch's estimate would cross it, alerts WARN, and leaves the rest due for the next day. A steady day is a few dollars. For the one-time backfill (~2,680 grant texts + ~990 trials, about $60-80), either let it drain over a few days or launch once with a containerOverrides command of `python -m pipeline_area_signals.run --max-cost-usd 100`.",
+    "sizing": "0.5 vCPU / 2 GB. I/O-bound: four worker threads waiting on Bedrock, no corpus load. At ~10-15 s per item the backfill is a few hours; a steady day is minutes. No Fargate task timeout exists.",
+    "plumbing_gate": "Before wiring the schedule: `aws ecs run-task ... --overrides '{\"containerOverrides\":[{\"name\":\"reciterai-area-signals\",\"command\":[\"python\",\"-m\",\"pipeline_area_signals.run\",\"--dry-run\"]}]}'` proves the image, the preflight baseline, secret injection, networking, logging and the AREAINPUT Query while spending and writing nothing. Then `--limit 5` proves GetItem/PutItem/UpdateItem and the STAGE# row for a few cents."
+  }
+}
