@@ -152,11 +152,32 @@
           "assign_public_ip": "DISABLED"
         }
       }
+    },
+    {
+      "name": "reciterai-area-signals-daily",
+      "description": "Area signals: daily ECS Fargate RunTask (pipeline_area_signals.run). Drains the AREAINPUT grant/trial texts SPS queues in its 07:00 UTC nightly, writes a synopsis where there is text, scores research areas with the production scorer, and writes AREASIGNAL# rows for SPS's next nightly. Per-run cost ceiling; unfinished items stay due.",
+      "schedule_expression": "cron(0 9 * * ? *)",
+      "schedule_comment": "Daily 09:00 UTC = 05:00 EDT. Ordered AFTER SPS's cron(0 7 * * ? *) nightly, which is where tonight's AREAINPUT items are written (its area-signal-inputs step runs before its DynamoDB projection), and well before SPS's next nightly, which projects this run's AREASIGNAL# rows. Inputs written at ~07:xx are scored here and shown the following night. Two hours of slack for the SPS nightly to finish writing inputs; an item SPS writes after this tick starts is simply picked up tomorrow. Clear of the 11:00 enrichment and 12:00 hot-path ticks on Bedrock rate in steady state (minutes of work); a backfill-sized day can overlap them, which only shares Bedrock throughput. Override: edit this rule + redeploy via scripts/deploy_cron.sh.",
+      "state": "ENABLED",
+      "target": {
+        "id": "area-signals-fargate",
+        "kind": "ecs",
+        "arn_template": "arn:aws:ecs:{region}:{account_id}:cluster/reciterai-cluster",
+        "role_arn_template": "arn:aws:iam::{account_id}:role/reciterai-eventbridge-invoke-ecs",
+        "task_definition_template": "arn:aws:ecs:{region}:{account_id}:task-definition/reciterai-area-signals",
+        "launch_type": "FARGATE",
+        "platform_version": "LATEST",
+        "network_configuration": {
+          "subnets_env": "RECITERAI_ENRICHMENT_SUBNETS",
+          "security_groups_env": "RECITERAI_ENRICHMENT_SECURITY_GROUPS",
+          "assign_public_ip": "DISABLED"
+        }
+      }
     }
   ],
   "deploy_notes": {
     "templating": "{account_id} is read from $AWS_ACCOUNT_ID at deploy time. {region} resolves from the top-level region field. scripts/deploy_cron.sh handles substitution before passing to aws CLI.",
-    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, the Lambda execution role attached to the named function for the Lambda targets, and reciterai-eventbridge-invoke-ecs for the ECS RunTask targets (Fargate enrichment + spotlight + grants + cores — its policy must allow ecs:RunTask on ALL FOUR task-definition families and iam:PassRole for each task/execution role pair; the per-family omission has bitten on every new family, cores included until step 3 of its README launch path is done — see infra/README.md). Minimum policies are documented in infra/lambda_iam_policy.json (Lambdas), infra/enrichment_task_iam_policy.json (enrichment task role), infra/cold_run_task_iam_policy.json (the reciterai-cold-task role, which the spotlight task reuses — it already scopes S3 write to wcmc-reciterai-artifacts/spotlight/*), infra/grants_task_iam_policy.json (the reciterai-grants-task role — S3 scoped to wcmc-reciterai-artifacts/grants/*), and infra/cores_task_iam_policy.json (the reciterai-cores-task role — DynamoDB + CloudWatch Logs only, no S3 and no SecretsManager; the smallest of the four).",
+    "iam": "Each target ARN assumes its IAM role exists: reciterai-eventbridge-invoke-states for the Step Functions target, the Lambda execution role attached to the named function for the Lambda targets, and reciterai-eventbridge-invoke-ecs for the ECS RunTask targets (Fargate enrichment + spotlight + grants + cores + area-signals — its policy must allow ecs:RunTask on ALL FIVE task-definition families and iam:PassRole for each task/execution role pair; the per-family omission has bitten on every new family, cores and area-signals included until the RunTask/PassRole step of their README launch paths is done — see infra/README.md). Minimum policies are documented in infra/lambda_iam_policy.json (Lambdas), infra/enrichment_task_iam_policy.json (enrichment task role), infra/cold_run_task_iam_policy.json (the reciterai-cold-task role, which the spotlight task reuses — it already scopes S3 write to wcmc-reciterai-artifacts/spotlight/*), infra/grants_task_iam_policy.json (the reciterai-grants-task role — S3 scoped to wcmc-reciterai-artifacts/grants/*), and infra/cores_task_iam_policy.json (the reciterai-cores-task role — DynamoDB + CloudWatch Logs only, no S3 and no SecretsManager; the smallest of the four), and infra/area_signals_task_iam_policy.json (the reciterai-area-signals-task role — DynamoDB pinned by dynamodb:LeadingKeys to AREAINPUT, AREASIGNAL#* and STAGE#area_signals#GLOBAL, plus CloudWatch Logs).",
     "ecs_targets": "ECS targets need RECITERAI_ENRICHMENT_SUBNETS and RECITERAI_ENRICHMENT_SECURITY_GROUPS env vars at deploy time (comma-separated). Subnets must reach ReciterDB; security groups must permit egress to Bedrock + OpenAI + MariaDB + Secrets Manager (the grants task uses only the Bedrock + AWS-API egress plus HTTPS to grants.gov and submitted opportunity URLs; the cores task needs MariaDB to ReciterDB, the AWS API for DynamoDB, and HTTPS to eutils.ncbi.nlm.nih.gov + www.ncbi.nlm.nih.gov for the --alias-search PMC lookups — it needs no Bedrock egress on the scheduled command, but leave it reachable so an operator --with-llm override works without a security-group change). Reuse the hot-path Lambdas' VPC layout — same network requirements.",
     "override_cadence": "All cron expressions are tunable here without code changes. Change the schedule_expression, re-run scripts/deploy_cron.sh, and EventBridge picks up the new schedule within ~1 minute."
   }
