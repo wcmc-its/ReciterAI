@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 from pipeline_enrichment.llm_call import call_with_fallback, parse_json_lenient
 from pipeline_enrichment.prompts import SYNOPSIS_SYSTEM, build_synopsis_user_content
@@ -69,6 +69,8 @@ def generate_synopsis(
     client: BedrockClient | None = None,
     model: str = SONNET_MODEL,
     max_tokens: int = 512,
+    system_prompt: str | None = None,
+    user_content_builder: Callable[..., str] | None = None,
 ) -> SynopsisResult:
     """Generate a ≤95-char synopsis for one PMID on Bedrock Sonnet 4.6.
 
@@ -83,13 +85,21 @@ def generate_synopsis(
         model: Bedrock model ID (default SONNET_MODEL).
         max_tokens: Bedrock response token cap. The synopsis JSON object
             is tiny, so 512 is ample.
+        system_prompt: system prompt override for non-publication objects
+            (grants, trials). None keeps the publication `SYNOPSIS_SYSTEM`.
+        user_content_builder: user-content builder override, called with the
+            keyword arguments `title`, `journal`, `year`, `abstract`. None
+            keeps `build_synopsis_user_content`. Callers reuse the `journal`
+            slot for their own context line (funder, trial phase).
 
     Returns:
         SynopsisResult. On success `.synopsis` is the produced string and
         `.model` is the model actually used. On failure `.synopsis` is None
         and `.error` describes the issue.
     """
-    user_content = build_synopsis_user_content(
+    builder = user_content_builder or build_synopsis_user_content
+    system = system_prompt if system_prompt is not None else SYNOPSIS_SYSTEM
+    user_content = builder(
         title=title, journal=journal, year=year, abstract=abstract
     )
 
@@ -101,7 +111,7 @@ def generate_synopsis(
     for attempt in range(SYNOPSIS_MAX_ATTEMPTS):
         try:
             call_result = call_with_fallback(
-                system_prompt=SYNOPSIS_SYSTEM,
+                system_prompt=system,
                 user_prompt=user_content,
                 model=model,
                 max_tokens=max_tokens,

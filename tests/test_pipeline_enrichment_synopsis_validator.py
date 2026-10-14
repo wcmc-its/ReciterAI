@@ -254,3 +254,44 @@ def test_synopsis_overrunning_fallback_re_enters_length_loop():
     assert result.synopsis == kept
     assert result.error is None
     assert result.model == SONNET_MODEL
+
+
+# --- system_prompt / user_content_builder overrides (area signals, R1) ---
+
+def test_synopsis_default_prompt_is_the_publication_prompt():
+    """No overrides: the call carries SYNOPSIS_SYSTEM and the publication
+    user content exactly as before the parameters existed."""
+    from pipeline_enrichment.prompts import SYNOPSIS_SYSTEM, build_synopsis_user_content
+
+    fake = _FakeBedrock([_bedrock_synopsis("short")])
+    generate_synopsis(pmid="20", title="T &amp; U", journal="J", year=2024,
+                      abstract="A", client=fake)
+
+    assert fake.calls[0]["system"] == SYNOPSIS_SYSTEM
+    assert fake.calls[0]["messages"] == [{
+        "role": "user",
+        "content": build_synopsis_user_content(
+            title="T &amp; U", journal="J", year=2024, abstract="A"),
+    }]
+
+
+def test_synopsis_overrides_apply_to_every_attempt():
+    """A grant/trial caller's system prompt and builder are used on the first
+    call AND on the length-reinforcement retries."""
+    seen = {}
+
+    def builder(*, title, journal, year, abstract):
+        seen.update(title=title, journal=journal, year=year, abstract=abstract)
+        return f"Title: {title}\nFunder: {journal}\nStart year: {year}\nAbstract: {abstract}"
+
+    fake = _FakeBedrock([_bedrock_synopsis("x" * 110), _bedrock_synopsis("fits")])
+    result = generate_synopsis(pmid="grant:abc", title="T", journal="NIH R01",
+                               year=2023, abstract="A", client=fake,
+                               system_prompt="GRANT SYSTEM", user_content_builder=builder)
+
+    assert result.synopsis == "fits"
+    assert seen == {"title": "T", "journal": "NIH R01", "year": 2023, "abstract": "A"}
+    assert [c["system"] for c in fake.calls] == ["GRANT SYSTEM", "GRANT SYSTEM"]
+    first = fake.calls[0]["messages"][0]["content"]
+    assert first == "Title: T\nFunder: NIH R01\nStart year: 2023\nAbstract: A"
+    assert fake.calls[1]["messages"][0]["content"].startswith(first + "\n\nYour previous attempt")
