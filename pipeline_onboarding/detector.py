@@ -33,9 +33,10 @@ and a single digest issue is filed instead; per-CWID filing — the
 steady-state behaviour — resumes automatically once the flagged count drops
 back below the threshold.
 
-The detector writes one `STAGE#onboarding_detector#GLOBAL` row per run (R8)
-and posts a Teams digest when it flags >= 1 CWID (R10 #1). A quiet day —
-zero flagged CWIDs — writes the row and sends no alert.
+The detector writes one `STAGE#onboarding_detector#GLOBAL` row per run (R8).
+It files issues and posts a Teams digest (R10 #1) only on its first run after
+each weekly hot run, and only when it flags >= 1 CWID: both findings heal
+unattended in between (`_should_report`). Other runs write the row only.
 """
 
 from __future__ import annotations
@@ -44,7 +45,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
@@ -59,6 +60,7 @@ import utils.secrets_loader  # noqa: F401
 
 from pipeline_enrichment import alerting
 from pipeline_onboarding import github_issues
+from utils.dynamodb_helpers import scan_rollup_baselines
 from utils.stage_records import STATUS_COMPLETE, compute_input_hash, write_failed
 from utils.iso_clock import duration_ms as _duration_ms
 
@@ -70,10 +72,6 @@ DETECTOR_SCOPE = "GLOBAL"
 DETECTOR_PK = f"STAGE#{DETECTOR_STAGE}#{DETECTOR_SCOPE}"
 DETECTOR_RECORD_TYPE = "ONBOARDING_DETECTOR_RUN"
 
-# The R9 churn baseline lives on per-CWID rollup rows (PR 2 / #90); the
-# GLOBAL CSV rollup path writes STAGE#rollup_by_cwid#GLOBAL, which this
-# prefix deliberately excludes.
-_ROLLUP_PK_PREFIX = "STAGE#rollup_by_cwid#cwid:"
 
 # A PMID is NOT a score gap if its PROCESSING# status is one of these:
 # `complete` is scored; `quarantined` is terminally un-scoreable and already
@@ -290,11 +288,16 @@ def evaluate_detector(
         by_cwid.setdefault(cwid, {})[pmid] = bool(row["has_synopsis"])
 
     findings: list[CwidFinding] = []
-    # Iterate the union so a CWID that has a rollup baseline but zero current
-    # accepted publications (ReCiter de-attributed everything) is still
-    # churn-evaluated rather than silently dropped.
-    for cwid in set(by_cwid) | set(rollup_baselines):
-        pmid_map = by_cwid.get(cwid, {})
+    # Only CWIDs in the gap scan -- full-time faculty with an in-scope
+    # publication -- are evaluated. A baseline-only CWID is almost always
+    # someone who left full-time faculty: the scan drops them, so every
+    # baseline PMID read as "removed" and re-flagged daily forever (26 such
+    # CWIDs, Oct 2026). The hot path's churn refresh uses the same scope, so
+    # every churn flagged here is one it repairs. ponytail: a current faculty
+    # member de-attributed to zero publications now goes unflagged too; add
+    # the identity faculty list here and in the refresh if that case matters.
+    for cwid in by_cwid:
+        pmid_map = by_cwid[cwid]
         accepted = set(pmid_map)
 
         missing_synopsis = _sort_pmids(p for p, has in pmid_map.items() if not has)
@@ -306,7 +309,9 @@ def evaluate_detector(
 
         baseline = rollup_baselines.get(cwid)
         if baseline is not None:
-            baseline_set = {str(p) for p in baseline}
+            # INVALID# leaves the accepted set above; drop it from the baseline
+            # too, or a rollup that recorded one reads as a removal forever.
+            baseline_set = {str(p) for p in baseline} - invalid
             churn_added = _sort_pmids(accepted - baseline_set)
             churn_removed = _sort_pmids(baseline_set - accepted)
         else:
@@ -715,46 +720,6 @@ def _digest_cleared_body(evaluation: DetectorEvaluation, *, now: datetime) -> st
 # ---------------------------------------------------------------------------
 
 
-def scan_rollup_baselines(table: Any) -> dict[str, list[str]]:
-    """Each CWID's churn baseline — the `input_pmid_set` of its most recent
-    *complete* CWID-scoped rollup row (R9).
-
-    A CWID with no complete `STAGE#rollup_by_cwid#cwid:` row is absent from
-    the result, so churn is N/A for it (see the module docstring). A complete
-    rollup row missing the `input_pmid_set` field is treated as no baseline —
-    PR 2's rollup always writes it, so this guards only against malformed
-    rows rather than re-flooding.
-    """
-    kwargs: dict[str, Any] = {
-        "FilterExpression": "begins_with(#pk, :p)",
-        "ExpressionAttributeNames": {"#pk": "PK"},
-        "ExpressionAttributeValues": {":p": _ROLLUP_PK_PREFIX},
-    }
-    latest: dict[str, tuple[str, list[str]]] = {}  # pk -> (best_sk, input_pmid_set)
-    last_key = None
-    while True:
-        if last_key is not None:
-            kwargs["ExclusiveStartKey"] = last_key
-        resp = table.scan(**kwargs)
-        for item in resp.get("Items", []):
-            if item.get("status") != STATUS_COMPLETE:
-                continue
-            if "input_pmid_set" not in item:
-                continue
-            pk = item.get("PK", "")
-            if not pk.startswith(_ROLLUP_PK_PREFIX):
-                continue
-            sk = item.get("SK", "")
-            prior = latest.get(pk)
-            if prior is None or sk > prior[0]:
-                pmid_set = [str(p) for p in (item.get("input_pmid_set") or [])]
-                latest[pk] = (sk, pmid_set)
-        last_key = resp.get("LastEvaluatedKey")
-        if not last_key:
-            break
-    return {pk[len(_ROLLUP_PK_PREFIX):]: pmids for pk, (_, pmids) in latest.items()}
-
-
 # ---------------------------------------------------------------------------
 # Run orchestration
 # ---------------------------------------------------------------------------
@@ -838,8 +803,12 @@ def run_detector(
     invalid_pmids: Iterable[str] | None = None,
     now: datetime | None = None,
     file_issues: bool = True,
+    report: bool = True,
 ) -> dict[str, Any]:
     """Evaluate, file/refresh GitHub issues, persist the STAGE# row, alert.
+
+    `report=False` (see `_should_report`) still evaluates and writes the STAGE#
+    row but touches no GitHub issue and sends no Teams digest.
 
     All inputs are pre-fetched by `handler` so this function is unit-testable
     with an injected `table` double. Issue filing is best-effort — a GitHub
@@ -868,7 +837,7 @@ def run_detector(
     issues_available = False
     digest_issue: dict | None = None
 
-    if file_issues:
+    if file_issues and report:
         open_issues: list[dict] = []
         try:
             open_issues = github_issues.list_open_issues()
@@ -955,11 +924,13 @@ def run_detector(
     )
     if digest_issue and digest_issue.get("number") is not None:
         record["digest_issue_number"] = int(digest_issue["number"])
+    # A file_issues=False dry inspection must not use up the week's filing.
+    record["reported"] = report and file_issues
     table.put_item(Item=record)
 
     # Teams digest (R10 #1) — only when something was flagged.
     digest_sent = False
-    if evaluation.flagged_cwid_count > 0:
+    if report and evaluation.flagged_cwid_count > 0:
         title, message, ctx = _build_digest(
             evaluation,
             issues_by_cwid,
@@ -982,9 +953,67 @@ def run_detector(
         "issues_available": issues_available,
         "digest_issue_number": (digest_issue or {}).get("number"),
         "digest_sent": digest_sent,
+        "reported": report,
     }
     logger.info("onboarding detector run: %s", summary)
     return summary
+
+
+# The weekly hot path's run ledger (pipeline_hot.orchestrator HOT_RUN_STAGE /
+# HOT_RUN_SCOPE), hardcoded because this Lambda's zip does not bundle pipeline_hot.
+_HOT_RUN_PK = "STAGE#hot_run#GLOBAL"
+# Past this the weekly hot path has missed a run, nothing is healing, and every
+# detector run reports.
+_HOT_RUN_STALE_AFTER = timedelta(days=8)
+
+
+def _latest_complete_start(table: Any, pk: str, *, reported_only: bool = False) -> datetime | None:
+    """`started_at` of the newest complete row under `pk`, over every page.
+    Max over the items, not the first one: `RUN#FAILED#…` sort keys order
+    above `RUN#<iso>`. ponytail: reads the whole partition (~1 MB a year of
+    daily detector rows); add a TTL if that ever gets slow."""
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": "#pk = :pk",
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {":pk": pk},
+    }
+    latest: datetime | None = None
+    while True:
+        resp = table.query(**kwargs)
+        for i in resp.get("Items", []):
+            if (
+                i.get("status") == STATUS_COMPLETE
+                and i.get("started_at")
+                and (i.get("reported") or not reported_only)
+            ):
+                ts = _parse_iso(i["started_at"])
+                latest = ts if latest is None or ts > latest else latest
+        if not resp.get("LastEvaluatedKey"):
+            return latest
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+
+def _should_report(table: Any, now: datetime) -> bool:
+    """Whether this run files issues and posts the Teams digest.
+
+    Everything the detector flags now heals unattended: the nightly enrichment
+    backstop synopsizes below-watermark PMIDs, and the weekly hot path scores
+    them and refreshes drifted rollups. A mid-week finding is mostly work
+    already queued, so reporting daily was noise (a daily cold-start card from
+    Aug 2026). The detector reports once per hot run instead: on its first run
+    after a hot run completes, when what is still flagged is what the
+    automation did not fix. It reports every run once the hot path stalls, and
+    on any read failure (fail loud).
+    """
+    try:
+        last_hot = _latest_complete_start(table, _HOT_RUN_PK)
+        last_report = _latest_complete_start(table, DETECTOR_PK, reported_only=True)
+        if last_hot is None or last_report is None or now - last_hot > _HOT_RUN_STALE_AFTER:
+            return True
+        return last_hot > last_report
+    except Exception:  # noqa: BLE001
+        logger.warning("onboarding detector: report gate failed; reporting", exc_info=True)
+        return True
 
 
 def _write_failed_detector_row(table: Any, *, started_at: str, error: BaseException) -> None:
@@ -1048,7 +1077,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
     file_issues = bool(event.get("file_issues", True))
 
     # Local imports: keep cold start lean and let the pure-evaluation tests
-    # avoid pulling boto3 / SQLAlchemy.
+    # avoid pulling SQLAlchemy.
     from utils.dynamodb_helpers import (
         TABLE_NAME,
         get_dynamo_client,
@@ -1091,6 +1120,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
             invalid_pmids=invalid_pmids,
             now=now,
             file_issues=file_issues,
+            report=_should_report(table, now),
         )
     except Exception as exc:
         _write_failed_detector_row(table, started_at=started_at, error=exc)

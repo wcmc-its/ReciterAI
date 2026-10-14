@@ -49,6 +49,7 @@ from utils.dynamodb_helpers import (
     query_pmids_by_status,
     scan_impact_pmids_with_synopsis,
     scan_invalid_pmids,
+    scan_rollup_baselines,
     TABLE_NAME,
 )
 from utils.env_check import load_thresholds
@@ -455,6 +456,32 @@ def resolve_drift_sweep(
 # ---------------------------------------------------------------------------
 
 
+def resolve_churn_cwids(
+    table: Any,
+    client: Any,
+    *,
+    table_name: str,
+    faculty_pmids_fn: Any,
+) -> list[str]:
+    """Faculty CWIDs whose rollup baseline no longer matches ReCiter.
+
+    The Rollup fan-out reaches only CWIDs touched by this run's PMIDs, so a
+    CWID whose attribution changed with no new scoring work (a late-accepted
+    paper already scored for a co-author, or a ReCiter removal) kept a stale
+    `input_pmid_set`, and the onboarding detector re-flagged it as drift every
+    day. Adding these to the dirty set lets this run's rollup rewrite the
+    baseline. Same scope and comparison as the detector: CWIDs in the faculty
+    set, INVALID# dropped from both sides.
+    """
+    baselines = scan_rollup_baselines(table)
+    invalid = set(scan_invalid_pmids(client, table_name))
+    return sorted(
+        cwid
+        for cwid, pmids in faculty_pmids_fn().items()
+        if cwid in baselines and set(baselines[cwid]) - invalid != pmids - invalid
+    )
+
+
 def is_state_machine_running(
     sfn_client: Any,
     *,
@@ -721,6 +748,7 @@ def handler(event: dict, context: Any = None) -> dict:
         filter_scoreable_pmids,
         get_cwids_for_pmids,
         get_db_connection,
+        get_faculty_accepted_pmids,
     )
 
     # 2a. #150 1a — operator override. Score exactly `override_pmids`, bypassing
@@ -866,6 +894,32 @@ def handler(event: dict, context: Any = None) -> dict:
         set(pmids) | set(retry_pmids) | set(eligibility_pmids) | set(drift_pmids)
     )
     dirty_cwids = get_cwids_for_pmids(all_pmids)
+
+    # 4b. Churn refresh: also roll up faculty CWIDs whose baseline drifted with
+    # no PMID of theirs in this run. Best-effort like the sweeps; a failure
+    # just leaves those baselines for next week.
+    try:
+        churn_cwids = resolve_churn_cwids(
+            table,
+            get_dynamo_client(),
+            table_name=TABLE_NAME,
+            faculty_pmids_fn=get_faculty_accepted_pmids,
+        )
+        logger.info("Churn refresh: %d drifted CWID(s) added to the rollup set.", len(churn_cwids))
+        dirty_cwids = sorted(set(dirty_cwids) | set(churn_cwids))
+    except Exception as exc:  # noqa: BLE001 — churn refresh is non-critical
+        logger.exception("Churn refresh failed; proceeding without it.")
+        teams_alerting.alert(
+            "WARN",
+            "Hot path churn refresh failed",
+            "Resolving drifted rollup baselines raised; the run proceeded with "
+            "the PMID-derived rollup set only. Drifted CWIDs wait a week.",
+            {
+                "source": "pipeline_hot.orchestrator",
+                "error": str(exc),
+                "started_at": started_at,
+            },
+        )
 
     return {
         "status": "ready",

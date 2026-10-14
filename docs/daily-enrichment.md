@@ -69,6 +69,16 @@ sees the morning's freshly-enriched papers — and before drift (14:00 UTC).
 Daily deltas are expected to be **5–15 papers**. At the spike-measured
 Sonnet 4.6 rate (~$0.0141/paper combined), that's ~$0.07–$0.21 per run.
 
+**Below-watermark catch-up.** After the delta, the scheduled run (not
+`--full`) calls `run_backstop`: up to `enrichment_backstop_max_pmids` (100)
+of the `--from-gap-scan` set, newest first. Those are faculty papers ReCiter
+accepted after the watermark passed their PMID, which the delta can never
+reach; they were the onboarding detector's growing "need synopsis" backlog
+(~375 PMIDs, Oct 2026). It is partial-tolerant and quarantine-aware, never
+touches the watermark, and posts no success card. At most ~$1.41 a night
+while the backlog drains, then a few PMIDs a night. The weekly hot path's
+eligibility sweep scores what it enriches.
+
 **Verifying a tick:**
 
 ```bash

@@ -40,6 +40,14 @@ def _stub_engine():
         yield
 
 
+@pytest.fixture(autouse=True)
+def backstop():
+    """The scheduled mode runs the below-watermark catch-up after the delta;
+    stub it for every test so none reaches ReciterDB or DynamoDB."""
+    with patch("scripts.run_daily_enrichment.run_backstop") as m:
+        yield m
+
+
 def _patch_daily(result=None):
     return patch(
         "scripts.run_daily_enrichment.run_daily_enrichment",
@@ -64,6 +72,20 @@ def test_no_flags_runs_the_daily_job():
     assert rc == 0
     daily.assert_called_once()
     backfill.assert_not_called()
+
+
+def test_scheduled_run_follows_the_delta_with_the_backstop(backstop):
+    with _patch_daily(RunResult(status=STATUS_COMPLETE, delta_size=3, run_id="night-1")):
+        main([])
+    backstop.assert_called_once()
+    assert backstop.call_args.kwargs["limit"] == 100  # config/thresholds.json
+    assert backstop.call_args.kwargs["run_id"] == "night-1"  # one quarantine strike a night
+
+
+def test_full_run_skips_the_backstop(backstop):
+    with _patch_daily():
+        main(["--full"])
+    backstop.assert_not_called()
 
 
 def test_pmids_flag_dispatches_to_the_backfill():

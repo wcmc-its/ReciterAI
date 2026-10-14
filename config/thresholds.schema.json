@@ -197,6 +197,11 @@
       "minimum": 1,
       "description": "Daily enrichment (#137): per-PMID consecutive-failure count at which the daily job writes the PMID off — the watermark is allowed to advance past it on the threshold-crossing tick, an ERROR Teams card alerts the operator, and the PMID is skipped on subsequent ticks until cleared via `scripts/run_daily_enrichment.py --retry-quarantine` or `--clear-quarantine PMID`. Distinct from `retry_sweep_quarantine_after` (scoring pipeline). State lives in DDB rows at PK `ENRICHMENT_QUARANTINE#pmid_{pmid}`."
     },
+    "enrichment_backstop_max_pmids": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Daily enrichment below-watermark catch-up (`run_backstop`): max faculty first/last-author PMIDs with no synopsis enriched per scheduled run, newest first. The watermark delta cannot reach PMIDs below itself, so late-accepted papers were never enriched (the onboarding detector's synopsis-gap backlog). Bounds per-run Bedrock spend; 0 disables."
+    },
     "spend_alert_increment_usd": {
       "type": "integer",
       "minimum": 1,

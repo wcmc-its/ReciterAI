@@ -1067,6 +1067,107 @@ def run_enrichment_backfill(
     return result
 
 
+def _scan_backstop_candidates() -> list[str]:
+    """The onboarding detector's synopsis-gap set (#112's `--from-gap-scan`
+    work set) minus INVALID#: faculty first/last-author PMIDs with no synopsis."""
+    from utils.dynamodb_helpers import TABLE_NAME, scan_invalid_pmids
+    from utils.sql_queries import scan_faculty_publication_gaps
+
+    gaps = {str(r["pmid"]) for r in scan_faculty_publication_gaps() if not r["has_synopsis"]}
+    return sorted(gaps - set(scan_invalid_pmids(get_dynamo_client(), TABLE_NAME)))
+
+
+def run_backstop(
+    *,
+    engine: Engine,
+    limit: int,
+    quarantine_threshold: Optional[int] = None,
+    run_id: Optional[str] = None,
+    ddb_table: Any = None,
+    alert_fn: Callable = alerting.alert,
+    scan_candidates: Callable[[], list[str]] = _scan_backstop_candidates,
+    backfill: Callable = run_enrichment_backfill,
+) -> Optional[EnrichmentBackfillResult]:
+    """Nightly below-watermark catch-up, run after the daily delta.
+
+    The daily delta reads only `pmid > watermark`, so a faculty paper ReCiter
+    accepts after the watermark passed its PMID (a new hire's back catalog,
+    late curation) was never enriched: the onboarding detector's "need
+    synopsis" backlog, which grew 202 -> 390 PMIDs Aug-Oct 2026. This enriches
+    up to `limit` of them a night, newest first, through the partial-tolerant
+    backfill, so a failure here never touches the watermark. The hot path's
+    eligibility sweep scores them on its next weekly run.
+
+    Quarantine-aware like the daily delta: a PMID that keeps failing is
+    written off after `enrichment_quarantine_threshold` nights rather than
+    retried forever. Pass the night's delta `run_id`: `record_failure` counts
+    once per (PMID, run_id), so a PMID that failed the delta and then the
+    backstop the same night counts once, and a fixed id would never count past
+    one. Spend lands in the same ledger as the delta's. No success card (the
+    daily heartbeat covers the job);
+    it alerts only on a newly-quarantined PMID, an IMPACT# batch failure, or
+    its own crash. Best-effort: never raises.
+    """
+    if limit <= 0:
+        return None
+    if quarantine_threshold is None:
+        quarantine_threshold = int(load_thresholds()["enrichment_quarantine_threshold"])
+    started_at = now_iso()
+    run_id = run_id or f"backstop-{started_at[:10]}"
+    try:
+        picked: list[str] = []
+        for pmid in sorted(scan_candidates(), key=int, reverse=True):
+            if len(picked) >= limit:
+                break
+            if not quarantine.is_quarantined(pmid, quarantine_threshold, table=ddb_table):
+                picked.append(pmid)
+        if not picked:
+            return None
+        result = backfill(
+            pmids=picked, engine=engine, ddb_table=ddb_table,
+            alert_fn=lambda *a, **k: False,
+        )
+        newly_quarantined = []
+        for o in result.outcomes:
+            if o.fully_succeeded:
+                quarantine.clear(o.pmid, table=ddb_table)
+            elif quarantine.record_failure(
+                o.pmid, reason=o.synopsis_error or o.impact_error or "unknown",
+                run_id=run_id, table=ddb_table,
+            ) >= quarantine_threshold:
+                newly_quarantined.append(o)
+        if result.cost_observed_usd:
+            spend_tracker.record_spend(
+                result.cost_observed_usd,
+                started_at=started_at,
+                run_id=run_id,
+                table=ddb_table if ddb_table is not None else _default_get_table(),
+                alert_fn=alert_fn,
+            )
+        if newly_quarantined:
+            _alert_newly_quarantined(
+                alert_fn, newly_quarantined,
+                threshold=quarantine_threshold, run_id=run_id,
+            )
+        if result.status == STATUS_DDB_BATCH_FAILED:
+            alert_fn("WARN", "Enrichment backstop IMPACT# batch failed",
+                     str(result.failure_reason), context={})
+        logger.info(
+            "backstop: status=%s picked=%d succeeded=%d failed=%d",
+            result.status, len(picked), result.succeeded, result.failed,
+        )
+        return result
+    except Exception as e:  # noqa: BLE001 — catch-up is non-critical
+        logger.exception("backstop: below-watermark catch-up failed")
+        alert_fn(
+            "WARN", "Enrichment backstop failed",
+            f"The below-watermark catch-up raised; the daily delta was "
+            f"unaffected. Error: {e}",
+            context={},
+        )
+        return None
+
+
 def _count_content_filter_retries(outcomes: list[PmidOutcome]) -> int:
     """How many synopsis+impact calls hit the OpenAI content-filter fallback.
 

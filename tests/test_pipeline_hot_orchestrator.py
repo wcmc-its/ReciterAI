@@ -232,6 +232,7 @@ def test_handler_retry_sweep_failure_alerts_via_teams(monkeypatch):
     )
     monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
     monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_churn_cwids", lambda *a, **k: [])
     import utils.sql_queries as sq
     monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: [])
 
@@ -635,6 +636,7 @@ def test_handler_scheduled_input_is_not_an_override(monkeypatch):
                         lambda *a, **k: {"retry_pmids": [], "quarantined_pmids": []})
     monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
     monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_churn_cwids", lambda *a, **k: [])
     import utils.sql_queries as sq
     monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: [])
 
@@ -1230,6 +1232,7 @@ def test_handler_ready_path_derives_and_threads_dirty_cwids(monkeypatch):
     # against the MagicMock client. Empty → dirty_cwids derive over delta+retry.
     monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
     monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_churn_cwids", lambda *a, **k: [])
 
     seen: list = []
 
@@ -1245,3 +1248,50 @@ def test_handler_ready_path_derives_and_threads_dirty_cwids(monkeypatch):
     # Derived over the sorted delta+retry union.
     assert seen == [["1", "2", "9"]]
     assert result["input"]["delta"]["dirty_cwids"] == ["cwidX", "cwidY"]
+
+
+# ---------- churn refresh: resolve_churn_cwids ----------
+
+
+def test_resolve_churn_cwids_returns_only_drifted_faculty(monkeypatch):
+    """Only an in-scope CWID whose baseline differs from the live set, compared
+    with INVALID# dropped on both sides, is refreshed."""
+    monkeypatch.setattr(orch, "scan_rollup_baselines", lambda table: {
+        "drifted": ["1", "2"],
+        "same": ["3"],
+        "left_faculty": ["9"],         # not in the live faculty set
+        "invalid_only": ["4", "X"],    # differs only by an INVALID# PMID
+    })
+    monkeypatch.setattr(orch, "scan_invalid_pmids", lambda client, name: ["X"])
+    live = {
+        "drifted": {"1", "2", "5"},
+        "same": {"3"},
+        "invalid_only": {"4"},
+        "no_baseline": {"7"},          # never rolled up: churn N/A
+    }
+    assert orch.resolve_churn_cwids(
+        MagicMock(), MagicMock(), table_name="t", faculty_pmids_fn=lambda: live,
+    ) == ["drifted"]
+
+
+def test_handler_adds_churn_cwids_to_the_rollup_set(monkeypatch):
+    fake_table = MagicMock()
+    fake_table.query.return_value = {"Items": []}
+    monkeypatch.setattr(orch, "get_table", lambda *a, **kw: fake_table)
+    monkeypatch.setattr(orch, "get_dynamo_client", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(orch, "resolve_delta_pmids", lambda *a, **k: ["5"])
+    monkeypatch.setattr(orch, "resolve_retry_sweep",
+                        lambda *a, **k: {"retry_pmids": [], "quarantined_pmids": []})
+    monkeypatch.setattr(orch, "resolve_eligibility_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_drift_sweep", lambda *a, **k: [])
+    monkeypatch.setattr(orch, "resolve_churn_cwids", lambda *a, **k: ["c2", "c1"])
+    import utils.sql_queries as sq
+    monkeypatch.setattr(sq, "get_cwids_for_pmids", lambda pmids: ["c1", "c0"])
+    monkeypatch.setattr(orch.teams_alerting, "alert", lambda *a, **kw: True)
+
+    result = orch.handler({
+        "run_id": "sched-churn",
+        "sfn_input": {"initiated_by": "scheduled", "trigger": "eventbridge:..."},
+    })
+
+    assert result["input"]["delta"]["dirty_cwids"] == ["c0", "c1", "c2"]

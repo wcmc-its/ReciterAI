@@ -18,6 +18,7 @@ import os
 import logging
 from decimal import Decimal
 from functools import lru_cache
+from typing import Any
 
 import boto3
 
@@ -567,6 +568,55 @@ def scan_invalid_pmids(client, table_name: str) -> list:
             break
         kwargs['ExclusiveStartKey'] = lek
     return pmids
+
+
+# The onboarding detector's R9 churn baseline lives on per-CWID rollup rows
+# (PR 2 / #90); the GLOBAL CSV rollup path writes STAGE#rollup_by_cwid#GLOBAL,
+# which this prefix deliberately excludes. Shared by the detector and the hot
+# path's churn refresh, whose Lambda zips both bundle utils/ but not each other.
+_ROLLUP_PK_PREFIX = "STAGE#rollup_by_cwid#cwid:"
+
+
+def scan_rollup_baselines(table: Any) -> dict[str, list[str]]:
+    """Each CWID's churn baseline — the `input_pmid_set` of its most recent
+    *complete* CWID-scoped rollup row (R9).
+
+    A CWID with no complete `STAGE#rollup_by_cwid#cwid:` row is absent from
+    the result, so churn is N/A for it (see pipeline_onboarding/detector.py). A complete
+    rollup row missing the `input_pmid_set` field is treated as no baseline —
+    PR 2's rollup always writes it, so this guards only against malformed
+    rows rather than re-flooding.
+    """
+    from utils.stage_records import STATUS_COMPLETE
+
+    kwargs: dict[str, Any] = {
+        "FilterExpression": "begins_with(#pk, :p)",
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {":p": _ROLLUP_PK_PREFIX},
+    }
+    latest: dict[str, tuple[str, list[str]]] = {}  # pk -> (best_sk, input_pmid_set)
+    last_key = None
+    while True:
+        if last_key is not None:
+            kwargs["ExclusiveStartKey"] = last_key
+        resp = table.scan(**kwargs)
+        for item in resp.get("Items", []):
+            if item.get("status") != STATUS_COMPLETE:
+                continue
+            if "input_pmid_set" not in item:
+                continue
+            pk = item.get("PK", "")
+            if not pk.startswith(_ROLLUP_PK_PREFIX):
+                continue
+            sk = item.get("SK", "")
+            prior = latest.get(pk)
+            if prior is None or sk > prior[0]:
+                pmid_set = [str(p) for p in (item.get("input_pmid_set") or [])]
+                latest[pk] = (sk, pmid_set)
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key:
+            break
+    return {pk[len(_ROLLUP_PK_PREFIX):]: pmids for pk, (_, pmids) in latest.items()}
 
 
 def fetch_scored_provenance(client, table_name: str, pmids: list) -> dict:

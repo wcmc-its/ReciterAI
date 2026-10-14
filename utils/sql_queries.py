@@ -393,6 +393,27 @@ def scan_faculty_publication_gaps(client=None) -> list[dict]:
     ]
 
 
+def get_faculty_accepted_pmids() -> dict[str, set[str]]:
+    """Each full-time faculty CWID's in-scope accepted PMID set: the
+    `FACULTY_GAP_SCAN_SQL` population without the synopsis lookup.
+
+    Backs the hot path's churn refresh, which compares it to each CWID's
+    rollup baseline exactly as the onboarding detector does. An empty result
+    (degraded read) yields no refresh -- the safe direction.
+    """
+    from sqlalchemy import text
+
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(text(FACULTY_GAP_SCAN_SQL)).mappings().all()
+    finally:
+        conn.close()
+    out: dict[str, set[str]] = {}
+    for r in rows:
+        out.setdefault(str(r["cwid"]), set()).add(str(r["pmid"]))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Enrichment backfill — explicit-PMID synopsis + impact (#112 / onboarding)
 # ---------------------------------------------------------------------------
