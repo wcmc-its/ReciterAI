@@ -12,8 +12,12 @@ from decimal import Decimal
 
 import pytest
 
+from botocore.exceptions import ClientError, EndpointConnectionError
+
 import score_publications as sp
 from pipeline_area_signals import prompts, signals
+from pipeline_enrichment.synopsis import SynopsisResult
+from utils.openai_client import GPT5_MODEL
 from utils.bedrock_client import HAIKU_MODEL, SONNET_MODEL
 from utils.taxonomy import load_taxonomy
 
@@ -203,9 +207,78 @@ def test_title_only_item_meters_only_the_scorer():
     assert [m for m, _, _ in result.usage] == [HAIKU_MODEL, SONNET_MODEL]
 
 
-def test_empty_synopsis_is_a_transient_failure_not_a_title_fallback():
+def test_empty_grant_synopsis_is_a_transient_failure_not_a_title_fallback():
     with pytest.raises(signals.ScoringFailed, match="synopsis"):
         score(grant_item(), FakeConverse(synopsis=""))
+
+
+def test_empty_trial_synopsis_scores_on_the_title_as_the_pilot_did():
+    fake = FakeConverse(synopsis="")
+    result = score(trial_item(), fake)
+    item = result.item
+    assert item["synopsis"] == "Synthetic widget trial"
+    assert item["synopsis_model"] == signals.TITLE_ONLY_SYNOPSIS_MODEL
+    assert "scored on title" in item["synopsis_error"]
+    # The scorer read the title in the synopsis slot.
+    assert "Synthetic widget trial" in fake.calls[-1]["user"]
+    assert item["topic_scores"]
+
+
+class SynopsisDenied(FakeConverse):
+    """The synopsis call fails with a system-wide error; scoring would work."""
+
+    def __init__(self, code="UnrecognizedClientException", **kw):
+        super().__init__(**kw)
+        self.code = code
+
+    def converse(self, **kw):
+        system = " ".join(s.get("text", "") for s in kw.get("system", []))
+        if "synopses" in system:
+            raise ClientError({"Error": {"Code": self.code, "Message": "denied"}}, "Converse")
+        return super().converse(**kw)
+
+
+def test_trial_synopsis_lost_to_a_system_wide_error_is_not_title_scored():
+    client = metered(SynopsisDenied())
+    with pytest.raises(signals.ScoringFailed, match="synopsis"):
+        signals.score_input(signals.AreaInput.from_item(trial_item()), bedrock=client,
+                            taxonomy=TAXONOMY, int_to_id=INT_TO_ID, id_to_int=ID_TO_INT,
+                            taxonomy_version=TV)
+    assert signals.systemic_error(client.errors) == "Bedrock UnrecognizedClientException"
+
+
+@pytest.mark.parametrize("exc, expected", [
+    (ClientError({"Error": {"Code": "ExpiredTokenException"}}, "Converse"),
+     "Bedrock ExpiredTokenException"),
+    (ClientError({"Error": {"Code": "ThrottlingException"}}, "Converse"),
+     "Bedrock ThrottlingException"),
+    (EndpointConnectionError(endpoint_url="https://bedrock.invalid"),
+     "Bedrock EndpointConnectionError"),
+    (ClientError({"Error": {"Code": "ValidationException"}}, "Converse"), None),
+    (ValueError("bad json"), None),
+])
+def test_systemic_error_classification(exc, expected):
+    assert signals.systemic_error([exc]) == expected
+
+
+def test_openai_synopsis_fallback_tokens_are_in_the_usage(monkeypatch):
+    def gpt_synopsis(**kw):
+        return SynopsisResult(pmid=kw["pmid"], synopsis="Synthetic synopsis", model=GPT5_MODEL,
+                              input_tokens=1234, output_tokens=56, error=None)
+    monkeypatch.setattr(signals, "generate_synopsis", gpt_synopsis)
+    result = score(grant_item(), FakeConverse())
+    assert (GPT5_MODEL, 1234, 56) in result.usage
+    assert result.item["synopsis_model"] == GPT5_MODEL
+
+
+def test_failed_attempt_carries_the_openai_spend_the_meter_cannot_see(monkeypatch):
+    def gpt_empty(**kw):
+        return SynopsisResult(pmid=kw["pmid"], synopsis=None, model=GPT5_MODEL,
+                              input_tokens=900, output_tokens=0, error="filtered")
+    monkeypatch.setattr(signals, "generate_synopsis", gpt_empty)
+    with pytest.raises(signals.ScoringFailed) as info:
+        score(grant_item(), FakeConverse())
+    assert info.value.extra_usage == [(GPT5_MODEL, 900, 0)]
 
 
 def test_scorer_failure_raises_and_leaves_spend_on_the_client():

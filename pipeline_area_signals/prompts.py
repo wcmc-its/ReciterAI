@@ -15,8 +15,12 @@ which calls it with ``title``, ``journal``, ``year`` and ``abstract``; the
 type and phase.
 
 Changing any text here changes what the pilot measured. Bump
-``PROMPT_VERSION`` with it so every stored signal re-scores (it feeds the input
-hash).
+``PROMPT_VERSION`` with it: every ``scored`` AREAINPUT item records the
+``prompt_version`` it was scored under, ``drain.due_reason`` makes an item whose
+stored version differs due again (``prompt_changed``), and because the version
+also feeds the input hash, the stored AREASIGNAL row no longer matches and the
+item is re-scored rather than reused. Expect a full re-score's cost (the whole
+queue, subject to the per-run ceiling).
 """
 from __future__ import annotations
 

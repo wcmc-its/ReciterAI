@@ -6,6 +6,11 @@ What the 2026-10-14 pilot validated, and this module reproduces:
   ``text``). A title-only item skips the synopsis and the title goes in the
   synopsis slot: a title is already synopsis-sized, and synopsizing it would
   invent content.
+- A trial whose synopsis comes back empty is scored on its title, as the pilot
+  did (``s.synopsis or t["title"]``), unless the synopsis failed on a
+  system-wide error (then the item is retried and the run's breaker sees it).
+  A grant with an empty synopsis is a transient failure (the pilot scored it on
+  an empty synopsis, which this does not reproduce on purpose).
 - Grants use the POC ``synopsis-grant`` prompt; trials use the pilot's trial
   prompt (``prompts``). Both go through the production synopsis generator
   (length retries, content-filter fallback).
@@ -69,7 +74,54 @@ class InvalidInput(ValueError):
 
 
 class ScoringFailed(RuntimeError):
-    """A scoring attempt that failed and may succeed on a retry (transient)."""
+    """A scoring attempt that failed and may succeed on a retry (transient).
+
+    Carries the spend the meter cannot see (OpenAI fallback tokens, estimated
+    dense-fallback charges) so a failed attempt is still costed in full.
+    """
+
+    def __init__(self, message: str, *, extra_usage: Optional[list] = None,
+                 estimated_usd: Decimal = Decimal("0")):
+        super().__init__(message)
+        self.extra_usage = list(extra_usage or [])
+        self.estimated_usd = estimated_usd
+
+
+# Bedrock error codes that say nothing about the item and everything about the
+# system: credentials, permissions, quota/throttling that survived the client's
+# own retries, a service outage, a model id that does not resolve. One of these
+# on a failed item opens the run's circuit breaker instead of burning an attempt.
+SYSTEMIC_CLIENT_ERROR_CODES = frozenset({
+    "UnrecognizedClientException",
+    "AccessDeniedException",
+    "ExpiredTokenException",
+    "InvalidSignatureException",
+    "IncompleteSignatureException",
+    "MissingAuthenticationTokenException",
+    "UnauthorizedException",
+    "ThrottlingException",
+    "ServiceQuotaExceededException",
+    "ServiceUnavailableException",
+    "InternalServerException",
+    "ModelNotReadyException",
+    "ResourceNotFoundException",
+})
+
+
+def systemic_error(errors: list) -> Optional[str]:
+    """The first system-wide error among ``errors`` (exceptions a Bedrock call
+    raised), described, or None when every one is plausibly item-specific."""
+    from botocore.exceptions import (  # noqa: PLC0415
+        ClientError, ConnectTimeoutError, EndpointConnectionError, NoCredentialsError,
+    )
+    for exc in errors:
+        if isinstance(exc, ClientError):
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in SYSTEMIC_CLIENT_ERROR_CODES:
+                return f"Bedrock {code}"
+        elif isinstance(exc, (EndpointConnectionError, ConnectTimeoutError, NoCredentialsError)):
+            return f"Bedrock {type(exc).__name__}"
+    return None
 
 
 def signal_pk(kind: str, text_key: str) -> str:
@@ -178,16 +230,24 @@ class AreaInput:
 class MeteredBedrockClient(BedrockClient):
     """BedrockClient that records every Converse response's token usage.
 
-    ``usage`` collects ``(model, input_tokens, output_tokens)``; callers reset it
-    before an item and read it after. One instance per worker thread.
+    ``usage`` collects ``(model, input_tokens, output_tokens)``; ``errors``
+    collects every exception a call raised, before the synopsis generator or the
+    scorer turns it into a message string (so the run can tell an expired token
+    from a bad item). Callers reset both before an item and read them after.
+    One instance per worker thread.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.usage: list[tuple[str, int, int]] = []
+        self.errors: list[BaseException] = []
 
     def _call_with_retry(self, model, *args, **kwargs):
-        response = super()._call_with_retry(model, *args, **kwargs)
+        try:
+            response = super()._call_with_retry(model, *args, **kwargs)
+        except Exception as exc:
+            self.errors.append(exc)
+            raise
         usage = (response or {}).get("usage") or {}
         self.usage.append(
             (model, int(usage.get("inputTokens") or 0), int(usage.get("outputTokens") or 0))
@@ -223,7 +283,11 @@ def _synopsis(inp: AreaInput, client) -> tuple[str, str, Optional[str], list]:
     extra = ([(GPT5_MODEL, result.input_tokens, result.output_tokens)]
              if result.model == GPT5_MODEL else [])
     if not result.synopsis:
-        raise ScoringFailed(f"synopsis: {result.error or 'empty'}")
+        reason = f"synopsis: {result.error or 'empty'}"
+        if inp.kind == "trial" and systemic_error(getattr(client, "errors", [])) is None:
+            # The pilot scored such a trial on its title (score_trials.py).
+            return inp.title, TITLE_ONLY_SYNOPSIS_MODEL, f"{reason}; scored on title", extra
+        raise ScoringFailed(reason, extra_usage=extra)
     # A length violation keeps the model's text (never truncated, #50), as the
     # enrichment job does; the error rides on the row.
     return result.synopsis, result.model, result.error, extra
@@ -240,10 +304,12 @@ def score_input(
 ) -> SignalResult:
     """Synopsis + area scores for one input. Raises ScoringFailed (transient).
 
-    Resets ``bedrock.usage`` first; on a raise, what it holds is the Bedrock
-    spend of the failed attempt.
+    Resets ``bedrock.usage`` and ``bedrock.errors`` first; on a raise, they hold
+    the Bedrock spend and errors of the failed attempt, and the exception holds
+    the rest of its spend (``extra_usage``, ``estimated_usd``).
     """
     bedrock.usage = []
+    bedrock.errors = []
     synopsis, synopsis_model, synopsis_error, extra = _synopsis(inp, bedrock)
     scored = sp.score_one_publication(
         {
@@ -258,8 +324,10 @@ def score_input(
     usage = list(bedrock.usage) + extra
     estimated = DENSE_FALLBACK_ESTIMATE_USD if scored.fallback_model else Decimal("0")
     if scored.status != "complete":
-        # The spend so far stays on bedrock.usage for the caller to record.
-        raise ScoringFailed(f"area scores: {scored.error or scored.status}")
+        # Bedrock spend so far stays on bedrock.usage for the caller to record;
+        # what the meter cannot see rides on the exception.
+        raise ScoringFailed(f"area scores: {scored.error or scored.status}",
+                            extra_usage=extra, estimated_usd=estimated)
     topic_scores = sorted(
         (
             {"topic_id": tid, "score": Decimal(str(round(float(v["score"]), 4)))}

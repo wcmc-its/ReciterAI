@@ -561,15 +561,23 @@ writes `PK=AREASIGNAL#{kind}:{text_key}` / `SK=META` rows; SPS's next nightly
 projects them. The item contract is in `pipeline_area_signals/drain.py`.
 
 Per run: taxonomy preflight before any spend; due items are `pending` ones plus
-`scored` ones whose `taxonomy_version` is not current (a taxonomy change
-re-scores everything); each item re-reads its status before spending; a
-transient failure retries on the next run and the third one marks the item
-`failed` with a reason. Every model call is costed from its own response, and
+`scored` ones whose `taxonomy_version` or `prompt_version` is not current (a
+taxonomy change or a `PROMPT_VERSION` bump re-scores everything); each item
+re-reads its status and takes a conditional 30-minute lease before spending, so
+an overlapping run (a long backfill still going when the 09:00 rule fires)
+skips it instead of paying for it twice; a transient failure retries on the
+next run and the third one marks the item `failed` with a reason. A circuit
+breaker keeps an outage from doing that to the whole queue: a system-wide
+Bedrock error (bad or expired token, access denied, throttling or an outage
+that outlasted the client's retries) or 8 consecutive failures stop the run
+with no attempt counted against the held items, a `failed` STAGE# row and a
+Teams ERROR. To re-queue items that did reach `failed`, run once with
+`--requeue-failed`. Every model call is costed from its own response, and
 the run stops launching items once the next batch would cross
 `RECITERAI_AREA_SIGNALS_MAX_COST_USD` (default $25), leaving the rest due. One
 `STAGE#area_signals#GLOBAL` row per run carries the measured cost and counts;
-Teams gets ERROR when the run fails and WARN when items reach `failed` or the
-ceiling stops the drain.
+Teams gets ERROR when the run fails or the breaker opens and WARN when items
+reach `failed` or the ceiling stops the drain.
 
 ### One-time deploy (in order)
 

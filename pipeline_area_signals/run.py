@@ -7,15 +7,26 @@ Order of a run:
    blocked preflight fails the run (STAGE# failed row + Teams ERROR) without a
    single model call.
 2. List ``PK=AREAINPUT`` and select what is due: ``pending`` items, then
-   ``scored`` items whose ``taxonomy_version`` is not the current one.
+   ``scored`` items whose ``taxonomy_version`` or ``prompt_version`` is not the
+   current one (``--requeue-failed`` adds ``failed`` items, attempts reset).
 3. Score in batches of ``--workers``. Each item re-reads its own status right
-   before spending (SPS may have deleted or rewritten it since the listing).
+   before spending (SPS may have deleted or rewritten it since the listing),
+   then claims it with a conditional lease so an overlapping run skips it.
    An item whose stored AREASIGNAL row already matches its input hash and the
    current taxonomy is marked scored with no model call (crash recovery).
-4. Cost: every call is recorded from its own response (``signals``), and the
+4. Circuit breaker. A transient item failure is not written until the run
+   knows it was the item's fault: failures since the last success are held, and
+   written (attempt counted, ``failed`` on the third) when a later item
+   succeeds or the run ends. A system-wide Bedrock error (bad or expired token,
+   access denied, throttling or an outage that outlasted the client's retries,
+   an unknown model id) or ``BREAKER_STREAK`` consecutive failures open the
+   breaker: the run stops, the held items are released with no attempt counted,
+   the STAGE# row is ``failed`` and Teams gets an ERROR. A total outage
+   therefore never walks the queue to ``failed``.
+5. Cost: every call is recorded from its own response (``signals``), and the
    run stops launching new batches once the next batch's estimate would cross
    ``--max-cost-usd``. What it did not reach stays due for the next run.
-5. One ``STAGE#area_signals#GLOBAL`` row per run (measured cost, counts) for
+6. One ``STAGE#area_signals#GLOBAL`` row per run (measured cost, counts) for
    SPS's /edit/etl-status board, and a Teams alert when the run failed, an item
    reached ``failed``, or the cost ceiling stopped the drain.
 
@@ -23,7 +34,8 @@ Order of a run:
 and writes nothing (no status updates, no AREASIGNAL rows, no STAGE# row).
 
 Exit codes: 0 when the run completed (including item failures and a ceiling
-stop, which are reported, not fatal); 1 when it could not run.
+stop, which are reported, not fatal); 1 when it could not run or the breaker
+opened.
 """
 from __future__ import annotations
 
@@ -32,6 +44,7 @@ import logging
 import os
 import threading
 import time
+import uuid
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -54,6 +67,12 @@ MAX_COST_ENV = "RECITERAI_AREA_SIGNALS_MAX_COST_USD"
 DEFAULT_MAX_COST_USD = Decimal("25")
 DEFAULT_WORKERS = 4
 
+# Consecutive transient failures, with no success between them, that open the
+# breaker even when no single error is recognizably system-wide (an OpenAI
+# fallback outage, say). Two full default batches: a run of bad items that long
+# is far less likely than a broken dependency.
+BREAKER_STREAK = 8
+
 # Per-item estimates for the dry-run report and the ceiling check, from
 # docs/cost-model.md: screening ~$0.0035 + dense ~$0.009 per item, and a
 # synopsis at about half of enrichment's measured $0.0141 synopsis+impact,
@@ -70,6 +89,8 @@ OUTCOME_REUSED = "reused"          # stored row already current; no model call
 OUTCOME_SKIPPED = "skipped"        # no longer due on re-read
 OUTCOME_RETRY = "retry"            # transient failure, still due
 OUTCOME_FAILED = "failed"          # terminal
+OUTCOME_ERROR = "error"            # transient failure not yet written (process_one)
+OUTCOME_RELEASED = "released"      # failure held when the breaker opened; no attempt
 
 
 @dataclass
@@ -81,6 +102,8 @@ class Outcome:
     estimated_usd: Decimal = Decimal("0")
     error: Optional[str] = None
     content_filtered: bool = False
+    attempts: int = 0
+    systemic: Optional[str] = None     # system-wide error description, if any
 
 
 def estimate_item_usd(item: dict) -> Decimal:
@@ -113,18 +136,29 @@ class _ClientPool:
 
 
 def process_one(table, item: dict, *, pool: _ClientPool, taxonomy: dict, int_to_id: dict,
-                id_to_int: dict, taxonomy_version: str) -> Outcome:
+                id_to_int: dict, taxonomy_version: str, run_id: str = "",
+                requeue_failed: bool = False) -> Outcome:
+    """Score one item. A transient failure comes back as OUTCOME_ERROR with
+    nothing written but the lease; the run decides whether it counts."""
     sk = str(item.get("SK") or "")
     kind = str(item.get("kind") or "")
     fresh = drain.get_input(table, sk)
-    if not fresh or drain.due_reason(fresh, taxonomy_version) is None:
+    reason = fresh and drain.due_reason(fresh, taxonomy_version,
+                                        requeue_failed=requeue_failed)
+    if not reason:
         return Outcome(sk, kind, OUTCOME_SKIPPED)
-    attempts = int(fresh.get("attempts") or 0) + 1
+    prior = 0 if reason == drain.REASON_REQUEUED else int(fresh.get("attempts") or 0)
+    attempts = prior + 1
     try:
         inp = signals.AreaInput.from_item(fresh)
     except signals.InvalidInput as exc:
-        drain.mark_failed(table, sk, reason=f"invalid input: {exc}", attempts=attempts)
+        if fresh.get("status") != drain.STATUS_FAILED:
+            drain.mark_failed(table, sk, reason=f"invalid input: {exc}", attempts=attempts)
         return Outcome(sk, kind, OUTCOME_FAILED, error=str(exc))
+
+    if not drain.claim(table, fresh, run_id=run_id,
+                       requeue=reason == drain.REASON_REQUEUED):
+        return Outcome(sk, kind, OUTCOME_SKIPPED)
 
     existing = drain.get_signal(table, inp.kind, inp.text_key)
     if (existing and existing.get("input_hash") == inp.input_hash()
@@ -139,15 +173,13 @@ def process_one(table, item: dict, *, pool: _ClientPool, taxonomy: dict, int_to_
                                      taxonomy_version=taxonomy_version)
     except Exception as exc:  # noqa: BLE001 - one item never aborts the drain
         error = f"{type(exc).__name__}: {exc}"
-        if attempts >= drain.MAX_ATTEMPTS:
-            drain.mark_failed(table, sk, reason=error, attempts=attempts)
-            status = OUTCOME_FAILED
-        else:
-            drain.record_attempt(table, sk, error=error, attempts=attempts)
-            status = OUTCOME_RETRY
-        log.warning("%s %s (attempt %d/%d): %s", status.upper(), sk, attempts,
-                    drain.MAX_ATTEMPTS, error)
-        return Outcome(sk, kind, status, usage=list(bedrock.usage), error=error)
+        systemic = signals.systemic_error(bedrock.errors)
+        log.warning("ERROR %s (attempt %d/%d%s): %s", sk, attempts, drain.MAX_ATTEMPTS,
+                    f", system-wide: {systemic}" if systemic else "", error)
+        return Outcome(sk, kind, OUTCOME_ERROR,
+                       usage=list(bedrock.usage) + list(getattr(exc, "extra_usage", [])),
+                       estimated_usd=getattr(exc, "estimated_usd", Decimal("0")),
+                       error=error, attempts=attempts, systemic=systemic)
 
     drain.put_signal(table, result.item)
     drain.mark_scored(table, sk, taxonomy_version=taxonomy_version)
@@ -193,9 +225,11 @@ def run(
     preflight: Optional[Callable[[], tuple]] = None,
     alert: Callable[..., Any] = alerting.alert,
     taxonomy: Optional[dict] = None,
+    requeue_failed: bool = False,
 ) -> tuple[int, dict]:
     """Drain due AREAINPUT items. Returns (exit_code, summary)."""
     started_at, t0 = now_iso(), time.monotonic()
+    run_id = f"{started_at}#{uuid.uuid4().hex[:8]}"
     taxonomy = taxonomy or load_taxonomy()
     taxonomy_version = signals.current_taxonomy_version(taxonomy)
     if preflight is None:
@@ -228,7 +262,8 @@ def run(
         return 1, {"run_status": "failed", "message": error}
     # An item of an unknown kind is never filtered out by --kind: it goes
     # through and is marked failed, rather than sitting pending forever.
-    due = [(i, r) for i, r in drain.select_due(listed, taxonomy_version)
+    due = [(i, r) for i, r in drain.select_due(listed, taxonomy_version,
+                                               requeue_failed=requeue_failed)
            if i.get("kind") in kinds or i.get("kind") not in signals.KINDS]
     if limit is not None:
         due = due[:limit]
@@ -256,9 +291,29 @@ def run(
     failures: list[str] = []
     budget_stopped = False
     run_error: Optional[str] = None
+    breaker: Optional[str] = None
+    held: list[Outcome] = []   # transient failures since the last success, unwritten
 
     def spent() -> Decimal:
         return acc.total_usd + estimated_extra
+
+    def write_failure(o: Outcome) -> None:
+        if o.attempts >= drain.MAX_ATTEMPTS:
+            drain.mark_failed(table, o.sk, reason=o.error or "failed", attempts=o.attempts)
+            counts[OUTCOME_FAILED] += 1
+            failures.append(f"{o.sk}: {o.error}")
+        else:
+            drain.record_attempt(table, o.sk, error=o.error or "failed", attempts=o.attempts)
+            counts[OUTCOME_RETRY] += 1
+
+    def flush_held() -> None:
+        while held:
+            write_failure(held.pop(0))
+
+    def release_held() -> None:
+        while held:
+            drain.release(table, held.pop(0).sk)
+            counts[OUTCOME_RELEASED] += 1
 
     try:
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
@@ -273,7 +328,8 @@ def run(
                     break
                 futures = [ex.submit(process_one, table, item, pool=pool, taxonomy=taxonomy,
                                      int_to_id=int_to_id, id_to_int=id_to_int,
-                                     taxonomy_version=taxonomy_version)
+                                     taxonomy_version=taxonomy_version, run_id=run_id,
+                                     requeue_failed=requeue_failed)
                            for item, _ in batch]
                 for fut in futures:
                     outcome = fut.result()
@@ -283,15 +339,35 @@ def run(
                         except Exception as exc:  # noqa: BLE001 - unknown model price
                             log.warning("cost not recorded for %s: %s", model, exc)
                     estimated_extra += outcome.estimated_usd
-                    counts[outcome.status] += 1
                     content_filtered += int(outcome.content_filtered)
+                    if outcome.status == OUTCOME_ERROR:
+                        held.append(outcome)
+                        if breaker is None and outcome.systemic:
+                            breaker = f"{outcome.systemic} ({outcome.sk}: {outcome.error})"
+                        elif breaker is None and len(held) >= BREAKER_STREAK:
+                            breaker = (f"{len(held)} consecutive item failures with no "
+                                       f"success; last: {outcome.sk}: {outcome.error}")
+                        if breaker:
+                            release_held()
+                        continue
+                    if outcome.status in (OUTCOME_SCORED, OUTCOME_REUSED) and breaker is None:
+                        flush_held()  # the system works, so those failures were the items'
+                    counts[outcome.status] += 1
                     if outcome.status == OUTCOME_FAILED:
                         failures.append(f"{outcome.sk}: {outcome.error}")
+                if breaker:
+                    log.error("circuit breaker open, stopping the run: %s", breaker)
+                    break
+        if breaker is None:
+            flush_held()
     except Exception as exc:  # noqa: BLE001 - a table/IO failure ends the run
         run_error = f"{type(exc).__name__}: {exc}"
         log.exception("area signals run failed")
 
-    run_status = "failed" if run_error else ("budget_stopped" if budget_stopped else "complete")
+    if breaker and not run_error:
+        run_error = f"circuit breaker: {breaker}"
+    run_status = ("aborted" if breaker else "failed") if run_error else (
+        "budget_stopped" if budget_stopped else "complete")
     details = {
         "run_status": run_status,
         "taxonomy_version": taxonomy_version,
@@ -312,6 +388,12 @@ def run(
     log.info("area signals summary: %s", details)
 
     context = {"outcomes": dict(counts), "spent_usd": str(spent()), "due": len(due)}
+    if breaker:
+        alert("ERROR", "Area signals run stopped by its circuit breaker",
+              f"{breaker}. No attempt was counted against the held items; they stay "
+              "due. Fix the dependency (Bedrock token, quota, OpenAI key) and the next "
+              "run picks them up.", context)
+        return 1, details
     if run_error:
         alert("ERROR", "Area signals run failed", run_error, context)
         return 1, details
@@ -337,6 +419,9 @@ def main(argv=None) -> int:
     ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     ap.add_argument("--limit", type=int, default=None, help="score at most N due items")
     ap.add_argument("--kind", choices=signals.KINDS, default=None, help="only this kind")
+    ap.add_argument("--requeue-failed", action="store_true",
+                    help="also score items in status 'failed' (attempts reset), e.g. after "
+                         "an outage that failed them")
     args = ap.parse_args(argv)
 
     from utils.dynamodb_helpers import get_table  # noqa: PLC0415
@@ -348,6 +433,7 @@ def main(argv=None) -> int:
         workers=args.workers,
         limit=args.limit,
         kinds=(args.kind,) if args.kind else signals.KINDS,
+        requeue_failed=args.requeue_failed,
     )
     return code
 
