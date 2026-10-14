@@ -55,10 +55,12 @@ from pipeline_enrichment.daily_job import (
     STATUS_NO_OP,
     clear_quarantine_for_pmid,
     retry_quarantined_pmids,
+    run_backstop,
     run_daily_enrichment,
     run_enrichment_backfill,
 )
 from utils.db import get_engine
+from utils.env_check import load_thresholds
 
 
 def _noop_alert(*args, **kwargs):
@@ -264,6 +266,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.no_alerts:
             kwargs["alert_fn"] = _noop_alert
         result = run_daily_enrichment(**kwargs)
+        # Below-watermark catch-up after the delta. Best-effort and outside the
+        # exit code: it never raises, and the delta's result is the job's.
+        if not args.full:
+            run_backstop(
+                engine=engine,
+                limit=int(load_thresholds()["enrichment_backstop_max_pmids"]),
+                **({"alert_fn": _noop_alert} if args.no_alerts else {}),
+            )
 
     print(_result_to_json(result))
 

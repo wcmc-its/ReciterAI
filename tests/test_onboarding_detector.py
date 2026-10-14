@@ -317,20 +317,31 @@ def test_new_researcher_without_baseline_still_caught_by_gap_scan():
     assert finding.has_rollup_baseline is False
 
 
-def test_churn_removed_when_cwid_has_zero_current_publications():
-    """A CWID with a baseline but no current accepted publications (ReCiter
-    de-attributed everything) is still churn-evaluated, not silently dropped."""
+def test_baseline_only_cwid_is_not_churn_evaluated():
+    """A CWID with a baseline but absent from the gap scan has left full-time
+    faculty (the scan's scope): its whole baseline used to read as "removed"
+    and re-flag every day forever. The hot path's churn refresh cannot repair
+    it, so the detector must not flag it."""
     ev = det.evaluate_detector(
         gap_rows=[],
         processing_status={},
         rollup_baselines={"c1": ["1", "2"]},
         now=NOW,
     )
-    assert ev.flagged_cwid_count == 1
-    finding = ev.findings[0]
-    assert finding.churn_removed == ["1", "2"]
-    assert finding.churn_added == []
-    assert finding.accepted_pmid_count == 0
+    assert ev.flagged_cwid_count == 0
+
+
+def test_invalid_pmid_in_baseline_is_not_a_removal():
+    """INVALID# leaves the accepted set, so it must leave the baseline too, or
+    a rollup that recorded one reads as a removal forever."""
+    ev = det.evaluate_detector(
+        gap_rows=[_gap("c1", "1", True)],
+        processing_status={"1": "complete"},
+        rollup_baselines={"c1": ["1", "X"]},
+        invalid_pmids=["X"],
+        now=NOW,
+    )
+    assert ev.flagged_cwid_count == 0
 
 
 def test_no_churn_when_set_matches_baseline():
@@ -1066,3 +1077,75 @@ def test_run_detector_cold_start_survives_digest_upsert_failure(monkeypatch):
     assert table.put_items[0]["cold_start_mode"] is True
     assert "digest_issue_number" not in table.put_items[0]
     assert alerts and alerts[0][0] == "WARN"       # Teams digest still sent
+
+
+# ---------------------------------------------------------------------------
+# Report gate — file issues + Teams only on the first run after a hot run
+# ---------------------------------------------------------------------------
+
+
+class _QueryTable(_FakeTable):
+    def __init__(self, rows_by_pk):
+        super().__init__()
+        self._rows = rows_by_pk
+
+    def query(self, **kwargs):
+        return {"Items": self._rows.get(kwargs["ExpressionAttributeValues"][":pk"], [])}
+
+
+def _run(ts, **extra):
+    return {"status": "complete", "started_at": ts, **extra}
+
+
+_FAILED_HOT = {"status": "failed", "SK": "RUN#FAILED#2026-05-16T03:36:44.607Z"}
+
+
+@pytest.mark.parametrize("hot_rows, detector_rows, now, expected", [
+    # Monday 13:00, first run after the 12:00 hot run: report.
+    ([_FAILED_HOT, _run("2026-10-12T12:00:34Z")],
+     [_run("2026-10-11T13:00:25Z", reported=True)], "2026-10-12T13:00:25Z", True),
+    # Tuesday: already reported since that hot run: quiet.
+    ([_run("2026-10-12T12:00:34Z")],
+     [_run("2026-10-12T13:00:25Z", reported=True)], "2026-10-13T13:00:25Z", False),
+    # The hot run finished after Monday's detector run: Tuesday reports. The
+    # gate compares against the last REPORT, not the last run.
+    ([_run("2026-10-12T12:00:34Z")],
+     [_run("2026-10-05T13:00:25Z", reported=True), _run("2026-10-12T13:00:25Z", reported=False)],
+     "2026-10-13T13:00:25Z", True),
+    # Hot path stalled past 8 days: nothing is healing, report every run.
+    ([_run("2026-10-01T12:00:34Z")],
+     [_run("2026-10-12T13:00:25Z", reported=True)], "2026-10-13T13:00:25Z", True),
+    # No reporting row yet (first run after deploy): report.
+    ([_run("2026-10-12T12:00:34Z")],
+     [_run("2026-10-12T13:00:25Z")], "2026-10-13T13:00:25Z", True),
+])
+def test_should_report(hot_rows, detector_rows, now, expected):
+    table = _QueryTable({det._HOT_RUN_PK: hot_rows, det.DETECTOR_PK: detector_rows})
+    assert det._should_report(table, datetime.fromisoformat(now)) is expected
+
+
+def test_should_report_fails_loud_on_read_error():
+    assert det._should_report(_FakeTable(), NOW) is True  # no .query
+
+
+def test_run_detector_report_false_writes_row_only(monkeypatch):
+    table = _FakeTable()
+    touched: list[str] = []
+    monkeypatch.setattr(
+        det.github_issues, "list_open_issues",
+        lambda **k: touched.append("list") or [],
+    )
+    monkeypatch.setattr(det.alerting, "alert", lambda *a, **k: touched.append("alert") or True)
+
+    out = det.run_detector(
+        table=table,
+        gap_rows=[_gap("c1", "1", False)],
+        processing_status={},
+        rollup_baselines={},
+        run_id="r",
+        now=NOW,
+        report=False,
+    )
+    assert touched == []
+    assert out["flagged_cwid_count"] == 1
+    assert table.put_items[0]["reported"] is False

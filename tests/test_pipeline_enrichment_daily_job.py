@@ -1849,3 +1849,101 @@ def test_propagate_impact_best_effort_noop_on_empty(monkeypatch):
     )
     assert n == 0
     assert called == []  # short-circuits before touching DynamoDB
+
+
+# ---------------------------------------------------------------------------
+# run_backstop — nightly below-watermark catch-up
+# ---------------------------------------------------------------------------
+
+
+class _BackstopQuarantine:
+    """Stands in for pipeline_enrichment.quarantine: counts per PMID."""
+
+    def __init__(self, counts=None):
+        self.counts = dict(counts or {})
+        self.cleared: list[str] = []
+
+    def install(self, monkeypatch):
+        monkeypatch.setattr(daily_job.quarantine, "is_quarantined",
+                            lambda pmid, threshold, table=None: self.counts.get(pmid, 0) >= threshold)
+        monkeypatch.setattr(daily_job.quarantine, "clear",
+                            lambda pmid, table=None: self.cleared.append(pmid))
+
+        def _record(pmid, *, reason, run_id, table=None):
+            self.counts[pmid] = self.counts.get(pmid, 0) + 1
+            return self.counts[pmid]
+        monkeypatch.setattr(daily_job.quarantine, "record_failure", _record)
+
+
+def _backstop_result(ok=(), bad=()):
+    outcomes = [PmidOutcome(pmid=p, synopsis_ok=True, impact_ok=True) for p in ok]
+    outcomes += [PmidOutcome(pmid=p, synopsis_error="json decode") for p in bad]
+    return daily_job.EnrichmentBackfillResult(
+        status=daily_job.STATUS_PARTIAL if bad else STATUS_COMPLETE,
+        succeeded=len(ok), failed=len(bad), outcomes=outcomes,
+    )
+
+
+def test_backstop_takes_newest_unquarantined_pmids_up_to_the_cap(monkeypatch):
+    _BackstopQuarantine({"300": 3}).install(monkeypatch)
+    calls = []
+
+    def backfill(**kw):
+        calls.append(kw)
+        return _backstop_result(ok=kw["pmids"])
+
+    daily_job.run_backstop(
+        engine=MagicMock(), limit=2, quarantine_threshold=3,
+        scan_candidates=lambda: ["100", "300", "20", "250"],
+        backfill=backfill, alert_fn=lambda *a, **k: True,
+    )
+    # Numeric newest-first ("20" is not above "250"), quarantined "300" skipped.
+    assert calls[0]["pmids"] == ["250", "100"]
+    assert calls[0]["alert_fn"]() is False  # backfill's own cards silenced
+
+
+def test_backstop_quarantines_a_repeat_failure_and_alerts_once(monkeypatch):
+    q = _BackstopQuarantine({"7": 2})
+    q.install(monkeypatch)
+    alerts = []
+    daily_job.run_backstop(
+        engine=MagicMock(), limit=10, quarantine_threshold=3,
+        scan_candidates=lambda: ["7", "8"],
+        backfill=lambda **kw: _backstop_result(ok=["8"], bad=["7"]),
+        alert_fn=lambda *a, **k: alerts.append(a) or True,
+    )
+    assert q.counts["7"] == 3 and q.cleared == ["8"]
+    assert [a[0] for a in alerts] == ["ERROR"]  # newly quarantined, nothing else
+
+
+def test_backstop_transient_failure_does_not_alert(monkeypatch):
+    _BackstopQuarantine().install(monkeypatch)
+    alerts = []
+    daily_job.run_backstop(
+        engine=MagicMock(), limit=10, quarantine_threshold=3,
+        scan_candidates=lambda: ["7"],
+        backfill=lambda **kw: _backstop_result(bad=["7"]),
+        alert_fn=lambda *a, **k: alerts.append(a) or True,
+    )
+    assert alerts == []
+
+
+def test_backstop_never_raises(monkeypatch):
+    _BackstopQuarantine().install(monkeypatch)
+    alerts = []
+
+    def boom():
+        raise RuntimeError("ReciterDB down")
+
+    assert daily_job.run_backstop(
+        engine=MagicMock(), limit=10, quarantine_threshold=3,
+        scan_candidates=boom, alert_fn=lambda *a, **k: alerts.append(a) or True,
+    ) is None
+    assert alerts[0][0] == "WARN"
+
+
+def test_backstop_disabled_at_zero_skips_the_scan():
+    def boom():
+        raise AssertionError("scanned with limit=0")
+
+    assert daily_job.run_backstop(engine=MagicMock(), limit=0, scan_candidates=boom) is None

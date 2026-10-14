@@ -167,7 +167,7 @@ def _cost_display(cost: Decimal | None) -> str:
 # onboarding-detector zip, which bundles orchestrator.py for its cost-preview
 # chain but not rollup_by_cwid.py (cf. the function-local score_publications
 # import in evaluate_onboarding). These two strings are the DynamoDB partition
-# key — as stable as a schema constant; scan_rollup_baselines in detector.py
+# key — as stable as a schema constant; utils.dynamodb_helpers.scan_rollup_baselines
 # hardcodes the same prefix for the same reason.
 _ROLLUP_STAGE = "rollup_by_cwid"
 
