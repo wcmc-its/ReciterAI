@@ -389,6 +389,33 @@ def test_run_cwid_rollup_skips_on_matching_prior_run(monkeypatch):
     assert "rollup_counts" not in row
 
 
+def test_run_cwid_rollup_skips_only_against_the_latest_complete_row(monkeypatch):
+    """Accept-then-reject (A -> A+p -> A): an OLDER complete row matches the
+    live hash, but the latest (A+p) is the drift baseline, so the rollup must
+    run and rewrite it rather than skip."""
+    monkeypatch.setattr(sq, "get_pmids_for_cwid", lambda cwid: ["111"])
+    activity_items = [_topic_item("cardio", "111", "afib")]
+    hash_a = rbc.compute_cwid_rollup_input_hash(
+        cwid="abc123",
+        activity_rows=[_activity("cardio", "111", "afib")],
+        input_pmid_set=["111"],
+    )
+    table = _FakeTable(
+        activity_items=activity_items,
+        prior_stage_items=[  # newest first, as the real query returns them
+            {"status": "complete", "input_hash": "hash-of-A+p",
+             "started_at": "2026-10-05T12:05:00Z"},
+            {"status": "complete", "input_hash": hash_a,
+             "started_at": "2026-09-07T12:05:00Z"},
+        ],
+    )
+
+    rbc.run_cwid_rollup("abc123", stage_table=table, emit_envelope=False)
+
+    assert table.put_items[0]["status"] == "complete"
+    assert table.put_items[0]["input_pmid_set"] == ["111"]
+
+
 def test_run_cwid_rollup_emit_envelope_prints_and_skips_write(
     monkeypatch, capsys,
 ):

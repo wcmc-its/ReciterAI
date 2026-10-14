@@ -75,10 +75,11 @@ def test_no_flags_runs_the_daily_job():
 
 
 def test_scheduled_run_follows_the_delta_with_the_backstop(backstop):
-    with _patch_daily():
+    with _patch_daily(RunResult(status=STATUS_COMPLETE, delta_size=3, run_id="night-1")):
         main([])
     backstop.assert_called_once()
     assert backstop.call_args.kwargs["limit"] == 100  # config/thresholds.json
+    assert backstop.call_args.kwargs["run_id"] == "night-1"  # one quarantine strike a night
 
 
 def test_full_run_skips_the_backstop(backstop):

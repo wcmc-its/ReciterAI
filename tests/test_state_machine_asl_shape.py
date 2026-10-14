@@ -272,6 +272,17 @@ def test_rollup_fanout_wraps_scalar_cwid_so_resultpath_applies(asl):
     assert rollup_one["ResultPath"] == "$.rollup_one_envelope"
 
 
+def test_rollup_fanout_iterations_emit_only_the_cwid(asl):
+    """Each iteration's output lands in $.rollup_map. Passing the whole
+    envelope through (input_pmid_set and all, ~1 KB a CWID) puts the 256 KB
+    state limit within reach of a few hundred dirty CWIDs; BuildRollupSummary
+    only counts the array."""
+    m = asl["States"]["RollupFanOut"]
+    last = m["ItemProcessor"]["States"]["WriteRollupStageRowOne"]
+    assert last.get("End") is True
+    assert last["OutputPath"] == "$.cwid"
+
+
 def test_assign_skipped_injects_typed_envelope(asl):
     """Pass state must inject a DDB attribute-typed stub so
     WriteHotRunComplete's $.assign_envelope.input_hash.S extraction works.

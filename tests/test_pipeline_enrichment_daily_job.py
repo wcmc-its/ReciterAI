@@ -1857,11 +1857,14 @@ def test_propagate_impact_best_effort_noop_on_empty(monkeypatch):
 
 
 class _BackstopQuarantine:
-    """Stands in for pipeline_enrichment.quarantine: counts per PMID."""
+    """Stands in for pipeline_enrichment.quarantine, including its real rule:
+    `record_failure` counts once per (PMID, run_id). Also captures spend."""
 
     def __init__(self, counts=None):
         self.counts = dict(counts or {})
+        self.last_run: dict[str, str] = {}
         self.cleared: list[str] = []
+        self.spend: list = []
 
     def install(self, monkeypatch):
         monkeypatch.setattr(daily_job.quarantine, "is_quarantined",
@@ -1870,9 +1873,14 @@ class _BackstopQuarantine:
                             lambda pmid, table=None: self.cleared.append(pmid))
 
         def _record(pmid, *, reason, run_id, table=None):
-            self.counts[pmid] = self.counts.get(pmid, 0) + 1
+            if self.last_run.get(pmid) != run_id:
+                self.counts[pmid] = self.counts.get(pmid, 0) + 1
+                self.last_run[pmid] = run_id
             return self.counts[pmid]
         monkeypatch.setattr(daily_job.quarantine, "record_failure", _record)
+        monkeypatch.setattr(daily_job.spend_tracker, "record_spend",
+                            lambda amount, **kw: self.spend.append((amount, kw["run_id"])))
+        return self
 
 
 def _backstop_result(ok=(), bad=()):
@@ -1881,6 +1889,7 @@ def _backstop_result(ok=(), bad=()):
     return daily_job.EnrichmentBackfillResult(
         status=daily_job.STATUS_PARTIAL if bad else STATUS_COMPLETE,
         succeeded=len(ok), failed=len(bad), outcomes=outcomes,
+        cost_observed_usd=Decimal("0.05"),
     )
 
 
@@ -1893,7 +1902,7 @@ def test_backstop_takes_newest_unquarantined_pmids_up_to_the_cap(monkeypatch):
         return _backstop_result(ok=kw["pmids"])
 
     daily_job.run_backstop(
-        engine=MagicMock(), limit=2, quarantine_threshold=3,
+        engine=MagicMock(), limit=2, quarantine_threshold=3, run_id="r",
         scan_candidates=lambda: ["100", "300", "20", "250"],
         backfill=backfill, alert_fn=lambda *a, **k: True,
     )
@@ -1902,25 +1911,63 @@ def test_backstop_takes_newest_unquarantined_pmids_up_to_the_cap(monkeypatch):
     assert calls[0]["alert_fn"]() is False  # backfill's own cards silenced
 
 
-def test_backstop_quarantines_a_repeat_failure_and_alerts_once(monkeypatch):
-    q = _BackstopQuarantine({"7": 2})
-    q.install(monkeypatch)
+def test_backstop_quarantines_after_threshold_nights_and_alerts_once(monkeypatch):
+    q = _BackstopQuarantine().install(monkeypatch)
     alerts = []
-    daily_job.run_backstop(
-        engine=MagicMock(), limit=10, quarantine_threshold=3,
-        scan_candidates=lambda: ["7", "8"],
-        backfill=lambda **kw: _backstop_result(ok=["8"], bad=["7"]),
-        alert_fn=lambda *a, **k: alerts.append(a) or True,
-    )
-    assert q.counts["7"] == 3 and q.cleared == ["8"]
+    for night in ("n1", "n2", "n3"):
+        daily_job.run_backstop(
+            engine=MagicMock(), limit=10, quarantine_threshold=3, run_id=night,
+            scan_candidates=lambda: ["7", "8"],
+            backfill=lambda **kw: _backstop_result(ok=["8"], bad=["7"]),
+            alert_fn=lambda *a, **k: alerts.append(a) or True,
+        )
+    assert q.counts["7"] == 3 and q.cleared == ["8", "8", "8"]
     assert [a[0] for a in alerts] == ["ERROR"]  # newly quarantined, nothing else
+
+
+def test_backstop_sharing_the_delta_run_id_counts_a_failure_once(monkeypatch):
+    """A PMID that failed tonight's delta is in the gap scan, so the backstop
+    retries it the same night; one night is one strike."""
+    q = _BackstopQuarantine().install(monkeypatch)
+    daily_job.quarantine.record_failure("7", reason="delta", run_id="night-uuid")
+    daily_job.run_backstop(
+        engine=MagicMock(), limit=10, quarantine_threshold=3, run_id="night-uuid",
+        scan_candidates=lambda: ["7"],
+        backfill=lambda **kw: _backstop_result(bad=["7"]),
+        alert_fn=lambda *a, **k: True,
+    )
+    assert q.counts["7"] == 1
+
+
+def test_backstop_without_a_run_id_still_counts_each_night(monkeypatch):
+    q = _BackstopQuarantine().install(monkeypatch)
+    for day in ("2026-10-15T11:05:00Z", "2026-10-16T11:05:00Z"):
+        monkeypatch.setattr(daily_job, "now_iso", lambda d=day: d)
+        daily_job.run_backstop(
+            engine=MagicMock(), limit=10, quarantine_threshold=3,
+            scan_candidates=lambda: ["7"],
+            backfill=lambda **kw: _backstop_result(bad=["7"]),
+            alert_fn=lambda *a, **k: True,
+        )
+    assert q.counts["7"] == 2
+
+
+def test_backstop_records_its_spend(monkeypatch):
+    q = _BackstopQuarantine().install(monkeypatch)
+    daily_job.run_backstop(
+        engine=MagicMock(), limit=10, quarantine_threshold=3, run_id="r",
+        scan_candidates=lambda: ["8"],
+        backfill=lambda **kw: _backstop_result(ok=["8"]),
+        alert_fn=lambda *a, **k: True,
+    )
+    assert q.spend == [(Decimal("0.05"), "r")]
 
 
 def test_backstop_transient_failure_does_not_alert(monkeypatch):
     _BackstopQuarantine().install(monkeypatch)
     alerts = []
     daily_job.run_backstop(
-        engine=MagicMock(), limit=10, quarantine_threshold=3,
+        engine=MagicMock(), limit=10, quarantine_threshold=3, run_id="r",
         scan_candidates=lambda: ["7"],
         backfill=lambda **kw: _backstop_result(bad=["7"]),
         alert_fn=lambda *a, **k: alerts.append(a) or True,

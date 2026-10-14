@@ -1082,6 +1082,7 @@ def run_backstop(
     engine: Engine,
     limit: int,
     quarantine_threshold: Optional[int] = None,
+    run_id: Optional[str] = None,
     ddb_table: Any = None,
     alert_fn: Callable = alerting.alert,
     scan_candidates: Callable[[], list[str]] = _scan_backstop_candidates,
@@ -1099,7 +1100,11 @@ def run_backstop(
 
     Quarantine-aware like the daily delta: a PMID that keeps failing is
     written off after `enrichment_quarantine_threshold` nights rather than
-    retried forever. No success card (the daily heartbeat covers the job);
+    retried forever. Pass the night's delta `run_id`: `record_failure` counts
+    once per (PMID, run_id), so a PMID that failed the delta and then the
+    backstop the same night counts once, and a fixed id would never count past
+    one. Spend lands in the same ledger as the delta's. No success card (the
+    daily heartbeat covers the job);
     it alerts only on a newly-quarantined PMID, an IMPACT# batch failure, or
     its own crash. Best-effort: never raises.
     """
@@ -1107,6 +1112,8 @@ def run_backstop(
         return None
     if quarantine_threshold is None:
         quarantine_threshold = int(load_thresholds()["enrichment_quarantine_threshold"])
+    started_at = now_iso()
+    run_id = run_id or f"backstop-{started_at[:10]}"
     try:
         picked: list[str] = []
         for pmid in sorted(scan_candidates(), key=int, reverse=True):
@@ -1126,13 +1133,21 @@ def run_backstop(
                 quarantine.clear(o.pmid, table=ddb_table)
             elif quarantine.record_failure(
                 o.pmid, reason=o.synopsis_error or o.impact_error or "unknown",
-                run_id="backstop", table=ddb_table,
+                run_id=run_id, table=ddb_table,
             ) >= quarantine_threshold:
                 newly_quarantined.append(o)
+        if result.cost_observed_usd:
+            spend_tracker.record_spend(
+                result.cost_observed_usd,
+                started_at=started_at,
+                run_id=run_id,
+                table=ddb_table if ddb_table is not None else _default_get_table(),
+                alert_fn=alert_fn,
+            )
         if newly_quarantined:
             _alert_newly_quarantined(
                 alert_fn, newly_quarantined,
-                threshold=quarantine_threshold, run_id="backstop",
+                threshold=quarantine_threshold, run_id=run_id,
             )
         if result.status == STATUS_DDB_BATCH_FAILED:
             alert_fn("WARN", "Enrichment backstop IMPACT# batch failed",

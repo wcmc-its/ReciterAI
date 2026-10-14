@@ -47,6 +47,7 @@ from utils.stage_records import (
     build_complete_record,
     build_skipped_record,
     compute_input_hash,
+    find_latest_complete,
     should_skip,
     write_complete,
     write_skipped,
@@ -447,10 +448,12 @@ def run_cwid_rollup(
         cwid=cwid, activity_rows=activity_rows, input_pmid_set=input_pmid_set,
     )
 
-    # --- STAGE# should_skip gate ---
-    skip, prior = should_skip(
-        stage_table, stage=STAGE_NAME, scope=scope, input_hash=input_hash,
-    )
+    # --- STAGE# skip gate: against the LATEST complete row only. The shared
+    # should_skip matches any older complete row with this hash, so after an
+    # accept-then-reject (A -> A+p -> A) it skipped on A's row and left the
+    # newest row's input_pmid_set (A+p) as the drift baseline forever.
+    prior = find_latest_complete(stage_table, stage=STAGE_NAME, scope=scope)
+    skip = prior is not None and prior.get("input_hash") == input_hash
     if skip:
         duration_ms = int((time.monotonic() - t_stage_start) * 1000)
         skipped_kwargs = dict(

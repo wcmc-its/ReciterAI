@@ -1124,6 +1124,28 @@ def test_should_report(hot_rows, detector_rows, now, expected):
     assert det._should_report(table, datetime.fromisoformat(now)) is expected
 
 
+def test_should_report_reads_every_page():
+    """The newest reporting row can sit on a later page (default query order
+    is ascending); reading only page 1 would freeze last_report and report
+    every day once the partition passes 1 MB."""
+    class _Paged(_FakeTable):
+        def query(self, **kw):
+            pk = kw["ExpressionAttributeValues"][":pk"]
+            if pk == det._HOT_RUN_PK:
+                return {"Items": [_run("2026-10-12T12:00:34Z")]}
+            if "ExclusiveStartKey" not in kw:
+                return {"Items": [_run("2026-10-05T13:00:25Z", reported=True)],
+                        "LastEvaluatedKey": {"SK": "p1"}}
+            return {"Items": [_run("2026-10-12T13:00:25Z", reported=True)]}
+
+    assert det._should_report(_Paged(), datetime.fromisoformat("2026-10-13T13:00:25Z")) is False
+
+
+def test_hot_run_pk_matches_the_orchestrator():
+    from pipeline_hot import orchestrator as orch
+    assert det._HOT_RUN_PK == f"STAGE#{orch.HOT_RUN_STAGE}#{orch.HOT_RUN_SCOPE}"
+
+
 def test_should_report_fails_loud_on_read_error():
     assert det._should_report(_FakeTable(), NOW) is True  # no .query
 
@@ -1148,4 +1170,14 @@ def test_run_detector_report_false_writes_row_only(monkeypatch):
     )
     assert touched == []
     assert out["flagged_cwid_count"] == 1
+    assert table.put_items[0]["reported"] is False
+
+
+def test_dry_inspection_does_not_use_up_the_weekly_report(monkeypatch):
+    table = _FakeTable()
+    monkeypatch.setattr(det.alerting, "alert", lambda *a, **k: True)
+    det.run_detector(
+        table=table, gap_rows=[_gap("c1", "1", False)], processing_status={},
+        rollup_baselines={}, run_id="r", now=NOW, file_issues=False, report=True,
+    )
     assert table.put_items[0]["reported"] is False

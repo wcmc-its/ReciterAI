@@ -272,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             run_backstop(
                 engine=engine,
                 limit=int(load_thresholds()["enrichment_backstop_max_pmids"]),
+                run_id=result.run_id,
                 **({"alert_fn": _noop_alert} if args.no_alerts else {}),
             )
 

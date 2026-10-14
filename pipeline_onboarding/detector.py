@@ -924,7 +924,8 @@ def run_detector(
     )
     if digest_issue and digest_issue.get("number") is not None:
         record["digest_issue_number"] = int(digest_issue["number"])
-    record["reported"] = report
+    # A file_issues=False dry inspection must not use up the week's filing.
+    record["reported"] = report and file_issues
     table.put_item(Item=record)
 
     # Teams digest (R10 #1) — only when something was flagged.
@@ -967,24 +968,29 @@ _HOT_RUN_STALE_AFTER = timedelta(days=8)
 
 
 def _latest_complete_start(table: Any, pk: str, *, reported_only: bool = False) -> datetime | None:
-    """`started_at` of the newest complete row under `pk`. Max over the items,
-    not the first one: `RUN#FAILED#…` sort keys order above `RUN#<iso>`.
-    ponytail: one query page (1 MB) -- years of daily rows; paginate past that."""
-    resp = table.query(
-        KeyConditionExpression="#pk = :pk",
-        ExpressionAttributeNames={"#pk": "PK"},
-        ExpressionAttributeValues={":pk": pk},
-    )
-    return max(
-        (
-            _parse_iso(i["started_at"])
-            for i in resp.get("Items", [])
-            if i.get("status") == STATUS_COMPLETE
-            and i.get("started_at")
-            and (i.get("reported") or not reported_only)
-        ),
-        default=None,
-    )
+    """`started_at` of the newest complete row under `pk`, over every page.
+    Max over the items, not the first one: `RUN#FAILED#…` sort keys order
+    above `RUN#<iso>`. ponytail: reads the whole partition (~1 MB a year of
+    daily detector rows); add a TTL if that ever gets slow."""
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": "#pk = :pk",
+        "ExpressionAttributeNames": {"#pk": "PK"},
+        "ExpressionAttributeValues": {":pk": pk},
+    }
+    latest: datetime | None = None
+    while True:
+        resp = table.query(**kwargs)
+        for i in resp.get("Items", []):
+            if (
+                i.get("status") == STATUS_COMPLETE
+                and i.get("started_at")
+                and (i.get("reported") or not reported_only)
+            ):
+                ts = _parse_iso(i["started_at"])
+                latest = ts if latest is None or ts > latest else latest
+        if not resp.get("LastEvaluatedKey"):
+            return latest
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 def _should_report(table: Any, now: datetime) -> bool:
@@ -1002,12 +1008,12 @@ def _should_report(table: Any, now: datetime) -> bool:
     try:
         last_hot = _latest_complete_start(table, _HOT_RUN_PK)
         last_report = _latest_complete_start(table, DETECTOR_PK, reported_only=True)
+        if last_hot is None or last_report is None or now - last_hot > _HOT_RUN_STALE_AFTER:
+            return True
+        return last_hot > last_report
     except Exception:  # noqa: BLE001
-        logger.warning("onboarding detector: report gate read failed; reporting", exc_info=True)
+        logger.warning("onboarding detector: report gate failed; reporting", exc_info=True)
         return True
-    if last_hot is None or last_report is None or now - last_hot > _HOT_RUN_STALE_AFTER:
-        return True
-    return last_hot > last_report
 
 
 def _write_failed_detector_row(table: Any, *, started_at: str, error: BaseException) -> None:
@@ -1071,7 +1077,7 @@ def handler(event: dict | None = None, context: Any = None) -> dict[str, Any]:
     file_issues = bool(event.get("file_issues", True))
 
     # Local imports: keep cold start lean and let the pure-evaluation tests
-    # avoid pulling boto3 / SQLAlchemy.
+    # avoid pulling SQLAlchemy.
     from utils.dynamodb_helpers import (
         TABLE_NAME,
         get_dynamo_client,
