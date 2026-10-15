@@ -74,10 +74,14 @@ def build_trial_user_content(*, title, journal, year, abstract):
 # "<kind>:<text_key>" (a string), and the reply's pmid is never read: only
 # `assignments` is.
 #
-# Bump SUBAREA_PROMPT_VERSION with any change here. It is separate from
-# PROMPT_VERSION on purpose: a new subarea prompt re-runs only the assignment
-# calls (the drain's assign-only path), never the synopsis and area scoring.
-SUBAREA_PROMPT_VERSION = "2026-10-14"
+# Bump SUBAREA_PROMPT_VERSION with any change here, and with any change to the
+# classifier call in subareas.py (SUBAREA_MODEL and its request fields): it is
+# the stamp that marks a stored assignment stale. It is separate from
+# PROMPT_VERSION on purpose: a new subarea prompt or model re-runs only the
+# assignment calls (the drain's assign-only path), never the synopsis and area
+# scoring. 2026-10-15: Haiku 4.5 -> Haiku 5.5 with reasoning off (prompt text
+# unchanged).
+SUBAREA_PROMPT_VERSION = "2026-10-15"
 
 _SUBAREA_SYSTEM_TEMPLATE = """You are a biomedical research classifier assigning a single research activity
 ({noun_phrase}) to the subtopics it belongs to within a parent research topic.

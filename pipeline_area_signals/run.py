@@ -89,13 +89,16 @@ BREAKER_STREAK = 8
 EST_SCORE_USD = Decimal("0.0125")
 EST_SYNOPSIS_USD = Decimal("0.0075")
 
-# One subarea classifier call: Haiku 4.5 at $1/M in, $5/M out; the prompt
-# rendered over the approved drafts is ~3.3k input tokens at the median (~4k at
-# the largest area), plus ~100 output, rounded up. And the expected calls for
+# One subarea classifier call: Haiku 5.5 (reasoning off) at $0.10/M in, $0.50/M
+# out (Anthropic list price; config/llm_prices.yaml). Its tokenizer counts ~50%
+# more input than 4.5 for the same prompt: measured median 4,574 input and 121
+# output tokens per call = $0.000457 + $0.000061 = ~$0.00052; the largest area
+# (~6k in, scaled from 4.5's ~4k; not measured) is ~$0.0007. The median rounded
+# up: $0.0006. And the expected calls for
 # an item not yet scored (pilot medians at the 0.3 floor: 7 areas per grant
 # less the excluded ones, 4 per trial; rounded up). Measured spend replaces
 # both on the STAGE# row.
-EST_ASSIGN_USD = Decimal("0.004")
+EST_ASSIGN_USD = Decimal("0.0006")
 EST_ASSIGN_CALLS = {"grant": 7, "trial": 5}
 
 # Synopsis and screening calls are small; bound a hung socket well below the

@@ -422,6 +422,7 @@ class BedrockClient:
         system_list: list,
         max_tokens: int,
         temperature: float,
+        additional_model_request_fields: dict | None = None,
     ) -> dict:
         """
         Call Bedrock Converse API with exponential backoff retry.
@@ -435,6 +436,10 @@ class BedrockClient:
             system_list: System prompts in Converse API format (list of {"text": "..."}).
             max_tokens: Max tokens for inferenceConfig.
             temperature: Temperature for inferenceConfig.
+            additional_model_request_fields: Optional model-specific request
+                fields, sent as Converse ``additionalModelRequestFields``
+                (e.g. ``{"thinking": {"type": "disabled"}}`` for Haiku 5.5).
+                Omitted from the request when None.
 
         Returns:
             Raw Bedrock Converse API response dict.
@@ -459,6 +464,8 @@ class BedrockClient:
         }
         if system_list:
             call_kwargs['system'] = system_list
+        if additional_model_request_fields is not None:
+            call_kwargs['additionalModelRequestFields'] = additional_model_request_fields
 
         last_error = None
         max_attempts = 3
