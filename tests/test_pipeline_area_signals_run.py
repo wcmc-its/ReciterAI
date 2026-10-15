@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 import pytest
 from botocore.exceptions import ClientError
 
-from pipeline_area_signals import drain, prompts, run as run_mod, signals
+from pipeline_area_signals import drain, prompts, run as run_mod, signals, subareas
 from pipeline_enrichment.synopsis import SynopsisResult
 from utils.openai_client import GPT5_MODEL
 from utils.taxonomy import load_taxonomy
@@ -140,6 +140,9 @@ def inp(kind="grant", key="k1", **over):
 def do_run(table, fake=None, **kw):
     alerts = []
     kw.setdefault("preflight", lambda: (True, "preflight OK"))
+    # No drafts: these tests predate subareas and must not depend on whether the
+    # gitignored hierarchy drafts happen to be on disk (test_pipeline_area_signals_subareas).
+    kw.setdefault("subarea_ctx", subareas.SubareaContext())
     code, summary = run_mod.run(
         table=table, client_factory=client_factory(fake or FakeConverse()),
         alert=lambda *a, **k: alerts.append(a), taxonomy=TAXONOMY, **kw)

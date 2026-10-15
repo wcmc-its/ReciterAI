@@ -507,14 +507,21 @@ def _strip_json_fences(text: str) -> str:
     return stripped.strip()
 
 
-def _classify_activity(
+def classify_activity(
     client: BedrockClient,
     activity: dict,
     topic_meta: dict,
     subtopic_defs: list,
+    *,
+    system_prompt: str,
 ) -> tuple[list, dict]:
     """
-    Call Haiku once for a single activity.
+    Call Haiku once for a single activity under the given system prompt.
+
+    Public so other activity kinds (pipeline_area_signals: grant and trial
+    texts) reuse the same user message, model, and call shape with their own
+    system prompt. Publications go through `_classify_activity`, which passes
+    ASSIGNMENT_SYSTEM_PROMPT, so their path is byte-identical.
 
     Returns (raw_assignments_list, usage_dict).
     Raises on Bedrock or JSON parse failure; caller handles.
@@ -527,7 +534,7 @@ def _classify_activity(
 
     converse_msgs, system_list = client._translate_messages(
         [{"role": "user", "content": user_msg}],
-        ASSIGNMENT_SYSTEM_PROMPT,
+        system_prompt,
     )
     raw = client._call_with_retry(
         model=HAIKU_MODEL,
@@ -542,6 +549,48 @@ def _classify_activity(
     cleaned = _strip_json_fences(text)
     parsed = json.loads(cleaned)
     return parsed.get("assignments", []) or [], usage
+
+
+def _classify_activity(
+    client: BedrockClient,
+    activity: dict,
+    topic_meta: dict,
+    subtopic_defs: list,
+) -> tuple[list, dict]:
+    """Publication classifier: `classify_activity` with ASSIGNMENT_SYSTEM_PROMPT."""
+    return classify_activity(
+        client=client,
+        activity=activity,
+        topic_meta=topic_meta,
+        subtopic_defs=subtopic_defs,
+        system_prompt=ASSIGNMENT_SYSTEM_PROMPT,
+    )
+
+
+def pick_primary(
+    confidences: dict,
+    subtopic_defs: list,
+    hierarchy_draft: dict,
+) -> tuple[str, list]:
+    """Primary subtopic and the ranked subtopic_ids for floor-filtered confidences.
+
+    Primary = argmax confidence; top-2 within TIE_EPSILON goes to
+    `_resolve_primary_on_tie` (seed density, then id). subtopic_ids are ranked
+    by confidence desc, then id asc. Shared with pipeline_area_signals so grant
+    and trial texts get the publication tie-break exactly.
+    """
+    sorted_pairs = sorted(confidences.items(), key=lambda kv: (-kv[1], kv[0]))
+    top_id, top_conf = sorted_pairs[0]
+    if (
+        len(sorted_pairs) >= 2
+        and abs(top_conf - sorted_pairs[1][1]) <= _get_threshold("tie_epsilon")
+    ):
+        primary = _resolve_primary_on_tie(
+            confidences, subtopic_defs, hierarchy_draft
+        )
+    else:
+        primary = top_id
+    return primary, [sid for sid, _c in sorted_pairs]
 
 
 # ---------------------------------------------------------------------------
@@ -678,21 +727,11 @@ def _process_pmid(
         # temperature 0, so this is fine and avoids an extra schema field.
         return stats
 
-    # Primary selection with tiebreaker
-    sorted_pairs = sorted(confidences.items(), key=lambda kv: (-kv[1], kv[0]))
-    top_id, top_conf = sorted_pairs[0]
-    if (
-        len(sorted_pairs) >= 2
-        and abs(top_conf - sorted_pairs[1][1]) <= _get_threshold("tie_epsilon")
-    ):
-        primary = _resolve_primary_on_tie(
-            confidences, subtopic_defs, hierarchy_draft
-        )
-    else:
-        primary = top_id
-
-    # Rank full subtopic_ids list by confidence desc, then id asc
-    subtopic_ids = [sid for sid, _c in sorted_pairs]
+    # Primary selection with tiebreaker; subtopic_ids ranked by confidence
+    # desc, then id asc
+    primary, subtopic_ids = pick_primary(
+        confidences, subtopic_defs, hierarchy_draft
+    )
 
     stats["assigned"] = True
     stats["primary"] = primary
