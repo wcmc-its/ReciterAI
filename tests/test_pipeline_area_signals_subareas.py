@@ -420,6 +420,82 @@ def test_current_version_with_nothing_stale_stamps_without_a_call(ctx):
     do_run(table, fake, ctx)
     assert fake.calls == []
     assert table.store[("AREAINPUT", "grant#g1")]["subarea_version"] == ctx.version
+    # is_current short-circuits: the AREASIGNAL row is not rewritten
+    assert [c for c in table.put_item.call_args_list
+            if c.kwargs["Item"]["PK"] == row["PK"]] == []
+
+
+def test_claim_is_conditional_on_the_subarea_version_it_read(ctx):
+    item, _ = scored_input("g1", subarea_version="older")
+    table = make_table([item])
+    seen = dict(table.store[("AREAINPUT", "grant#g1")])
+    drain.mark_subareas(table, "grant#g1", subarea_version=ctx.version)  # another run
+    assert drain.claim(table, seen, run_id="late") is False
+    # and an item read before it had any subarea_version
+    item2, _ = scored_input("g2")
+    table2 = make_table([item2])
+    seen2 = dict(table2.store[("AREAINPUT", "grant#g2")])
+    drain.mark_subareas(table2, "grant#g2", subarea_version=ctx.version)
+    assert drain.claim(table2, seen2, run_id="late") is False
+
+
+def test_live_ceiling_counts_assign_calls(ctx):
+    """One pending grant: $0.02 to score, $0.048 with its expected assign calls."""
+    table = make_table([inp("grant", "g1")])
+    fake = FakeConverse()
+    without = run_mod.EST_SCORE_USD + run_mod.EST_SYNOPSIS_USD
+    ceiling = without + run_mod.EST_ASSIGN_USD
+    assert without < ceiling < run_mod.estimate_item_usd(
+        inp("grant", "g1"), assign_calls=run_mod.EST_ASSIGN_CALLS["grant"])
+    code, summary, alerts = do_run(table, fake, ctx, max_cost_usd=ceiling)
+    assert code == 0 and summary["run_status"] == "budget_stopped"
+    assert fake.calls == []
+    assert table.store[("AREAINPUT", "grant#g1")]["status"] == "pending"
+
+
+def test_a_subarea_success_flushes_held_failures_before_the_breaker(ctx):
+    """s1 fails (non-systemic), s2's assign-only refresh succeeds, s3 hits a
+    system-wide error. s1's failure was the item's: it is written (attempt
+    counted) before the breaker releases s3."""
+    rows = []
+    for n, (kind, topic) in enumerate((("grant", T0), ("grant", T1), ("trial", EXCLUDED)), 1):
+        item, ih = scored_input(f"s{n}", kind=kind, created_at=f"2026-10-0{n}T00:00:00Z")
+        rows += [item, signal_row(kind, f"s{n}", scores=[(topic, 0.8)], input_hash=ih,
+                                  taxonomy_version=TV)]
+    table = make_table(rows)
+
+    class Mixed(FakeConverse):
+        def converse(self, **kw):
+            if EXCLUDED in kw["messages"][0]["content"][0]["text"]:
+                raise ClientError({"Error": {"Code": "AccessDeniedException"}}, "Converse")
+            return super().converse(**kw)
+
+    code, summary, _ = do_run(table, Mixed(fail_topics={T0}), ctx, workers=1)
+    assert code == 1 and summary["run_status"] == "aborted"
+    assert table.store[("AREAINPUT", "grant#s1")]["subarea_attempts"] == 1
+    assert table.store[("AREAINPUT", "grant#s2")]["subarea_version"] == ctx.version
+    assert "subarea_attempts" not in table.store[("AREAINPUT", "trial#s3")]
+    assert summary["outcomes"] == {run_mod.OUTCOME_RETRY: 1, run_mod.OUTCOME_SUBAREAS: 1,
+                                   run_mod.OUTCOME_RELEASED: 1}
+
+
+def test_an_image_with_no_drafts_leaves_a_reused_rows_subareas(ctx):
+    """Crash recovery under an image with no drafts: the row's subareas are
+    kept, not stripped (partial drafts still strip the draftless topics)."""
+    item = inp("grant", "g1")
+    ih = signals.AreaInput.from_item(item).input_hash()
+    row = signal_row(key="g1", input_hash=ih, taxonomy_version=TV,
+                     subarea_prompt_version=prompts.SUBAREA_PROMPT_VERSION,
+                     subarea_versions={T0: ctx.hierarchies[T0].sha256})
+    row["topic_scores"][0].update(primary_subtopic_id="t0_alpha", subtopic_ids=["t0_alpha"])
+    table = make_table([item, row])
+    fake = FakeConverse()
+    _, summary, _ = do_run(table, fake, subareas.SubareaContext())
+    assert summary["outcomes"] == {run_mod.OUTCOME_REUSED: 1} and fake.calls == []
+    stored = table.store[(row["PK"], "META")]
+    assert stored["topic_scores"][0]["primary_subtopic_id"] == "t0_alpha"
+    assert stored["subarea_versions"] == {T0: ctx.hierarchies[T0].sha256}
+    assert table.store[("AREAINPUT", "grant#g1")]["status"] == "scored"
 
 
 def test_assign_only_failures_count_attempts_then_give_up(ctx):
@@ -513,3 +589,15 @@ def test_dry_run_estimates_assign_calls_without_calls_or_writes(ctx):
                 + run_mod.EST_ASSIGN_USD * summary["estimated_assign_calls"])
     assert Decimal(summary["estimated_usd"]) == expected
     assert summary["subarea_version"] == ctx.version
+
+
+def test_dry_run_estimates_a_full_score_when_the_row_is_missing(ctx):
+    """subareas_stale with no AREASIGNAL row: process_one re-scores it first."""
+    item, _ = scored_input("g1")
+    table = make_table([item])
+    _, summary, _ = do_run(table, FakeConverse(), ctx, dry_run=True)
+    assert summary["by_reason"] == {drain.REASON_SUBAREA: 1}
+    calls = run_mod.EST_ASSIGN_CALLS["grant"]
+    assert summary["estimated_assign_calls"] == calls
+    assert Decimal(summary["estimated_usd"]) == (
+        run_mod.EST_SCORE_USD + run_mod.EST_SYNOPSIS_USD + run_mod.EST_ASSIGN_USD * calls)

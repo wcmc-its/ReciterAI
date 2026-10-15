@@ -168,6 +168,16 @@ class _ClientPool:
         return self._local.client
 
 
+def _row_is_current(row: Optional[dict], item: dict, taxonomy_version: str) -> bool:
+    """process_one's test for reusing a stored AREASIGNAL row (no re-score)."""
+    if row is None or row.get("taxonomy_version") != taxonomy_version:
+        return False
+    try:
+        return row.get("input_hash") == signals.AreaInput.from_item(item).input_hash()
+    except signals.InvalidInput:
+        return False
+
+
 def _assign_only(table, fresh: dict, existing: dict, inp: signals.AreaInput, *,
                  reason: str, pool: _ClientPool, ctx: subareas.SubareaContext,
                  taxonomy_version: str) -> Outcome:
@@ -177,7 +187,11 @@ def _assign_only(table, fresh: dict, existing: dict, inp: signals.AreaInput, *,
     bedrock = pool.get()
     bedrock.usage, bedrock.errors = [], []
     result = None
-    if not subareas.is_current(existing, ctx):
+    # Partial drafts: a topic whose draft is gone from this image has its
+    # subarea fields stripped (fail-closed; an image rebuilt with the draft
+    # refills them). No drafts at all (ctx.hierarchies empty) is a broken image,
+    # not a decision, so the row is left as it is rather than stripped bare.
+    if ctx.hierarchies and not subareas.is_current(existing, ctx):
         result = subareas.assign(existing, title=inp.title, client=bedrock, ctx=ctx,
                                  topics=subareas.stale_topics(existing, ctx))
         drain.put_signal(table, result.item)
@@ -234,8 +248,7 @@ def process_one(table, item: dict, *, pool: _ClientPool, taxonomy: dict, int_to_
         return Outcome(sk, kind, OUTCOME_SKIPPED)
 
     existing = drain.get_signal(table, inp.kind, inp.text_key)
-    if (existing and existing.get("input_hash") == inp.input_hash()
-            and existing.get("taxonomy_version") == taxonomy_version):
+    if _row_is_current(existing, fresh, taxonomy_version):
         # Crash recovery, or (REASON_SUBAREA) a subarea refresh: the scores are
         # current, so only stale areas are re-assigned.
         return _assign_only(table, fresh, existing, inp, reason=reason, pool=pool, ctx=ctx,
@@ -376,8 +389,12 @@ def run(
             calls = None
             if reason == drain.REASON_SUBAREA:
                 row = drain.get_signal(table, str(item.get("kind")), str(item.get("text_key")))
-                if row is not None:
+                if _row_is_current(row, item, taxonomy_version):
                     calls = len(subareas.stale_topics(row, ctx))
+                else:
+                    # process_one re-scores an item whose row is gone or out of
+                    # date before assigning, so estimate it as a full score.
+                    reason = drain.REASON_PENDING
             if calls is None:
                 calls = expected_assign_calls(item, ctx)
             assign_calls += calls
