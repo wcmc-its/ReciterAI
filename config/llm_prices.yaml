@@ -41,6 +41,11 @@ models:
     output_per_mtok: 5.00
     notes: "Haiku 4.5. Used for screening + subtopic assignment + critic."
 
+  us.anthropic.claude-haiku-5-5:
+    input_per_mtok: 0.10
+    output_per_mtok: 0.50
+    notes: "Haiku 5.5. Area-signals subarea assignment (reasoning off). Anthropic list price for prompts up to 100k tokens; Bedrock's own price NOT verified (2026-10-15). Its tokenizer counts ~50% more input tokens than 4.5 for the same text."
+
   us.anthropic.claude-sonnet-4-6:
     input_per_mtok: 3.00
     output_per_mtok: 15.00

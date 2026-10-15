@@ -57,8 +57,9 @@ class FakeConverse:
     ``fail_topics`` raises a (non-systemic) ValidationException for those topics.
     """
 
-    def __init__(self, assignments=None, fail_topics=(), dense=None):
+    def __init__(self, assignments=None, fail_topics=(), dense=None, subarea_content=None):
         self.assignments = assignments or {}
+        self.subarea_content = subarea_content   # topic -> content blocks, overriding the reply
         self.fail_topics = set(fail_topics)
         self.dense = dense or {I0: {"score": 0.82, "rationale": "r"},
                                I1: {"score": 0.55, "rationale": "r"}}
@@ -72,6 +73,10 @@ class FakeConverse:
             self.calls.append(("subarea", topic, system, user, kw))
             if topic in self.fail_topics:
                 raise ClientError({"Error": {"Code": "ValidationException"}}, "Converse")
+            if self.subarea_content is not None:
+                return {"output": {"message": {"content": self.subarea_content(topic)}},
+                        "usage": {"inputTokens": 4574, "outputTokens": 121},
+                        "stopReason": "end_turn"}
             return _resp({"pmid": "x", "topic_id": topic,
                           "assignments": self.assignments.get(topic, [])})
         if "synopses" in system:
@@ -192,6 +197,79 @@ def test_classify_activity_sends_the_given_system_prompt():
                           system_prompt=prompts.GRANT_SUBAREA_SYSTEM)
     assert fake.calls[0][4]["system"] == [{"text": prompts.GRANT_SUBAREA_SYSTEM}]
     assert "- pmid: grant:k" in fake.calls[0][3]
+
+
+# --- the subarea model: Haiku 5.5, reasoning off -------------------------------------
+
+def test_subarea_calls_use_haiku_5_5_with_reasoning_off(ctx):
+    fake = FakeConverse(assignments={T0: [{"subtopic_id": "t0_alpha", "confidence": 0.9}]})
+    subareas.assign(signal_row(scores=[(T0, 0.8)]), title="t", client=metered(fake), ctx=ctx)
+    sent = fake.calls[0][4]
+    assert sent["modelId"] == "us.anthropic.claude-haiku-5-5"
+    # Haiku 5.5 rejects temperature ("temperature is deprecated for this model")
+    assert sent["inferenceConfig"] == {"maxTokens": 400}
+    assert sent["additionalModelRequestFields"] == {"thinking": {"type": "disabled"}}
+    assert sent["system"] == [{"text": prompts.subarea_system_prompt("grant")}]
+
+
+def test_publication_request_sends_no_extra_fields():
+    """The defaults leave every other caller's request without the new key."""
+    fake = FakeConverse()
+    client = BedrockClient()
+    client._client = fake
+    ast._classify_activity(client=client, activity={"pmid": 1, "title": "t", "synopsis": "s"},
+                           topic_meta={"id": T0, "label": "L", "description": "D"},
+                           subtopic_defs=[{"id": "a", "label": "A", "description": "x"}])
+    assert "additionalModelRequestFields" not in fake.calls[0][4]
+
+
+def _reasoning_block():
+    return {"reasoningContent": {"reasoningText": {"text": "Thinking about it.", "signature": "sig"}}}
+
+
+def test_reply_with_reasoning_before_text_parses(ctx):
+    body = {"pmid": "x", "topic_id": T0,
+            "assignments": [{"subtopic_id": "t0_beta", "confidence": 0.8}]}
+    fake = FakeConverse(subarea_content=lambda topic: [_reasoning_block(), {"text": json.dumps(body)}])
+    res = subareas.assign(signal_row(scores=[(T0, 0.8)]), title="t", client=metered(fake), ctx=ctx)
+    assert res.errors == []
+    assert res.item["topic_scores"][0]["primary_subtopic_id"] == "t0_beta"
+
+
+def test_reasoning_only_reply_is_a_failed_area(ctx):
+    fake = FakeConverse(subarea_content=lambda topic: [_reasoning_block()])
+    with pytest.raises(ValueError, match="no text block"):
+        ast.classify_activity(client=metered(fake), activity={"pmid": "grant:k", "title": "t", "synopsis": "s"},
+                              topic_meta={"id": T0, "label": "L", "description": "D"},
+                              subtopic_defs=[{"id": "t0_alpha", "label": "A", "description": "x"}],
+                              system_prompt=prompts.GRANT_SUBAREA_SYSTEM)
+    res = subareas.assign(signal_row(scores=[(T0, 0.8)]), title="t", client=metered(fake), ctx=ctx)
+    assert [t for t, _m in res.errors] == [T0]
+    assert T0 not in res.item["subarea_versions"]   # stays stale, so it is retried
+    assert not any(f in res.item["topic_scores"][0] for f in subareas.SUBTOPIC_FIELDS)
+
+
+def test_haiku_4_5_assignments_are_stale_under_the_5_5_stamp(ctx):
+    """The model switch bumped the subarea prompt version, so any row assigned
+    under 4.5 (stamp 2026-10-14) is re-assigned."""
+    assert prompts.SUBAREA_PROMPT_VERSION != "2026-10-14"
+    row = signal_row(subarea_prompt_version="2026-10-14",
+                     subarea_versions={t: h.sha256 for t, h in ctx.hierarchies.items()})
+    assert subareas.stale_topics(row, ctx) == [T0, T1]
+
+
+def test_haiku_5_5_is_priced():
+    from utils.llm_cost import cost_for
+    assert cost_for(subareas.SUBAREA_MODEL, 1_000_000, 0) == Decimal("0.10")
+    assert cost_for(subareas.SUBAREA_MODEL, 0, 1_000_000) == Decimal("0.50")
+    assert cost_for(HAIKU_MODEL, 1_000_000, 1_000_000) == Decimal("6.00")   # 4.5 unchanged
+
+
+def test_assign_estimate_is_the_haiku_5_5_figure():
+    from utils.llm_cost import cost_for
+    measured_median = cost_for(subareas.SUBAREA_MODEL, 4574, 121)
+    assert run_mod.EST_ASSIGN_USD == Decimal("0.0006")
+    assert measured_median <= run_mod.EST_ASSIGN_USD < 2 * measured_median
 
 
 def test_subarea_prompts_are_kind_aware():
@@ -353,12 +431,16 @@ def test_fresh_score_assigns_subareas_and_meters_them(ctx):
     item = table.store[("AREAINPUT", "grant#g1")]
     assert item["status"] == "scored" and item["subarea_version"] == ctx.version
     assert summary["assign_calls"] == 2
-    # Haiku spend = the screening call + both subarea calls, from their own usage
+    # Haiku 4.5 spend = the screening call alone; both subarea calls are metered
+    # under Haiku 5.5 at its own price, from their own usage
     acc = CostAccumulator()
     acc.record(model=HAIKU_MODEL, input_tokens=3000, output_tokens=60)
     for _ in range(2):
-        acc.record(model=HAIKU_MODEL, input_tokens=3000, output_tokens=80)
+        acc.record(model=subareas.SUBAREA_MODEL, input_tokens=3000, output_tokens=80)
     assert summary["model_breakdown"][HAIKU_MODEL] == str(acc.by_model[HAIKU_MODEL])
+    assert summary["model_breakdown"][subareas.SUBAREA_MODEL] == str(
+        acc.by_model[subareas.SUBAREA_MODEL])
+    assert acc.by_model[subareas.SUBAREA_MODEL] == Decimal("0.00068")   # 2 x (3000 x 0.10 + 80 x 0.50) / 1M
     # not due again
     assert drain.select_due([item], TV, subarea_version=ctx.version) == []
 

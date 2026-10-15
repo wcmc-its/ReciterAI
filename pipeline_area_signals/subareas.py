@@ -1,11 +1,12 @@
 """Subarea assignment for AREASIGNAL items (grant and trial texts).
 
-Publications get subareas from ``assign_subtopics``: one Haiku call per
+Publications get subareas from ``assign_subtopics``: one Haiku 4.5 call per
 (activity, area) over the area's approved ``hierarchy_draft_<topic>.json``, a
 confidence floor applied in Python, and primary = argmax with the seed-density
 tie-break. Grant and trial texts reuse that classifier
 (``assign_subtopics.classify_activity``) with a kind-aware system prompt
-(``prompts.subarea_system_prompt``), the same floor (``confidence_floor`` in
+(``prompts.subarea_system_prompt``) on Haiku 5.5 with reasoning off
+(``SUBAREA_MODEL``), the same floor (``confidence_floor`` in
 ``config/thresholds.json``) and the same tie-break (``assign_subtopics.pick_primary``).
 No re-scoring: the classifier reads the stored synopsis and the input's title.
 
@@ -74,6 +75,19 @@ DRAFT_DIR = REPO_ROOT / ".planning" / "phases" / "04-subtopic-system"
 COVERAGE_PATH = REPO_ROOT / "config" / "hierarchy_draft_coverage.json"
 
 SUBTOPIC_FIELDS = ("primary_subtopic_id", "subtopic_ids", "subtopic_confidences")
+
+# The subarea classifier runs on Haiku 5.5 with reasoning off; publications stay
+# on Haiku 4.5 (assign_subtopics.HAIKU_MODEL). Haiku 5.5 rejects temperature
+# ("temperature is deprecated for this model"), so it is omitted, and it reasons
+# by default, so thinking is disabled explicitly. On 200 (item, area) pairs this
+# agreed with 4.5 on the primary in 85% where both assigned, and a blind judge
+# preferred it in 25 of 40 disagreements (8 for 4.5); reasoning on tied with
+# off and was slower. The prompts, and the "none fits" (unassigned) outcome,
+# are unchanged: an incorrect assignment is the worst case, so nothing forces
+# one. Changing any of these three needs a SUBAREA_PROMPT_VERSION bump.
+SUBAREA_MODEL = "us.anthropic.claude-haiku-5-5"
+SUBAREA_TEMPERATURE = None
+SUBAREA_REQUEST_FIELDS = {"thinking": {"type": "disabled"}}
 
 _APPROVED = ("approved", "auto_approved")
 
@@ -235,6 +249,8 @@ def assign(item: dict, *, title: str, client, ctx: SubareaContext,
                 client=client, activity=activity, topic_meta=h.topic_meta,
                 subtopic_defs=h.subtopic_defs,
                 system_prompt=prompts.subarea_system_prompt(kind),
+                model=SUBAREA_MODEL, temperature=SUBAREA_TEMPERATURE,
+                additional_model_request_fields=SUBAREA_REQUEST_FIELDS,
             )
         except Exception as exc:  # noqa: BLE001 - one area never aborts the item
             log.warning("subareas: %s %s failed: %s", activity["pmid"], topic_id, exc)

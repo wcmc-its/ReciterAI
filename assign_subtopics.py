@@ -514,14 +514,25 @@ def classify_activity(
     subtopic_defs: list,
     *,
     system_prompt: str,
+    model: str = HAIKU_MODEL,
+    temperature: float | None = 0.0,
+    additional_model_request_fields: dict | None = None,
 ) -> tuple[list, dict]:
     """
-    Call Haiku once for a single activity under the given system prompt.
+    Call the classifier once for a single activity under the given system prompt.
 
     Public so other activity kinds (pipeline_area_signals: grant and trial
-    texts) reuse the same user message, model, and call shape with their own
-    system prompt. Publications go through `_classify_activity`, which passes
-    ASSIGNMENT_SYSTEM_PROMPT, so their path is byte-identical.
+    texts) reuse the same user message and call shape with their own system
+    prompt and, optionally, their own model (``temperature=None`` omits it, for
+    models that reject it; ``additional_model_request_fields`` goes out as
+    Converse ``additionalModelRequestFields``). Publications go through
+    `_classify_activity`, which passes ASSIGNMENT_SYSTEM_PROMPT and the
+    defaults (Haiku 4.5, temperature 0.0, no extra fields), so their request
+    is byte-identical.
+
+    The reply is read from the first content block that carries text: a model
+    that reasons may put a reasoningContent block first. A reply with no text
+    block raises.
 
     Returns (raw_assignments_list, usage_dict).
     Raises on Bedrock or JSON parse failure; caller handles.
@@ -536,14 +547,20 @@ def classify_activity(
         [{"role": "user", "content": user_msg}],
         system_prompt,
     )
+    extra = ({} if additional_model_request_fields is None
+             else {"additional_model_request_fields": additional_model_request_fields})
     raw = client._call_with_retry(
-        model=HAIKU_MODEL,
+        model=model,
         messages_converse=converse_msgs,
         system_list=system_list,
         max_tokens=400,
-        temperature=0.0,
+        temperature=temperature,
+        **extra,
     )
-    text = raw["output"]["message"]["content"][0]["text"]
+    blocks = raw["output"]["message"]["content"]
+    text = next((b["text"] for b in blocks if "text" in b), None)
+    if text is None:
+        raise ValueError(f"classifier reply has no text block (stopReason={raw.get('stopReason')})")
     usage = raw.get("usage", {}) or {}
 
     cleaned = _strip_json_fences(text)
