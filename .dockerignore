@@ -2,6 +2,15 @@
 .gitignore
 .github
 .planning
+# ...except the approved subarea hierarchy drafts. pipeline_area_signals.subareas
+# reads .planning/phases/04-subtopic-system/hierarchy_draft_<topic>.json from the
+# image to assign grant and trial texts to subareas; without them every text
+# goes unassigned (the run alerts WARN). Only the draft JSON, never the
+# PLAN/SUMMARY siblings or POLICIES.md. The image must be built from a checkout
+# that has the drafts (.planning/ is gitignored). Keep this re-include below
+# `.planning`; .dockerignore is last-match-wins.
+# tests/test_area_signals_subareas_image.py guards it.
+!.planning/phases/04-subtopic-system/hierarchy_draft_*.json
 .claude
 .venv
 venv

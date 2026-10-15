@@ -12,5 +12,7 @@ Modules:
 - ``prompts``: the grant and trial synopsis prompts, verbatim from the pilot.
 - ``signals``: one input -> one output row (synopsis, scores, cost metering).
 - ``drain``: the ``AREAINPUT`` queue (selection, status re-read, marking).
+- ``subareas``: subarea assignment per qualifying area (the publication
+  classifier with a grant or trial prompt), including the assign-only refresh.
 - ``run``: the daily entrypoint (``python -m pipeline_area_signals.run``).
 """

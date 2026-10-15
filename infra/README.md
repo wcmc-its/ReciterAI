@@ -579,6 +579,20 @@ the run stops launching items once the next batch would cross
 Teams gets ERROR when the run fails or the breaker opens and WARN when items
 reach `failed` or the ceiling stops the drain.
 
+**Subareas** (`pipeline_area_signals/subareas.py`): each scored text also gets
+one Haiku classifier call per area it scores at least 0.3 in (the publication
+`assign_subtopics` classifier with a grant or trial prompt; grants skip the six
+areas SPS never counts them in), against the approved
+`.planning/phases/04-subtopic-system/hierarchy_draft_<topic>.json`. A `scored`
+item whose `subarea_version` is not current (a hierarchy recompute, a
+`SUBAREA_PROMPT_VERSION` bump, or a row scored before subareas existed) is due
+too, and runs an **assign-only** path: no synopsis, no re-score, only the stale
+areas' calls. Its failures count `subarea_attempts` and give up (reported) on
+the third. `--dry-run` reports `estimated_assign_calls`. The drafts are
+gitignored, so **build the image from a checkout that has them**;
+`.dockerignore` re-includes them, and a run whose image lacks covered drafts
+sends a Teams WARN and leaves those areas unassigned.
+
 ### One-time deploy (in order)
 
 0. **Build and push an image that contains `pipeline_area_signals`** (step 0 of
@@ -601,6 +615,12 @@ reach `failed` or the ceiling stops the drain.
 5. **Backfill:** the first run finds every existing grant and trial text due
    (about 3,700 items, roughly $60-80). Either let the $25 daily ceiling drain
    it over a few days or launch once with `--max-cost-usd 100`.
+   **Subarea backfill** (texts scored before subareas shipped): the first run
+   on an image with subareas finds them due as `subareas_stale` and assigns
+   them assign-only, roughly 20k Haiku calls (about $80 at ~$0.004 a call;
+   `--dry-run` gives the exact call count). The same ceiling applies, so
+   either let it drain over a few days or launch once with a higher
+   `--max-cost-usd`.
 6. **Wire the schedule:** `scripts/deploy_cron.sh --rule reciterai-area-signals-daily`
    (`--dry-run` first; same env vars as the other ECS rules).
 7. **Watch the first tick:** `aws logs tail /ecs/reciterai-area-signals --follow`.
