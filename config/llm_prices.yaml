@@ -16,7 +16,7 @@
 # - Bedrock model IDs are the FULL inference-profile-style ID (matches
 #   utils/bedrock_client.py MODEL_IDS_BY_STAGE), not the short alias.
 #
-# Last reviewed: 2026-05-13 (#37 step 1 scaffolding).
+# Last reviewed: 2026-10-27 (Claude 5.5 migration: Sonnet 5.5 + Opus 5.5 added).
 
 version: 1
 
@@ -44,14 +44,24 @@ models:
   us.anthropic.claude-haiku-5-5:
     input_per_mtok: 0.10
     output_per_mtok: 0.50
-    notes: "Haiku 5.5. Area-signals subarea assignment (reasoning off). Anthropic list price for prompts up to 100k tokens; Bedrock's own price NOT verified (2026-10-15). Its tokenizer counts ~50% more input tokens than 4.5 for the same text."
+    notes: "Haiku 5.5 (HAIKU_MODEL since 2026-10-27). Screening + subtopic assignment + critic + area-signals subareas. Anthropic list price for prompts up to 100k tokens ($0.50/$2.50 above); Bedrock's own price NOT verified (2026-10-15). Its tokenizer counts ~30-50% more input tokens than 4.5 for the same text. Output includes thinking tokens."
 
   us.anthropic.claude-sonnet-4-6:
     input_per_mtok: 3.00
     output_per_mtok: 15.00
-    notes: "Sonnet 4.6. Used for dense scoring + subtopic discovery + relabel + see_also + taxonomy_generation."
+    notes: "Sonnet 4.6. Previous SONNET_MODEL (kept for historical rows and rollback)."
+
+  us.anthropic.claude-sonnet-5-5:
+    input_per_mtok: 2.00
+    output_per_mtok: 10.00
+    notes: "Sonnet 5.5 (SONNET_MODEL since 2026-10-27). Dense scoring + synopsis/impact + subtopic discovery + relabel + see_also + taxonomy_generation. Anthropic list price; Bedrock's own price NOT verified. Output includes thinking tokens (run at effort low)."
 
   us.anthropic.claude-opus-4-7:
     input_per_mtok: 15.00
     output_per_mtok: 75.00
-    notes: "Opus 4.7. Spotlight lede only. Not used by the daily enrichment job."
+    notes: "Opus 4.7. Previous OPUS_MODEL (kept for historical rows and rollback)."
+
+  us.anthropic.claude-opus-5-5:
+    input_per_mtok: 4.00
+    output_per_mtok: 20.00
+    notes: "Opus 5.5 (OPUS_MODEL since 2026-10-27). Spotlight lede only. Not used by the daily enrichment job. Anthropic list price; Bedrock's own price NOT verified. Output includes thinking tokens (run at effort high)."

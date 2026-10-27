@@ -266,9 +266,14 @@ def _invoke_sonnet(bedrock_client: Any, uncovered_rows: list[dict]) -> list[dict
         ]
     }
 
+    # Sonnet 5.5 thinks by default and the thinking shares max_tokens with the
+    # reply: low effort (the client-wide choice in utils/bedrock_client) and a
+    # 4096-token thinking allowance on top of the 4096-token reply. The text is
+    # read by block type below, so a leading thinking block is skipped.
     messages_body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 4096,
+        "max_tokens": 4096 + 4096,
+        "output_config": {"effort": "low"},
         "messages": [
             {
                 "role": "user",

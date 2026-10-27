@@ -1,6 +1,6 @@
 """Subarea assignment for AREASIGNAL items (grant and trial texts).
 
-Publications get subareas from ``assign_subtopics``: one Haiku 4.5 call per
+Publications get subareas from ``assign_subtopics``: one HAIKU_MODEL call per
 (activity, area) over the area's approved ``hierarchy_draft_<topic>.json``, a
 confidence floor applied in Python, and primary = argmax with the seed-density
 tie-break. Grant and trial texts reuse that classifier
@@ -76,8 +76,9 @@ COVERAGE_PATH = REPO_ROOT / "config" / "hierarchy_draft_coverage.json"
 
 SUBTOPIC_FIELDS = ("primary_subtopic_id", "subtopic_ids", "subtopic_confidences")
 
-# The subarea classifier runs on Haiku 5.5 with reasoning off; publications stay
-# on Haiku 4.5 (assign_subtopics.HAIKU_MODEL). Haiku 5.5 rejects temperature
+# The subarea classifier runs on Haiku 5.5 with reasoning off; publications
+# (assign_subtopics.HAIKU_MODEL, Haiku 5.5 since 2026-10-27) run with adaptive
+# thinking at the client's default low effort instead. Haiku 5.5 rejects temperature
 # ("temperature is deprecated for this model"), so it is omitted, and it reasons
 # by default, so thinking is disabled explicitly. On 200 (item, area) pairs this
 # agreed with 4.5 on the primary in 85% where both assigned, and a blind judge

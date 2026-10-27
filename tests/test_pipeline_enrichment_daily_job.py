@@ -652,13 +652,13 @@ def test_default_alert_fn_is_alerting_module_function():
 # CostAccumulator wiring
 # ---------------------------------------------------------------------------
 
-# Sonnet 4.6 prices from config/llm_prices.yaml: input $3.00/Mtok, output
-# $15.00/Mtok. The Fake*Result.model defaults are SONNET_MODEL (the Bedrock
+# Sonnet 5.5 prices from config/llm_prices.yaml: input $2.00/Mtok, output
+# $10.00/Mtok. The Fake*Result.model defaults are SONNET_MODEL (the Bedrock
 # happy path), so the orchestrator's accumulator.record keys each call on it.
-# FakeSynopsisResult: 100 in / 30 out → 100*3/1M + 30*15/1M = $0.00075
-# FakeImpactResult:   200 in / 80 out → 200*3/1M + 80*15/1M = $0.00180
-# Per-pmid total: $0.00255
-_EXPECTED_PER_PMID_USD = Decimal("0.00255")
+# FakeSynopsisResult: 100 in / 30 out → 100*2/1M + 30*10/1M = $0.00050
+# FakeImpactResult:   200 in / 80 out → 200*2/1M + 80*10/1M = $0.00120
+# Per-pmid total: $0.00170
+_EXPECTED_PER_PMID_USD = Decimal("0.0017")
 
 
 def test_cost_observed_usd_sums_across_pmids(fake_engine, fake_watermark, fake_writer):
@@ -710,7 +710,7 @@ def test_cost_observed_recorded_even_on_failed_run(fake_engine, fake_watermark, 
     assert result.status == "failed"
     # Synopsis succeeded → tokens recorded. Impact returned a result with
     # tokens=0 (error path) → no impact tokens contributed.
-    assert result.cost_observed_usd == Decimal("0.00075")  # synopsis only (Sonnet)
+    assert result.cost_observed_usd == Decimal("0.0005")  # synopsis only (Sonnet)
 
 
 def test_cost_observed_is_none_on_cost_guard_tripped(fake_engine, fake_watermark, fake_writer):
@@ -780,9 +780,9 @@ def test_cost_attributed_per_model_when_fallback_fires(fake_engine, fake_waterma
     assert result.status == STATUS_COMPLETE
     by_model = result.cost_summary["by_model"]
     assert set(by_model) == {SONNET_MODEL, "gpt-5.1"}
-    # Synopsis on Sonnet (100/30 → $0.00075) + impact on gpt-5.1
+    # Synopsis on Sonnet (100/30 → $0.0005) + impact on gpt-5.1
     # (200/80 → $0.00105) — each priced against its own model's rate.
-    assert result.cost_observed_usd == Decimal("0.0018")
+    assert result.cost_observed_usd == Decimal("0.00155")
 
 
 # ---------------------------------------------------------------------------

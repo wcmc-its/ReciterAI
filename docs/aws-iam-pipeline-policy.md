@@ -14,10 +14,14 @@ state through the repo.
 
 ### `BedrockInvokeModelDirect`
 
-`bedrock:InvokeModel` on three foundation-model ARNs (Haiku 4.5, Sonnet 4.6, Opus 4.7).
+`bedrock:InvokeModel` on the foundation-model ARNs of the current models (Haiku 5.5,
+Sonnet 5.5, Opus 5.5) and of the previous generation (Haiku 4.5, Sonnet 4.6, Opus 4.7),
+kept so a rollback of the model constants needs no policy change.
 Foundation-model ARNs use the empty-account-segment form
-(`arn:aws:bedrock:us-east-1::foundation-model/...`) because foundation models are
-account-agnostic.
+(`arn:aws:bedrock:<region>::foundation-model/...`) because foundation models are
+account-agnostic. The 5.5 entries use a `*` region: a `us.` cross-region inference
+profile can route a call to any US region, and the foundation-model ARN in the region
+that serves it must be allowed.
 
 Direct foundation-model invocation is used by callers that pin a specific model without
 going through a cross-region inference profile.
@@ -26,11 +30,20 @@ going through a cross-region inference profile.
 
 Same action, different resource type: `inference-profile/us.anthropic.claude-*`. The
 `us.` prefix on the model IDs in `utils/bedrock_client.py` (e.g.
-`us.anthropic.claude-haiku-4-5-20251001-v1:0`) names an inference profile, not the
+`us.anthropic.claude-haiku-5-5`) names an inference profile, not the
 foundation model directly — Bedrock requires both ARNs to be authorized when a profile
 is used for cross-region inference.
 
 Inference-profile ARNs are account-scoped, so the `ACCOUNT_ID` placeholder applies here.
+
+This file documents a SigV4 pipeline-runner role. The deployed ECS tasks do not use it
+for Bedrock: they authenticate with the long-term Bedrock API key injected as
+`AWS_BEARER_TOKEN_BEDROCK` (secret `reciterai/bedrock-api-key`), and their task-role
+policies in `infra/` intentionally grant no `bedrock:InvokeModel`. What a deployed task
+may invoke is set by the IAM user behind that key, outside this repo (as of 2026-10-27
+it carries the AWS-managed `AmazonBedrockLimitedAccess`, whose `bedrock:InvokeModel`
+is on `*`, so a model change needs no IAM change there). The hot-path Lambda policy
+(`infra/lambda_iam_policy.json`) also grants `bedrock:InvokeModel` on `*`.
 
 ### `DynamoDBReciterTable`
 

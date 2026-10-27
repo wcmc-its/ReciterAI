@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from cli.extract_tool_mentions import main
-from utils.bedrock_client import HAIKU_MODEL
+PRICED_UNIT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # $1 / $5 per MTok in config/llm_prices.yaml: a clean unit for ceiling arithmetic, independent of the live PRICED_UNIT_MODEL price
 
 
 @dataclass
@@ -20,7 +20,7 @@ class FakeResult:
     text: str
     input_tokens: int = 100
     output_tokens: int = 50
-    model: str = HAIKU_MODEL
+    model: str = PRICED_UNIT_MODEL
 
 
 def _corpus(tmp_path, n=3):

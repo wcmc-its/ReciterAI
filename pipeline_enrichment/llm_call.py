@@ -130,7 +130,7 @@ def call_with_fallback(
     """Call Bedrock for an enrichment generation, with an OpenAI fallback.
 
     Happy path: one `BedrockClient.call_with_usage` call on `model`
-    (Sonnet 4.6 by default). On a content-filter block it falls back once
+    (SONNET_MODEL, Sonnet 5.5, by default). On a content-filter block it falls back once
     to OpenAI `gpt-5.1` on the *same* system + user prompt. On any other
     empty return it retries Bedrock once.
 

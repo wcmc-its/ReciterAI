@@ -83,11 +83,11 @@ Eight version-controlled diagrams, generated from plain-data specs by a dependen
 
 | Use | Model | Why |
 |---|---|---|
-| Screening (recall-first) | `us.anthropic.claude-haiku-4-5-20251001-v1:0` via Bedrock | Cheap (~$0.0005/activity), wide net |
-| Dense scoring + synthesis | `us.anthropic.claude-sonnet-4-6` via Bedrock | Calibrated scores, narrative quality |
-| Lede generation | `us.anthropic.claude-opus-4-7` via Bedrock | Highest fidelity for spotlight openers |
+| Screening (recall-first) | `us.anthropic.claude-haiku-5-5` via Bedrock (effort low) | Cheap, wide net |
+| Dense scoring + synthesis | `us.anthropic.claude-sonnet-5-5` via Bedrock (effort low) | Calibrated scores, narrative quality |
+| Lede generation | `us.anthropic.claude-opus-5-5` via Bedrock (effort high) | Highest fidelity for spotlight openers |
 
-Model IDs are pinned in [`utils/bedrock_client.py`](utils/bedrock_client.py) (`HAIKU_MODEL` / `SONNET_MODEL` / `OPUS_MODEL`), keyed per pipeline stage in `MODEL_IDS_BY_STAGE`. When Bedrock content-filters a synopsis/impact call, the daily-enrichment job falls back to OpenAI `gpt-5.1` via [`utils/openai_client.py`](utils/openai_client.py).
+Model IDs are pinned in [`utils/bedrock_client.py`](utils/bedrock_client.py) (`HAIKU_MODEL` / `SONNET_MODEL` / `OPUS_MODEL`), keyed per pipeline stage in `MODEL_IDS_BY_STAGE`; the per-model effort level is `DEFAULT_EFFORT_BY_MODEL` in the same file. When Bedrock content-filters a synopsis/impact call, the daily-enrichment job falls back to OpenAI `gpt-5.1` via [`utils/openai_client.py`](utils/openai_client.py).
 
 ## Related repos
 

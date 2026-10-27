@@ -702,7 +702,7 @@ def _process_one_pmid(
     Cost is recorded against the accumulator after each LLM call (success
     OR failure — error-path results carry input_tokens=0 / output_tokens=0
     so they contribute nothing). Recording keys on each result's `.model`
-    — the model actually used: `us.anthropic.claude-sonnet-4-6` on the
+    — the model actually used: `us.anthropic.claude-sonnet-5-5` on the
     Bedrock happy path, or `gpt-5.1` when the content-filter fallback
     fired. Both are `config/llm_prices.yaml` keys, and the same string is
     persisted to the MariaDB `model` column and the DDB IMPACT# item, so

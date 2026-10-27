@@ -347,13 +347,13 @@ def test_cost_ceiling_stops_new_batches_and_leaves_the_rest_due():
 
 def test_measured_cost_counts_toward_the_ceiling():
     table = make_table([inp(key=str(n)) for n in range(4)])
-    # Each fake item measures $0.01425 (Sonnet synopsis + Haiku screen + Sonnet
-    # dense at config/llm_prices.yaml rates). With one worker: $0 + $0.02 est,
-    # then $0.01425 + $0.02 <= $0.035, then $0.0285 + $0.02 > $0.035 -> stop.
-    # A guard that ignored measured spend would run all four.
+    # Each fake item measures $0.00763 (Sonnet 5.5 synopsis + Haiku 5.5 screen +
+    # Sonnet 5.5 dense at config/llm_prices.yaml rates). With one worker: $0 +
+    # $0.02 est, then $0.00763 + $0.02 <= $0.035, then $0.01526 + $0.02 > $0.035
+    # -> stop. A guard that ignored measured spend would run all four.
     _, summary, _ = do_run(table, max_cost_usd=Decimal("0.035"), workers=1)
     assert summary["outcomes"] == {"scored": 2}
-    assert Decimal(summary["measured_usd"]) == Decimal("0.0285")
+    assert Decimal(summary["measured_usd"]) == Decimal("0.01526")
 
 
 def _fixed_cost_result(inp_, *, estimated_usd=Decimal("0"), usage=()):

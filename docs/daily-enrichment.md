@@ -10,8 +10,9 @@ task definition runs the #112 backfill (~1,073 papers) and the annual
 rescore on-demand via command overrides. The operator laptop is no longer
 in the loop.
 
-**Model:** synopsis + impact run on AWS Bedrock Claude Sonnet 4.6
-(`us.anthropic.claude-sonnet-4-6`) on the happy path. On a Bedrock
+**Model:** synopsis + impact run on AWS Bedrock Claude Sonnet 5.5
+(`us.anthropic.claude-sonnet-5-5`, effort low) on the happy path (Sonnet 4.6
+before 2026-10-27). On a Bedrock
 content-filter block (Sonnet 4.6 reproducibly filters WCM biomedical
 animal-model abstracts — see `sonnet-content-filter-on-dense-scoring.md`),
 each call falls back once to OpenAI gpt-5.1 on the same prompt; only a

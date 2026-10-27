@@ -138,9 +138,9 @@ Bedrock model IDs are pinned in the codebase for reproducibility. Do not swap mo
 
 | Use | Model ID |
 |---|---|
-| Screening | `anthropic.claude-haiku-4-5` |
-| Dense scoring + synthesis | `anthropic.claude-sonnet-4-6` |
-| Lede generation | `anthropic.claude-opus-4-7` |
+| Screening | `us.anthropic.claude-haiku-5-5` |
+| Dense scoring + synthesis | `us.anthropic.claude-sonnet-5-5` |
+| Lede generation | `us.anthropic.claude-opus-5-5` |
 
 ## Verifying SPS still consumes correctly
 

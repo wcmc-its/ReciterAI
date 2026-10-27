@@ -38,7 +38,7 @@ from pathlib import Path
 # Ensure repo root is on sys.path for utils imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.bedrock_client import BedrockClient, SONNET_MODEL
+from utils.bedrock_client import BedrockClient, SONNET_MODEL, response_text
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 from utils.env_check import load_thresholds
 from prompts.subtopic_discovery import (
@@ -270,10 +270,10 @@ def _call_discovery_pass(
         messages_converse=client._translate_messages(messages, DISCOVERY_SYSTEM_PROMPT)[0],
         system_list=client._translate_messages(messages, DISCOVERY_SYSTEM_PROMPT)[1],
         max_tokens=16384,  # 8192 truncated mid-JSON on a 1104-activity topic; 16384 matches generate_taxonomy.py's precedent for the same model
-        temperature=0.0,  # D-01 reproducibility requirement
+        temperature=0.0,  # D-01 reproducibility; dropped by the client for 5.x models, which reject it
     )
 
-    text = raw_response["output"]["message"]["content"][0]["text"]
+    text = response_text(raw_response, SONNET_MODEL)  # skips reasoning blocks
     usage = raw_response.get("usage", {})
 
     logger.info(
@@ -323,10 +323,10 @@ def _call_extension_pass(
         messages_converse=converse_msgs,
         system_list=system_list,
         max_tokens=16384,  # 4096 truncated mid-JSON on 774 uncovered activities; match the initial-pass cap
-        temperature=0.0,  # D-01 reproducibility requirement
+        temperature=0.0,  # D-01 reproducibility; dropped by the client for 5.x models, which reject it
     )
 
-    text = raw_response["output"]["message"]["content"][0]["text"]
+    text = response_text(raw_response, SONNET_MODEL)  # skips reasoning blocks
     usage = raw_response.get("usage", {})
 
     logger.info(

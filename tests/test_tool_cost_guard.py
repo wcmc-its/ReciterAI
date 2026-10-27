@@ -20,10 +20,11 @@ from pipeline_tools.cost_guard import (
     recompute_per_pmid_usd,
 )
 from utils.bedrock_client import HAIKU_MODEL
+PRICED_UNIT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # $1 / $5 per MTok in config/llm_prices.yaml: a clean unit for ceiling arithmetic, independent of the live PRICED_UNIT_MODEL price
 from utils.llm_cost import cost_for
 
-# cost_for(HAIKU, 1_000_000, 0) == $1.00 exactly — a clean unit for ceiling tests.
-ONE_DOLLAR_TOKENS = dict(model=HAIKU_MODEL, input_tokens=1_000_000, output_tokens=0)
+# cost_for(PRICED_UNIT_MODEL, 1_000_000, 0) == $1.00 exactly — a clean unit for ceiling tests.
+ONE_DOLLAR_TOKENS = dict(model=PRICED_UNIT_MODEL, input_tokens=1_000_000, output_tokens=0)
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ def test_guard_respects_custom_threshold():
 
 def test_recompute_per_pmid_applies_headroom():
     """Recomputed rate = price-table base × fallback headroom (not hand-waved)."""
-    base = cost_for(HAIKU_MODEL, 1300, 350)
+    base = cost_for(HAIKU_MODEL, 1300, 350)  # recompute_per_pmid_usd prices the live HAIKU_MODEL
     assert recompute_per_pmid_usd() == (base * Decimal("2.0")).quantize(Decimal("0.000001"))
     # And the pinned default is a sane round-up of that base.
     assert DEFAULT_PER_PMID_USD >= base
@@ -125,10 +126,10 @@ def test_ceiling_trips_on_cost_after_recording_breach():
 
 def test_ceiling_trips_on_call_count():
     c = CostCeiling(cap_usd=Decimal("1000.00"), max_calls=2)
-    c.record(model=HAIKU_MODEL, input_tokens=1, output_tokens=1)
-    c.record(model=HAIKU_MODEL, input_tokens=1, output_tokens=1)
+    c.record(model=PRICED_UNIT_MODEL, input_tokens=1, output_tokens=1)
+    c.record(model=PRICED_UNIT_MODEL, input_tokens=1, output_tokens=1)
     with pytest.raises(CostCeilingExceeded) as exc:
-        c.record(model=HAIKU_MODEL, input_tokens=1, output_tokens=1)
+        c.record(model=PRICED_UNIT_MODEL, input_tokens=1, output_tokens=1)
     assert exc.value.reason == "calls"
     assert exc.value.calls == 3
 

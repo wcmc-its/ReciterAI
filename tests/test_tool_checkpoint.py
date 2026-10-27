@@ -4,7 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from pipeline_tools.checkpoint import ExtractionCheckpoint
-from utils.bedrock_client import HAIKU_MODEL
+PRICED_UNIT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # $1 / $5 per MTok in config/llm_prices.yaml: a clean unit for ceiling arithmetic, independent of the live PRICED_UNIT_MODEL price
 
 
 def _mentions(pmid: str, *names: str) -> list[dict]:
@@ -16,9 +16,9 @@ def test_record_then_resume_sees_done_and_mentions(tmp_path):
     cp = ExtractionCheckpoint.load(path)
     assert len(cp) == 0
     cp.record("100", _mentions("100", "scRNA-seq", "10x Chromium"),
-              model=HAIKU_MODEL, input_tokens=1200, output_tokens=300)
+              model=PRICED_UNIT_MODEL, input_tokens=1200, output_tokens=300)
     cp.record("200", _mentions("200", "patch-clamp"),
-              model=HAIKU_MODEL, input_tokens=900, output_tokens=120)
+              model=PRICED_UNIT_MODEL, input_tokens=900, output_tokens=120)
 
     # A fresh load (simulating a resume) replays the on-disk log.
     resumed = ExtractionCheckpoint.load(path)
@@ -35,8 +35,8 @@ def test_prior_cost_reconstructs_for_ceiling_seed(tmp_path):
     path = tmp_path / "ckpt.jsonl"
     cp = ExtractionCheckpoint.load(path)
     # Two PMIDs, each a $1.00-equivalent Haiku call (1M input tokens).
-    cp.record("100", _mentions("100", "A"), model=HAIKU_MODEL, input_tokens=1_000_000, output_tokens=0)
-    cp.record("200", _mentions("200", "B"), model=HAIKU_MODEL, input_tokens=1_000_000, output_tokens=0)
+    cp.record("100", _mentions("100", "A"), model=PRICED_UNIT_MODEL, input_tokens=1_000_000, output_tokens=0)
+    cp.record("200", _mentions("200", "B"), model=PRICED_UNIT_MODEL, input_tokens=1_000_000, output_tokens=0)
     usd, calls = ExtractionCheckpoint.load(path).prior_cost()
     assert usd == Decimal("2.00")
     assert calls == 2
@@ -54,7 +54,7 @@ def test_prior_cost_tolerates_unknown_model(tmp_path):
 def test_load_tolerates_partial_final_line(tmp_path):
     path = tmp_path / "ckpt.jsonl"
     cp = ExtractionCheckpoint.load(path)
-    cp.record("100", _mentions("100", "A"), model=HAIKU_MODEL, input_tokens=10, output_tokens=10)
+    cp.record("100", _mentions("100", "A"), model=PRICED_UNIT_MODEL, input_tokens=10, output_tokens=10)
     # Simulate a hard kill mid-write: append a truncated/garbage line.
     with path.open("a", encoding="utf-8") as fh:
         fh.write('{"pmid": "200", "mentions": [  ')   # no newline, unterminated

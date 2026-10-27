@@ -527,8 +527,8 @@ def classify_activity(
     models that reject it; ``additional_model_request_fields`` goes out as
     Converse ``additionalModelRequestFields``). Publications go through
     `_classify_activity`, which passes ASSIGNMENT_SYSTEM_PROMPT and the
-    defaults (Haiku 4.5, temperature 0.0, no extra fields), so their request
-    is byte-identical.
+    defaults (HAIKU_MODEL, no extra fields; the client drops temperature and
+    adds the default effort for 5.x models).
 
     The reply is read from the first content block that carries text: a model
     that reasons may put a reasoningContent block first. A reply with no text
@@ -789,12 +789,13 @@ def _process_pmid(
 # Cost model (based on RESEARCH.md §Pass 2 batching strategy)
 # ---------------------------------------------------------------------------
 
-# Bedrock Haiku 4.5 pricing (per RESEARCH.md assumption; verify against
-# https://aws.amazon.com/bedrock/pricing/ if reconciling invoices):
-#   input:  $1 per million tokens
-#   output: $5 per million tokens
-_HAIKU_INPUT_PRICE_PER_M = 1.0
-_HAIKU_OUTPUT_PRICE_PER_M = 5.0
+# Haiku 5.5 pricing (Anthropic list, prompts up to 100k tokens; matches
+# config/llm_prices.yaml — verify against https://aws.amazon.com/bedrock/pricing/
+# if reconciling invoices). Haiku 4.5 was $1 / $5.
+#   input:  $0.10 per million tokens
+#   output: $0.50 per million tokens
+_HAIKU_INPUT_PRICE_PER_M = 0.10
+_HAIKU_OUTPUT_PRICE_PER_M = 0.50
 
 
 def _estimate_cost(input_tokens: int, output_tokens: int) -> float:
