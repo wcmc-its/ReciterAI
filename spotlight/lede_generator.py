@@ -211,10 +211,12 @@ def generate_lede(
     # text content). The plan refers to ``client.complete`` in pseudocode,
     # but the actual method on utils.bedrock_client.BedrockClient is
     # ``call`` — see utils/bedrock_client.py line 97.
-    # Opus 4.7 deprecates `temperature` — pass None so the client omits it
-    # from inferenceConfig (the model uses its built-in default). The
+    # Opus 4.7 and Opus 5.5 reject `temperature` — pass None so the client
+    # omits it from inferenceConfig (the model uses its built-in default). The
     # LEDE_TEMPERATURE constant is preserved as documentation of the
-    # earlier Sonnet-era setting.
+    # earlier Sonnet-era setting. Opus 5.5 always thinks; the client runs it
+    # at effort high and adds thinking headroom on top of LEDE_MAX_TOKENS
+    # (utils.bedrock_client.DEFAULT_EFFORT_BY_MODEL / THINKING_HEADROOM_BY_EFFORT).
     response = client.call(
         model=OPUS_MODEL,
         messages=[{"role": "user", "content": user_msg}],

@@ -36,10 +36,72 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# Pinned model IDs (per RESEARCH.md — all ACTIVE in us-east-1)
-HAIKU_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"
-OPUS_MODEL = "us.anthropic.claude-opus-4-7"
+# Pinned model IDs (cross-region inference profiles, all ACTIVE in us-east-1).
+# Previous generation, for rollback: Haiku "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+# Sonnet "us.anthropic.claude-sonnet-4-6", Opus "us.anthropic.claude-opus-4-7".
+HAIKU_MODEL = "us.anthropic.claude-haiku-5-5"
+SONNET_MODEL = "us.anthropic.claude-sonnet-5-5"
+OPUS_MODEL = "us.anthropic.claude-opus-5-5"
+
+# The 5.x generation reasons by default (adaptive thinking), rejects every
+# sampling parameter ("`temperature` is deprecated for this model"), rejects
+# assistant prefill, and takes ``output_config.effort`` as the control for how
+# much it thinks. Older models keep their old request shape, so a rollback of
+# the constants above restores the previous behavior byte-for-byte.
+_GEN5_MODEL_RE = re.compile(r"anthropic\.claude-(?:haiku|sonnet|opus)-5\b")
+
+# One central effort choice per model. Effort is sent as Converse
+# additionalModelRequestFields {"output_config": {"effort": ...}}; a caller that
+# passes its own ``output_config`` wins. API defaults are medium (Haiku 5.5,
+# Opus 5.5) and high (Sonnet 5.5).
+#   - Haiku: low. High-volume screening / assignment / critic calls that ran
+#     with no thinking on Haiku 4.5; low keeps cost and latency close to that.
+#   - Sonnet: low. Scoring, synopsis/impact, taxonomy and relabel calls ran
+#     with no thinking on Sonnet 4.6; low is the closest match and the
+#     recommended level for classification, extraction and content generation.
+#   - Opus: high. Spotlight lede, the one quality-first call.
+DEFAULT_EFFORT_BY_MODEL: dict[str, str] = {
+    HAIKU_MODEL: "low",
+    SONNET_MODEL: "low",
+    OPUS_MODEL: "high",
+}
+
+# Thinking spends the same maxTokens budget as the reply, so a cap sized for a
+# no-thinking reply (e.g. the critic's 200 or the lede's 300) would truncate.
+# Callers keep passing the size of the REPLY they expect; for a model that
+# thinks, the client adds this allowance on top. It is a ceiling, not a spend:
+# only tokens actually generated are billed.
+THINKING_HEADROOM_BY_EFFORT: dict[str, int] = {
+    "low": 4096,
+    "medium": 8192,
+    "high": 16384,
+    "xhigh": 32768,
+    "max": 32768,
+}
+
+
+def is_gen5_model(model: str) -> bool:
+    """True for a Claude 5.x model ID (``us.anthropic.claude-sonnet-5-5`` etc.)."""
+    return bool(_GEN5_MODEL_RE.search(model or ""))
+
+
+def response_text(response: dict, model: str = "") -> str:
+    """Return the text of a Converse response, skipping reasoning blocks.
+
+    A model that thinks can return ``reasoningContent`` blocks before the text,
+    so ``content[0]["text"]`` is not safe. Joins every text block. Raises
+    ``BedrockEmptyContentError`` (carrying the stopReason) when there is no text
+    at all, e.g. a content filter, or a reply that ran out of tokens while
+    still thinking (stopReason='max_tokens').
+    """
+    blocks = (response or {}).get('output', {}).get('message', {}).get('content') or []
+    texts = [b['text'] for b in blocks if isinstance(b, dict) and 'text' in b]
+    if not texts:
+        raise BedrockEmptyContentError(
+            stop_reason=(response or {}).get('stopReason', 'unknown'),
+            model=model,
+        )
+    return ''.join(texts)
 
 # Stage-keyed view of the pinned model IDs. Used by Phase 9 substrate
 # (utils.stage_records.compute_input_hash) so a model swap in any stage
@@ -258,9 +320,8 @@ class BedrockClient:
             system: Optional system prompt string.
             max_tokens: Maximum tokens in response (default 4096).
             temperature: Sampling temperature (default 0.0 for deterministic scoring).
-                Pass ``None`` for models that have deprecated temperature
-                control (e.g., Opus 4.7). When None, temperature is omitted
-                from inferenceConfig and the model uses its built-in default.
+                Ignored for the 5.x models, which reject sampling parameters.
+                Pass ``None`` to omit it for any model.
 
         Returns:
             The response text content as a string.
@@ -281,13 +342,9 @@ class BedrockClient:
             temperature=temperature,
         )
         _record_call_cost(model, response)
-        content_blocks = response.get('output', {}).get('message', {}).get('content') or []
-        if not content_blocks:
-            raise BedrockEmptyContentError(
-                stop_reason=response.get('stopReason', 'unknown'),
-                model=model,
-            )
-        return content_blocks[0]['text']
+        # Read the text block, not the first block: a 5.x model can put a
+        # reasoningContent block ahead of it.
+        return response_text(response, model)
 
     def call_json(
         self,
@@ -394,11 +451,9 @@ class BedrockClient:
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        content_blocks = response.get('output', {}).get('message', {}).get('content') or []
         stop_reason = response.get('stopReason', 'unknown')
-        if not content_blocks:
-            raise BedrockEmptyContentError(stop_reason=stop_reason, model=model)
-        text = content_blocks[0].get('text') or ''
+        # Text blocks only: a 5.x model can put a reasoningContent block first.
+        text = response_text(response, model)
         # Whitespace-only text is functionally empty for JSON-returning enrichment
         # callers — observed 2026-05-20 11:01 UTC tick where a PMID's impact call
         # returned non-empty content_blocks with text that wouldn't json-parse,
@@ -439,7 +494,15 @@ class BedrockClient:
             additional_model_request_fields: Optional model-specific request
                 fields, sent as Converse ``additionalModelRequestFields``
                 (e.g. ``{"thinking": {"type": "disabled"}}`` for Haiku 5.5).
-                Omitted from the request when None.
+                For a 5.x model the client adds
+                ``{"output_config": {"effort": DEFAULT_EFFORT_BY_MODEL[model]}}``
+                unless the caller passed its own ``output_config`` or turned
+                thinking off. Omitted from the request when nothing is left
+                to send.
+
+        For a 5.x model ``temperature`` is never sent (the models reject it),
+        and ``max_tokens`` is raised by THINKING_HEADROOM_BY_EFFORT unless the
+        caller turned thinking off.
 
         Returns:
             Raw Bedrock Converse API response dict.
@@ -451,10 +514,26 @@ class BedrockClient:
 
         client = self._get_client()
 
+        gen5 = is_gen5_model(model)
+        extra_fields = dict(additional_model_request_fields or {})
+        thinking_off = (extra_fields.get('thinking') or {}).get('type') == 'disabled'
+        # A caller that turned thinking off explicitly (area-signals subareas,
+        # measured that way) keeps its exact request: no effort injected.
+        if gen5 and not thinking_off and 'output_config' not in extra_fields:
+            effort = DEFAULT_EFFORT_BY_MODEL.get(model)
+            if effort:
+                extra_fields['output_config'] = {'effort': effort}
+        if gen5 and not thinking_off:
+            # Thinking shares maxTokens with the reply; give it room on top of
+            # the reply size the caller asked for.
+            effort = (extra_fields.get('output_config') or {}).get('effort', 'medium')
+            max_tokens = max_tokens + THINKING_HEADROOM_BY_EFFORT.get(effort, 8192)
+
         inference_config: dict = {'maxTokens': max_tokens}
-        # Opus 4.7 deprecates the temperature parameter — caller passes None
-        # to skip it. Sonnet/Haiku still honor temperature.
-        if temperature is not None:
+        # The 5.x models (and Opus 4.7) reject temperature: it is dropped for
+        # them whatever the caller passed, and callers can pass None to drop it
+        # for any model. Older Sonnet/Haiku still honor temperature.
+        if temperature is not None and not gen5:
             inference_config['temperature'] = float(temperature)
 
         call_kwargs = {
@@ -464,8 +543,8 @@ class BedrockClient:
         }
         if system_list:
             call_kwargs['system'] = system_list
-        if additional_model_request_fields is not None:
-            call_kwargs['additionalModelRequestFields'] = additional_model_request_fields
+        if extra_fields:
+            call_kwargs['additionalModelRequestFields'] = extra_fields
 
         last_error = None
         max_attempts = 3

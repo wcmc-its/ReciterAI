@@ -12,7 +12,7 @@ Format: JSON Lines, one object per completed PMID:
     {"pmid": "39123456",
      "mentions": [{"raw_name": "...", "tool_category_hint": "...", "context": "...",
                    "pmid": "39123456", "cwid": "abc2001", "author_role": "lead"}],
-     "usage": {"model": "us.anthropic.claude-haiku-4-5-...", "input_tokens": 1290,
+     "usage": {"model": "us.anthropic.claude-haiku-5-5", "input_tokens": 1290,
                "output_tokens": 310}}
 
 On resume, ``load`` rebuilds the done-set and the prior measured cost, and the

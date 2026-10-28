@@ -23,7 +23,7 @@ import score_publications as sp
 from pipeline_area_signals import drain, prompts, run as run_mod, signals, subareas
 from prompts.subtopic_assignment import ASSIGNMENT_SYSTEM_PROMPT, BUILD_ASSIGNMENT_USER_MESSAGE
 from test_pipeline_area_signals_run import inp, make_table
-from utils.bedrock_client import BedrockClient, HAIKU_MODEL
+from utils.bedrock_client import BedrockClient, HAIKU_MODEL, THINKING_HEADROOM_BY_EFFORT
 from utils.llm_cost import CostAccumulator
 from utils.taxonomy import load_taxonomy
 
@@ -163,8 +163,10 @@ def test_publication_prompt_is_unchanged():
     assert hashlib.sha256(ASSIGNMENT_SYSTEM_PROMPT.encode()).hexdigest() == PUBLICATION_PROMPT_SHA256
 
 
-def test_publication_classifier_request_is_byte_identical():
-    """_classify_activity sends exactly the pre-refactor Converse request."""
+def test_publication_classifier_request_shape():
+    """_classify_activity sends the publication prompt on HAIKU_MODEL (Haiku 5.5):
+    no temperature (5.5 rejects it), the client's default effort, and maxTokens
+    of the 400-token reply plus the low-effort thinking allowance."""
     fake = FakeConverse(assignments={T0: [{"subtopic_id": "t0_alpha", "confidence": 0.9}]})
     client = BedrockClient()
     client._client = fake
@@ -182,8 +184,9 @@ def test_publication_classifier_request_is_byte_identical():
         "modelId": HAIKU_MODEL,
         "messages": [{"role": "user", "content": [{"text": BUILD_ASSIGNMENT_USER_MESSAGE(
             activity=activity, topic_meta=topic_meta, subtopic_defs=defs)}]}],
-        "inferenceConfig": {"maxTokens": 400, "temperature": 0.0},
+        "inferenceConfig": {"maxTokens": 400 + THINKING_HEADROOM_BY_EFFORT["low"]},
         "system": [{"text": ASSIGNMENT_SYSTEM_PROMPT}],
+        "additionalModelRequestFields": {"output_config": {"effort": "low"}},
     }
 
 
@@ -212,15 +215,15 @@ def test_subarea_calls_use_haiku_5_5_with_reasoning_off(ctx):
     assert sent["system"] == [{"text": prompts.subarea_system_prompt("grant")}]
 
 
-def test_publication_request_sends_no_extra_fields():
-    """The defaults leave every other caller's request without the new key."""
+def test_publication_request_sends_only_the_default_effort():
+    """The defaults add nothing beyond the client's default effort."""
     fake = FakeConverse()
     client = BedrockClient()
     client._client = fake
     ast._classify_activity(client=client, activity={"pmid": 1, "title": "t", "synopsis": "s"},
                            topic_meta={"id": T0, "label": "L", "description": "D"},
                            subtopic_defs=[{"id": "a", "label": "A", "description": "x"}])
-    assert "additionalModelRequestFields" not in fake.calls[0][4]
+    assert fake.calls[0][4]["additionalModelRequestFields"] == {"output_config": {"effort": "low"}}
 
 
 def _reasoning_block():
@@ -262,7 +265,7 @@ def test_haiku_5_5_is_priced():
     from utils.llm_cost import cost_for
     assert cost_for(subareas.SUBAREA_MODEL, 1_000_000, 0) == Decimal("0.10")
     assert cost_for(subareas.SUBAREA_MODEL, 0, 1_000_000) == Decimal("0.50")
-    assert cost_for(HAIKU_MODEL, 1_000_000, 1_000_000) == Decimal("6.00")   # 4.5 unchanged
+    assert cost_for("us.anthropic.claude-haiku-4-5-20251001-v1:0", 1_000_000, 1_000_000) == Decimal("6.00")   # 4.5 unchanged
 
 
 def test_assign_estimate_is_the_haiku_5_5_figure():
@@ -431,8 +434,8 @@ def test_fresh_score_assigns_subareas_and_meters_them(ctx):
     item = table.store[("AREAINPUT", "grant#g1")]
     assert item["status"] == "scored" and item["subarea_version"] == ctx.version
     assert summary["assign_calls"] == 2
-    # Haiku 4.5 spend = the screening call alone; both subarea calls are metered
-    # under Haiku 5.5 at its own price, from their own usage
+    # HAIKU_MODEL is Haiku 5.5 too now, so the screening call and both subarea
+    # calls are metered under the one Haiku 5.5 price, from their own usage
     acc = CostAccumulator()
     acc.record(model=HAIKU_MODEL, input_tokens=3000, output_tokens=60)
     for _ in range(2):
@@ -440,7 +443,9 @@ def test_fresh_score_assigns_subareas_and_meters_them(ctx):
     assert summary["model_breakdown"][HAIKU_MODEL] == str(acc.by_model[HAIKU_MODEL])
     assert summary["model_breakdown"][subareas.SUBAREA_MODEL] == str(
         acc.by_model[subareas.SUBAREA_MODEL])
-    assert acc.by_model[subareas.SUBAREA_MODEL] == Decimal("0.00068")   # 2 x (3000 x 0.10 + 80 x 0.50) / 1M
+    assert subareas.SUBAREA_MODEL == HAIKU_MODEL
+    # (3000 x 0.10 + 60 x 0.50) / 1M + 2 x (3000 x 0.10 + 80 x 0.50) / 1M
+    assert acc.by_model[subareas.SUBAREA_MODEL] == Decimal("0.00101")
     # not due again
     assert drain.select_due([item], TV, subarea_version=ctx.version) == []
 

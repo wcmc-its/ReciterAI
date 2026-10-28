@@ -1,7 +1,7 @@
 """Reference eligibility extraction over the 100-item sample.
 
 Step 2 of the eligibility-capture audit. Reuses the ReciterAI Bedrock pattern
-(boto3 bedrock-runtime Converse, SONNET_MODEL, temperature 0.0, JSON-fence
+(boto3 bedrock-runtime Converse, SONNET_MODEL at low effort, JSON-fence
 stripping, throttle backoff) as a standalone script — deliberately not imported
 from utils/bedrock_client.py so the audit has zero coupling to pipeline code.
 Reads out/sample.json (from scan_grants.py) and writes out/extractions.json
@@ -21,7 +21,7 @@ import boto3
 from botocore.config import Config
 
 OUT_DIR = Path(__file__).resolve().parent / "out"
-SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"  # matches SONNET_MODEL in utils/bedrock_client.py
+SONNET_MODEL = "us.anthropic.claude-sonnet-5-5"  # matches SONNET_MODEL in utils/bedrock_client.py
 RETRYABLE = {"ThrottlingException", "ModelTimeoutException", "InternalServerException", "ServiceUnavailableException"}
 
 SYSTEM = """You extract STRUCTURED ELIGIBILITY facts from funding-opportunity (NOFO) eligibility prose for a US medical college. Base every field on the ELIGIBILITY text; use title/sponsor/synopsis only to disambiguate. Never guess: when the text does not state a fact, use the explicit "not stated" value defined below.
@@ -88,12 +88,17 @@ def call_one(item):
                 modelId=SONNET_MODEL,
                 messages=[{"role": "user", "content": [{"text": user}]}],
                 system=[{"text": SYSTEM}],
-                inferenceConfig={"maxTokens": 1024, "temperature": 0.0},
+                # Sonnet 5.5 rejects temperature and thinks by default: no
+                # temperature, low effort, and maxTokens with room for the
+                # thinking (1024 reply + 4096), as utils/bedrock_client does.
+                inferenceConfig={"maxTokens": 1024 + 4096},
+                additionalModelRequestFields={"output_config": {"effort": "low"}},
             )
             blocks = resp.get("output", {}).get("message", {}).get("content") or []
-            if not blocks:
+            texts = [b["text"] for b in blocks if "text" in b]  # skip reasoning blocks
+            if not texts:
                 raise RuntimeError(f"empty content stopReason={resp.get('stopReason')}")
-            body = blocks[0]["text"]
+            body = "".join(texts)
             break
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")

@@ -37,7 +37,7 @@ from prompts.subtopic_assignment import (
     ASSIGNMENT_SYSTEM_PROMPT as OLD_PROMPT,
     BUILD_ASSIGNMENT_USER_MESSAGE,
 )
-from utils.bedrock_client import BedrockClient, HAIKU_MODEL
+from utils.bedrock_client import BedrockClient, HAIKU_MODEL, response_text
 from utils.dynamodb_helpers import get_table, TABLE_NAME
 
 DRAFT_DIR = REPO / ".planning/phases/04-subtopic-system"
@@ -89,7 +89,7 @@ def classify(client: BedrockClient, system_prompt: str, activity, topic_meta, su
         max_tokens=400,
         temperature=0.0,
     )
-    text = raw["output"]["message"]["content"][0]["text"]
+    text = response_text(raw, HAIKU_MODEL)  # skips reasoning blocks
     parsed = json.loads(A._strip_json_fences(text))
     return parsed.get("assignments", []) or []
 

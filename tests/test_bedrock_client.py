@@ -19,8 +19,13 @@ from utils.bedrock_client import (
     BedrockCallResult,
     BedrockClient,
     BedrockEmptyContentError,
+    DEFAULT_EFFORT_BY_MODEL,
     HAIKU_MODEL,
+    OPUS_MODEL,
     SONNET_MODEL,
+    THINKING_HEADROOM_BY_EFFORT,
+    is_gen5_model,
+    response_text,
     set_cost_accumulator,
 )
 from utils.llm_cost import CostAccumulator
@@ -300,3 +305,108 @@ def test_translate_messages_appends_cachepoint_only_when_opted_in():
     # No system text -> nothing to cache, no stray cachePoint block.
     _, none = client._translate_messages(msgs, system=None, cache_system=True)
     assert none == []
+
+
+# ---------------------------------------------------------------------------
+# Claude 5.x request shape: no sampling params, central effort, thinking
+# headroom, and text read past reasoning blocks.
+# ---------------------------------------------------------------------------
+
+_OLD_SONNET = "us.anthropic.claude-sonnet-4-6"
+
+
+def _sent_request(model, **kw):
+    """Run one call through _call_with_retry against a fake boto3 client and
+    return the kwargs it sent to converse()."""
+    client = BedrockClient()
+    fake = MagicMock()
+    fake.converse.return_value = _happy_response()
+    client._client = fake
+    client._call_with_retry(
+        model=model,
+        messages_converse=[{"role": "user", "content": [{"text": "hi"}]}],
+        system_list=[],
+        max_tokens=kw.pop("max_tokens", 400),
+        temperature=kw.pop("temperature", 0.0),
+        **kw,
+    )
+    return fake.converse.call_args.kwargs
+
+
+def _reasoning_block():
+    return {"reasoningContent": {"reasoningText": {"text": "thinking", "signature": "sig"}}}
+
+
+def test_model_constants_are_the_5_5_profiles():
+    assert HAIKU_MODEL == "us.anthropic.claude-haiku-5-5"
+    assert SONNET_MODEL == "us.anthropic.claude-sonnet-5-5"
+    assert OPUS_MODEL == "us.anthropic.claude-opus-5-5"
+    assert all(is_gen5_model(m) for m in (HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL))
+    assert not is_gen5_model(_OLD_SONNET)
+    assert not is_gen5_model("us.anthropic.claude-haiku-4-5-20251001-v1:0")
+
+
+def test_central_effort_choice():
+    assert DEFAULT_EFFORT_BY_MODEL == {HAIKU_MODEL: "low", SONNET_MODEL: "low", OPUS_MODEL: "high"}
+
+
+@pytest.mark.parametrize("model", [HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL])
+def test_gen5_request_drops_temperature_and_adds_effort_and_headroom(model):
+    sent = _sent_request(model, max_tokens=400, temperature=0.0)
+    effort = DEFAULT_EFFORT_BY_MODEL[model]
+    assert sent["inferenceConfig"] == {"maxTokens": 400 + THINKING_HEADROOM_BY_EFFORT[effort]}
+    assert sent["additionalModelRequestFields"] == {"output_config": {"effort": effort}}
+
+
+def test_caller_output_config_wins():
+    sent = _sent_request(SONNET_MODEL,
+                         additional_model_request_fields={"output_config": {"effort": "medium"}})
+    assert sent["additionalModelRequestFields"] == {"output_config": {"effort": "medium"}}
+    assert sent["inferenceConfig"] == {"maxTokens": 400 + THINKING_HEADROOM_BY_EFFORT["medium"]}
+
+
+def test_thinking_disabled_request_is_left_as_the_caller_sent_it():
+    fields = {"thinking": {"type": "disabled"}}
+    sent = _sent_request(HAIKU_MODEL, temperature=None, additional_model_request_fields=fields)
+    assert sent["inferenceConfig"] == {"maxTokens": 400}
+    assert sent["additionalModelRequestFields"] == {"thinking": {"type": "disabled"}}
+    assert fields == {"thinking": {"type": "disabled"}}   # caller's dict not mutated
+
+
+def test_old_model_request_is_unchanged():
+    """Rollback safety: a pre-5.x model ID keeps temperature and gets no extra fields."""
+    sent = _sent_request(_OLD_SONNET, max_tokens=400, temperature=0.0)
+    assert sent["inferenceConfig"] == {"maxTokens": 400, "temperature": 0.0}
+    assert "additionalModelRequestFields" not in sent
+
+
+def test_call_skips_a_leading_reasoning_block():
+    resp = _happy_response('{"0": 0.85}')
+    resp["output"]["message"]["content"].insert(0, _reasoning_block())
+    client = BedrockClient()
+    with patch.object(client, "_call_with_retry", return_value=resp):
+        text = client.call(model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}])
+    assert text == '{"0": 0.85}'
+    with patch.object(client, "_call_with_retry", return_value=resp):
+        result = client.call_with_usage(model=SONNET_MODEL, messages=[{"role": "user", "content": "..."}])
+    assert result.text == '{"0": 0.85}'
+
+
+def test_reasoning_only_reply_raises_structured_error():
+    resp = _happy_response()
+    resp["output"]["message"]["content"] = [_reasoning_block()]
+    resp["stopReason"] = "max_tokens"
+    client = BedrockClient()
+    msgs = [{"role": "user", "content": "..."}]
+    with patch.object(client, "_call_with_retry", return_value=resp), \
+            pytest.raises(BedrockEmptyContentError) as exc_info:
+        client.call(model=SONNET_MODEL, messages=msgs)
+    assert exc_info.value.stop_reason == "max_tokens"
+    with patch.object(client, "_call_with_retry", return_value=resp), \
+            pytest.raises(BedrockEmptyContentError):
+        client.call_with_usage(model=SONNET_MODEL, messages=msgs)
+
+
+def test_response_text_joins_text_blocks():
+    resp = {"output": {"message": {"content": [_reasoning_block(), {"text": "a"}, {"text": "b"}]}}}
+    assert response_text(resp) == "ab"

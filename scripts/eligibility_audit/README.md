@@ -23,7 +23,7 @@ and record the date.
 ## Requirements
 
 - AWS credentials with **read-only** DynamoDB access to the `reciterai` table
-  (us-east-1) and Bedrock Runtime `Converse` access to `us.anthropic.claude-sonnet-4-6`.
+  (us-east-1) and Bedrock Runtime `Converse` access to `us.anthropic.claude-sonnet-5-5`.
 - `boto3` (already in `requirements.txt`). No other dependencies.
 
 ## Runtime / cost

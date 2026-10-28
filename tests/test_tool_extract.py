@@ -17,7 +17,7 @@ from pipeline_tools.extract import (
     normalize_mention,
     run_extraction,
 )
-from utils.bedrock_client import HAIKU_MODEL
+PRICED_UNIT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # $1 / $5 per MTok in config/llm_prices.yaml: a clean unit for ceiling arithmetic, independent of the live PRICED_UNIT_MODEL price
 
 
 @dataclass
@@ -26,7 +26,7 @@ class FakeResult:
     text: str
     input_tokens: int = 100
     output_tokens: int = 50
-    model: str = HAIKU_MODEL
+    model: str = PRICED_UNIT_MODEL
 
 
 def _mentions_json(*mentions: dict) -> str:
@@ -110,7 +110,7 @@ def test_extract_success_returns_tagged_mentions_and_usage():
     assert out.ok and out.pmid == "100"
     assert [m["raw_name"] for m in out.mentions] == ["single-cell RNA-seq", "SRTR registry"]
     assert all(m["cwid"] == "xyz1" for m in out.mentions)
-    assert out.input_tokens == 1200 and out.output_tokens == 300 and out.model == HAIKU_MODEL
+    assert out.input_tokens == 1200 and out.output_tokens == 300 and out.model == PRICED_UNIT_MODEL
 
 
 def test_extract_empty_mentions_is_ok():
@@ -157,7 +157,7 @@ def test_sweep_happy_path_checkpoints_all(tmp_path):
 
 def test_sweep_skips_already_done(tmp_path):
     cp = ExtractionCheckpoint.load(tmp_path / "c.jsonl")
-    cp.record("1", [{"raw_name": "pre", "pmid": "1"}], model=HAIKU_MODEL, input_tokens=10, output_tokens=10)
+    cp.record("1", [{"raw_name": "pre", "pmid": "1"}], model=PRICED_UNIT_MODEL, input_tokens=10, output_tokens=10)
     rows = [_row("1"), _row("2")]
     call = _stub({"2": _one_mention_result("2")})   # "1" must NOT be called
     res = run_extraction(rows, call_llm=call, checkpoint=cp, ceiling=CostCeiling(cap_usd=Decimal("100")))
@@ -199,7 +199,7 @@ def test_sweep_resumes_with_seeded_prior_cost(tmp_path):
     """A resumed sweep seeds the ceiling from the checkpoint's prior spend."""
     path = tmp_path / "c.jsonl"
     cp1 = ExtractionCheckpoint.load(path)
-    cp1.record("1", [{"raw_name": "a", "pmid": "1"}], model=HAIKU_MODEL, input_tokens=1_000_000, output_tokens=0)
+    cp1.record("1", [{"raw_name": "a", "pmid": "1"}], model=PRICED_UNIT_MODEL, input_tokens=1_000_000, output_tokens=0)
     prior_usd, prior_calls = ExtractionCheckpoint.load(path).prior_cost()
     assert prior_usd == Decimal("1.00")
 
