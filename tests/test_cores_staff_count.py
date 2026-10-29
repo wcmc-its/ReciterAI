@@ -342,8 +342,8 @@ def _stub_a_scoring_run(monkeypatch):
 
 def test_main_publishes_every_core_in_the_dictionary(monkeypatch):
     """DECLARED-BUT-NEVER-CONNECTED guard, and the `--core 14` regression: the deployed
-    nightly scores ONE core, so publishing only the scored subset would leave thirteen
-    of the fourteen items unwritten — not stale, ABSENT — and SPS would render no chip
+    nightly scores ONE core, so publishing only the scored subset would leave eleven
+    of the twelve items unwritten — not stale, ABSENT — and SPS would render no chip
     for them indefinitely. The counts are a property of the dictionary, not of a
     scoring pass, so every core is published on every run."""
     run = _stub_a_scoring_run(monkeypatch)
@@ -359,7 +359,7 @@ def test_main_publishes_every_core_in_the_dictionary(monkeypatch):
     assert len(published) > 1               # the whole point of the fix
     assert any(c == "14" for c, _, _ in published)
 
-    # ...and a run with no --core publishes exactly the same fourteen, zeros included.
+    # ...and a run with no --core publishes exactly the same twelve, zeros included.
     # The call site must not "helpfully" skip a core with no staff: 0 is the derived
     # answer for cores 4, 6 and 7, and skipping them would leave SPS rendering whatever
     # a previous run happened to publish.

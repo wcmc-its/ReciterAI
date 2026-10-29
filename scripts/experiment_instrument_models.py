@@ -67,6 +67,9 @@ WCM_CLAUSE = '("Weill Cornell" OR "Weill Medical College")'
 # core pages for NMR/flow/microscopy/HIMC/ABAC, mpc.weill.cornell.edu) and the
 # dictionary llm_description. Generic, campus-wide platforms (NovaSeq 6000, Q Exactive,
 # LSM 880, IVIS Spectrum) are KEPT as controls: they show what a non-unique model buys.
+# The 2026-10-06 run also carried core 9's timsTOF Pro 2 and core 12's three NMR
+# spectrometers; both cores were retired from the dictionary 2026-10-29, so their rows
+# are gone (a `cores[cid]` lookup on a retired id would KeyError).
 INSTRUMENTS = [
     ("2", "Siemens Biograph Vision Quadra", "Biograph Vision Quadra", r"vision\s+quadra"),
     ("2", "Bruker BioSpec 70/30 (7T)", "BioSpec 70/30", r"biospec\s*70\s*/\s*30"),
@@ -89,7 +92,6 @@ INSTRUMENTS = [
     ("7", "EchoMRI", "EchoMRI", r"echo\s?-?mri"),
     ("7", "FLIR T430sc", "FLIR T430sc", r"t430sc"),
     ("7", "Seahorse XFe24", "Seahorse XFe24", r"xfe\s?24"),
-    ("9", "Bruker timsTOF Pro 2", "timsTOF Pro 2", r"timstof\s*pro\s*2"),
     ("13", "Bruker timsTOF Pro 2", "timsTOF Pro 2", r"timstof\s*pro\s*2"),
     ("13", "Thermo Orbitrap Fusion Lumos", "Orbitrap Fusion Lumos", r"fusion\s*lumos"),
     ("13", "Agilent RapidFire", "RapidFire", r"rapidfire"),
@@ -103,9 +105,6 @@ INSTRUMENTS = [
     ("11", "Zeiss AxioScan 7", "Axioscan 7", r"axio\s?scan\s*7"),
     ("11", "Zeiss Axio Observer 7", "Axio Observer 7", r"axio\s?observer\s*7"),
     ("11", "Zeiss LSM 880 (control)", "LSM 880", r"lsm\s*880"),
-    ("12", "Bruker Avance III HD 600", "Avance III HD 600", r"avance\s*iii\s*hd\s*600|600\s*mhz.{0,40}avance\s*iii\s*hd"),
-    ("12", "Bruker Avance III HD 500", "Avance III HD 500", r"avance\s*iii\s*hd\s*500|500\s*mhz.{0,40}avance\s*iii\s*hd"),
-    ("12", "Agilent/Varian Inova 600", "Inova 600", r"inova\s*600|600\s*mhz.{0,30}inova"),
     ("1", "10x Xenium", "Xenium", r"\bxenium\b"),
     ("1", "10x Visium HD", "Visium HD", r"visium\s*hd"),
     ("1", "NanoString CosMx", "CosMx", r"\bcosmx\b"),

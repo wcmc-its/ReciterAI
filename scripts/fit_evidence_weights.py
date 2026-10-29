@@ -229,7 +229,16 @@ def fit_line(bins, pos_n: int, neg_n: int, label: str):
 # panel A — did an alias match at all?
 # ---------------------------------------------------------------------------
 def confirms() -> dict:
-    return {k: [str(p) for p in v] for k, v in json.loads(CONFIRMED.read_text()).items()}
+    """The ground-truth confirms, limited to cores still in the dictionary. The file
+    predates the 2026-10-29 retirement of cores 9 and 12 and still carries their
+    confirms; `load_core` raises on a retired id, so they are dropped here (and said so)
+    rather than crashing panel A."""
+    known = {c.core_id for c in load_cores()}
+    raw = json.loads(CONFIRMED.read_text())
+    dropped = sorted((k for k in raw if k not in known), key=int)
+    if dropped:
+        print(f"confirms: skipping retired core(s) {dropped} not in the dictionary")
+    return {k: [str(p) for p in v] for k, v in raw.items() if k in known}
 
 
 def panel_a(corpus, neg_pmids):

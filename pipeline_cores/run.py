@@ -624,9 +624,9 @@ def main(argv=None):
     #
     # EVERY CORE IN THE DICTIONARY, not this invocation's `cores`. Same reason: the
     # scheduled nightly is `--core 14`, so iterating the subset would publish exactly one
-    # of the fourteen items on a normal night and leave the other thirteen with NO item
+    # of the twelve items on a normal night and leave the other eleven with NO item
     # at all — not a stale count, nothing, and SPS renders no chip for them for as long
-    # as that holds. Fourteen idempotent UpdateItems that re-assert two small integers
+    # as that holds. Twelve idempotent UpdateItems that re-assert two small integers
     # cost nothing measurable next to a corpus-wide scoring pass.
     #
     # BOTH counts: len(core.staff) is who the dictionary lists, and the second is who
