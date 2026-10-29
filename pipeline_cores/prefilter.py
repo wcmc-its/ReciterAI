@@ -41,17 +41,16 @@ from __future__ import annotations
 # Biorepository, 7 Metabolic Phenotyping, 8 Microbiome, 10 Immune Monitoring, 14
 # Research Informatics) rely on the author-affinity signal + the Sonnet screen
 # alone. Core 14 is the one on the nightly, so the deployed run maps nothing. Deliberate overlaps
-# (3 & 5 share the sequencing branch; 9 & 13 share the chemistry/MS branch) are
-# fine for a soft prior — author-affinity and the per-core Sonnet screen disambiguate.
+# (3 & 5 share the sequencing branch) are fine for a soft prior — author-affinity and
+# the per-core Sonnet screen disambiguate. Cores 9 (ABAC, E05.196) and 12 (NMR,
+# E05.196.867) were mapped here until they were retired from the dictionary 2026-10-29.
 CORE_MESH_TREE_PREFIXES: dict = {
     "2":  ["E01.370.350"],                       # Diagnostic Imaging
     "11": ["E01.370.350.515", "E01.370.225.500"],  # Microscopy
     "4":  ["E05.242"],                           # Flow Cytometry / cytological techniques
     "5":  ["E05.393"],                           # Genetic techniques (sequencing)
     "3":  ["E05.393"],                           # Epigenomics (sequencing-based)
-    "9":  ["E05.196"],                           # Chemistry / mass-spectrometry techniques
     "13": ["E05.196"],                           # Proteomics/Metabolomics (MS; alias-only core)
-    "12": ["E05.196.867"],                       # Nuclear Magnetic Resonance spectroscopy
 }
 
 # Soft-prioritizer prior weights (NOT a drop gate). Author signal outranks the

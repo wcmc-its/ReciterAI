@@ -1539,8 +1539,8 @@ def test_dictionary_normalises_hand_typed_client_cwids(tmp_path):
     assert load_cores(p)[0].clients == ["abc1234", "xyz9"]
 
 
-# The nine aliases PMC cannot run as a phrase. esearch does not error on one: it
-# silently answers a term-ANDed/MeSH-expanded query and reports THAT count, which
+# The seven aliases PMC cannot run as a phrase (two more left with the retired core 9,
+# 2026-10-29). esearch does not error on one: it silently answers a term-ANDed/MeSH-expanded query and reports THAT count, which
 # measures nothing about the alias -- so refresh_alias_hits.fetch_hits leaves them
 # uncached on purpose and they read as ack.spec:unknown (weight 0.00). Pinned rather
 # than tolerated, so an alias that loses its count for any OTHER reason still fails.
@@ -1552,8 +1552,6 @@ _PMC_UNRUNNABLE = frozenset({
     "Applied Bioinformatics Core (ABC)",
     "Institutional Biorepository Core (IBC)",
     "Metabolic Phenotyping Center (MPC)",
-    "Advanced Biomolecular Analysis Core (ABAC)",
-    "WCM Advanced Biomolecular Analysis Core",
     "Ellen and Gary Davis Immune Monitoring Core",
     "Davis Cancer Immune Monitoring Core",
 })
@@ -1851,7 +1849,7 @@ def test_carry_forward_cli_run_never_constructs_a_bedrock_client(monkeypatch):
     monkeypatch.setattr(persist, "put_core_usage",
                         lambda recs: written.extend(recs) or len(recs))
     # main() also publishes the dictionary staff counts, and that is a REAL UpdateItem
-    # per core in the dictionary -- fourteen of them -- against the shared `reciterai`
+    # per core in the dictionary -- twelve of them -- against the shared `reciterai`
     # table. This test drives main() with no --dry-run, so leaving it unstubbed makes a
     # default `pytest tests/` run write to production on any machine with credentials in
     # the environment. Stubbed like every other persist seam above, and like

@@ -43,7 +43,13 @@ def test_core_mesh_tree_prefixes_cover_the_technique_cores():
     # the families the empirical probe found discriminative; others rely on author + screen
     assert CORE_MESH_TREE_PREFIXES["2"] == ["E01.370.350"]            # imaging
     assert CORE_MESH_TREE_PREFIXES["4"] == ["E05.242"]               # flow cytometry
-    assert CORE_MESH_TREE_PREFIXES["12"] == ["E05.196.867"]          # NMR
     # cores with no clean MeSH technique branch are intentionally absent
     for unmapped in ("1", "6", "7", "8", "10"):
         assert unmapped not in CORE_MESH_TREE_PREFIXES
+
+
+def test_core_mesh_tree_prefixes_only_key_cores_in_the_dictionary():
+    """A retired core (9, 12 on 2026-10-29) must leave this map too: a stale key is
+    dead config that a hand-run `--core` could never reach, and it hides the retirement."""
+    from pipeline_cores.dictionary import load_cores
+    assert set(CORE_MESH_TREE_PREFIXES) <= {c.core_id for c in load_cores()}

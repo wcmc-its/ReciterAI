@@ -58,7 +58,10 @@ CTSC_UL1 = ("UL1RR024996", "UL1TR000457", "UL1TR002384")
 #      llm_description names (MRI, MALDI imaging, EM / multiphoton). An assertion,
 #      not a measurement: rule-B rows are where a mapping error would hide.
 # Every other WCM S10 (36 in RePORTER) maps to no dictionary core and is listed
-# by the script as unmapped.
+# by the script as unmapped. The 2026-10-06 run also mapped three S10s to core 12 (NMR,
+# rule A) and six to core 9 (ABAC, rule B); both cores were retired from the dictionary
+# 2026-10-29 (`load_core` now raises on them), so those awards now list as unmapped and
+# docs/cores-instrument-grant-signal-2026-10-06.md is the record of what they measured.
 S10_CORE = {
     # core 2 Biomedical Imaging (Ballon = djb2001)
     "S10RR023020": ("2", "A"),   # small-animal 7T MRI/MRS, 2007
@@ -66,21 +69,10 @@ S10_CORE = {
     "S10OD034271": ("2", "A"),   # PET/CT, 2023
     "S10OD021782": ("2", "B"),   # 3T MRI, PI Yi Wang (Radiology), 2016
     "S10OD027039": ("2", "B"),   # 7T MRI, PI Yi Wang, 2021
-    # core 12 NMR (Bracken = wcb2001)
-    "S10RR023694": ("12", "A"),  # 500 MHz NMR, 2007
-    "S10OD016320": ("12", "A"),  # 600 MHz cold probe + console, 2013
-    "S10OD028556": ("12", "A"),  # RF console + probes, 2020
     # core 5 Genomics Resources (Xiang = jzx2002)
     "S10RR022370": ("5", "A"),   # 7900HT real-time PCR, 2006
     # core 10 Human Immune Monitoring (Anandasabapathy = nia9069)
     "S10OD032397": ("10", "A"),  # high-parameter flow sorter, 2023
-    # core 9 Advanced Biomolecular Analysis (mass spec; PI Steven Gross, Pharmacology)
-    "S10RR011360": ("9", "B"),
-    "S10RR015909": ("9", "B"),
-    "S10RR019355": ("9", "B"),
-    "S10RR022615": ("9", "B"),
-    "S10RR027305": ("9", "B"),
-    "S10OD023652": ("9", "B"),   # MALDI-FT-ICR imaging, 2017
     # core 11 Microscopy and Image Analysis (optical/EM; PI Frederick Maxfield, Biochemistry)
     "S10RR004718": ("11", "B"),
     "S10RR011886": ("11", "B"),
@@ -95,11 +87,9 @@ S10_CORE = {
 WIDE_NAME = {
     "2": r"Citigroup|\bCBIC\b|Biomedical Imaging (Center|Core)",
     "5": r"Genomics (Resources )?Core|Genomics Resources",
-    "9": r"Advanced Biomolecular|\bABAC\b|Mass Spectrometry (Core|Facility)",
     "10": r"Immune Monitoring|Flow Cytometry Core",
     "11": r"Microscopy (&|and) Image Analysis|Optical Microscopy Core|"
           r"Electron Microscopy (&|and) Histology",
-    "12": r"NMR (Core|[Ff]acilit)|Nuclear Magnetic Resonance (Core|Facility)",
 }
 
 

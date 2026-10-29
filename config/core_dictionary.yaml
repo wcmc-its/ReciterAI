@@ -51,6 +51,12 @@
 # "Projects/Inferring Cores and Services/Core inference prompt 0.txt".
 # Only Biomedical Imaging is resolved so far.
 
+# Retired 2026-10-29: core_ids "9" (Advanced Biomolecular Analysis Core) and "12"
+# (Nuclear Magnetic Resonance). The WCM cores director confirmed neither exists as a
+# WCM core. The ids are NOT reused, so a gap in the numbering is deliberate; DynamoDB
+# items already written under them are removed by
+# scripts/purge_retired_core_items.py, since --reconcile only walks cores still listed.
+
 cores:
   - core_id: "2"
     name: Biomedical Imaging
@@ -240,7 +246,7 @@ cores:
       glucose/insulin/pyruvate tolerance tests, Seahorse cellular bioenergetics
 
   - core_id: "8"
-    name: Microbiome Sequencing
+    name: Microbiome Core
     facility: Microbiome Core
     owner_cwid: null
     aliases:
@@ -266,28 +272,6 @@ cores:
     llm_description: >
       microbiome sequencing core: 16S rRNA amplicon, shotgun metagenomic, and
       Oxford Nanopore long-read sequencing plus bioinformatics analysis
-
-  - core_id: "9"
-    name: Advanced Biomolecular Analysis Core
-    facility: Advanced Biomolecular Analysis Core
-    owner_cwid: null
-    aliases:
-      - "Advanced Biomolecular Analysis Core"
-      - "Advanced Biomolecular Analysis Core (ABAC)"
-      - "ABAC"
-      - "WCM Advanced Biomolecular Analysis Core"
-    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Advanced Biomolecular Analysis Core": 1
-    staff:
-      - { cwid: qic2005, name: "Qiuying Chen",  dept: Pharmacology }
-      # Director; no resolved-author rows (0 pubs in analysis_summary_author) and may
-      # have departed WCM -> tracked: false. Distinct from #13 (do not merge).
-      - { cwid: nod2007, name: "Noah Dephoure", dept: Biochemistry }
-    grant_ids: []
-    llm_description: >
-      mass-spectrometry core: custom proteomics (PTM, AP-MS / proximity-labeling
-      interactions, multiplexed abundance), MALDI imaging of tissue
-      lipids/peptides/metabolites, and targeted quantitative LC-MS
 
   - core_id: "10"
     name: Human Immune Monitoring
@@ -339,29 +323,6 @@ cores:
       Zeiss AxioObserver 7 / AxioScan 7, Ultramicroscope II, Leica Stellaris 8,
       Acquifer HIVE; MetaMorph/MetaXpress, Imaris, Fiji/ImageJ
 
-  - core_id: "12"
-    name: Nuclear Magnetic Resonance
-    facility: Nuclear Magnetic Resonance (NMR) Core Facility
-    owner_cwid: null
-    aliases:
-      - "Nuclear Magnetic Resonance (NMR) Core Facility"
-      - "Nuclear Magnetic Resonance Core Facility"
-      - "NMR Core Facility"
-      - "NMR Core"
-    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Nuclear Magnetic Resonance (NMR) Core Facility": 8
-      "Nuclear Magnetic Resonance Core Facility": 34
-      "NMR Core Facility": 545
-      "NMR Core": 926
-    staff:
-      # "W. Clay Bracken" = William Bracken in identity; sole director of this core.
-      - { cwid: wcb2001, name: "William Bracken", dept: "" }
-    grant_ids: []
-    llm_description: >
-      solution NMR spectroscopy for biological and chemical analysis: sample prep,
-      data collection, and structural/dynamic/ligand-binding interpretation
-      (1D/2D/multidimensional) on Bruker Avance III HD and Agilent/Varian Inova
-
   - core_id: "13"
     name: Proteomics and Metabolomics
     facility: Proteomics & Metabolomics Core Facility
@@ -380,7 +341,7 @@ cores:
       "Weill Cornell Proteomics & Metabolomics Core Facility": 10
     # Director Guoan Zhang + scientists Zhu/Yang/Lei are NOT in ReCiter identity;
     # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
-    # Aliases-only for now. Distinct from #9 ABAC (do not merge).
+    # Aliases-only for now.
     staff:
       - { cwid: zhl4007, name: "Zhucui Li", dept: "Biochemistry and Biophysics" }
     grant_ids: []
