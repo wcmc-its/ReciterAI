@@ -114,6 +114,11 @@ def test_every_shipped_alias_without_a_connector_compiles_to_the_old_regex():
         ("13", "Meyer Cancer Center Proteomics and Metabolomics Core Facility"),
         ("13", "Proteomics & Metabolomics Core"),
         ("13", "Weill Cornell Proteomics & Metabolomics Core Facility"),
+        ("17", "Electron Microscopy and Histology Core"),
+        ("17", "Electron Microscopy & Histology Core"),
+        ("17", "Electron Microscopy and Histology Core Facility"),
+        ("17", "WCMC Electron Microscopy and Histology Core Facility"),
+        ("17", "Weill Cornell Electron Microscopy and Histology Core"),
     }
     core14 = next(c for c in load_cores() if c.core_id == "14")
     assert all(alias_variants(a) == [a] for a in core14.aliases)
