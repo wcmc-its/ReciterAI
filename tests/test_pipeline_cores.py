@@ -234,24 +234,58 @@ def _no_network(client):
 
 def test_s3_hit_serves_and_populates_disk_without_network(tmp_path):
     from pipeline_cores.fulltext import PmcFullTextClient
-    s3 = _FakeS3({"cores/fulltext/999.xml": b"<body>scanned at the CBIC core</body>"})
+    s3 = _FakeS3({"fulltext/pmid/999": b"PMC9",
+                  "fulltext/pmc/PMC9.xml": b"<body>scanned at the CBIC core</body>"})
     client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
     _no_network(client)
-    assert "CBIC core" in client.get("999")        # served from S3, no NCBI
-    assert s3.reads == 1
+    assert "CBIC core" in client.get("999")        # pmid pointer -> PMCID doc, no NCBI
+    assert s3.reads == 2
     assert (tmp_path / "999.xml").exists()          # read-through populated disk
     # second read is a disk hit — S3 not touched again
     assert "CBIC core" in client.get("999")
-    assert s3.reads == 1
+    assert s3.reads == 2
 
 
 def test_s3_negative_sentinel_serves_empty_without_network(tmp_path):
     from pipeline_cores.fulltext import PmcFullTextClient, _NO_PMC
-    s3 = _FakeS3({"cores/fulltext/888.xml": _NO_PMC.encode("utf-8")})
+    from datetime import date
+    s3 = _FakeS3({"fulltext/pmid/888": f"NO_PMC {date.today().isoformat()}".encode()})
     client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
     _no_network(client)
-    assert client.get("888") == ""                  # cached "no PMC" -> empty
+    assert client.get("888") == ""                  # fresh "no PMC" marker -> empty
     assert (tmp_path / "888.xml").read_text(encoding="utf-8") == _NO_PMC
+
+
+def test_s3_expired_no_pmc_marker_rechecks_origin(tmp_path):
+    from pipeline_cores.fulltext import PmcFullTextClient
+    s3 = _FakeS3({"fulltext/pmid/889": b"NO_PMC 2020-01-01"})
+    client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
+    client._pmid_to_pmcid = lambda pmid: "PMC889"   # it reached PMC after the embargo
+    client._get = lambda path, params: "<body>now open access</body>"
+    assert "now open access" in client.get("889")
+    assert s3.store["fulltext/pmid/889"] == b"PMC889"
+    assert s3.store["fulltext/pmc/PMC889.xml"] == b"<body>now open access</body>"
+
+
+def test_no_pmc_expiry_boundaries():
+    from datetime import date
+    from pipeline_cores.fulltext import NO_PMC_TTL_DAYS, _no_pmc_expired
+    today = date(2026, 10, 30)
+    assert not _no_pmc_expired("NO_PMC 2026-10-30", today)
+    assert not _no_pmc_expired(f"NO_PMC {date.fromordinal(today.toordinal() - NO_PMC_TTL_DAYS)}", today)
+    assert _no_pmc_expired(f"NO_PMC {date.fromordinal(today.toordinal() - NO_PMC_TTL_DAYS - 1)}", today)
+    assert _no_pmc_expired("NO_PMC", today)           # undated -> re-check
+    assert _no_pmc_expired("NO_PMC garbage", today)
+
+
+def test_s3_pointer_to_missing_doc_is_a_miss(tmp_path):
+    from pipeline_cores.fulltext import PmcFullTextClient
+    s3 = _FakeS3({"fulltext/pmid/42": b"PMC42"})     # pointer written, doc absent
+    client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
+    client._pmid_to_pmcid = lambda pmid: "PMC42"
+    client._get = lambda path, params: "<body>refetched</body>"
+    assert "refetched" in client.get("42")
+    assert client.s3_read_failures == 0
 
 
 def test_origin_fetch_writes_through_to_disk_and_s3(tmp_path):
@@ -262,8 +296,9 @@ def test_origin_fetch_writes_through_to_disk_and_s3(tmp_path):
     client._get = lambda path, params: "<body>imaged at the CBIC core facility</body>"
     assert "CBIC core" in client.get("321")
     assert (tmp_path / "321.xml").exists()           # disk written
-    assert s3.writes == 1                            # write-through to S3
-    assert s3.store["cores/fulltext/321.xml"] == b"<body>imaged at the CBIC core facility</body>"
+    assert s3.writes == 2                            # doc + pmid pointer
+    assert s3.store["fulltext/pmc/PMC321.xml"] == b"<body>imaged at the CBIC core facility</body>"
+    assert s3.store["fulltext/pmid/321"] == b"PMC321"
 
 
 def test_origin_no_pmc_writes_sentinel_through_to_both(tmp_path):
@@ -272,13 +307,15 @@ def test_origin_no_pmc_writes_sentinel_through_to_both(tmp_path):
     client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
     client._pmid_to_pmcid = lambda pmid: ""          # elink found no PMC link
     assert client.get("777") == ""
+    from datetime import date
     assert (tmp_path / "777.xml").read_text(encoding="utf-8") == _NO_PMC
-    assert s3.store["cores/fulltext/777.xml"] == _NO_PMC.encode("utf-8")
+    assert s3.store["fulltext/pmid/777"] == f"NO_PMC {date.today().isoformat()}".encode()
+    assert not any(k.startswith("fulltext/pmc/") for k in s3.store)
 
 
 def test_disk_hit_takes_priority_over_s3(tmp_path):
     from pipeline_cores.fulltext import PmcFullTextClient
-    s3 = _FakeS3({"cores/fulltext/555.xml": b"<body>stale S3 copy</body>"})
+    s3 = _FakeS3({"fulltext/pmid/555": b"PMC555", "fulltext/pmc/PMC555.xml": b"<body>stale S3 copy</body>"})
     (tmp_path / "555.xml").write_text("<body>fresh disk copy</body>", encoding="utf-8")
     client = PmcFullTextClient(cache_dir=tmp_path, s3=s3)
     _no_network(client)
@@ -308,7 +345,8 @@ def test_with_s3_targets_artifacts_bucket():
     from pipeline_cores.fulltext import PmcFullTextClient
     client = PmcFullTextClient.with_s3()             # lazy boto3, no AWS call at init
     assert client.s3.bucket == "wcmc-reciterai-artifacts"
-    assert client._s3_key("123") == "cores/fulltext/123.xml"
+    assert client._pmid_key("123") == "fulltext/pmid/123"
+    assert client._pmc_key("PMC9") == "fulltext/pmc/PMC9.xml"
 
 
 # --- author affinity (signal 1, repeat-user RATE) --------------------------

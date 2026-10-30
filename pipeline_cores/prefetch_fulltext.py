@@ -1,7 +1,8 @@
 """Out-of-band warm of the PMC full-text cache (S3-backed).
 
-Pre-populates s3://<artifacts bucket>/cores/fulltext/{pmid}.xml (and the local
-disk cache) so a full-corpus cores run reads from a warm cache instead of
+Pre-populates the common full-text store, s3://<artifacts bucket>/fulltext/
+(pmid/{pmid} pointers + pmc/{PMCID}.xml documents, shared with SPS), and the local
+disk cache, so a full-corpus cores run reads from a warm cache instead of
 re-fetching ~10K PMIDs from NCBI on every cold host. This is the slow, network-
 bound step (elink + efetch, rate-limited); doing it once, out of band, keeps the
 scoring run fast and reproducible.
