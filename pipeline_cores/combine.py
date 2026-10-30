@@ -517,12 +517,27 @@ def combine(
     #  - A staff co-author, unless an alias names the core too: ReCiter over-matches
     #    core staff onto bylines, so a byline match alone is a lead, not a label.
     #    An acknowledgement still confirms, with or without staff beside it.
+    # Repeat-user history ALONE never surfaces a pair (2026-10-30). It is one flat cell,
+    # so every such pair scored the identical 0.401: 14,936 of 16,134 all-core candidates
+    # were that and nothing else, an unrankable queue scaling with core size. It still
+    # adds its weight beside any other evidence; run.py keeps these pairs LLM-triage
+    # eligible (affinity_alone), so an LLM score can still lift one into the queue.
+    if status != STATUS_BELOW and affinity_alone(signals):
+        status = STATUS_BELOW
     if status == STATUS_CONFIRMED:
         held = replace(signals, llm_score=None,
                        coauthor_cwids=signals.coauthor_cwids if signals.ack_matched else [])
         if score(held, core) < confirm:
             status = STATUS_CANDIDATE
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)
+
+
+def affinity_alone(signals: SignalResult) -> bool:
+    """True when the affinity prior is the only evidence on the pair that moves the
+    score (zero-weight features like an unfitted `method:*` do not count)."""
+    pairs = explain(signals)
+    return (any(f.startswith("aff:") for f, _ in pairs)
+            and not any(w for f, w in pairs if not f.startswith("aff:")))
 
 
 def _threshold(explicit, core, attr: str, default: float) -> float:

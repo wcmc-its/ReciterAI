@@ -162,8 +162,10 @@ def test_a_trace_user_no_longer_carries_a_weak_paper_on_its_own():
     # own core affinity (#418) and base-rate shrinkage (s = 5) emptied the bucket on
     # panel B, so it is priced as aff:regular (3.49). It confirmed at 4.93; that was the
     # fit, not a rule.
+    # ...and since 2026-10-30 that rate ALONE is kept off the queue (combine.affinity_alone):
+    # the likelihood is unchanged, only the status.
     alone = combine("1", "2", SignalResult(author_affinity=0.85))
-    assert alone.status == STATUS_CANDIDATE
+    assert alone.status == STATUS_BELOW
     assert 0.38 < alone.likelihood < DEFAULT_CONFIRM_THRESHOLD
 
 
@@ -662,9 +664,11 @@ def test_run_core_affinity_lifts_sibling_paper(monkeypatch):
                                             full_text=full_text)}
     assert recs["100"].status == STATUS_CONFIRMED
     # 200 has no direct signal; it inherits cli0001's affinity. One confirm out of 15
-    # corpus papers, shrunk, is a 5% rate (aff:regular), so the sibling reaches the queue and
-    # still sits well below the paper that was actually confirmed.
-    assert recs["200"].status == STATUS_CANDIDATE
+    # corpus papers, shrunk, is a 5% rate (aff:regular), which lifts it above the prior and
+    # well below the paper that was actually confirmed. Affinity alone, so it stays off the
+    # queue (2026-10-30 gate) until some other evidence joins it.
+    assert recs["200"].status == STATUS_BELOW
+    assert recs["200"].signals.author_affinity > 0
     assert 1 / (1 + math.exp(-PRIOR_LOGIT)) < recs["200"].likelihood < recs["100"].likelihood
     # ...and it is the DENOMINATOR doing that, not the count: the same single confirm by
     # an author with 100 corpus papers is a trace and stays out of the queue. On the old
@@ -699,10 +703,10 @@ def test_a_cores_own_staff_lend_no_affinity_to_that_core(monkeypatch):
         return rec
 
     assert score_200([staff]).signals.author_affinity == 0.0
-    # a client at 4 of 4 -> 4/(4 + s=5) (p0 fallback 0.0): aff:regular, which reaches
-    # the queue but does not confirm alone
+    # a client at 4 of 4 -> 4/(4 + s=5) (p0 fallback 0.0): aff:regular, which on its own
+    # neither confirms nor (since the 2026-10-30 gate) reaches the queue
     assert score_200(["cli0001"]).signals.author_affinity == pytest.approx(4 / 9)
-    assert score_200(["cli0001"]).status == STATUS_CANDIDATE
+    assert score_200(["cli0001"]).status == STATUS_BELOW
 
 
 def test_run_core_marks_a_curated_client_on_the_byline(monkeypatch):
@@ -1774,9 +1778,14 @@ def test_per_core_thresholds_override_the_defaults():
     strict = CoreDefinition(core_id="9", name="T", aliases=["T Core"], triage_threshold=0.99)
     assert combine("1", "9", sig, core=strict).status == STATUS_BELOW
     loose = CoreDefinition(core_id="9", name="T", aliases=["T Core"], confirm_threshold=0.35)
-    # Not the LLM: it may never be the deciding vote for confirmation (#412), so a
-    # lowered bar is shown on aff:regular (0.387) instead.
-    assert combine("1", "9", SignalResult(author_affinity=0.30), core=loose).status == STATUS_CONFIRMED
+    # Not the LLM (never the deciding confirm vote, #412) and not affinity (alone it never
+    # surfaces, 2026-10-30), so the confirm override is shown RAISED on a generic alias
+    # at home, which confirms at the default bar.
+    generic_home = SignalResult(ack_matched=True, ack_alias="T Core", ack_alias_hits=5000,
+                                ack_institution="home")
+    assert combine("1", "9", generic_home).status == STATUS_CONFIRMED
+    raised = CoreDefinition(core_id="9", name="T", aliases=["T Core"], confirm_threshold=0.9)
+    assert combine("1", "9", generic_home, core=raised).status == STATUS_CANDIDATE
     assert combine("1", "9", sig, core=loose).status == STATUS_CANDIDATE
     # an explicit argument still beats the core's own override
     assert combine("1", "9", sig, core=strict, triage_threshold=0.1).status == STATUS_CANDIDATE
@@ -2292,6 +2301,37 @@ def test_triage_candidates_only_triages_just_what_a_no_llm_pass_surfaces(monkeyp
     run.main(["--core", "14", "--with-llm", "--llm-carry-forward",
               "--llm-triage-candidates-only", "--dry-run"])
     assert calls == [(False, None), (True, {"1"})]
+
+
+def test_triage_candidates_only_still_triages_affinity_alone_pairs(monkeypatch):
+    """The 2026-10-30 gate keeps repeat-user-only pairs off the queue, but the LLM is
+    what can rank them in, so the no-LLM pre-pass must still hand them to triage."""
+    from pipeline_cores.models import CoreUsageRecord
+
+    calls = []
+
+    def fake_run_core(core, pubs, *, bedrock=None, triage_only=None, **k):
+        calls.append(triage_only)
+        return [CoreUsageRecord("1", core.core_id, 0.4, STATUS_BELOW, SignalResult(author_affinity=0.4)),
+                CoreUsageRecord("2", core.core_id, 0.1, STATUS_BELOW, SignalResult())]
+    run, _ = _main_stubs(monkeypatch, fake_run_core)
+    run.main(["--core", "14", "--with-llm", "--llm-carry-forward",
+              "--llm-triage-candidates-only", "--dry-run"])
+    assert calls == [None, {"1"}]
+
+
+def test_voluntary_only_pmids_drops_papers_with_only_voluntary_wcm_authors():
+    from sqlalchemy import create_engine, text
+    from pipeline_cores.ingest import voluntary_only_pmids
+    e = create_engine("sqlite://")
+    with e.begin() as c:
+        c.execute(text("CREATE TABLE identity (cwid TEXT, voluntaryFaculty TEXT, "
+                       "fullTimeFaculty TEXT, partTimeFaculty TEXT)"))
+        c.execute(text("INSERT INTO identity VALUES ('vol1','yes',NULL,NULL), ('vol2','yes','',''), "
+                       "('ft1','','yes',''), ('both','yes','yes','')"))
+    bylines = {"a": ["vol1"], "b": ["vol1", "vol2"], "c": ["vol1", "ft1"], "d": ["both"], "e": []}
+    assert voluntary_only_pmids(e, bylines) == {"a", "b"}
+    assert voluntary_only_pmids(e, {}) == set()
 
 
 def test_triage_candidates_only_is_refused_without_carry_forward():

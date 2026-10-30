@@ -670,6 +670,10 @@ def main(argv=None):
     scored_at = now_iso()
     # Bylines once per run (shared across cores) to attribute prior confirmations.
     bylines = ingest.fetch_author_bylines(engine, [p["pmid"] for p in pubs])
+    vol_only = ingest.voluntary_only_pmids(engine, bylines)
+    if vol_only:
+        pubs = [p for p in pubs if str(p["pmid"]) not in vol_only]
+        print(f"dropped {len(vol_only)} papers whose only WCM authors are voluntary faculty")
     # Default: the per-core Haiku screen inside each run_core (calibration-validated
     # 100% recall@SCREEN_CUTOFF on the 237-pilot). The all-cores screen (one call per
     # pub) cuts screen calls ~13x but lost 7-11% screen recall on that pilot — its
@@ -730,7 +734,10 @@ def main(argv=None):
             # ponytail: a whole second no-LLM pass (DB reads + combine, no Bedrock) just
             # to learn which pubs surface; cheap next to one Haiku call per corpus pub.
             pre = run_core(core, pubs, bedrock=None, **core_kwargs)
-            triage_only = {str(r.pmid) for r in pre if r.status in SURFACED_STATUSES}
+            # affinity_alone pairs are below threshold by design but stay triage-eligible:
+            # the LLM is what can rank them into the queue.
+            triage_only = {str(r.pmid) for r in pre
+                           if r.status in SURFACED_STATUSES or _combine.affinity_alone(r.signals)}
         recs = run_core(core, pubs, bedrock=bedrock, triage_only=triage_only, **core_kwargs)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
