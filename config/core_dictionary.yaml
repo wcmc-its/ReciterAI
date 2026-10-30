@@ -569,3 +569,117 @@ cores:
       weak:                                          # <2x — near background
         - "Regression modeling"                      # 1.7x  n=26  27.7% vs 16.6%
         - "Observational study design"               # 1.6x  n=20  21.3% vs 13.4%
+
+  # Added 2026-10-30 at the WCM cores director's request (SPS catalog ids 17-21,
+  # already in SPS CORE_CATALOG). Aliases come from each core's public page and are a
+  # first cut for tuning: alias_hits not yet refreshed, and no `staff:` here on purpose,
+  # because staff for these cores are curated in SPS (CORE#{id}/STAFF, read by
+  # get_curated_staff) rather than committed to this public file.
+  - core_id: "17"
+    name: Electron Microscopy and Histology
+    facility: Electron Microscopy and Histology Core
+    owner_cwid: null
+    # One of the three labs of core 11 (Microscopy and Image Analysis). Core 11's
+    # own names are deliberately NOT aliases here, or every core-11 acknowledgement
+    # would also credit 17; only EM/histology-specific names are.
+    aliases:
+      - "Electron Microscopy and Histology Core"
+      - "Electron Microscopy & Histology Core"
+      - "Electron Microscopy and Histology Core Facility"
+      - "WCMC Electron Microscopy and Histology Core Facility"
+      - "Weill Cornell Electron Microscopy and Histology Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Electron Microscopy and Histology Core": 180
+      "Electron Microscopy & Histology Core": 180
+      "Electron Microscopy and Histology Core Facility": 59
+      "WCMC Electron Microscopy and Histology Core Facility": 2
+      "Weill Cornell Electron Microscopy and Histology Core": 6
+    staff: []
+    grant_ids: []
+    llm_description: >
+      transmission electron microscopy (JEOL JEM 1400) and histology: EM sample
+      preparation, ultrathin sectioning, negative staining, paraffin and frozen
+      sectioning, and H&E staining
+
+  - core_id: "18"
+    name: Human Therapeutic Organoid
+    facility: Human Therapeutic Organoid Core
+    owner_cwid: null
+    aliases:
+      - "Human Therapeutic Organoid Core"
+      - "Human Therapeutic Organoid Core Facility"
+      - "Weill Cornell Medicine Human Therapeutic Organoid Core"
+      - "RRID:SCR_027251"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Human Therapeutic Organoid Core": 7
+      "Human Therapeutic Organoid Core Facility": 5
+      "Weill Cornell Medicine Human Therapeutic Organoid Core": 3
+      "RRID:SCR_027251": 3
+    staff: []
+    grant_ids: []
+    llm_description: >
+      human organoid technology: hPSC culture and differentiation, hPSC-derived
+      pancreatic islet organoids (sc-islets), patient-derived gut organoids from
+      biopsy or autopsy tissue, organoid banking and QC
+
+  - core_id: "19"
+    name: Molecular Biophysics
+    facility: Molecular Biophysics Core
+    owner_cwid: null
+    aliases:
+      - "Molecular Biophysics Core"
+      - "Molecular Biophysics Core Facility"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Molecular Biophysics Core": 25
+      "Molecular Biophysics Core Facility": 10
+    staff: []
+    grant_ids: []
+    llm_description: >
+      macromolecule purification and biophysical characterization of proteins and
+      liposomes: circular dichroism, isothermal titration calorimetry, dynamic light
+      scattering, mass photometry (Refeyn), NanoTemper MST/nanoDSF, AKTA FPLC,
+      stopped-flow kinetics
+
+  - core_id: "20"
+    name: Cryo-EM
+    facility: Cryo-EM Core
+    owner_cwid: null
+    aliases:
+      - "Cryo-EM Core"
+      - "Cryo-EM Core Facility"
+      - "Cryo-Electron Microscopy Core"
+      - "Cryogenic Electron Microscopy Core"
+      - "Weill Cornell Cryo-EM Core"
+      - "Weill Cornell Medicine Cryo-EM Core Facility"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Cryo-EM Core": 409
+      "Cryo-EM Core Facility": 280
+      "Cryo-Electron Microscopy Core": 140
+      "Cryogenic Electron Microscopy Core": 3
+      "Weill Cornell Cryo-EM Core": 3
+      "Weill Cornell Medicine Cryo-EM Core Facility": 8
+    staff: []
+    grant_ids: []
+    llm_description: >
+      single-particle cryo-electron microscopy: vitrification (Vitrobot), grid
+      screening and data collection on a 200 kV Glacios with Falcon 4i detector and
+      Selectris energy filter, image processing and 3D reconstruction
+
+  - core_id: "21"
+    name: Neuro-anatomy Electron Microscopy
+    facility: Neuro-anatomy Electron Microscopy Core
+    owner_cwid: null
+    aliases:
+      - "Neuroanatomy Electron Microscopy Core"
+      - "Neuroanatomy EM Core"
+      - "BMRI Neuroanatomy EM Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Neuroanatomy Electron Microscopy Core": 3
+      "Neuroanatomy EM Core": 16
+      "BMRI Neuroanatomy EM Core": 1
+    staff: []
+    grant_ids: []
+    llm_description: >
+      brain tissue light and electron microscopic immunocytochemistry: perfusion
+      fixation, vibratome sectioning, single and dual-label immuno-EM,
+      ultramicrotomy, TEM (Hitachi HT7800), MCID image analysis
