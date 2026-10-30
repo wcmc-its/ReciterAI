@@ -8,11 +8,16 @@ manuscript subset), which simply leaves signal 3 silent for that paper.
 
 Cache tiers, checked in order on ``get()``:
   1. local disk   (out/fulltext_cache/{pmid}.xml) — fastest, per-host.
-  2. S3           (s3://<artifacts bucket>/cores/fulltext/{pmid}.xml) — shared,
-                  durable, survives a cold host. Optional: only consulted when a
-                  client is constructed with an S3 backend (``with_s3()`` or the
-                  ``s3=`` kwarg). boto3 is imported lazily so the disk-only path
-                  and the pure unit tests stay dependency-free.
+  2. S3           the common full-text store shared with SPS's data-sharing scan
+                  (scripts/bulk-data-rule/scan2.py), keyed by PMCID:
+                    s3://<artifacts bucket>/fulltext/pmid/{pmid}      -> "PMC123" or "NO_PMC <yyyy-mm-dd>"
+                    s3://<artifacts bucket>/fulltext/pmc/{PMCID}.xml  -> raw XML (NCBI or Europe PMC)
+                  Shared, durable, survives a cold host. Optional: only consulted
+                  when a client is constructed with an S3 backend (``with_s3()`` or
+                  the ``s3=`` kwarg). boto3 is imported lazily so the disk-only
+                  path and the pure unit tests stay dependency-free. A NO_PMC
+                  marker older than NO_PMC_TTL_DAYS reads as a miss, so a paper
+                  that reaches PMC after its embargo is eventually picked up.
   3. NCBI         (elink + efetch) — the origin. Results (including the "no PMC"
                   sentinel) are written back through to BOTH disk and S3 so the
                   next cold run never re-fetches them.
@@ -33,6 +38,7 @@ import os
 import re
 import time
 import urllib.parse
+from datetime import date, timedelta
 import urllib.request
 from pathlib import Path
 
@@ -41,7 +47,10 @@ logger = logging.getLogger(__name__)
 _BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 _DEFAULT_CACHE = Path(__file__).resolve().parent.parent / "out" / "fulltext_cache"
 _NO_PMC = "\x00NO_PMC\x00"  # sentinel cached when a PMID has no PMC record
-_S3_PREFIX = "cores/fulltext/"  # under the artifacts bucket
+_S3_PREFIX = "fulltext/"  # under the artifacts bucket; shared with SPS scan2.py
+# ponytail: one fixed TTL for every NO_PMC marker; make it depend on pub year if
+# the re-check volume ever matters.
+NO_PMC_TTL_DAYS = 90
 # The `<ref-list\b[^>]*/>` alternative is load-bearing: without it `[^>]*` eats the
 # `/` of a self-closing <ref-list/> and the body is swallowed to the next close tag.
 _REF_LIST_RE = re.compile(r"<ref-list\b[^>]*/>|<ref-list\b[^>]*>.*?</ref-list\s*>", re.I | re.S)
@@ -49,6 +58,17 @@ _REF_LIST_RE = re.compile(r"<ref-list\b[^>]*/>|<ref-list\b[^>]*>.*?</ref-list\s*
 
 def _api_key() -> str:
     return os.getenv("PUBMED_API_KEY") or os.getenv("NCBI_API_KEY") or ""
+
+
+def _no_pmc_expired(ref: str, today: date = None) -> bool:
+    """True when a "NO_PMC <yyyy-mm-dd>" marker is older than NO_PMC_TTL_DAYS.
+    An undated or unparseable marker counts as expired: re-checking costs one
+    elink call, trusting a bad marker hides the paper forever."""
+    try:
+        stamped = date.fromisoformat(ref.split()[1])
+    except (IndexError, ValueError):
+        return True
+    return (today or date.today()) - stamped > timedelta(days=NO_PMC_TTL_DAYS)
 
 
 def to_plain_text(xml: str) -> str:
@@ -106,15 +126,24 @@ class PmcFullTextClient:
         return cls(cache_dir=cache_dir, s3=make_s3_backend(bucket), **kwargs)
 
     # -- S3 tier (best-effort; never raises into the pipeline) ------------
-    def _s3_key(self, pmid: str) -> str:
-        return f"{self.s3_prefix}{pmid}.xml"
+    def _pmid_key(self, pmid: str) -> str:
+        return f"{self.s3_prefix}pmid/{pmid}"
+
+    def _pmc_key(self, pmcid: str) -> str:
+        return f"{self.s3_prefix}pmc/{pmcid}.xml"
 
     def _s3_read(self, pmid: str):
         """Cache content (raw xml or the _NO_PMC sentinel) from S3, or None on miss/error."""
         if not self.s3:
             return None
-        key = self._s3_key(pmid)
         try:
+            key = self._pmid_key(pmid)
+            if not self.s3.key_exists(key):
+                return None
+            ref = self.s3.get_object_bytes(key).decode("utf-8", "ignore").strip()
+            if ref.startswith("NO_PMC"):
+                return None if _no_pmc_expired(ref) else _NO_PMC
+            key = self._pmc_key(ref)
             if not self.s3.key_exists(key):
                 return None
             return self.s3.get_object_bytes(key).decode("utf-8", "ignore")
@@ -127,11 +156,18 @@ class PmcFullTextClient:
                 logger.debug("S3 full-text read failed for %s: %s", pmid, exc)
             return None
 
-    def _s3_write(self, pmid: str, content: str) -> None:
+    def _s3_write(self, pmid: str, pmcid: str, xml: str) -> None:
+        """Write an origin result: the XML (if any) first, then the pmid pointer,
+        so a reader never follows a pointer to a missing document."""
         if not self.s3:
             return
         try:
-            self.s3.put_object(self._s3_key(pmid), content.encode("utf-8"), content_type="application/xml")
+            if pmcid and xml:
+                self.s3.put_object(self._pmc_key(pmcid), xml.encode("utf-8"), content_type="application/xml")
+                ref = pmcid
+            else:
+                ref = f"NO_PMC {date.today().isoformat()}"
+            self.s3.put_object(self._pmid_key(pmid), ref.encode("utf-8"), content_type="text/plain")
         except Exception as exc:
             self.s3_write_failures += 1
             if not self._s3_write_warned:
@@ -190,15 +226,12 @@ class PmcFullTextClient:
 
         # Origin (NCBI) — write the result through to both tiers.
         pmcid = self._pmid_to_pmcid(pmid)
-        if not pmcid:
-            cache.write_text(_NO_PMC, encoding="utf-8")
-            self._s3_write(pmid, _NO_PMC)
-            return ""
-        xml = self._get("efetch.fcgi", {"db": "pmc", "id": pmcid[3:], "rettype": "xml", "retmode": "xml"})
-        content = xml or _NO_PMC
-        cache.write_text(content, encoding="utf-8")
-        self._s3_write(pmid, content)
-        return xml or ""
+        xml = ""
+        if pmcid:
+            xml = self._get("efetch.fcgi", {"db": "pmc", "id": pmcid[3:], "rettype": "xml", "retmode": "xml"})
+        cache.write_text(xml or _NO_PMC, encoding="utf-8")
+        self._s3_write(pmid, pmcid, xml)
+        return xml
 
     def get(self, pmid: str) -> str:
         """Plain-text body for `pmid` (cached). "" when no PMC full text."""

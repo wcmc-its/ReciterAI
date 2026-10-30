@@ -74,6 +74,10 @@ def _all_actions(policy: dict) -> set:
     return out
 
 
+def _as_list(v) -> list:
+    return v if isinstance(v, list) else [v]
+
+
 def _resources_for_prefix(policy: dict, prefix: str) -> set:
     """Union of Resource ARNs across statements that carry any `prefix:` action."""
     out = set()
@@ -143,21 +147,29 @@ def test_task_policy_covers_the_artifact_keys_the_runtime_actually_reads(task_po
         ), f"no s3 Resource covers {full!r}; granted: {reads}"
 
 
-def test_task_policy_grants_no_s3_write(task_policy):
-    """Read-only by design: pipeline_cores publishes no artifact.
+def test_task_policy_s3_writes_are_scoped_to_the_fulltext_store(task_policy, command):
+    """The one S3 WRITE surface is the common full-text store (`--fulltext-s3`, in
+    the nightly command). A missing grant there fails SILENTLY (one warning, then
+    NCBI at full price), so pin it to the keys fulltext.py actually builds, plus
+    the prefix-scoped ListBucket that turns a miss into 404 rather than 403."""
+    from pipeline_cores.fulltext import PmcFullTextClient, _S3_PREFIX
+    from utils.s3_client import ARTIFACTS_BUCKET
 
-    The one WRITE surface is the shared PMC full-text cache, reached only via
-    `--fulltext-s3`, which is not in the nightly command — so it is not running at
-    all, rather than silently degrading. Enabling that flag needs GetObject +
-    PutObject on `cores/fulltext/*` and ListBucket; without them it fails SILENTLY,
-    re-fetching from NCBI at full price.
-    """
-    writes = {
-        a
-        for a in _all_actions(task_policy)
-        if a.startswith("s3:") and a not in {"s3:GetObject"}
-    }
-    assert writes == set(), f"cores task role should be S3 read-only; found: {writes}"
+    client = PmcFullTextClient(s3=object())
+    for key in (client._pmid_key("1"), client._pmc_key("PMC1")):
+        full = f"arn:aws:s3:::{ARTIFACTS_BUCKET}/{key}"
+        for action in ("s3:GetObject", "s3:PutObject"):
+            assert any(
+                action in _as_list(st["Action"]) and any(full.startswith(r.rstrip("*")) for r in _as_list(st["Resource"]))
+                for st in task_policy["Statement"]
+            ), f"no {action} covers {full!r}"
+    for st in task_policy["Statement"]:
+        actions = set(_as_list(st["Action"]))
+        if "s3:PutObject" in actions:
+            assert all(r.endswith(f"{ARTIFACTS_BUCKET}/{_S3_PREFIX}*") for r in _as_list(st["Resource"])), st
+        if "s3:ListBucket" in actions:
+            assert st["Condition"]["StringLike"]["s3:prefix"] == [f"{_S3_PREFIX}*"], st
+    assert "--fulltext-s3" in command, "grant without the flag is dead weight"
 
 
 def test_task_policy_grants_dynamodb_crud_on_reciterai_only(task_policy):
@@ -227,7 +239,7 @@ def test_default_command_is_the_nightly_invocation(container):
     assert container["command"] == [
         "sh",
         "-c",
-        "python -m pipeline_cores.run --core 14 --with-affinity --alias-search "
+        "python -m pipeline_cores.run --core 14 --with-affinity --alias-search --fulltext-s3 "
         "--llm-carry-forward --with-llm --llm-triage-candidates-only "
         "--with-method-families --reconcile",
     ]

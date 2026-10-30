@@ -586,8 +586,10 @@ No new ReciterDB MySQL table: input read-only, output DynamoDB, claims in SPS.
   `analysis/labeled_set.csv` (don't guess the decay blind).
 - **Done (was TODO):**
   - **S3-backed full-text cache** — `fulltext.py` reads/writes through
-    `s3://wcmc-reciterai-artifacts/cores/fulltext/{pmid}.xml` (best-effort,
-    negatives cached durably). Warm it out of band before a full run with
+    the common full-text store `s3://wcmc-reciterai-artifacts/fulltext/`
+    (`pmid/{pmid}` -> PMCID or `NO_PMC <date>`, `pmc/{PMCID}.xml`; shared with
+    SPS `scripts/bulk-data-rule/scan2.py`; best-effort, NO_PMC re-checked after
+    90 days). The nightly passes `--fulltext-s3`. Warm it out of band before a full run with
     `python3 -m pipeline_cores.prefetch_fulltext` so the corpus is fetched from
     NCBI once, not on every cold host.
   - **one-Haiku-screens-all-cores** — `signals.screen_all_cores` does ONE Haiku
