@@ -579,6 +579,11 @@ def main(argv=None):
                          "it would demote exceed this fraction of (demoted + re-surfaced) "
                          f"(default {RECONCILE_MAX_DEMOTE_FRACTION}). Raise it to 1.0 only for a "
                          "deliberate operator re-score expected to empty most of a core's queue")
+    ap.add_argument("--signal-report", nargs="?", const="", default=None, metavar="CSV",
+                    help="print, per core, how often each signal family fires on surfaced "
+                         "pairs and how often it is DECISIVE (knocking it out drops the "
+                         "status). Read-only; pair with --dry-run. Optional CSV path for "
+                         "one row per pair")
     ap.add_argument("--threshold", type=float, default=None,
                     help="override the candidate threshold for every core (default: the "
                          "core's own triage_threshold, else combine.DEFAULT_TRIAGE_THRESHOLD)")
@@ -733,6 +738,9 @@ def main(argv=None):
         all_records.extend(recs)
 
     surfaced = [r for r in all_records if r.status in SURFACED_STATUSES]
+    if args.signal_report is not None:
+        from pipeline_cores.signal_report import report  # lazy
+        report(surfaced, cores, threshold=args.threshold, path=args.signal_report or None)
     # Also write every row that carries an LLM score, below threshold included. Without
     # this an LLM "no" leaves no trace: the pair keeps its old candidate row with no
     # llm_score, the nightly re-surfaces it unscored, and every later LLM run pays to
