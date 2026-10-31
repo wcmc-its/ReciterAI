@@ -104,22 +104,12 @@ def test_every_shipped_alias_without_a_connector_compiles_to_the_old_regex():
         for alias in core.aliases:
             if _alias_pattern(alias).pattern != _old_pattern(alias).pattern:
                 changed.add((core.core_id, alias))
-    assert changed == {
-        ("10", "Ellen and Gary Davis Immune Monitoring Core"),
-        ("11", "Microscopy and Image Analysis Core"),
-        ("11", "Microscopy and Image Analysis Core Facility"),
-        ("11", "Weill Cornell Medicine Microscopy and Image Analysis Core Facility"),
-        ("13", "Proteomics & Metabolomics Core Facility"),
-        ("13", "Proteomics and Metabolomics Core Facility"),
-        ("13", "Meyer Cancer Center Proteomics and Metabolomics Core Facility"),
-        ("13", "Proteomics & Metabolomics Core"),
-        ("13", "Weill Cornell Proteomics & Metabolomics Core Facility"),
-        ("17", "Electron Microscopy and Histology Core"),
-        ("17", "Electron Microscopy & Histology Core"),
-        ("17", "Electron Microscopy and Histology Core Facility"),
-        ("17", "WCMC Electron Microscopy and Histology Core Facility"),
-        ("17", "Weill Cornell Electron Microscopy and Histology Core"),
-    }
+    # Computed, not listed: the dictionary grows (2026-10-30 alias discovery added
+    # 109), and the property is that ONLY a connector alias moves.
+    has_connector = {(c.core_id, a) for c in load_cores() for a in c.aliases
+                     if re.search(r"\s+and\s+|&", a, re.IGNORECASE)}
+    assert changed == has_connector
+    assert ("11", "Microscopy and Image Analysis Core") in changed
     core14 = next(c for c in load_cores() if c.core_id == "14")
     assert all(alias_variants(a) == [a] for a in core14.aliases)
 
