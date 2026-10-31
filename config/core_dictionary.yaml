@@ -780,6 +780,80 @@ cores:
   # first cut for tuning: alias_hits not yet refreshed, and no `staff:` here on purpose,
   # because staff for these cores are curated in SPS (CORE#{id}/STAFF, read by
   # get_curated_staff) rather than committed to this public file.
+  - core_id: "15"
+    name: Data Core
+    facility: Data Core
+    owner_cwid: null
+    # Added 2026-10-31 (step 5). A secure enclave for confidential research data run
+    # by ITS Research Informatics; papers rarely acknowledge it (0 mentions in 4,541
+    # WCM acknowledgement sections, 2026-10-30 discovery), so these are the two
+    # WCM-qualified names that occur in PMC at all (the service page's other forms
+    # match no PMC paper). Bare "Data Core" is generic.
+    aliases:
+      - "Weill Cornell Medicine Data Core"
+      - "WCM Data Core"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Weill Cornell Medicine Data Core": 1
+      "WCM Data Core": 2
+    staff:
+      - { cwid: alc2054, name: "Alice Chin", dept: "" }
+    grant_ids: []
+    llm_description: >
+      secure research computing enclave for confidential or regulated data: analysis
+      of identifiable patient data, claims, registry or other restricted datasets
+      under a data use agreement or IRB protocol inside a controlled Windows, Linux
+      or AWS workspace. Typical papers analyze sensitive human-subjects data that
+      could not leave a secure environment
+
+  - core_id: "16"
+    name: High Performance Computing
+    facility: Scientific Computing Unit
+    owner_cwid: null
+    # Added 2026-10-31 (step 5). The cluster is run by the Scientific Computing Unit
+    # (SCU); papers name it that way far more than as the "HPC Core" (2026-10-30
+    # discovery: ~60 papers). Generic forms (SCU, HPC Core, HPCC, High Performance
+    # Computing Core) are omitted.
+    aliases:
+      - "WCM Scientific Computing Unit"
+      - "Weill Cornell Medicine High-Performance Computing Core"
+      - "WCM SCU"
+      - "RRID:SCR_028969"
+      - "Scientific Computing Unit at Weill Cornell Medical College"
+      - "Weill Cornell Scientific Computing Unit"
+      - "Weill Cornell Medicine Scientific Computing Unit (SCU)"
+      - "Scientific Computing Unit at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Scientific Computing Unit"
+      - "Scientific Computing Unit (SCU) at WCM"
+      - "Scientific Computing Unit (SCU)"
+      - "Scientific Computing Unit"
+    alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "Weill Cornell Medicine High-Performance Computing Core": 2
+      "Weill Cornell Medicine Scientific Computing Unit (SCU)": 8
+      "Weill Cornell Medicine Scientific Computing Unit": 15
+      "Scientific Computing Unit (SCU) at WCM": 17
+      "Scientific Computing Unit at Weill Cornell Medicine": 8
+      "Scientific Computing Unit at Weill Cornell Medical College": 4
+      "Weill Cornell Scientific Computing Unit": 4
+      "WCM Scientific Computing Unit": 1
+      "WCM SCU": 2
+      "Scientific Computing Unit (SCU)": 53
+      "Scientific Computing Unit": 108
+      "RRID:SCR_028969": 2
+    staff:
+      - { cwid: ahm4002, name: "Ahmed Mahmoud",        dept: "" }
+      - { cwid: rma3001, name: "Rashad Ahmed",         dept: "" }
+      - { cwid: jop4018, name: "Jonathan Parziale",    dept: "" }
+      - { cwid: men4004, name: "Meghan A Netterville", dept: "" }
+      - { cwid: miy4003, name: "Miu ki Yip",           dept: "" }
+      - { cwid: trc2007, name: "Tracey Cleveland",     dept: "" }
+    grant_ids: []
+    llm_description: >
+      high-performance computing cluster: large-scale computation on CPU and GPU nodes
+      (SLURM) with parallel storage, used for genome-scale sequencing analysis,
+      molecular dynamics and structural modeling, cryo-EM image processing, imaging
+      pipelines and training deep learning models. Typical papers report
+      computationally intensive analyses or simulations
+
   - core_id: "17"
     name: Electron Microscopy and Histology
     facility: Electron Microscopy and Histology Core
