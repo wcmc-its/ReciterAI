@@ -461,7 +461,6 @@ cores:
       - "Microscopy and Imaging Core Facility"
       - "Microscopy and Image Analysis Core"
       - "Optical Microscopy Core"
-      - "Microscopy and Imaging Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Weill Cornell Automated Optical Microscopy Core": 2
       "Weill Cornell Medicine Optical Microscopy Core Facility": 2
@@ -482,7 +481,6 @@ cores:
       "Microscopy and Imaging Core Facility": 177
       "Microscopy and Image Analysis Core": 291
       "Optical Microscopy Core": 320
-      "Microscopy and Imaging Core": 690
     staff:
       - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics" }
       - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry }
@@ -786,7 +784,6 @@ cores:
       - "Electron Microscopy & Histology Core Facility"
       - "Electron Microscopy and Histology Core"
       - "Electron Microscopy & Histology Core"
-      - "Electron Microscopy & Histology"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "WCMC Electron Microscopy and Histology Core Facility": 2
       "Weill Cornell Electron Microscopy and Histology Core Facility": 2
@@ -801,7 +798,6 @@ cores:
       "Electron Microscopy & Histology Core Facility": 59
       "Electron Microscopy and Histology Core": 180
       "Electron Microscopy & Histology Core": 180
-      "Electron Microscopy & Histology": 619
     staff: []
     grant_ids: []
     llm_description: >
