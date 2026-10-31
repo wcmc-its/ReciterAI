@@ -128,10 +128,17 @@ def test_dictionary_reads_and_validates_prior_strength(tmp_path):
     assert signals.affinity_prior_strength(core) == 12.0
 
 
-def test_aff_core_alone_does_not_confirm_but_reaches_the_queue():
+def test_aff_core_alone_neither_confirms_nor_reaches_the_queue():
+    """Repeat-user history alone is one flat score (2026-10-30 gate): kept off the queue,
+    likelihood unchanged, and still lifts a pair that has other evidence."""
+    from pipeline_cores.combine import affinity_alone
+    from pipeline_cores.models import STATUS_BELOW
     rec = combine("p", "2", SignalResult(author_affinity=0.9))
-    assert rec.status == STATUS_CANDIDATE
+    assert rec.status == STATUS_BELOW
+    assert affinity_alone(rec.signals)
     assert rec.likelihood < DEFAULT_CONFIRM_THRESHOLD
+    with_llm = combine("p", "2", SignalResult(author_affinity=0.9, llm_score=4))
+    assert with_llm.status == STATUS_CANDIDATE and not affinity_alone(with_llm.signals)
 
 
 # --- (a) tenure gate --------------------------------------------------------

@@ -41,6 +41,25 @@ def fetch_publications(engine, pmids: list = None, limit: int = None) -> list:
     ]
 
 
+def voluntary_only_pmids(engine, bylines: dict) -> set:
+    """PMIDs whose every resolved WCM author is voluntary faculty (identity.voluntaryFaculty
+    = 'yes', and not full- or part-time). Measured 2026-10-30: voluntary faculty are on 4.9%
+    of corpus papers but 1.6% of confirmed core papers, and never the only WCM author of
+    one, so the cores run drops these papers. A pmid with no resolved author is kept."""
+    from sqlalchemy import bindparam, text  # lazy
+
+    cwids = sorted({c for cs in bylines.values() for c in cs})
+    if not cwids:
+        return set()
+    stmt = text(
+        "SELECT cwid FROM identity WHERE cwid IN :cwids AND voluntaryFaculty = 'yes' "
+        "AND COALESCE(fullTimeFaculty, '') <> 'yes' AND COALESCE(partTimeFaculty, '') <> 'yes'"
+    ).bindparams(bindparam("cwids", expanding=True))
+    with engine.connect() as conn:
+        vol = {row.cwid for row in conn.execute(stmt, {"cwids": cwids})}
+    return {pmid for pmid, cs in bylines.items() if cs and all(c in vol for c in cs)}
+
+
 def fetch_author_bylines(engine, pmids: list) -> dict:
     """Map pmid -> [resolved WCM-author CWIDs], from analysis_summary_author.
 
