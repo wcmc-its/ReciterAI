@@ -524,9 +524,14 @@ def combine(
     # eligible (affinity_alone), so an LLM score can still lift one into the queue.
     if status != STATUS_BELOW and affinity_alone(signals):
         status = STATUS_BELOW
+    #  - An alias match next to a DIFFERENT institution (2026-10-31): a moderate alias
+    #    with inst:other nets 6.37 + 1.90 - 3.62 and still cleared 0.65 ("IBEST
+    #    Genomics Resources Core at the University of Idaho"). It ranks as a lead.
     if status == STATUS_CONFIRMED:
+        other = signals.ack_institution == "other"
         held = replace(signals, llm_score=None,
-                       coauthor_cwids=signals.coauthor_cwids if signals.ack_matched else [])
+                       ack_matched=signals.ack_matched and not other,
+                       coauthor_cwids=signals.coauthor_cwids if signals.ack_matched and not other else [])
         if score(held, core) < confirm:
             status = STATUS_CANDIDATE
     return CoreUsageRecord(pmid, core_id, round(likelihood, 4), status, signals, scored_at)

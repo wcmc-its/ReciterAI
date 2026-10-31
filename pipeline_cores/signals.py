@@ -42,6 +42,17 @@ _OTHER_INSTITUTION = re.compile(
     r"|\bHospital\b|\bMedical Cent(?:er|re)\b|\bCancer Cent(?:er|re)\b"
     r"|\bSchool of Medicine\b|\bHealth System\b|\bClinic\b|\bAcademy of Sciences\b", re.I)
 
+# An NIH intramural institute named RIGHT AT the alias ("NICHD Microscopy and Imaging
+# Core", "... Core (NICHD)", "... Core, NINDS") hosts that facility. Only adjacency
+# counts: these acronyms are funders far more often ("supported by NICHD R01..."),
+# and a window-wide match would read every such grant line as a different
+# institution. Audit 2026-10-31: 3 of 6 new "Microscopy and Imaging Core" confirms
+# were NICHD's, all classified "none".
+_NIH_IC = (r"(?:NICHD|NINDS|NIMH|NHLBI|NIAID|NIDDK|NIEHS|NIDA|NIAAA|NIDCR|NIDCD|NEI|NHGRI"
+           r"|NIA|NIAMS|NIBIB|NINR|NCATS|NCCIH|NIMHD|NLM|NCBI)")
+_NIH_IC_BEFORE = re.compile(_NIH_IC + r"(?:'s)?[\s,(]{0,3}$")
+_NIH_IC_AFTER = re.compile(r"^[\s,(]{0,3}(?:at\s+(?:the\s+)?)?" + _NIH_IC + r"\b")
+
 # JATS blocks for the match-location read. Same block idiom (and the same nesting
 # caveat) as suggest_aliases.ack_text.
 _ACK_BLOCK = re.compile(r"<ack\b.*?</ack\s*>", re.I | re.S)
@@ -122,6 +133,8 @@ def classify_institution(text: str, match, core: CoreDefinition) -> str:
     # institution word ("Institute for Precision Medicine Biobank") is not evidence
     # of somebody else's institution. The positive read above keeps it, because an
     # alias that spells out "… Weill Cornell Medicine" IS the home affiliation.
+    if _NIH_IC_BEFORE.search(before) or _NIH_IC_AFTER.search(after):
+        return "other"
     outside = _FUNDER.sub(" ", before + " " + after)
     return "other" if _OTHER_INSTITUTION.search(outside) else "none"
 
