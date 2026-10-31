@@ -528,7 +528,8 @@ def combine(
     #    with inst:other nets 6.37 + 1.90 - 3.62 and still cleared 0.65 ("IBEST
     #    Genomics Resources Core at the University of Idaho"). It ranks as a lead.
     if status == STATUS_CONFIRMED:
-        other = signals.ack_institution == "other"
+        other = (signals.ack_institution == "other"
+                 and signals.ack_alias not in (getattr(core, "unique_aliases", None) or []))
         held = replace(signals, llm_score=None,
                        ack_matched=signals.ack_matched and not other,
                        coauthor_cwids=signals.coauthor_cwids if signals.ack_matched and not other else [])

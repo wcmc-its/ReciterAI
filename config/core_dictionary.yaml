@@ -74,6 +74,12 @@ cores:
       - "Biomedical Imaging Core"
       - "Citigroup Biomedical Imaging Core Facility"
       - "CBIC"
+    unique_aliases:             # WCM-only names: still confirm next to another institution
+      - "CITI Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Center and Imaging Core"
+      - "Citigroup Biomedical Imaging Core"
+      - "Citigroup Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Core Facility"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "CITI Biomedical Imaging Center": 3
       "WCM Imaging Core": 6
@@ -646,6 +652,11 @@ cores:
     # score moves. Refresh with --write when convenient.
     aliases:
       - "WCM Research Informatics"
+      - "Architecture for Research Computing in Health"
+      - "Architecture for Research Computing"
+      - "INSIGHT CRN"
+      - "INSIGHT Clinical Research Network"
+    unique_aliases:             # WCM-only names: still confirm next to another institution
       - "Architecture for Research Computing in Health"
       - "Architecture for Research Computing"
       - "INSIGHT CRN"

@@ -34,6 +34,7 @@ _FUNDER = re.compile(
     r"National Institutes? of Health|National Cancer Institute|National Science Foundation"
     r"|Howard Hughes Medical Institute|Department of (?:Defense|Veterans Affairs)"
     r"|Rockefeller Foundation"   # the FUNDER, not the Tri-I university
+    r"|Patient-Centered Outcomes Research Institute|\bPCORI\b"   # funds INSIGHT CRN
     r"|\bNIH\b|\bNCI\b|\bNSF\b|\bHHMI\b", re.I)
 
 # Some OTHER institution is named in the window (21-53% of today's matches).
