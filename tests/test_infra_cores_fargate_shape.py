@@ -239,8 +239,8 @@ def test_default_command_is_the_nightly_invocation(container):
     assert container["command"] == [
         "sh",
         "-c",
-        "python -m pipeline_cores.run --core 14 --with-affinity --alias-search --fulltext-s3 "
-        "--llm-carry-forward --with-llm --llm-triage-candidates-only "
+        "python -m pipeline_cores.run --with-affinity --alias-search --fulltext-s3 "
+        "--llm-carry-forward --with-llm --llm-cores 14 --llm-triage-candidates-only "
         "--with-method-families --reconcile",
     ]
 
@@ -261,10 +261,13 @@ def test_the_nightly_asks_for_the_method_family_signal(command):
     assert "--with-method-families" in command
 
 
-def test_the_nightly_is_scoped_to_core_14(command):
-    """One core. Widening this rewrites nine more cores' rows every night, on cores
-    with no reviewer to catch a regression."""
-    assert "--core 14" in command
+def test_the_nightly_scores_every_core_but_keeps_the_llm_on_core_14(command):
+    """All cores since 2026-10-31 (step 6: aliases, synopses and the candidate gate
+    tuned; the cores director reviews every core). The LLM stays on the staffed core:
+    widening `--llm-cores` triages each new core's whole pool once, which is a cost
+    decision, not a side effect of this command."""
+    assert "--core " not in command
+    assert "--llm-cores 14 " in command
 
 
 def test_the_nightly_llm_is_bounded_to_new_candidates(command):

@@ -2334,6 +2334,31 @@ def test_voluntary_only_pmids_drops_papers_with_only_voluntary_wcm_authors():
     assert voluntary_only_pmids(e, {}) == set()
 
 
+def test_llm_cores_sends_only_the_listed_cores_to_bedrock(monkeypatch):
+    """Step 6: the nightly scores every core but keeps the LLM on core 14 only."""
+    from pipeline_cores.models import CoreUsageRecord
+
+    calls = {}
+
+    def fake_run_core(core, pubs, *, bedrock=None, triage_only=None, **k):
+        calls.setdefault(core.core_id, []).append(bedrock is not None)
+        return [CoreUsageRecord("1", core.core_id, 0.4, STATUS_CANDIDATE, SignalResult())]
+    run, _ = _main_stubs(monkeypatch, fake_run_core)
+    run.main(["--with-llm", "--llm-carry-forward", "--llm-triage-candidates-only",
+              "--llm-cores", "14", "--dry-run"])
+    assert calls["14"] == [False, True]                 # no-LLM pre-pass, then the LLM pass
+    assert all(v == [False] for k, v in calls.items() if k != "14")   # no pre-pass, no LLM
+    assert len(calls) == len(load_cores())
+
+
+def test_llm_cores_refuses_an_unknown_core_and_needs_with_llm(monkeypatch):
+    run, _ = _main_stubs(monkeypatch, lambda *a, **k: [])
+    with pytest.raises(SystemExit):
+        run.main(["--with-llm", "--llm-cores", "14,99", "--dry-run"])
+    with pytest.raises(SystemExit):
+        run.main(["--llm-cores", "14", "--dry-run"])
+
+
 def test_triage_candidates_only_is_refused_without_carry_forward():
     import pytest
     from pipeline_cores import run
