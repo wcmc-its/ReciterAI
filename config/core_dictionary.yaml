@@ -63,13 +63,27 @@ cores:
     facility: Citigroup Biomedical Imaging Center
     owner_cwid: null            # TBD — designate via SPS Superuser grant
     aliases:
-      - "Citigroup Biomedical Imaging Center"
-      - "Citigroup Biomedical Imaging Core Facility"
+      - "CITI Biomedical Imaging Center"
+      - "WCM Imaging Core"
+      - "Biomedical Imaging Core Facility of the Citigroup Biomedical Imaging Center at Weill Cornell Medical College"
+      - "Citigroup Biomedical Imaging Center and Imaging Core"
+      - "Weill Cornell Medical College Citigroup Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Core"
       - "Biomedical Imaging Core Facility"
-      - "CBIC"                  # acronym — matched on word boundary only
+      - "Citigroup Biomedical Imaging Center"
+      - "Biomedical Imaging Core"
+      - "Citigroup Biomedical Imaging Core Facility"
+      - "CBIC"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Citigroup Biomedical Imaging Center": 197
+      "CITI Biomedical Imaging Center": 3
+      "WCM Imaging Core": 6
+      "Biomedical Imaging Core Facility of the Citigroup Biomedical Imaging Center at Weill Cornell Medical College": 6
+      "Citigroup Biomedical Imaging Center and Imaging Core": 8
+      "Weill Cornell Medical College Citigroup Biomedical Imaging Center": 11
+      "Citigroup Biomedical Imaging Core": 14
       "Biomedical Imaging Core Facility": 62
+      "Citigroup Biomedical Imaging Center": 200
+      "Biomedical Imaging Core": 209
     staff:
       - { cwid: djb2001, name: "Douglas J. Ballon",  dept: Radiology }
       - { cwid: jpd2001, name: "Jonathan P. Dyke",   dept: Radiology }
@@ -104,13 +118,21 @@ cores:
     facility: Applied Bioinformatics Core
     owner_cwid: null
     aliases:
+      - "Applied Bioinformatics Core at Weill Cornell Medicine"
+      - "Weill Cornell Applied Bioinformatics Core"
+      - "Weill Cornell Medicine Applied Bioinformatics Core"
+      - "Weill Cornell Medicine Applied Bioinformatics"
       - "Applied Bioinformatics Core"
+      - "ABC Core"
       - "Applied Bioinformatics Core Facility"
       - "Applied Bioinformatics Core (ABC)"
-      - "Applied Bioinformatics Core at Weill Cornell Medicine"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Applied Bioinformatics Core": 88
       "Applied Bioinformatics Core at Weill Cornell Medicine": 4
+      "Weill Cornell Applied Bioinformatics Core": 4
+      "Weill Cornell Medicine Applied Bioinformatics Core": 7
+      "Weill Cornell Medicine Applied Bioinformatics": 11
+      "Applied Bioinformatics Core": 90
+      "ABC Core": 152
     staff:
       - { cwid: dob2014, name: "Doron Betel",     dept: Medicine }
       - { cwid: paz2005, name: "Paul Zumbo",      dept: "Systems and Computational Biomedicine" }
@@ -128,15 +150,53 @@ cores:
     facility: Epigenomics Core
     owner_cwid: null
     aliases:
-      - "Epigenomics Core"
-      - "Epigenomics Core Facility"
-      - "Weill Cornell Medicine Epigenomics Core"
+      - "WCM Epigenetics Core"
+      - "Weill Cornell Medicine Epigenomics and Genomics Core Facilities"
+      - "Weill Cornell Medicine Genomics and Epigenomics Core Facility"
+      - "Weill Cornell Genomics and Epigenomics Core"
+      - "Epigenomic Sequencing Core"
+      - "Weill Cornell Medical College Epigenomics Core Facility"
+      - "WCMC Epigenomics Core Facility"
+      - "WCM Epigenomics Core"
+      - "Epigenomics Core of Weill Cornell Medical College"
+      - "Epigenomics Core Facility at Weill Cornell Medical College"
+      - "Weill Cornell Medicine Epigenomics Core Facility"
+      - "Epigenomics Core Facility of Weill Cornell Medical College"
+      - "WCMC Epigenomics Core"
+      - "Weill Cornell Medical College Epigenomics Core"
       - "Epigenomics Core of Weill Cornell Medicine"
+      - "Weill Cornell Epigenomics Core Facility"
+      - "Weill Cornell Medicine Epigenomics Core"
+      - "Epigenomics Core Facility at Weill Cornell Medicine"
+      - "Epigenomics Core at Weill Cornell Medicine"
+      - "Epigenomics Core at Weill Cornell"
+      - "Weill Cornell Epigenomics Core"
+      - "Epigenomics Core Facility"
+      - "Epigenomics Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Epigenomics Core": 666
-      "Epigenomics Core Facility": 294
-      "Weill Cornell Medicine Epigenomics Core": 34
+      "WCM Epigenetics Core": 3
+      "Weill Cornell Medicine Epigenomics and Genomics Core Facilities": 3
+      "Weill Cornell Medicine Genomics and Epigenomics Core Facility": 3
+      "Weill Cornell Genomics and Epigenomics Core": 4
+      "Epigenomic Sequencing Core": 6
+      "Weill Cornell Medical College Epigenomics Core Facility": 9
+      "WCMC Epigenomics Core Facility": 9
+      "WCM Epigenomics Core": 11
+      "Epigenomics Core of Weill Cornell Medical College": 13
+      "Epigenomics Core Facility at Weill Cornell Medical College": 14
+      "Weill Cornell Medicine Epigenomics Core Facility": 14
+      "Epigenomics Core Facility of Weill Cornell Medical College": 14
+      "WCMC Epigenomics Core": 14
+      "Weill Cornell Medical College Epigenomics Core": 20
       "Epigenomics Core of Weill Cornell Medicine": 23
+      "Weill Cornell Epigenomics Core Facility": 29
+      "Weill Cornell Medicine Epigenomics Core": 36
+      "Epigenomics Core Facility at Weill Cornell Medicine": 36
+      "Epigenomics Core at Weill Cornell Medicine": 48
+      "Epigenomics Core at Weill Cornell": 66
+      "Weill Cornell Epigenomics Core": 75
+      "Epigenomics Core Facility": 299
+      "Epigenomics Core": 677
     staff:
       - { cwid: dob2014, name: "Doron Betel",      dept: Medicine }
       - { cwid: kab3004, name: "Kalpita Banerjee", dept: Ophthalmology }
@@ -154,15 +214,37 @@ cores:
     facility: Flow Cytometry Core Facility
     owner_cwid: null
     aliases:
-      - "Flow Cytometry Core Facility"
+      - "Weill Cornell FACS Facility"
+      - "Flow Cytometry Core Facility of Weill Cornell Medicine"
+      - "WCM CLC Flow Cytometry Core Facility"
+      - "Weill Cornell Medicine - HSS Flow Cytometry Core Facility"
+      - "Weill Cornell Medicine – HSS Flow Cytometry Core Facility"
+      - "Weill Cornell Medicine–HSS Flow Cytometry Core Facility"
+      - "WCM Flow Cytometry Core Facility"
       - "Flow Cytometry Core Facility, Weill Cornell Medicine"
+      - "Flow Cytometry Core Facility at Weill Cornell Medicine"
+      - "WCM Flow Cytometry Core"
+      - "Weill Cornell Medicine Flow Cytometry Core Facility"
       - "Weill Cornell Medicine Flow Cytometry Core"
+      - "Weill Cornell Flow Cytometry Core"
+      - "Flow Cytometry Core Facility"
       - "Flow Cytometry Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Flow Cytometry Core Facility": 10739
+      "Weill Cornell FACS Facility": 3
+      "Flow Cytometry Core Facility of Weill Cornell Medicine": 4
+      "WCM CLC Flow Cytometry Core Facility": 4
+      "Weill Cornell Medicine - HSS Flow Cytometry Core Facility": 7
+      "Weill Cornell Medicine \u2013 HSS Flow Cytometry Core Facility": 7
+      "Weill Cornell Medicine\u2013HSS Flow Cytometry Core Facility": 7
+      "WCM Flow Cytometry Core Facility": 10
       "Flow Cytometry Core Facility, Weill Cornell Medicine": 11
+      "Flow Cytometry Core Facility at Weill Cornell Medicine": 13
+      "WCM Flow Cytometry Core": 18
+      "Weill Cornell Medicine Flow Cytometry Core Facility": 21
       "Weill Cornell Medicine Flow Cytometry Core": 32
-      "Flow Cytometry Core": 23546
+      "Weill Cornell Flow Cytometry Core": 32
+      "Flow Cytometry Core Facility": 10919
+      "Flow Cytometry Core": 23949
     # Managers McCormick/Baumgartner + staff Byrne/Romero are NOT ReCiter target
     # persons -> no signal-2 coverage. Aliases-only until added to the target feed.
     staff: []
@@ -176,14 +258,60 @@ cores:
     facility: Genomics Resources Core Facility
     owner_cwid: null
     aliases:
-      - "Genomics Resources Core Facility"
-      - "Genomics Resources Core Facility at Weill Cornell Medicine"
+      - "Weill Cornell and Rockefeller University Genomics Core"
+      - "Weill Cornell Medicine Genomics Core Facilities"
+      - "Weill Cornell Genomics Resource Core Facility"
+      - "Weill Cornell Genomics Resource Center"
+      - "Genomic Resources Core Facility at Weill Cornell Medicine"
+      - "Genomics Resources Core Facility of the Weill Cornell Medical College"
+      - "WCM Genomics Core Facility"
+      - "Genomics core at Weill Cornell Medicine"
+      - "Genomics core facility at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Genomics Core Facility"
+      - "Genomics Resources Core Facility of Weill Cornell Medical College"
+      - "WCM Genomics Resources Core Facility"
+      - "Weill Cornell Genomics Core Facility"
+      - "Genomics Resources Core Facility at Weill Cornell Medical College"
+      - "Genomic Resources Core Facility"
+      - "Weill Cornell Medical College Genomics Resources Core Facility"
       - "Weill Cornell Medicine Genomics Resources Core Facility"
+      - "Genomics Resource Core Facility"
+      - "Weill Cornell Medicine Genomics Core"
+      - "Weill Cornell Genomics Resources Core Facility"
+      - "Genomics Resources Core Facility at Weill Cornell Medicine"
+      - "Weill Cornell Genomics Resources Core"
+      - "Weill Cornell Genomics Core"
+      - "Genomics Resources Core Facility at Weill Cornell"
+      - "Genomics Resources Core Facility"
+      - "Genomics Resources Core"
       - "GRCF"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Genomics Resources Core Facility": 366
-      "Genomics Resources Core Facility at Weill Cornell Medicine": 45
-      "Weill Cornell Medicine Genomics Resources Core Facility": 34
+      "Weill Cornell and Rockefeller University Genomics Core": 2
+      "Weill Cornell Medicine Genomics Core Facilities": 4
+      "Weill Cornell Genomics Resource Core Facility": 4
+      "Weill Cornell Genomics Resource Center": 5
+      "Genomic Resources Core Facility at Weill Cornell Medicine": 6
+      "Genomics Resources Core Facility of the Weill Cornell Medical College": 7
+      "WCM Genomics Core Facility": 11
+      "Genomics core at Weill Cornell Medicine": 15
+      "Genomics core facility at Weill Cornell Medicine": 17
+      "Weill Cornell Medicine Genomics Core Facility": 18
+      "Genomics Resources Core Facility of Weill Cornell Medical College": 18
+      "WCM Genomics Resources Core Facility": 19
+      "Weill Cornell Genomics Core Facility": 25
+      "Genomics Resources Core Facility at Weill Cornell Medical College": 30
+      "Genomic Resources Core Facility": 32
+      "Weill Cornell Medical College Genomics Resources Core Facility": 33
+      "Weill Cornell Medicine Genomics Resources Core Facility": 35
+      "Genomics Resource Core Facility": 35
+      "Genomics Resources Core Facility at Weill Cornell Medicine": 48
+      "Weill Cornell Medicine Genomics Core": 45
+      "Weill Cornell Genomics Resources Core Facility": 46
+      "Weill Cornell Genomics Resources Core": 48
+      "Weill Cornell Genomics Core": 59
+      "Genomics Resources Core Facility at Weill Cornell": 84
+      "Genomics Resources Core Facility": 372
+      "Genomics Resources Core": 470
     staff:
       - { cwid: jzx2002, name: "Jenny Xiang",         dept: "Microbiology and Immunology" }
       - { cwid: taz2008, name: "Tuo Zhang",           dept: "" }
@@ -202,10 +330,10 @@ cores:
     facility: Institutional Biorepository Core
     owner_cwid: null
     aliases:
-      - "Institutional Biorepository Core"
-      - "Weill Cornell Institutional Biorepository Core"
-      - "Institutional Biorepository Core (IBC)"
       - "WCM Institutional Biorepository Core"
+      - "Weill Cornell Institutional Biorepository Core"
+      - "Institutional Biorepository Core"
+      - "Institutional Biorepository Core (IBC)"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Institutional Biorepository Core": 6
       "Weill Cornell Institutional Biorepository Core": 2
@@ -225,16 +353,22 @@ cores:
     facility: Metabolic Phenotyping Center
     owner_cwid: null
     aliases:
-      - "Metabolic Phenotyping Center"
-      - "Metabolic Phenotyping Center (MPC)"
       - "Weill Cornell Metabolic Phenotyping Center"
       - "WCM Metabolic Phenotyping Center"
+      - "Weill Cornell Metabolic Phenotyping Core"
+      - "Weill Cornell Medicine Metabolic Phenotyping Core"
+      - "Metabolic Phenotyping Center at Weill Cornell Medicine"
       - "Metabolic Phenotyping Core"
+      - "Metabolic Phenotyping Center"
+      - "Metabolic Phenotyping Center (MPC)"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Metabolic Phenotyping Center": 1407
       "Weill Cornell Metabolic Phenotyping Center": 2
       "WCM Metabolic Phenotyping Center": 2
-      "Metabolic Phenotyping Core": 853
+      "Weill Cornell Metabolic Phenotyping Core": 2
+      "Weill Cornell Medicine Metabolic Phenotyping Core": 2
+      "Metabolic Phenotyping Center at Weill Cornell Medicine": 5
+      "Metabolic Phenotyping Core": 867
+      "Metabolic Phenotyping Center": 1416
     # Core Manager Debarba + Technician Lama are not ReCiter target persons; the
     # five faculty are an ADVISORY BOARD (own labs) and are excluded to protect
     # precision. Aliases-only until core staff are added to the target feed.
@@ -250,17 +384,23 @@ cores:
     facility: Microbiome Core
     owner_cwid: null
     aliases:
-      - "Microbiome Core"
-      - "Weill Cornell Medicine Microbiome Core"
-      - "Weill Cornell Microbiome Core"
       - "WCM Microbiome Core"
+      - "Microbiome Core Lab at Weill Cornell Medical College"
+      - "Weill Cornell Microbiome Core"
+      - "Microbiome Core Laboratory of Weill Cornell Medicine"
+      - "Microbiome Core Lab at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Microbiome Core"
       - "Microbiome Sequencing Core"
+      - "Microbiome Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Microbiome Core": 1160
-      "Weill Cornell Medicine Microbiome Core": 8
-      "Weill Cornell Microbiome Core": 4
       "WCM Microbiome Core": 2
+      "Microbiome Core Lab at Weill Cornell Medical College": 2
+      "Weill Cornell Microbiome Core": 4
+      "Microbiome Core Laboratory of Weill Cornell Medicine": 5
+      "Microbiome Core Lab at Weill Cornell Medicine": 6
+      "Weill Cornell Medicine Microbiome Core": 8
       "Microbiome Sequencing Core": 19
+      "Microbiome Core": 1193
     # Operational staff (manager Gandara, bioinformatician Grier) are not ReCiter
     # target persons. The co-founders below ARE tracked but run large independent
     # labs -> tracked: false to avoid over-confirming their non-core papers.
@@ -278,12 +418,12 @@ cores:
     facility: Human Immune Monitoring Core
     owner_cwid: null
     aliases:
-      - "Human Immune Monitoring Core"
       - "Human Immune Monitoring Core (HIMC)"
+      - "Human Immune Monitoring Core"
       - "Ellen and Gary Davis Immune Monitoring Core"
       - "Davis Cancer Immune Monitoring Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Human Immune Monitoring Core": 239
+      "Human Immune Monitoring Core": 241
       "Human Immune Monitoring Core (HIMC)": 40
     # hir4001 = mass-cytometry specialist but no resolved-author rows (upstream gap);
     # nia9069 = possible faculty director with a large own lab (over-confirm risk).
@@ -302,15 +442,47 @@ cores:
     facility: Microscopy and Image Analysis Core
     owner_cwid: null
     aliases:
-      - "Microscopy and Image Analysis Core"
-      - "Microscopy and Image Analysis Core Facility"
+      - "Weill Cornell Automated Optical Microscopy Core"
+      - "Weill Cornell Medicine Optical Microscopy Core Facility"
+      - "Weill Cornell Medicine Microscopy Core Facility"
+      - "WCM Optical Microscopy Core"
+      - "Microscopy and Image Analysis Core Facility at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Microscopy and Imaging Core Facility"
+      - "Microscopy and Image Analysis Core at Weill Cornell Medicine"
+      - "Weill Cornell Medical College optical core facility"
+      - "Weill Cornell Microscopy and Imaging Core"
+      - "WCM Microscopy and Image Analysis Core Facility"
       - "Weill Cornell Medicine Microscopy and Image Analysis Core Facility"
+      - "Weill Cornell Medicine Microscopy & Image Analysis Core Facility"
+      - "Weill Cornell Microscopy and Image Analysis Core Facility"
+      - "Weill Cornell Medicine Microscopy & Image Analysis Core"
+      - "Weill Cornell Medicine Microscopy and Image Analysis Core"
+      - "Microscopy and Image Analysis Core Facility"
+      - "Microscopy and Imaging Core Facility"
+      - "Microscopy and Image Analysis Core"
       - "Optical Microscopy Core"
+      - "Microscopy and Imaging Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Microscopy and Image Analysis Core": 290
-      "Microscopy and Image Analysis Core Facility": 79
+      "Weill Cornell Automated Optical Microscopy Core": 2
+      "Weill Cornell Medicine Optical Microscopy Core Facility": 2
+      "Weill Cornell Medicine Microscopy Core Facility": 3
+      "WCM Optical Microscopy Core": 3
+      "Microscopy and Image Analysis Core Facility at Weill Cornell Medicine": 4
+      "Weill Cornell Medicine Microscopy and Imaging Core Facility": 4
+      "Microscopy and Image Analysis Core at Weill Cornell Medicine": 4
+      "Weill Cornell Medical College optical core facility": 5
+      "Weill Cornell Microscopy and Imaging Core": 5
+      "WCM Microscopy and Image Analysis Core Facility": 6
       "Weill Cornell Medicine Microscopy and Image Analysis Core Facility": 9
-      "Optical Microscopy Core": 319
+      "Weill Cornell Medicine Microscopy & Image Analysis Core Facility": 9
+      "Weill Cornell Microscopy and Image Analysis Core Facility": 13
+      "Weill Cornell Medicine Microscopy & Image Analysis Core": 26
+      "Weill Cornell Medicine Microscopy and Image Analysis Core": 26
+      "Microscopy and Image Analysis Core Facility": 79
+      "Microscopy and Imaging Core Facility": 177
+      "Microscopy and Image Analysis Core": 291
+      "Optical Microscopy Core": 320
+      "Microscopy and Imaging Core": 690
     staff:
       - { cwid: smukherj, name: "Sushmita Mukherjee", dept: "Biochemistry and Biophysics" }
       - { cwid: har2001,  name: "Harold Ralph",       dept: Biochemistry }
@@ -328,17 +500,35 @@ cores:
     facility: Proteomics & Metabolomics Core Facility
     owner_cwid: null
     aliases:
+      - "Weill Cornell Proteomics Core"
+      - "Proteomics Resource Core Facility"
+      - "WCM Proteomics and Metabolomics Core Facility"
+      - "Weill Cornell Proteomics & Metabolomics Core Facility"
+      - "Weill Cornell Medicine Meyer Cancer Center Proteomics & Metabolomics Core Facility"
+      - "Weill Cornell Proteomics and Metabolomics Core"
+      - "Meyer Cancer Center Proteomics and Metabolomics Core Facility"
+      - "Meyer Cancer Center Proteomics & Metabolomics Core Facility"
+      - "Proteomics and Metabolomics Core Facility at Weill Cornell Medicine"
+      - "Weill Cornell Medicine Proteomics and Metabolomics Core Facility"
+      - "Weill Cornell Medicine Proteomics and Metabolomics Core"
       - "Proteomics & Metabolomics Core Facility"
       - "Proteomics and Metabolomics Core Facility"
-      - "Meyer Cancer Center Proteomics and Metabolomics Core Facility"
       - "Proteomics & Metabolomics Core"
-      - "Weill Cornell Proteomics & Metabolomics Core Facility"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Proteomics & Metabolomics Core Facility": 764
-      "Proteomics and Metabolomics Core Facility": 764
-      "Meyer Cancer Center Proteomics and Metabolomics Core Facility": 17
-      "Proteomics & Metabolomics Core": 1122
+      "Weill Cornell Proteomics Core": 2
+      "Proteomics Resource Core Facility": 6
+      "WCM Proteomics and Metabolomics Core Facility": 7
       "Weill Cornell Proteomics & Metabolomics Core Facility": 10
+      "Weill Cornell Medicine Meyer Cancer Center Proteomics & Metabolomics Core Facility": 10
+      "Weill Cornell Proteomics and Metabolomics Core": 13
+      "Meyer Cancer Center Proteomics and Metabolomics Core Facility": 17
+      "Meyer Cancer Center Proteomics & Metabolomics Core Facility": 17
+      "Proteomics and Metabolomics Core Facility at Weill Cornell Medicine": 22
+      "Weill Cornell Medicine Proteomics and Metabolomics Core Facility": 29
+      "Weill Cornell Medicine Proteomics and Metabolomics Core": 33
+      "Proteomics & Metabolomics Core Facility": 777
+      "Proteomics and Metabolomics Core Facility": 777
+      "Proteomics & Metabolomics Core": 1141
     # Director Guoan Zhang + scientists Zhu/Yang/Lei are NOT in ReCiter identity;
     # zhl4007 (Zhucui Li) is, but has no resolved-author rows -> tracked: false.
     # Aliases-only for now.
@@ -452,17 +642,17 @@ cores:
     # live vs 25 / 20 / 2 cached); all three stay in the distinctive bucket, so no
     # score moves. Refresh with --write when convenient.
     aliases:
-      - "Architecture for Research Computing"
-      - "Architecture for Research Computing in Health"
       - "WCM Research Informatics"
-      - "INSIGHT Clinical Research Network"
+      - "Architecture for Research Computing in Health"
+      - "Architecture for Research Computing"
       - "INSIGHT CRN"
+      - "INSIGHT Clinical Research Network"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Architecture for Research Computing": 25
-      "Architecture for Research Computing in Health": 20
-      "WCM Research Informatics": 2
-      "INSIGHT Clinical Research Network": 76
-      "INSIGHT CRN": 33
+      "Architecture for Research Computing": 26
+      "Architecture for Research Computing in Health": 21
+      "WCM Research Informatics": 3
+      "INSIGHT Clinical Research Network": 80
+      "INSIGHT CRN": 35
     staff:
       - { cwid: evs2008, name: "Evan Sholle",    dept: "Population Health Sciences" }
       - { cwid: thc2015, name: "Thomas Campion", dept: "Population Health Sciences" }
@@ -583,17 +773,35 @@ cores:
     # own names are deliberately NOT aliases here, or every core-11 acknowledgement
     # would also credit 17; only EM/histology-specific names are.
     aliases:
+      - "WCMC Electron Microscopy and Histology Core Facility"
+      - "Weill Cornell Electron Microscopy and Histology Core Facility"
+      - "Weill Cornell Medicine Electron Microscopy facility"
+      - "Weill Cornell Medicine Histology Core"
+      - "Weill Cornell Electron Microscopy and Histology Core"
+      - "Electron Microscopy and Histology Core Facilities"
+      - "EM Core Facility at Weill Cornell Medical College"
+      - "Electron Microscopy & Histology services"
+      - "EM & Histology Core"
+      - "Electron Microscopy and Histology Core Facility"
+      - "Electron Microscopy & Histology Core Facility"
       - "Electron Microscopy and Histology Core"
       - "Electron Microscopy & Histology Core"
-      - "Electron Microscopy and Histology Core Facility"
-      - "WCMC Electron Microscopy and Histology Core Facility"
-      - "Weill Cornell Electron Microscopy and Histology Core"
+      - "Electron Microscopy & Histology"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "WCMC Electron Microscopy and Histology Core Facility": 2
+      "Weill Cornell Electron Microscopy and Histology Core Facility": 2
+      "Weill Cornell Medicine Electron Microscopy facility": 2
+      "Weill Cornell Medicine Histology Core": 2
+      "Weill Cornell Electron Microscopy and Histology Core": 6
+      "Electron Microscopy and Histology Core Facilities": 8
+      "EM Core Facility at Weill Cornell Medical College": 12
+      "Electron Microscopy & Histology services": 16
+      "EM & Histology Core": 29
+      "Electron Microscopy and Histology Core Facility": 59
+      "Electron Microscopy & Histology Core Facility": 59
       "Electron Microscopy and Histology Core": 180
       "Electron Microscopy & Histology Core": 180
-      "Electron Microscopy and Histology Core Facility": 59
-      "WCMC Electron Microscopy and Histology Core Facility": 2
-      "Weill Cornell Electron Microscopy and Histology Core": 6
+      "Electron Microscopy & Histology": 619
     staff: []
     grant_ids: []
     llm_description: >
@@ -606,10 +814,10 @@ cores:
     facility: Human Therapeutic Organoid Core
     owner_cwid: null
     aliases:
-      - "Human Therapeutic Organoid Core"
-      - "Human Therapeutic Organoid Core Facility"
       - "Weill Cornell Medicine Human Therapeutic Organoid Core"
       - "RRID:SCR_027251"
+      - "Human Therapeutic Organoid Core Facility"
+      - "Human Therapeutic Organoid Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Human Therapeutic Organoid Core": 7
       "Human Therapeutic Organoid Core Facility": 5
@@ -627,8 +835,8 @@ cores:
     facility: Molecular Biophysics Core
     owner_cwid: null
     aliases:
-      - "Molecular Biophysics Core"
       - "Molecular Biophysics Core Facility"
+      - "Molecular Biophysics Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Molecular Biophysics Core": 25
       "Molecular Biophysics Core Facility": 10
@@ -645,19 +853,27 @@ cores:
     facility: Cryo-EM Core
     owner_cwid: null
     aliases:
-      - "Cryo-EM Core"
-      - "Cryo-EM Core Facility"
-      - "Cryo-Electron Microscopy Core"
+      - "WCM Cryo-EM Core Facility"
       - "Cryogenic Electron Microscopy Core"
       - "Weill Cornell Cryo-EM Core"
+      - "Weill Cornell Cryo-EM Core Facility"
+      - "Weill Cornell Medicine cryo-EM facility"
       - "Weill Cornell Medicine Cryo-EM Core Facility"
+      - "Cryo-EM Core Facility at Weill Cornell Medical College"
+      - "Cryo-Electron Microscopy Core"
+      - "Cryo-EM Core Facility"
+      - "Cryo-EM Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
-      "Cryo-EM Core": 409
-      "Cryo-EM Core Facility": 280
-      "Cryo-Electron Microscopy Core": 140
+      "WCM Cryo-EM Core Facility": 2
       "Cryogenic Electron Microscopy Core": 3
       "Weill Cornell Cryo-EM Core": 3
+      "Weill Cornell Cryo-EM Core Facility": 3
+      "Weill Cornell Medicine cryo-EM facility": 4
       "Weill Cornell Medicine Cryo-EM Core Facility": 8
+      "Cryo-EM Core Facility at Weill Cornell Medical College": 8
+      "Cryo-Electron Microscopy Core": 140
+      "Cryo-EM Core Facility": 280
+      "Cryo-EM Core": 409
     staff: []
     grant_ids: []
     llm_description: >
@@ -670,13 +886,15 @@ cores:
     facility: Neuro-anatomy Electron Microscopy Core
     owner_cwid: null
     aliases:
+      - "BMRI Neuroanatomy EM Core"
+      - "WCM Neuroanatomy EM Core"
       - "Neuroanatomy Electron Microscopy Core"
       - "Neuroanatomy EM Core"
-      - "BMRI Neuroanatomy EM Core"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
+      "BMRI Neuroanatomy EM Core": 1
+      "WCM Neuroanatomy EM Core": 2
       "Neuroanatomy Electron Microscopy Core": 3
       "Neuroanatomy EM Core": 16
-      "BMRI Neuroanatomy EM Core": 1
     staff: []
     grant_ids: []
     llm_description: >
