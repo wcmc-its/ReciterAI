@@ -481,6 +481,7 @@ def _write_run_record(args, *, cores, started_at: str, t_start: float,
             "limit": args.test,
             "pmids_file": args.pmids_file,
             "with_llm": args.with_llm,
+            "llm_cores": args.llm_cores,
             "llm_carry_forward": args.llm_carry_forward,
             "with_fulltext": args.with_fulltext,
             "alias_search": args.alias_search,
@@ -535,6 +536,11 @@ def main(argv=None):
                          "unscored pub in the corpus (~80k Haiku screens, #388). Costs one extra "
                          "no-LLM scoring pass. Rows it scores below threshold are still written "
                          "(below_threshold + llm_score), so they are never re-triaged")
+    ap.add_argument("--llm-cores", default=None, metavar="ID[,ID...]",
+                    help="with --with-llm: send only these cores to Bedrock; every other core "
+                         "scores without the LLM in the same run (carry-forward still keeps its "
+                         "stored scores). Lets the nightly score all cores while the LLM stays "
+                         "on the cores whose queue is staffed (default: all cores)")
     ap.add_argument("--llm-workers", type=int, default=8,
                     help="concurrent Bedrock triage workers (default 8; lower if Bedrock throttles)")
     ap.add_argument("--with-fulltext", action="store_true", help="enable PMC acknowledgement match (signal 3)")
@@ -600,6 +606,8 @@ def main(argv=None):
         # Without carry-forward every candidate is re-triaged every night; without
         # --with-llm there is nothing to narrow.
         ap.error("--llm-triage-candidates-only needs --with-llm and --llm-carry-forward")
+    if args.llm_cores is not None and not args.with_llm:
+        ap.error("--llm-cores needs --with-llm")
     if not 0.0 <= args.reconcile_max_demote_fraction <= 1.0:
         ap.error("--reconcile-max-demote-fraction must be between 0 and 1")
 
@@ -621,6 +629,11 @@ def main(argv=None):
     t_start = time.monotonic()
 
     cores = [load_core(args.core)] if args.core else load_cores()
+    if args.llm_cores is not None:
+        # A typo here would silently take a staffed core off the LLM, so refuse it.
+        unknown = {c.strip() for c in args.llm_cores.split(",") if c.strip()} - {c.core_id for c in load_cores()}
+        if unknown:
+            ap.error(f"--llm-cores names cores not in the dictionary: {sorted(unknown)}")
     # Publish every core's dictionary staff counts for SPS's review queue, which renders
     # "the co-author signal draws on N of M core staff" and has no access to
     # config/core_dictionary.yaml. Here, not in run_core: the counts are a property of
@@ -729,8 +742,10 @@ def main(argv=None):
                                           else carry_forward.get(core.core_id, {})),
                            family_index=family_index, mesh_index=mesh_index,
                            corpus_size=corpus_size)
+        llm_cores = None if args.llm_cores is None else {c.strip() for c in args.llm_cores.split(",") if c.strip()}
+        core_bedrock = bedrock if (llm_cores is None or core.core_id in llm_cores) else None
         triage_only = None
-        if args.llm_triage_candidates_only:
+        if args.llm_triage_candidates_only and core_bedrock:
             # ponytail: a whole second no-LLM pass (DB reads + combine, no Bedrock) just
             # to learn which pubs surface; cheap next to one Haiku call per corpus pub.
             pre = run_core(core, pubs, bedrock=None, **core_kwargs)
@@ -738,7 +753,7 @@ def main(argv=None):
             # the LLM is what can rank them into the queue.
             triage_only = {str(r.pmid) for r in pre
                            if r.status in SURFACED_STATUSES or _combine.affinity_alone(r.signals)}
-        recs = run_core(core, pubs, bedrock=bedrock, triage_only=triage_only, **core_kwargs)
+        recs = run_core(core, pubs, bedrock=core_bedrock, triage_only=triage_only, **core_kwargs)
         confirmed = sum(1 for r in recs if r.status == "confirmed")
         candidates = sum(1 for r in recs if r.status == "candidate")
         print(f"[{core.core_id} {core.name}] {len(recs)} pubs -> {confirmed} confirmed, {candidates} candidates")
