@@ -46,6 +46,7 @@ def load_cores(path: Path = None) -> list:
                 partner_institutions=list(
                     c.get("partner_institutions", DEFAULT_PARTNER_INSTITUTIONS) or []),
                 alias_hits={str(k): int(v) for k, v in (c.get("alias_hits") or {}).items()},
+                unique_aliases=list(c.get("unique_aliases") or []),
                 # Optional like the two above, same reason: an un-updated dictionary
                 # still runs. Coerced to str so a cwid that YAML happens to read as a
                 # number still compares against a byline, which is a list of strings —
@@ -184,6 +185,10 @@ def _validate(cores: list) -> None:
         seen.add(c.core_id)
         if not c.aliases:
             raise ValueError(f"core {c.core_id} has no aliases (signal 3 disabled)")
+        # A unique alias that is not an alias never matches: a silent no-op exemption.
+        stray = set(c.unique_aliases) - set(c.aliases)
+        if stray:
+            raise ValueError(f"core {c.core_id} unique_aliases not in aliases: {sorted(stray)}")
         # Negative s would push rates AWAY from the base rate (and can divide by ~0);
         # 0 is allowed and means "no shrinkage, the plain rate".
         if c.affinity_prior_strength is not None and c.affinity_prior_strength < 0:

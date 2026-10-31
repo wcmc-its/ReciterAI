@@ -44,6 +44,12 @@ class CoreDefinition:
     # hits, Pearson r = -0.852 between log10(hits) and the share of matches that mean OUR
     # core (100% home at 1 hit, 24% at 23,544). Empty until the refresh runs.
     alias_hits: dict = field(default_factory=dict)
+    # Aliases that are WCM-only proper names ("Citigroup Biomedical Imaging Center",
+    # "Architecture for Research Computing"). A match next to another institution still
+    # confirms on these; on every other alias it is held at candidate (combine.py).
+    # Hand-curated, absent = []: few PMC hits is NOT the same as unique (2026-10-31:
+    # "Human Immune Monitoring Core (HIMC)" is also Columbia's).
+    unique_aliases: list = field(default_factory=list)
     # Curated "known clients": CWIDs of people this core asserts are its users.
     # CWIDs ONLY — never names, and never surname-matched (511 resolved "Voss" rows
     # are the oncologist mhv9001, not CBIC's hev2006). This is the only evidence in

@@ -74,6 +74,12 @@ cores:
       - "Biomedical Imaging Core"
       - "Citigroup Biomedical Imaging Core Facility"
       - "CBIC"
+    unique_aliases:             # WCM-only names: still confirm next to another institution
+      - "CITI Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Center and Imaging Core"
+      - "Citigroup Biomedical Imaging Core"
+      - "Citigroup Biomedical Imaging Center"
+      - "Citigroup Biomedical Imaging Core Facility"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "CITI Biomedical Imaging Center": 3
       "WCM Imaging Core": 6
@@ -205,9 +211,11 @@ cores:
       - { cwid: ala2035, name: "Alicia Alonso",    dept: Medicine }
     grant_ids: []
     llm_description: >
-      epigenomics + bioinformatics core: DNA methylation (RRBS/WGBS/EMSeq),
-      ATAC-seq, single-cell and spatial transcriptomics (Visium HD, CosMx, Xenium),
-      immune profiling; Illumina NovaSeq 6000 / MiSeq plus downstream analysis
+      epigenomic and spatial/single-cell genomics: DNA methylation profiling (RRBS,
+      whole-genome bisulfite, EM-seq), chromatin accessibility and binding (ATAC-seq,
+      ChIP-seq, CUT&RUN), single-cell RNA-seq and immune repertoire profiling, and
+      spatial transcriptomics (Visium HD, Xenium, CosMx). Routine bulk RNA-seq and
+      DNA-seq belong to the Genomics Resources Core instead
 
   - core_id: "4"
     name: Flow Cytometry
@@ -488,10 +496,11 @@ cores:
       - { cwid: lcgould,  name: "Leona Cohen-Gould",  dept: "Cell and Developmental Biology" }
     grant_ids: []
     llm_description: >
-      optical (widefield/confocal/multiphoton), light-sheet, high-content/automated,
-      and electron microscopy plus histology and image analysis; Incucyte SX5,
-      Zeiss AxioObserver 7 / AxioScan 7, Ultramicroscope II, Leica Stellaris 8,
-      Acquifer HIVE; MetaMorph/MetaXpress, Imaris, Fiji/ImageJ
+      light microscopy and image analysis: widefield, confocal, multiphoton,
+      super-resolution and light-sheet fluorescence imaging, live-cell and time-lapse
+      imaging (Incucyte), automated high-content screening and whole-slide scanning,
+      with quantitative image analysis (Imaris, Fiji, MetaXpress). Electron microscopy
+      and histology are the separate Electron Microscopy and Histology core
 
   - core_id: "13"
     name: Proteomics and Metabolomics
@@ -534,9 +543,11 @@ cores:
       - { cwid: zhl4007, name: "Zhucui Li", dept: "Biochemistry and Biophysics" }
     grant_ids: []
     llm_description: >
-      MS-based proteomics and metabolomics: protein ID, label-free / SILAC / TMT
-      quantitation, PTM analysis (phospho, ubiquitin, acetyl), immunopeptidomics,
-      and targeted/untargeted metabolite profiling with 13C stable-isotope tracing
+      mass spectrometry: proteomics (protein identification, label-free/SILAC/TMT
+      quantitation, phospho/ubiquitin/acetyl PTM mapping, interactome and
+      immunopeptidome profiling) and metabolomics/lipidomics (targeted and untargeted
+      metabolite profiling, 13C stable-isotope tracing, bile acids). Papers whose
+      results rest on LC-MS measurement of proteins or metabolites
 
   # ---------------------------------------------------------------------------
   # 14th core, added 2026-08-14. Not a bench/instrument core like 1-13 — a
@@ -645,6 +656,11 @@ cores:
       - "Architecture for Research Computing"
       - "INSIGHT CRN"
       - "INSIGHT Clinical Research Network"
+    unique_aliases:             # WCM-only names: still confirm next to another institution
+      - "Architecture for Research Computing in Health"
+      - "Architecture for Research Computing"
+      - "INSIGHT CRN"
+      - "INSIGHT Clinical Research Network"
     alias_hits:                 # global PMC hits per alias (refresh_alias_hits)
       "Architecture for Research Computing": 26
       "Architecture for Research Computing in Health": 21
@@ -717,10 +733,11 @@ cores:
     #   python3 scripts/measure_calibration.py analyze --inputs inputs.json
     affinity_min_confirms: 3
     llm_description: >
-      research informatics service core: EHR-based reporting and clinical data
-      extraction, clinical trial support, secure environments for analysis of
-      research data sets, and access to high-performance/scientific computing
-      resources for the research enterprise
+      clinical research informatics: secure access to electronic health record (EHR)
+      data for retrospective cohorts, clinical data warehouse and cohort discovery,
+      chart abstraction and NLP of clinical notes, the INSIGHT clinical research
+      network, research data capture (REDCap/eCRF) and EHR-embedded interventions.
+      Typical papers analyze large patient cohorts from EHR data
     # A2 METHOD FAMILIES, tiered by MEASURED LIFT, 2026-09-05. Positives = the 94 of
     # core 14's 240 surfaced (confirmed/claimed/candidate) rows that are in the A2
     # corpus; background = the 5,354 A2-corpus PMIDs with no core-14 row. Every weight
@@ -801,9 +818,11 @@ cores:
     staff: []
     grant_ids: []
     llm_description: >
-      transmission electron microscopy (JEOL JEM 1400) and histology: EM sample
-      preparation, ultrathin sectioning, negative staining, paraffin and frozen
-      sectioning, and H&E staining
+      electron microscopy and histology: transmission electron microscopy of cells and
+      tissues (ultrastructure, organelles, negative staining of particles or vesicles),
+      EM sample fixation, embedding and ultrathin sectioning, plus routine histology
+      (paraffin and frozen sectioning, H&E). Single-particle cryo-EM is the Cryo-EM
+      core; brain immuno-EM is the Neuroanatomy EM core
 
   - core_id: "18"
     name: Human Therapeutic Organoid
@@ -822,9 +841,10 @@ cores:
     staff: []
     grant_ids: []
     llm_description: >
-      human organoid technology: hPSC culture and differentiation, hPSC-derived
-      pancreatic islet organoids (sc-islets), patient-derived gut organoids from
-      biopsy or autopsy tissue, organoid banking and QC
+      human organoid technology: human pluripotent stem cell (hPSC) culture and directed
+      differentiation, hPSC-derived pancreatic islet (sc-islet) organoids,
+      patient-derived intestinal/colon organoids from biopsy or autopsy tissue, organoid
+      banking and QC, used for disease modeling, infection or drug screening
 
   - core_id: "19"
     name: Molecular Biophysics
@@ -894,6 +914,7 @@ cores:
     staff: []
     grant_ids: []
     llm_description: >
-      brain tissue light and electron microscopic immunocytochemistry: perfusion
-      fixation, vibratome sectioning, single and dual-label immuno-EM,
-      ultramicrotomy, TEM (Hitachi HT7800), MCID image analysis
+      neuroanatomical electron microscopy: light and electron microscopic
+      immunocytochemistry of brain tissue from perfusion-fixed animals, single and
+      dual-label immunogold/immunoperoxidase EM, synaptic and subcellular localization
+      of receptors and proteins in neurons and glia, ultrastructural quantification
