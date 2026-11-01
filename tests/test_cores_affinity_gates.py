@@ -733,3 +733,24 @@ def test_batch_screen_soft_threshold_never_changes_whether_the_prior_fires(monke
     core = dataclasses.replace(load_core("2"), affinity_soft_threshold=(4.0, 8.0))
     _confirmed, author = batch_screen._prior_signals(core, ["A"], bylines, None)
     assert author == {"A"}
+
+
+def test_an_ack_confirmed_paper_still_records_its_repeat_user_evidence(monkeypatch):
+    """Phase 2 used to skip phase-1 confirmations, so the queue's "Repeat user" read 0
+    on every ack-confirmed paper. The affinity is recorded; the status is not touched."""
+    from pipeline_cores import run
+    from pipeline_cores.dictionary import load_core
+
+    core = load_core("2")
+    pubs = [{"pmid": "950", "title": "t", "abstract": "", "year": 2022}]
+    monkeypatch.setattr(signals, "coauthorship_index", lambda *a, **k: {})
+    monkeypatch.setattr(ingest, "fetch_author_bylines", lambda e, p: {"950": ["rep0001"]})
+    monkeypatch.setattr(ingest, "fetch_pub_years", lambda e, p: {str(x): 2022 for x in p})
+    monkeypatch.setattr(ingest, "fetch_author_tenure", lambda e, c: {})
+    monkeypatch.setattr(ingest, "fetch_author_totals", lambda e, c=None: {"rep0001": {2022: 4}})
+    text = "We thank the Citigroup Biomedical Imaging Center at Weill Cornell Medicine."
+    (rec,) = run.run_core(core, pubs, bedrock=None, threshold=0.30, scored_at="t",
+                          engine=object(), dry_run=True, full_text=lambda _p: text,
+                          prior_user_pmids={"rep0001": {"2": {"1", "2", "3"}}})
+    assert rec.status == STATUS_CONFIRMED
+    assert rec.signals.author_affinity > 0

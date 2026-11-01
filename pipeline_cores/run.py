@@ -325,15 +325,17 @@ def run_core(core, pubs, *, bedrock=None, full_text=None, threshold, scored_at,
 
     out = []
     for rec in records:
-        if rec.status == STATUS_CONFIRMED:
-            out.append(rec)
-            continue
         sig = sigs[rec.pmid]
         sig.author_affinity = signals.author_affinity(affinity_index, bylines.get(rec.pmid, []),
                                                       core.core_id, pub_years.get(rec.pmid),
                                                       pmid=rec.pmid)
-        out.append(_combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
-                                    core=core, triage_threshold=threshold))
+        new = _combine.combine(rec.pmid, core.core_id, sig, scored_at=scored_at,
+                               core=core, triage_threshold=threshold)
+        # A phase-1 confirmation also records its repeat-user evidence (the queue's
+        # "Repeat user" count read 0 on every ack-confirmed paper), but affinity is
+        # evidence here, never the decider: the status phase 1 gave it stands.
+        out.append(rec if rec.status == STATUS_CONFIRMED and new.status != STATUS_CONFIRMED
+                   else new)
     return out
 
 

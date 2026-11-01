@@ -240,7 +240,7 @@ def test_default_command_is_the_nightly_invocation(container):
         "sh",
         "-c",
         "python -m pipeline_cores.run --with-affinity --alias-search --fulltext-s3 "
-        "--llm-carry-forward --with-llm --llm-cores 14 --llm-triage-candidates-only "
+        "--llm-carry-forward --with-llm --llm-triage-candidates-only "
         "--with-method-families --reconcile",
     ]
 
@@ -261,13 +261,13 @@ def test_the_nightly_asks_for_the_method_family_signal(command):
     assert "--with-method-families" in command
 
 
-def test_the_nightly_scores_every_core_but_keeps_the_llm_on_core_14(command):
-    """All cores since 2026-10-31 (step 6: aliases, synopses and the candidate gate
-    tuned; the cores director reviews every core). The LLM stays on the staffed core:
-    widening `--llm-cores` triages each new core's whole pool once, which is a cost
-    decision, not a side effect of this command."""
+def test_the_nightly_scores_and_triages_every_core(command):
+    """All cores since 2026-10-31; the LLM on all of them since 2026-11-01 (Paul's
+    cost OK). Repeat-user likelihood is flat, so the LLM is the only thing that
+    ranks a core's affinity-alone pool into its queue. The first night triages each
+    core's whole pool once; carry-forward keeps every night after to new pubs."""
     assert "--core " not in command
-    assert "--llm-cores 14 " in command
+    assert "--llm-cores" not in command
 
 
 def test_the_nightly_llm_is_bounded_to_new_candidates(command):
