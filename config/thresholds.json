@@ -21,7 +21,7 @@
   "pool_top_papers_per_subtopic": 7,
   "retry_sweep_max_pmids": 100,
   "retry_sweep_quarantine_after": 3,
-  "retry_sweep_min_age_days": 7,
+  "retry_sweep_min_age_days": 6,
   "eligibility_sweep_enabled": true,
   "eligibility_sweep_max_pmids": 200,
   "drift_sweep_enabled": true,

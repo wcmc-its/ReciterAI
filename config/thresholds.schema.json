@@ -174,7 +174,7 @@
     "retry_sweep_min_age_days": {
       "type": "integer",
       "minimum": 1,
-      "description": "A failed PROCESSING# row must be at least this many days old before the retry sweep picks it up, so the normal pipeline has a chance to settle before a forced retry."
+      "description": "A failed PROCESSING# row must be at least this many days old before the retry sweep picks it up, so the normal pipeline has a chance to settle before a forced retry. Keep it BELOW the weekly hot-run cadence: failures are stamped minutes after a run starts, so at 7 days they are a few minutes too young at the next run and wait two weeks."
     },
     "onboarding_cost_guard_max_pmids": {
       "type": "integer",
