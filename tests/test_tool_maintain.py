@@ -259,12 +259,37 @@ class FakeS3:
         return key in self.objects
 
 
-class FakeTable:
+class ConditionalCheckFailedException(Exception):
     def __init__(self):
-        self.items = []
+        super().__init__("conditional check failed")
+        self.response = {"Error": {"Code": "ConditionalCheckFailedException"}}
 
-    def put_item(self, Item):
+
+class FakeTable:
+    """Ledger table stub. RUN# rows land in ``items``; the run lock (SK LOCK) is kept apart
+    in ``lock`` and its conditional put/update is emulated."""
+
+    def __init__(self, *, now=None):
+        self.items, self.lock, self.lock_puts = [], None, 0
+        self.fail_put = False
+
+    def put_item(self, Item, ConditionExpression=None, ExpressionAttributeValues=None):
+        if Item.get("SK") == mt.LOCK_SK:
+            self.lock_puts += 1
+            cur, v = self.lock, ExpressionAttributeValues or {}
+            if cur is not None and not cur.get("released") and cur["expires_at_epoch"] >= v.get(":now", 0):
+                raise ConditionalCheckFailedException()
+            self.lock = dict(Item)
+            return
+        if self.fail_put:
+            raise RuntimeError("ddb throttle")
         self.items.append(Item)
+
+    def update_item(self, Key, UpdateExpression, ConditionExpression, ExpressionAttributeValues):
+        assert Key == {"PK": mt.STAGE_PK, "SK": mt.LOCK_SK}
+        if self.lock is None or self.lock["run_id"] != ExpressionAttributeValues[":r"]:
+            raise ConditionalCheckFailedException()
+        self.lock["released"] = True
 
 
 class Alerts:
@@ -695,3 +720,176 @@ def test_stage_row_shape():
     assert row["PK"] == "STAGE#tools_maintain#GLOBAL" and row["SK"] == f"RUN#{STARTED}"
     assert row["cost_observed_usd"] == Decimal("1.2346") and row["new_tool_count"] == 1
     assert isinstance(row["duration_ms"], int)
+
+
+# --- review findings: seed persistence, lock, publish ordering, alerts ---------
+
+
+def _seedable_env(tmp_path):
+    """State without incorporated_pmids whose checkpoint matches provenance.raw_mentions (9)."""
+    lines = BASE_LINES + [_ckpt_line("106", [_m("RNA-seq", "106"), _m("RNA-seq", "106")])]
+    return Env(tmp_path, incorporated=None, ckpt_lines=lines,
+               corpus=_corpus(BASE_PMIDS + ["106", "201", "202"]))
+
+
+def test_seed_is_persisted_before_extraction_so_a_dry_run_cannot_lock_out_publish(tmp_path):
+    env = _seedable_env(tmp_path)
+    res = env.run(publish=False, seed_incorporated_from_checkpoint=True)
+    assert res.status == "dry_run"
+    assert len(env.ckpt_store.lines) > 6                          # the dry run grew the checkpoint
+    seeded = st.load_state(env.store)
+    assert env.latest_version() == f"{mt._run_id(STARTED)}-seed" and seeded.parent_version == "v0"
+    assert set(seeded.incorporated_pmids) == set(BASE_PMIDS + ["106"])
+    assert seeded.baseline_manifest == st.load_state(env.store, "v0").baseline_manifest
+    # the README step-7 command (seed flag still passed) now works, and so does the weekly one
+    res2 = env.run(publish=True, seed_incorporated_from_checkpoint=True, started_at="2026-11-18T03:30:00Z")
+    assert res2.status == "complete" and res2.published
+    assert {"201", "202"} <= set(st.load_state(env.store).incorporated_pmids)
+
+
+def test_seed_is_persisted_on_a_skipped_publish(tmp_path):
+    env = _seedable_env(tmp_path)
+    env.corpus = _corpus(BASE_PMIDS + ["106"])
+    res = env.run(publish=True, seed_incorporated_from_checkpoint=True)
+    assert res.status == "skipped"
+    assert st.load_state(env.store).incorporated_pmids is not None
+    res2 = env.run(publish=True, started_at="2026-11-24T03:30:00Z")   # no seed flag needed
+    assert res2.status == "skipped"
+
+
+def test_preflight_does_not_persist_the_seed(tmp_path):
+    env = _seedable_env(tmp_path)
+    env.run(publish=False, preflight_only=True, seed_incorporated_from_checkpoint=True)
+    assert env.latest_version() == "v0"
+
+
+def test_run_lock_blocks_a_concurrent_run_and_is_released(tmp_path):
+    env = Env(tmp_path)
+    mt.acquire_lock(env.table, "other-run")
+    with pytest.raises(mt.LockHeldError):
+        env.run(publish=True)
+    assert env.s3.puts == [] and env.table.items == []           # no row that could clobber the holder's
+    assert env.alerts.sent[-1][0] == "WARN"
+    assert env.extractor.calls == []
+    mt.release_lock(env.table, "other-run")
+    res = env.run(publish=True)
+    assert res.status == "complete"
+    assert env.table.lock["released"] is True and env.table.lock["run_id"] == mt._run_id(STARTED)
+
+
+def test_expired_lock_is_taken_over(tmp_path):
+    env = Env(tmp_path)
+    mt.acquire_lock(env.table, "dead-run", now=0)                 # lease long expired
+    assert env.run(publish=True).status == "complete"
+
+
+def test_lock_released_after_a_failed_run(tmp_path, monkeypatch):
+    env = Env(tmp_path)
+    monkeypatch.setattr(mt, "run_guards", lambda live, items, delta: ["boom"])
+    with pytest.raises(mt.GuardError):
+        env.run(publish=True)
+    assert env.table.lock["released"] is True
+
+
+def test_live_changed_during_run_aborts_before_upload(tmp_path):
+    env = Env(tmp_path)
+    reads = {"n": 0}
+    changed = dict(env.live)
+    man = json.loads(changed["manifest.json"])
+    man["generated_at"] = "2026-11-17T04:00:00Z"
+    changed["manifest.json"] = json.dumps(man).encode()
+
+    def read_live():
+        reads["n"] += 1
+        return dict(env.live) if reads["n"] == 1 else changed
+
+    seams = env.seams()
+    seams.read_live = read_live
+    with pytest.raises(mt.MaintainError, match="changed during this run"):
+        mt.run(mt.Config(publish=True, force_c_terms=[], generic_terms=[], alias_map=False), seams,
+               started_at=STARTED)
+    assert not any(k.startswith("tools/latest/") for k in env.s3.puts)
+    assert env.latest_version() == "v0"
+    assert env.alerts.sent[-1][1] == "Tools maintain run failed (nothing published)"
+    assert env.table.items[-1]["published"] is False
+
+
+def test_pointer_flip_failure_after_upload_is_adopted_next_run(tmp_path, monkeypatch):
+    env = Env(tmp_path)
+    real = st.set_latest
+
+    def boom(*a, **k):
+        raise RuntimeError("s3 throttle")
+
+    monkeypatch.setattr(st, "set_latest", boom)
+    with pytest.raises(RuntimeError):
+        env.run(publish=True)
+    run_id = mt._run_id(STARTED)
+    assert env.latest_version() == "v0"                            # pointer did not move
+    assert st.read_pending(env.store)["version"] == run_id
+    assert "AFTER publishing" in env.alerts.sent[-1][1]
+    row = env.table.items[-1]
+    assert row["status"] == "failed" and row["published"] is True
+    monkeypatch.setattr(st, "set_latest", real)
+    env.live = {n: env.s3.objects[f"tools/latest/{n}"] for n in st.ARTIFACT_NAMES + ("manifest.json",)}
+    res = env.run(publish=True, started_at="2026-11-24T03:30:00Z")
+    assert res.status == "skipped"                                 # adopted, nothing new to fold in
+    assert env.latest_version() == run_id and st.read_pending(env.store) is None
+
+
+def test_unrelated_live_drift_is_not_adopted(tmp_path):
+    env = Env(tmp_path)
+    st.write_pending(env.store, "nope", parent_version="some-other-version", created_at=STARTED)
+    live = dict(env.live)
+    body = json.loads(live["tools.json"])
+    body["telemetry"]["x"] = 1
+    live["tools.json"] = json.dumps(body).encode()
+    man = json.loads(live["manifest.json"])
+    man["objects"]["tools.json"]["sha256"] = hashlib.sha256(live["tools.json"]).hexdigest()
+    live["manifest.json"] = json.dumps(man).encode()
+    env.live = live
+    with pytest.raises(mt.MaintainError, match="no longer matches state"):
+        env.run(publish=True)
+
+
+def test_review_put_failure_after_publish_reports_published(tmp_path):
+    env = Env(tmp_path)
+    real_put = env.s3.put_object
+
+    def put(key, body, content_type=None, cache_control=None):
+        if key.startswith("tools/_review/"):
+            raise RuntimeError("s3 503")
+        real_put(key, body, content_type, cache_control)
+
+    env.s3.put_object = put
+    with pytest.raises(RuntimeError):
+        env.run(publish=True)
+    assert env.latest_version() == mt._run_id(STARTED)             # state moved with live
+    assert "AFTER publishing" in env.alerts.sent[-1][1]
+    assert env.table.items[-1]["published"] is True
+
+
+def test_ledger_rows_carry_records_written_and_split_cost(tmp_path):
+    env = Env(tmp_path)
+    env.run(publish=True)
+    [row] = env.table.items
+    assert row["records_written"] == 2 == row["new_pmid_count"]
+    assert row["cost_estimated_classify_usd"] > 0
+    assert row["cost_observed_usd"] < Decimal(1)                   # extraction only (stub tokens)
+
+
+def test_extraction_failures_raise_a_warn_card(tmp_path):
+    class Down:
+        def __call__(self, system, user):
+            raise RuntimeError("401 bearer token expired")
+
+    env = Env(tmp_path, extractor=Down())
+    res = env.run(publish=True)
+    assert res.status == "skipped"
+    assert any(sev == "WARN" and "extraction failed for 2/2" in title for sev, title, _ in env.alerts.sent)
+
+
+def test_live_dir_with_publish_is_rejected():
+    with pytest.raises(SystemExit) as e:
+        mt.main(["--publish", "--live-dir", "/nonexistent"])
+    assert e.value.code == 2

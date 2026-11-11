@@ -69,6 +69,10 @@ logger = logging.getLogger(__name__)
 STATE_SCHEMA_VERSION = "tools-state-v1"
 STATE_S3_PREFIX = "tools/_state/"
 LATEST_POINTER = "latest.json"
+# A state version saved (set_latest=False) BEFORE its artifact upload; cleared once the
+# upload lands and ``latest.json`` moves. Lets the next run adopt that version when the
+# upload landed but the pointer flip did not (maintain._adopt_pending).
+PENDING_POINTER = "pending.json"
 STATE_MANIFEST = "state_manifest.json"
 
 # The publish set (manifest.json aside), in publish order.
@@ -646,6 +650,28 @@ def save_state(store, state: ToolsState, version: str, *, created_at: str,
             indent=2).encode("utf-8"))
     state.version = version
     return manifest
+
+
+def set_latest(store, version: str, *, updated_at: str) -> None:
+    """Point ``latest.json`` at an already-saved ``version`` (its state_manifest must exist)."""
+    mbytes = store.read(f"{version}/{STATE_MANIFEST}")
+    store.write(LATEST_POINTER, json.dumps(
+        {"version": version, "state_manifest_sha256": _sha(mbytes), "updated_at": updated_at},
+        indent=2).encode("utf-8"))
+
+
+def write_pending(store, version: str | None, *, parent_version: str | None, created_at: str) -> None:
+    """Record (or, with ``version=None``, clear) the version whose upload is in flight."""
+    store.write(PENDING_POINTER, json.dumps(
+        {"version": version, "parent_version": parent_version, "created_at": created_at},
+        indent=2).encode("utf-8"))
+
+
+def read_pending(store) -> dict | None:
+    if not store.exists(PENDING_POINTER):
+        return None
+    p = json.loads(store.read(PENDING_POINTER))
+    return p if p.get("version") else None
 
 
 def resolve_latest(store) -> str:

@@ -714,7 +714,10 @@ is why the rule stays DISABLED until the seeded publish run has succeeded.
    Titan and the OpenAI fallback, and writes `maintain_report.json`/`review.json`
    only inside the container. It does spend, and it rewrites the S3 checkpoint;
    that is intended, since the publish run then does not pay for those PMIDs
-   again.
+   again. Because the checkpoint grows, this run first saves the seeded state
+   as `tools/_state/<run>-seed/` and moves `latest.json` to it (same artifact
+   baseline, so the sync check still passes); after that the seed check is
+   never needed again and step 7's seed flag is a harmless no-op.
 7. **Manual catch-up `--publish` run with an explicit cap.** The checkpoint
    predates months of new publications, so the first run's backlog is far larger
    than a weekly delta. Set the cap deliberately from step 6's estimate instead
@@ -729,8 +732,10 @@ is why the rule stays DISABLED until the seeded publish run has succeeded.
    now has `incorporated_pmids`) until `to_extract` is small. Check after each
    run:
    - the `STAGE#tools_maintain#GLOBAL` row: `status=complete`, no
-     `failure_details`, `cost_observed_usd` within the cap, and
-     `halted_on_cost_cap` (true means rerun);
+     `failure_details`, `cost_observed_usd` (measured extraction spend) plus
+     `cost_estimated_classify_usd` (an estimate: the classify seam reports no
+     usage) within the cap, and `halted_on_cost_cap` (true means rerun; a WARN
+     card says so too);
    - `tools/latest/manifest.json` moved and carries `run_started_at`;
    - `tools/_state/latest.json` points at the new state version;
    - the review queue in `tools/_review/<run>.json` and its Teams card;
@@ -739,9 +744,19 @@ is why the rule stays DISABLED until the seeded publish run has succeeded.
 
    This is the first run that writes `tools/latest/`, `tools/versions/`,
    `tools/_state/` and the ledger under the task role, so it is the real test of
-   `s3:PutObject` and `dynamodb:PutItem`. A `failed` row with guard failures
-   means nothing was published; read the failures before rerunning.
-8. **Enable the rule.** Flip `state` to `ENABLED` for `reciterai-tools-weekly` in
+   `s3:PutObject` and `dynamodb:PutItem`/`UpdateItem` (the run lock). A
+   `failed` row carries `published` and `upload_started`; with both false
+   nothing was published. Read the failures before rerunning.
+8. **Apply the failure alarm (required, out-of-band like the grants one).** The
+   Teams cards cover failures the Python handler sees; they cannot see a
+   container that dies before or outside it. Apply the grants recipe above with
+   `--log-group-name /ecs/reciterai-tools`, filter name
+   `reciterai-tools-errors`, pattern `'?ERROR ?Traceback'`, metric
+   `ToolsMaintainErrors` and alarm `reciterai-tools-maintain-errors`
+   (`--period 86400`). An OOM kill or an ECS stop writes no log line at all,
+   so it is caught only by the `STAGE#` row going stale; check it after each
+   of the first weekly runs.
+9. **Enable the rule.** Flip `state` to `ENABLED` for `reciterai-tools-weekly` in
    `eventbridge.json` and run `scripts/deploy_cron.sh --rule reciterai-tools-weekly`
    (`--dry-run` first; same env vars as the other ECS rules). Do not use
    `aws events enable-rule`: the next full `deploy_cron.sh` run would re-apply
@@ -751,21 +766,33 @@ is why the rule stays DISABLED until the seeded publish run has succeeded.
 
 ### Gotchas
 
-- **A dry run that extracts still writes to S3.** It rewrites the checkpoint.
-  `--preflight-only` and `--no-extract` are the only no-write modes.
-- **State save after upload can fail.** If the publish succeeded but the state
-  write did not, the next run fails closed on the state/live sync check, and a
-  new state has to be reconciled by hand (`cli/tools_state_reconcile.py`
-  against the new live copy).
+- **A dry run that extracts still writes to S3.** It rewrites the checkpoint,
+  and on a seeding run it saves the `<run>-seed` state version.
+  `--preflight-only` and `--no-extract` (without the seed flag) are the only
+  no-write modes.
+- **Publish order is state, re-check, upload, pointer.** The new state version
+  is saved with the pointer unmoved and recorded in `tools/_state/pending.json`;
+  live's manifest is re-read and must be unchanged since the run started; then
+  the upload; then `latest.json` moves. If the run dies between the upload and
+  the pointer flip, the next run sees live match the pending version and adopts
+  it. A run that dies mid-upload leaves `tools/latest/` partial (the manifest
+  is written last, so the per-object sha check refuses every later run); the
+  intended objects are in `tools/versions/<run>/`, so re-copy them to
+  `tools/latest/` (manifest last) and the next run adopts the pending state.
+- **One run at a time.** A `--publish` run takes a conditional lock item
+  (`SK=LOCK` in the ledger partition, 24h lease) and releases it at the end. An
+  overlapping run (EventBridge at-least-once, or a manual run during the
+  Tuesday tick) exits with a WARN card and writes no row. A run killed hard
+  leaves the lock until the lease expires. Dry runs take no lock.
+- **`--live-dir` is dry-run only.** It is rejected with `--publish`.
 - **Held tools have no promotion path yet.** They stay in the state registry
   with a `review_hold` record and are re-listed in each run's review file.
 - **Do not run `build_tool_taxonomy_corpus` / `form_families` against
   `tools/latest/` while this rule is enabled.** They still re-mint family ids
   (ReciterAI#308 item 4); maintain never calls them, and its family_id guard
   would refuse the next publish anyway.
-- **No Fargate task timeout.** A hung run runs until stopped. Add a metric
-  filter on `/ecs/reciterai-tools` like the grants/cores alarms if the Teams card
-  ever proves insufficient.
+- **No Fargate task timeout.** A hung run runs until stopped and holds the lock
+  for up to 24h. The step-8 alarm does not fire on a hang.
 
 ## D-10 migration trigger — when to adopt CDK
 

@@ -34,12 +34,16 @@ One run:
      (``salience_thresholds``). The faculty rollup is updated incrementally (new pmids
      appended to the touched rows), never recomputed, for the same reason.
   8. Guards (all fail-closed, :func:`run_guards`), then publish (``--publish``; dry-run by
-     default): versioned copies under ``tools/versions/<run>/`` first, then the flat and
-     ``latest/`` objects, ``latest/manifest.json`` last. The manifest gains
-     ``run_started_at``. A new state version (+ ``latest.json`` pointer) is written only
-     after the publish succeeds.
+     default, and only one publish run at a time: a conditional DynamoDB lock item). The
+     new state version is saved first with the pointer unmoved (``pending.json``), live's
+     manifest is re-read and must be unchanged since step 1, then the upload: versioned
+     copies under ``tools/versions/<run>/`` first, then the flat and ``latest/`` objects,
+     ``latest/manifest.json`` last (it gains ``run_started_at``). Only then does
+     ``latest.json`` move. A run that dies between upload and pointer flip is adopted by
+     the next run (:func:`_adopt_pending`). A first run's seeded ``incorporated_pmids`` is
+     saved as ``<run>-seed`` before any extraction grows the checkpoint.
   9. Ledger: a ``STAGE#tools_maintain#GLOBAL`` row (complete | skipped | failed), shaped
-     like the onboarding detector's, written on publish runs (a dry run writes nothing).
+     like the onboarding detector's, written on publish runs (a dry run writes no row).
 
 Carried verbatim on purpose (Phase 0 findings): ``hierarchy`` (the live one is a 06-13
 review tree that the current builder no longer reproduces), ``telemetry``,
@@ -81,6 +85,13 @@ STAGE = "tools_maintain"
 SCOPE = "GLOBAL"
 STAGE_PK = f"STAGE#{STAGE}#{SCOPE}"
 RECORD_TYPE = "TOOLS_MAINTAIN_RUN"
+# Run lock: one item in the ledger partition (the task role's LeadingKeys pin covers it).
+# The SPS producer-run mirror only reads SKs shaped RUN#..., so this row is invisible to it.
+LOCK_SK = "LOCK"
+LOCK_RECORD_TYPE = "TOOLS_MAINTAIN_LOCK"
+LOCK_LEASE_S = 24 * 3600     # a crashed run's lock expires after this; no Fargate timeout exists
+# WARN card when this share of the PMIDs attempted this run failed extraction (auth/outage).
+EXTRACT_FAIL_WARN_SHARE = 0.5
 
 REVIEW_PREFIX = f"{S3_PREFIX}_review/"
 VERSIONS_PREFIX = f"{S3_PREFIX}versions/"
@@ -117,6 +128,10 @@ class GuardError(MaintainError):
         head = "; ".join(failures[:5])
         super().__init__(f"{len(failures)} publish guard failure(s): {head}"
                          f"{' ...' if len(failures) > 5 else ''}")
+
+
+class LockHeldError(MaintainError):
+    """Another maintain run holds the run lock; this one did nothing."""
 
 
 def _sha(b: bytes) -> str:
@@ -971,6 +986,17 @@ def diff_report(live_raw: dict[str, bytes], items: list[PublishItem], delta: Del
 # ---------------------------------------------------------------------------
 
 
+def _extraction_warning(tel: dict, halted: bool, cap: Decimal) -> str | None:
+    """A WARN-card title when extraction degraded silently, else None."""
+    attempted = int(tel.get("n_done", 0) or 0) + int(tel.get("n_failed", 0) or 0)
+    failed = int(tel.get("n_failed", 0) or 0)
+    if attempted and failed / attempted >= EXTRACT_FAIL_WARN_SHARE:
+        return f"Tools maintain: extraction failed for {failed}/{attempted} PMIDs (LLM auth or outage?)"
+    if halted:
+        return f"Tools maintain: extraction halted on the ${cap} cost cap; the backlog carries to next run"
+    return None
+
+
 def upload(items: list[PublishItem], *, s3, run_id: str) -> list[str]:
     """Versioned copies first (``tools/versions/<run>/``), then the publish set in
     ``build_publish_items`` order (``latest/manifest.json`` last, so a consumer polling the
@@ -985,6 +1011,45 @@ def upload(items: list[PublishItem], *, s3, run_id: str) -> list[str]:
         s3.put_object(it.key, it.body, content_type="application/json", cache_control=it.cache_control)
         keys.append(it.key)
     return keys
+
+
+def _is_conditional_failure(exc: Exception) -> bool:
+    code = (getattr(exc, "response", None) or {}).get("Error", {}).get("Code")
+    return code == "ConditionalCheckFailedException" or type(exc).__name__ == "ConditionalCheckFailedException"
+
+
+def acquire_lock(table, run_id: str, *, now: int | None = None) -> None:
+    """Conditional put of the run lock; raises :class:`LockHeldError` while another
+    unexpired, unreleased lock exists (EventBridge is at-least-once, and a manual catch-up
+    can overlap the weekly tick)."""
+    import time
+
+    now = int(time.time() if now is None else now)
+    try:
+        table.put_item(
+            Item={"PK": STAGE_PK, "SK": LOCK_SK, "record_type": LOCK_RECORD_TYPE, "run_id": run_id,
+                  "acquired_at_epoch": now, "expires_at_epoch": now + LOCK_LEASE_S, "released": False},
+            ConditionExpression="attribute_not_exists(PK) OR released = :t OR expires_at_epoch < :now",
+            ExpressionAttributeValues={":t": True, ":now": now})
+    except Exception as exc:
+        if _is_conditional_failure(exc):
+            raise LockHeldError("another tools maintain run holds the lock "
+                                f"({STAGE_PK} / {LOCK_SK}); not starting. It expires after "
+                                f"{LOCK_LEASE_S // 3600}h if that run died.") from exc
+        raise
+
+
+def release_lock(table, run_id: str, *, now: int | None = None) -> None:
+    import time
+
+    now = int(time.time() if now is None else now)
+    try:
+        table.update_item(Key={"PK": STAGE_PK, "SK": LOCK_SK},
+                          UpdateExpression="SET released = :t, released_at_epoch = :now",
+                          ConditionExpression="run_id = :r",
+                          ExpressionAttributeValues={":t": True, ":now": now, ":r": run_id})
+    except Exception as exc:  # noqa: BLE001 — an unreleased lock just expires
+        logger.error("tools maintain: could not release the run lock: %s", exc)
 
 
 def stage_row(*, status: str, started_at: str, run_id: str, counts: dict, cost_usd: Decimal,
@@ -1005,7 +1070,10 @@ def stage_row(*, status: str, started_at: str, run_id: str, counts: dict, cost_u
         "started_at": started_at,
         "completed_at": _now_iso(),
         "duration_ms": int(duration_ms(started_at)),
+        # Extraction spend as measured by CostCeiling. Classify spend is an ESTIMATE (the
+        # call_json seam reports no usage) and goes in cost_estimated_classify_usd.
         "cost_observed_usd": Decimal(str(cost_usd)).quantize(Decimal("0.0001")),
+        "records_written": int(counts.get("new_pmids", 0)),   # SPS producer-run-mapper rowsProcessed
         "new_pmid_count": int(counts.get("new_pmids", 0)),
         "new_mention_count": int(counts.get("new_mentions", 0)),
         "new_tool_count": int(counts.get("new_tools", 0)),
@@ -1075,24 +1143,71 @@ def run(cfg: Config, seams: Seams, *, started_at: str | None = None) -> RunResul
     """One maintain run. Writes a ``failed`` ledger row + ERROR alert on a crash (publish
     mode), then re-raises."""
     started_at = started_at or _now_iso()
-    ctx: dict = {"counts": {}, "cost": Decimal(0)}
+    run_id = _run_id(started_at)
+    ctx: dict = {"counts": {}, "cost": Decimal(0), "classify_est": Decimal(0),
+                 "upload_started": False, "published": False}
+    locked = False
     try:
+        if cfg.publish and seams.ledger_table is not None:
+            acquire_lock(seams.ledger_table, run_id)
+            locked = True
         return _run(cfg, seams, started_at, ctx)
+    except LockHeldError as exc:
+        # No ledger row: a concurrent run may share this RUN#<iso> SK and its row must win.
+        if seams.alert is not None:
+            seams.alert("WARN", "Tools maintain run not started (another run holds the lock)", str(exc)[:1500],
+                        {"run": run_id})
+        raise
     except Exception as exc:
         failures = getattr(exc, "failures", None)
+        if ctx["published"]:
+            title = ("Tools maintain run failed AFTER publishing (tools/latest/ is updated; the next run adopts "
+                     "the saved state if its pointer did not move)")
+        elif ctx["upload_started"]:
+            title = ("Tools maintain run failed DURING upload (tools/latest/ may be partial; "
+                     f"intended objects are in {VERSIONS_PREFIX}{run_id}/)")
+        else:
+            title = "Tools maintain run failed (nothing published)"
         if cfg.publish and seams.ledger_table is not None:
             try:
                 seams.ledger_table.put_item(Item=stage_row(
-                    status="failed", started_at=started_at, run_id=_run_id(started_at),
+                    status="failed", started_at=started_at, run_id=run_id,
                     counts=ctx["counts"], cost_usd=ctx["cost"],
                     extra={"error_code": type(exc).__name__, "error_message": str(exc)[:1000],
+                           "published": ctx["published"], "upload_started": ctx["upload_started"],
+                           "cost_estimated_classify_usd": Decimal(str(ctx["classify_est"])).quantize(
+                               Decimal("0.0001")),
                            "failure_details": {"guard_failures": failures[:50]} if failures else None}))
             except Exception as inner:  # noqa: BLE001 — never mask the original error
                 logger.error("tools maintain: could not write the failed STAGE# row: %s", inner)
         if seams.alert is not None and cfg.publish:
-            seams.alert("ERROR", "Tools maintain run failed (nothing published)", str(exc)[:1500],
-                        {"run": _run_id(started_at), "guard_failures": len(failures or [])})
+            seams.alert("ERROR", title, str(exc)[:1500],
+                        {"run": run_id, "guard_failures": len(failures or []),
+                         "upload_started": ctx["upload_started"], "published": ctx["published"]})
         raise
+    finally:
+        if locked:
+            release_lock(seams.ledger_table, run_id)
+
+
+def _adopt_pending(store, state: st.ToolsState, live_raw: dict[str, bytes], *, publish: bool,
+                   now: str) -> st.ToolsState | None:
+    """Live moved past ``state``: adopt the pending child version when live is exactly what
+    it was saved for (an upload that landed before its pointer flip), else None."""
+    p = st.read_pending(store)
+    if not p or p.get("parent_version") != state.version:
+        return None
+    cand = st.load_state(store, p["version"])
+    try:
+        check_state_matches_live(cand, live_raw)
+    except MaintainError:
+        return None
+    logger.warning("tools maintain: live matches pending state %s (an earlier run published but did not move "
+                   "the state pointer); adopting it", cand.version)
+    if publish:
+        st.set_latest(store, cand.version, updated_at=now)
+        st.write_pending(store, None, parent_version=None, created_at=now)
+    return cand
 
 
 def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
@@ -1103,7 +1218,13 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
     run_id = _run_id(started_at)
     state = st.load_state(seams.state_store)
     live_raw = seams.read_live()
-    check_state_matches_live(state, live_raw)
+    try:
+        check_state_matches_live(state, live_raw)
+    except MaintainError:
+        adopted = _adopt_pending(seams.state_store, state, live_raw, publish=cfg.publish, now=_now_iso())
+        if adopted is None:
+            raise
+        state = adopted
     logger.info("tools maintain %s: state %s (%s), live %s", run_id, state.version, state.counts(),
                 json.loads(live_raw["manifest.json"]).get("version"))
 
@@ -1112,6 +1233,7 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
         raise MaintainError("extraction checkpoint is empty/absent: a cold checkpoint would re-extract the whole "
                             "corpus. Upload it first, or pass --allow-cold-checkpoint deliberately.")
     incorporated = state.incorporated_pmids
+    seeded_now = False
     if incorporated is None:
         if not cfg.seed_incorporated_from_checkpoint:
             raise MaintainError(f"state {state.version!r} has no incorporated_pmids; the first run must pass "
@@ -1124,6 +1246,7 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
                                 f"corpus run used {want}. The checkpoint changed since that run; reconcile by hand.")
         incorporated = sorted(checkpoint.done_pmids())
         state.incorporated_pmids = list(incorporated)
+        seeded_now = True
         logger.info("seeded incorporated_pmids from the checkpoint: %d PMID(s), %d mentions", len(incorporated), have)
     incorporated_set = set(incorporated)
 
@@ -1145,11 +1268,23 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
         _write_local(cfg.out_dir, "preflight.json", preflight)
         return RunResult(status="preflight", started_at=started_at, report={"preflight": preflight})
 
+    will_extract = bool(todo) and seams.call_llm is not None
+    if seeded_now and (cfg.publish or will_extract):
+        # Persist the seed BEFORE the checkpoint grows: the seed check (checkpoint mention
+        # count == the corpus run's raw_mentions) can never pass again once this run's
+        # extraction is flushed, so a seed held only in memory would lock every later run
+        # out (an extracting dry run, a guard failure, a skip, a crash before save_state).
+        # Same artifact baseline, so the state/live sync check is unaffected.
+        state.parent_version = state.version
+        st.save_state(seams.state_store, state, f"{run_id}-seed", created_at=_now_iso(),
+                      notes={"seeded_incorporated_pmids": len(incorporated), "run_started_at": started_at})
+        logger.info("persisted the seeded state as %s", state.version)
+
     extract_cap = (cfg.hard_cap_usd * EXTRACT_CAP_SHARE).quantize(Decimal("0.01"))
     ceiling = CostCeiling(cap_usd=extract_cap, max_calls=max(len(todo), 1) * cost_guard.MAX_CALLS_PER_PMID)
     halted = False
     extract_tel: dict = {}
-    if todo and seams.call_llm is not None:
+    if will_extract:
         with checkpoint:
             res = run_extraction(todo, call_llm=seams.call_llm, checkpoint=checkpoint, ceiling=ceiling)
         halted = res.halted is not None
@@ -1161,6 +1296,12 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
     ctx["counts"] = {"new_pmids": len(new_pmids), "new_mentions": len(new_mentions), "new_pmid_list": new_pmids}
     report: dict = {"run_id": run_id, "state_version": state.version, "preflight": preflight,
                     "extraction": extract_tel, "halted_on_cost_cap": halted}
+    warn = _extraction_warning(extract_tel, halted, cfg.hard_cap_usd)
+    if warn and cfg.publish and seams.alert is not None:
+        seams.alert("WARN", warn, "Extraction did not complete normally; see the run's log and STAGE# row.",
+                    {"run": run_id, "extraction": {k: extract_tel.get(k) for k in
+                                                   ("n_input", "n_skipped", "n_done", "n_failed")},
+                     "halted_on_cost_cap": halted})
 
     if not new_pmids:
         logger.info("tools maintain: zero new PMIDs - nothing to publish")
@@ -1185,8 +1326,8 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
         keep_separate=keep_separate, force_c_terms=cfg.force_c_terms, generic_terms=cfg.generic_terms,
         classify_cache_path=cfg.classify_cache, relabel=cfg.relabel, run_id=run_id,
     )
-    cost = ceiling.observed_usd + delta.classify_est_usd
-    ctx["cost"] = cost
+    cost = ceiling.observed_usd + delta.classify_est_usd   # report total (extraction measured + classify est.)
+    ctx["classify_est"] = delta.classify_est_usd
     ctx["counts"].update({"new_tools": len(delta.published_new), "held_for_review": len(delta.held),
                           "deferred_pmids": len(delta.deferred_pmids)})
 
@@ -1220,21 +1361,35 @@ def _run(cfg: Config, seams: Seams, started_at: str, ctx: dict) -> RunResult:
         logger.info("DRY-RUN: guards pass; %s", delta.summary())
         return RunResult(status="dry_run", started_at=started_at, report=report)
 
-    # Publish (unless no artifact delta), then review queue, then the new state, then the ledger.
-    published = False
-    if not zero:
-        upload(items, s3=seams.s3, run_id=run_id)
-        published = True
+    # State first (pending, pointer unmoved), then re-verify live, then upload, then the pointer;
+    # the review queue and the ledger come after. A crash between the upload and the pointer
+    # flip leaves a pending version the next run adopts (it matches live byte for byte).
+    published = not zero
+    store = seams.state_store
+    notes = {"delta": delta.summary(), "published": published, "run_started_at": started_at}
+    if zero:
+        st.save_state(store, new_state, run_id, created_at=_now_iso(), notes=notes)
+    else:
         new_state.baseline_manifest = manifest
+        st.save_state(store, new_state, run_id, created_at=_now_iso(), set_latest=False, notes=notes)
+        st.write_pending(store, run_id, parent_version=state.version, created_at=_now_iso())
+        live_now = seams.read_live()
+        if live_now["manifest.json"] != live_raw["manifest.json"]:
+            raise MaintainError("live tools/latest/manifest.json changed during this run (another publisher); "
+                                f"not uploading. State {run_id} stays unadopted; reconcile from the new live.")
+        ctx["upload_started"] = True
+        upload(items, s3=seams.s3, run_id=run_id)
+        ctx["published"] = True
+        st.set_latest(store, run_id, updated_at=_now_iso())
+        st.write_pending(store, None, parent_version=None, created_at=_now_iso())
     if delta.held:
         seams.s3.put_object(f"{REVIEW_PREFIX}{run_id}.json",
                             json.dumps(review, indent=2, ensure_ascii=False).encode("utf-8"),
                             content_type="application/json", cache_control=None)
-    st.save_state(seams.state_store, new_state, run_id, created_at=_now_iso(),
-                  notes={"delta": delta.summary(), "published": published, "run_started_at": started_at})
     seams.ledger_table.put_item(Item=stage_row(
-        status="complete", started_at=started_at, run_id=run_id, counts=ctx["counts"], cost_usd=cost,
+        status="complete", started_at=started_at, run_id=run_id, counts=ctx["counts"], cost_usd=ctx["cost"],
         extra={"published": published, "halted_on_cost_cap": halted, "state_version": run_id,
+               "cost_estimated_classify_usd": Decimal(str(delta.classify_est_usd)).quantize(Decimal("0.0001")),
                "output_pointer": f"s3://wcmc-reciterai-artifacts/{S3_PREFIX}latest/manifest.json" if published
                else None, "artifact_version": manifest["version"] if published else None}))
     if delta.held and seams.alert is not None:
@@ -1339,8 +1494,21 @@ def main(argv: list[str] | None = None) -> int:
                  allow_cold_checkpoint=args.allow_cold_checkpoint, preflight_only=args.preflight_only,
                  out_dir=Path(args.out_dir) if args.out_dir else None,
                  classify_cache=Path(args.classify_cache) if args.classify_cache else None)
+    if args.publish and args.live_dir:
+        ap.error("--live-dir cannot be combined with --publish: the sync check and guards would run "
+                 "against a local copy while the upload overwrites the real tools/latest/")
     try:
-        res = run(cfg, _build_seams(args))
+        seams = _build_seams(args)
+    except Exception as exc:
+        if args.publish:
+            try:
+                from pipeline_enrichment.alerting import alert
+                alert("ERROR", "Tools maintain run failed at startup (nothing published)", str(exc)[:1500], {})
+            except Exception as inner:  # noqa: BLE001
+                logger.error("tools maintain: startup alert failed: %s", inner)
+        raise
+    try:
+        res = run(cfg, seams)
     except GuardError as e:
         logger.error("%s", e)
         return 4
