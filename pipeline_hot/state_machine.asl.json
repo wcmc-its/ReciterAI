@@ -395,6 +395,7 @@
           "scope": {"S": "GLOBAL"},
           "status": {"S": "complete"},
           "started_at.$": "$.orchestrate.input.started_at",
+          "completed_at.$": "$$.State.EnteredTime",
           "run_id.$": "$.orchestrate.input.run_id",
           "delta_size": {"N.$": "States.Format('{}', $.orchestrate.input.delta.size)"},
           "retry_size": {"N.$": "States.Format('{}', $.orchestrate.input.delta.retry_size)"},

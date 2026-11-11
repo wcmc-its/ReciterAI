@@ -917,6 +917,8 @@ def test_state_machine_hot_run_row_records_retry_metadata():
     item = asl["States"]["WriteHotRunComplete"]["Parameters"]["Item"]
     assert "retry_size" in item
     assert item["run_kind"]["S.$"] == "$.orchestrate.input.run_kind"
+    # SPS mirrors this row; without an end it shows the run as untimed.
+    assert item["completed_at.$"] == "$$.State.EnteredTime"
 
 
 # ---------- ASL: DeriveDirtyTopics + the Assign / Rollup Maps (#119) ----------

@@ -175,7 +175,8 @@ def _prior_opportunity_count(s3) -> int | None:
 
 
 def publish_opportunities_artifact(
-    opportunities: list, *, s3=None, version: str = None, force: bool = False
+    opportunities: list, *, s3=None, version: str = None, force: bool = False,
+    run_started_at: str = None,
 ) -> dict:
     """Publish opportunities.json + manifest (version-pinned + latest pointer). Returns the manifest.
 
@@ -207,6 +208,9 @@ def publish_opportunities_artifact(
         "artifact_bytes": len(body),
         "count": len(opportunities),
     }
+    # When the ingest run began, so SPS can time the run (generated_at is its end).
+    if run_started_at:
+        manifest["run_started_at"] = run_started_at
     manifest_body = _json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
     s3.put_object(f"{_ARTIFACT_PREFIX}/{version}/opportunities.json", body)
     s3.put_object(f"{_ARTIFACT_PREFIX}/{version}/manifest.json", manifest_body)

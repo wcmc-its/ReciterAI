@@ -56,3 +56,13 @@ def test_publish_writes_versioned_artifact_and_manifest():
     assert manifest["sha256"] == hashlib.sha256(body).hexdigest()
     assert manifest["count"] == 1
     assert json.loads(body)[0]["opportunity_id"] == "grants_gov:1"
+
+
+def test_manifest_carries_run_started_at_only_when_given():
+    s3 = MagicMock()
+    s3.key_exists.return_value = False
+    assert "run_started_at" not in publish_opportunities_artifact(_ONE, s3=s3, version="v1")
+    m = publish_opportunities_artifact(
+        _ONE, s3=s3, version="v1", run_started_at="2026-11-11T04:40:00Z"
+    )
+    assert m["run_started_at"] == "2026-11-11T04:40:00Z"

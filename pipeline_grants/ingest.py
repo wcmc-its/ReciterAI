@@ -16,6 +16,7 @@ from pipeline_grants.persist import build_grant_item, publish_opportunities_arti
 from utils.bedrock_client import BedrockClient
 from utils.dynamodb_helpers import get_dynamo_client
 from utils.event_records import load_thresholds
+from utils.iso_clock import now_iso
 
 log = logging.getLogger("pipeline_grants.ingest")
 
@@ -28,6 +29,7 @@ _PRIMARY_TOPIC_FLOOR = load_thresholds()["score_floor"]
 
 def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool = False,
         limit: int | None = None) -> dict:
+    run_started_at = now_iso()
     taxonomy = scoring.load_taxonomy()
     taxonomy_version = taxonomy.get("taxonomy_version", "taxonomy_v2")
     int_to_id, id_to_int = scoring.build_index(taxonomy)
@@ -120,7 +122,7 @@ def run(rows: int, keyword: str, *, flush_every: int = 25, compile_match: bool =
             pending = []
 
     persisted += put_grants(dynamo, pending)
-    manifest = publish_opportunities_artifact(artifact)
+    manifest = publish_opportunities_artifact(artifact, run_started_at=run_started_at)
     summary = {"fetched": len(hits), "kept": kept, "failed": failed, "persisted": persisted,
                "no_synopsis": no_synopsis, "artifact_version": manifest.get("version")}
     log.info("ingest summary: %s", summary)
