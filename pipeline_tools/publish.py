@@ -286,7 +286,9 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
     return items
 
 
-def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> dict:
+def _build_manifest(
+    items: list[PublishItem], payload: dict, *, prefix: str, generated_at: str | None = None,
+) -> dict:
     """The small freshness/integrity anchor a consumer polls before fetching.
 
     sha256/bytes are computed over the EXACT compact bytes uploaded under
@@ -296,6 +298,10 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
     works unchanged; ``objects`` extends it for the split files. No
     ``taxonomy_version`` is emitted — the tools payload carries only
     ``schema_version`` (a fake value would be worse than its absence).
+
+    ``generated_at`` defaults to the wall clock; a zero-delta re-emit
+    (``pipeline_tools.state``) passes the live manifest's value so ``version`` /
+    ``generated_at`` do not move when no content changed.
     """
     by_name = {
         it.key.rsplit("/", 1)[-1]: it
@@ -307,7 +313,7 @@ def _build_manifest(items: list[PublishItem], payload: dict, *, prefix: str) -> 
         name: {"key": it.key, "bytes": it.size, "sha256": hashlib.sha256(it.body).hexdigest()}
         for name, it in by_name.items()
     }
-    generated_at = now_iso()
+    generated_at = generated_at or now_iso()
     return {
         "schema_version": PUBLISH_SCHEMA_VERSION,
         "version": f"v{generated_at[:10]}",  # YYYY-MM-DD, from the single clock read
@@ -351,6 +357,21 @@ def _prior_published_tool_count(s3_client, *, prefix: str) -> int | None:
         return None
 
 
+def build_publish_items(
+    payload: dict, *, prefix: str = S3_PREFIX, generated_at: str | None = None,
+) -> tuple[list[PublishItem], dict]:
+    """Every object a publish writes (7 flat + 7 ``latest/`` + the manifest) and the manifest.
+
+    The single rendering path shared by :func:`publish_artifacts` and the zero-delta
+    re-emit in ``pipeline_tools.state``, so "what publish would write" has one definition.
+    """
+    items = _split_artifacts(payload, prefix=prefix)
+    manifest = _build_manifest(items, payload, prefix=prefix, generated_at=generated_at)
+    manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
+    items.append(PublishItem(f"{prefix}latest/manifest.json", manifest_bytes, LATEST_CACHE_CONTROL))
+    return items, manifest
+
+
 def publish_artifacts(
     payload: dict,
     *,
@@ -372,10 +393,7 @@ def publish_artifacts(
     vs the live manifest — the symptom of a degraded corpus run). ``force=True``
     overrides it; the guard fails open on a missing/corrupt prior.
     """
-    items = _split_artifacts(payload, prefix=prefix)
-    manifest = _build_manifest(items, payload, prefix=prefix)
-    manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
-    items.append(PublishItem(f"{prefix}latest/manifest.json", manifest_bytes, LATEST_CACHE_CONTROL))
+    items, _manifest = build_publish_items(payload, prefix=prefix)
     report = [{"key": it.key, "bytes": it.size, "uploaded": False} for it in items]
     if dry_run:
         for r in report:
