@@ -206,11 +206,17 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
     # over ~18k tools would bloat it). The #1166 entity objects are likewise split
     # out (Surface B loads them per-family). The bundle is byte-identical to v3 when
     # the entity objects are absent/empty.
-    _SPLIT_OUT = ("tool_context", "entities", "entity_context")
+    _SPLIT_OUT = ("tool_context", "tool_context_meta", "entities", "entity_context")
     tool_context = payload.get("tool_context", {})
     entities = payload.get("entities", []) or []
     entity_context = payload.get("entity_context", {}) or {}
-    tool_context_meta = _build_tool_context_meta(tool_context, payload.get("tools", []))
+    # A caller that carries the meta map (pipeline_tools.state / maintain: existing
+    # (tool, pmid) signals are frozen, only new pairs are scored) passes it through;
+    # otherwise it is derived from the snippets, as every corpus/backfill path does.
+    if "tool_context_meta" in payload:
+        tool_context_meta = payload["tool_context_meta"]
+    else:
+        tool_context_meta = _build_tool_context_meta(tool_context, payload.get("tools", []))
     tools_body = _bytes({k: v for k, v in payload.items() if k not in _SPLIT_OUT})
     families_body = _bytes({
         "schema_version": payload["schema_version"],
@@ -288,6 +294,7 @@ def _split_artifacts(payload: dict, *, prefix: str) -> list[PublishItem]:
 
 def _build_manifest(
     items: list[PublishItem], payload: dict, *, prefix: str, generated_at: str | None = None,
+    run_started_at: str | None = None,
 ) -> dict:
     """The small freshness/integrity anchor a consumer polls before fetching.
 
@@ -314,7 +321,7 @@ def _build_manifest(
         for name, it in by_name.items()
     }
     generated_at = generated_at or now_iso()
-    return {
+    manifest = {
         "schema_version": PUBLISH_SCHEMA_VERSION,
         "version": f"v{generated_at[:10]}",  # YYYY-MM-DD, from the single clock read
         "generated_at": generated_at,
@@ -339,6 +346,11 @@ def _build_manifest(
             "entity_context": len(payload.get("entity_context", {}) or {}),
         },
     }
+    # When the producing run started (the grants convention, ReciterAI#501). Emitted
+    # only when given, so existing publish paths keep their manifest bytes.
+    if run_started_at:
+        manifest["run_started_at"] = run_started_at
+    return manifest
 
 
 def _prior_published_tool_count(s3_client, *, prefix: str) -> int | None:
@@ -359,6 +371,7 @@ def _prior_published_tool_count(s3_client, *, prefix: str) -> int | None:
 
 def build_publish_items(
     payload: dict, *, prefix: str = S3_PREFIX, generated_at: str | None = None,
+    run_started_at: str | None = None,
 ) -> tuple[list[PublishItem], dict]:
     """Every object a publish writes (7 flat + 7 ``latest/`` + the manifest) and the manifest.
 
@@ -366,7 +379,8 @@ def build_publish_items(
     re-emit in ``pipeline_tools.state``, so "what publish would write" has one definition.
     """
     items = _split_artifacts(payload, prefix=prefix)
-    manifest = _build_manifest(items, payload, prefix=prefix, generated_at=generated_at)
+    manifest = _build_manifest(items, payload, prefix=prefix, generated_at=generated_at,
+                               run_started_at=run_started_at)
     manifest_bytes = json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8")
     items.append(PublishItem(f"{prefix}latest/manifest.json", manifest_bytes, LATEST_CACHE_CONTROL))
     return items, manifest

@@ -40,6 +40,9 @@ Storage layout (local dir now; ``s3://wcmc-reciterai-artifacts/tools/_state/`` l
     <root>/<version>/entity_context.json  {eid: {pmid: [...]}}
     <root>/<version>/baseline_manifest.json
     <root>/<version>/reconcile_report.json (optional)
+    <root>/<version>/incorporated_pmids.json (optional) {"pmids": [...]} every PMID / grant key
+                                          whose mentions this state already carries; the
+                                          maintain run's "new PMIDs" are checkpoint - this set
 
 Versions are immutable (a save never overwrites one); a bad run is rolled back by moving
 the ``latest.json`` pointer. No I/O happens at import; the S3 store builds its client lazily.
@@ -133,15 +136,23 @@ class ToolsState:
     entity_context: dict
     baseline_manifest: dict
     reconcile_report: dict | None = None
+    # PMIDs (and ``grant:<appl_id>`` keys) whose mentions are already folded into this
+    # state. None on a state built before pipeline_tools.maintain existed.
+    incorporated_pmids: list[str] | None = None
     version: str | None = None
     parent_version: str | None = None
     extra: dict = field(default_factory=dict)
 
-    def tool_registry(self):
+    def published_tool_records(self) -> list[dict]:
+        """Registry records minus the ones held for review (never published until promoted)."""
+        return [r for r in self.tool_records if not r.get("review_hold")]
+
+    def tool_registry(self, *, include_held: bool = True):
         from pipeline_tools.embeddings import EmbeddingCache
         from pipeline_tools.registry import ToolRegistry
 
-        return ToolRegistry(copy.deepcopy(self.tool_records), list(self.denylist),
+        recs = self.tool_records if include_held else self.published_tool_records()
+        return ToolRegistry(copy.deepcopy(recs), list(self.denylist),
                             cache=EmbeddingCache(embed=_no_embed))
 
     def family_registry(self):
@@ -161,6 +172,8 @@ class ToolsState:
             "entities": len(self.entities),
             "entity_context": len(self.entity_context),
             "denylist": len(self.denylist),
+            "held_for_review": len(self.tool_records) - len(self.published_tool_records()),
+            "incorporated_pmids": None if self.incorporated_pmids is None else len(self.incorporated_pmids),
         }
 
 
@@ -477,7 +490,7 @@ def build_payload(state: ToolsState) -> dict:
     in the live bundle's key order, plus the split-out sidecars."""
     from pipeline_tools.seed import _enriched_records
 
-    tr, fr = state.tool_registry(), state.family_registry()
+    tr, fr = state.tool_registry(include_held=False), state.family_registry()
     derived = {
         "tools": order_tools(_enriched_records(tr, fr), state.bundle.get("tool_order")),
         "families": [_family_record(f) for f in fr.records()],
@@ -485,6 +498,9 @@ def build_payload(state: ToolsState) -> dict:
     fields = state.bundle["fields"]
     payload = {k: (derived[k] if k in derived else fields[k]) for k in state.bundle["key_order"]}
     payload["tool_context"] = state.tool_context
+    # Carried, not re-derived: an existing (tool, pmid) signal is frozen once published
+    # (a later alias on the tool must not rescore it); maintain scores only new pairs.
+    payload["tool_context_meta"] = state.tool_context_meta
     payload["entities"] = state.entities
     payload["entity_context"] = state.entity_context
     return payload
@@ -594,6 +610,8 @@ def _state_files(state: ToolsState) -> dict[str, bytes]:
         "entity_context.json": _compact(state.entity_context, sort_keys=True),
         "baseline_manifest.json": json.dumps(state.baseline_manifest, indent=2, ensure_ascii=False).encode("utf-8"),
     }
+    if state.incorporated_pmids is not None:
+        files["incorporated_pmids.json"] = _compact({"pmids": sorted(set(state.incorporated_pmids))})
     if state.reconcile_report is not None:
         files["reconcile_report.json"] = json.dumps(state.reconcile_report, indent=2,
                                                     ensure_ascii=False).encode("utf-8")
@@ -665,6 +683,7 @@ def load_state(store, version: str | None = None) -> ToolsState:
         entity_context=J("entity_context.json"),
         baseline_manifest=J("baseline_manifest.json"),
         reconcile_report=J("reconcile_report.json") if "reconcile_report.json" in raw else None,
+        incorporated_pmids=J("incorporated_pmids.json")["pmids"] if "incorporated_pmids.json" in raw else None,
         version=version,
         parent_version=manifest.get("parent_version"),
     )
