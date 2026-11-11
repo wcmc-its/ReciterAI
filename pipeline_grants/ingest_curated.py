@@ -102,6 +102,7 @@ def build_items(csv_path: str, *, bedrock, ingested_at=None, compile_match: bool
 
 
 def run(csv_path: str, *, dry_run: bool = False, compile_match: bool = False) -> dict:
+    run_started_at = now_iso()
     bedrock = BedrockClient()
     dynamo = get_dynamo_client()
     # Read-only corpus scan (also under --dry-run) feeding the cross-source dup guard.
@@ -114,7 +115,7 @@ def run(csv_path: str, *, dry_run: bool = False, compile_match: bool = False) ->
         log.info("curated ingest (dry-run): %s", summary)
         return summary
     persisted = put_grants(dynamo, items)
-    manifest = publish_opportunities_artifact(artifact)
+    manifest = publish_opportunities_artifact(artifact, run_started_at=run_started_at)
     summary = {"built": len(items), "persisted": persisted, "artifact_version": manifest.get("version")}
     log.info("curated ingest summary: %s", summary)
     return summary

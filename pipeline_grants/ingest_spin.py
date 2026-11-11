@@ -162,6 +162,7 @@ def build_items(targets: list, *, client, bedrock, ingested_at=None, limit=None,
 
 
 def run(*, dry_run: bool = False, funder: str = None, limit: int = None) -> dict:
+    run_started_at = now_iso()
     targets = load_targets(funder=funder)
     if not targets:
         log.warning("no target funders matched %r — nothing to do", funder)
@@ -182,7 +183,7 @@ def run(*, dry_run: bool = False, funder: str = None, limit: int = None) -> dict
         log.info("spin ingest (dry-run): %s", summary)
         return summary
     persisted = put_grants(dynamo, items)
-    manifest = publish_opportunities_artifact(artifact)
+    manifest = publish_opportunities_artifact(artifact, run_started_at=run_started_at)
     summary = {"targets": len(targets), "built": len(items), "persisted": persisted,
                "artifact_version": manifest.get("version"), **counts}
     log.info("spin ingest summary: %s", summary)
