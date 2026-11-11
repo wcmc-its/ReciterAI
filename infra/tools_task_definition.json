@@ -1,0 +1,86 @@
+{
+  "$schema_note": "ECS Fargate task definition for the WEEKLY TOOLS MAINTAIN run (scheduled-refresh plan Phase 5; `python -m pipeline_tools.maintain --publish`). Scheduled by EventBridge rule `reciterai-tools-weekly` (see eventbridge.json), which is deployed DISABLED until the README 'Tools maintain launch path' first-run checklist is complete. EventBridge Input is NOT forwarded to ECS targets, so the default command below IS the weekly invocation (deploy_cron.sh ecs branch): an incremental fold-in of PMIDs extracted since the last run, under the default $25 per-run hard cap (`--hard-cap-usd`), fail-closed guards before any upload, a `STAGE#tools_maintain#GLOBAL` ledger row, and an INFO Teams card when new tools are held for review in `tools/_review/<run>.json`. The scheduled command deliberately carries NO `--seed-incorporated-from-checkpoint` (first run only; it refuses unless the checkpoint matches the corpus run's mention count) and NO `--relabel` (an operator action). Those, and the catch-up `--hard-cap-usd`, go on the manual first runs as containerOverrides. Uses the SAME Dockerfile + ECR repo as the other tasks (`COPY . .` already contains pipeline_tools, cli/rebuild_tool_context.py + cli/rebuild_entity_context.py (the fragment-metric guards) and the image-baked config it reads: config/method_alias_map.json, method_generics_blocklist.json, tool_force_c_list.json and llm_prices.yaml (the first three fail open with a warning if absent, which would silently change classification, so a stale image is a real risk; llm_prices.yaml fails closed). `out/` and `docs/` are dockerignored and the run reads neither; the local report goes to `out/tools_maintain/` inside the container and is discarded with it). LOG GROUP `/ecs/reciterai-tools` MUST be pre-created: `ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, so `awslogs-create-group` is intentionally omitted. Bedrock (Haiku extraction, Sonnet classification, Titan embeddings) authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token; the task role carries no `bedrock:InvokeModel`.",
+  "family": "reciterai-tools",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "8192",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "taskRoleArn": "{TASK_ROLE_ARN}",
+  "executionRoleArn": "{EXECUTION_ROLE_ARN}",
+  "containerDefinitions": [
+    {
+      "name": "reciterai-tools",
+      "image": "{IMAGE_URI}",
+      "essential": true,
+      "command": [
+        "python",
+        "-m",
+        "pipeline_tools.maintain",
+        "--publish"
+      ],
+      "environment": [
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "{DB_SECRET_ARN}:DB_HOST::"
+        },
+        {
+          "name": "DB_USERNAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_USERNAME::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "{DB_SECRET_ARN}:DB_PASSWORD::"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "{DB_SECRET_ARN}:DB_NAME::"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "{OPENAI_SECRET_ARN}:OPENAI_API_KEY::"
+        },
+        {
+          "name": "AWS_BEARER_TOKEN_BEDROCK",
+          "valueFrom": "{BEDROCK_API_KEY_SECRET_ARN}"
+        },
+        {
+          "name": "RECITERAI_TEAMS_WEBHOOK_URL",
+          "valueFrom": "{TEAMS_WEBHOOK_SECRET_ARN}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/reciterai-tools",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "tools"
+        }
+      }
+    }
+  ],
+  "deploy_notes": {
+    "placeholders": {
+      "{TASK_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/reciterai-tools-task — a NEW role carrying `tools_task_iam_policy.json` (S3 read+write on `wcmc-reciterai-artifacts/tools/*`, `s3:ListBucket` on the bucket for key_exists, DynamoDB PutItem/UpdateItem/Query pinned to `STAGE#tools_maintain#GLOBAL`, CloudWatch Logs on `/ecs/reciterai-tools`). No existing role can be reused: grants is scoped to `grants/*`, cold to `spotlight/*` + hierarchy, and cores/area-signals/enrichment have no S3 at all.",
+      "{EXECUTION_ROLE_ARN}": "arn:aws:iam::{ACCOUNT_ID}:role/ecsTaskExecutionRole — the standard execution role (ECR pull + CloudWatch Logs). It injects the secrets[] env vars, so its inline `secretsmanager:GetSecretValue` grant must cover all four secret ARNs below. The DB, OpenAI and Bedrock secrets are already injected by enrichment/spotlight; the Teams webhook by area-signals/spotlight. Confirm with `aws iam get-role-policy` before registering rather than assuming.",
+      "{IMAGE_URI}": "ECR image URI in the `reciterai-enrichment` repo, built `docker build --platform linux/amd64 --build-arg BUILD_SHA=$(git rev-parse --short HEAD)` from a checkout of freshly fetched origin/main that contains pipeline_tools.maintain. Merging changes nothing in ECR. Re-pin the tag whenever pipeline_tools or config/method_alias_map.json changes on main: this task runs unattended weekly, so a stale tag keeps running stale classify/guard code.",
+      "{DB_SECRET_ARN}": "Full ARN of `reciterai/reciter-analysis-db` (JSON SecretString, per-key `:KEY::` injection). Same secret as enrichment/cold/spotlight. Read-only use: utils.db.get_engine -> pipeline_tools.corpus.fetch_extraction_corpus + fetch_grant_corpus (`--source both`, the default).",
+      "{OPENAI_SECRET_ARN}": "Full ARN of `reciterai/openai-api-key`. The Bedrock content-filter fallback for both extraction (pipeline_enrichment.llm_call.call_with_fallback) and classification (classify._openai_fallback).",
+      "{BEDROCK_API_KEY_SECRET_ARN}": "Full ARN of `reciterai/bedrock-api-key` (plain SecretString). Injected as `AWS_BEARER_TOKEN_BEDROCK`; the task role intentionally has no `bedrock:InvokeModel`, so a missing or stale token fails loudly.",
+      "{TEAMS_WEBHOOK_SECRET_ARN}": "Full ARN of the Teams webhook secret (plain SecretString URL). Injected as `RECITERAI_TEAMS_WEBHOOK_URL`, which pipeline_enrichment.alerting reads. REQUIRED: the run is unattended, and both the held-for-review INFO card and the failed-run ERROR card go through it. Without it alerting.alert returns False and the only trace is a log line plus the STAGE# row."
+    },
+    "sizing": "1 vCPU / 8 GB. NOT MEASURED. The run holds the 7 live objects and the state (tens of MB of JSON, parsed twice for the guards), the ReciterDB corpus for `--source both` (~80k publications with abstracts, the same load the cores task sizes 4 GB for), the extraction checkpoint, and, whenever a form needs an embedding match, the EmbeddingCache over the registry and family candidates (the dry-run smoke embedded ~24k texts; 24k x 1024-dim vectors as Python float lists is roughly 0.8 GB). 8 GB is the ceiling for 1 vCPU and leaves headroom for that sum. CPU is not the bottleneck: extraction, classification and Titan embeds are Bedrock I/O fanned out over threads. Measure peak memory and wall clock on the manual first runs (README step 5-6) and resize then. No Fargate task timeout exists; a hung run runs until stopped.",
+    "plumbing_gate": "The run is dry-run unless `--publish` is passed, so the command override is the plumbing gate. `--preflight-only` loads state + live + the S3 checkpoint, runs the state/live sync check, reads the ReciterDB corpus and estimates the extraction cost, with NO LLM call and NO writes: it proves the image, the task role's S3 reads (including the 404 path of key_exists), the DB secret, ReciterDB networking and CloudWatch logging. Until the state has `incorporated_pmids` (that is, before the first --publish), every invocation including `--preflight-only` must also carry `--seed-incorporated-from-checkpoint`, or it stops at the seed check before the preflight. A dry run with real extraction (no `--publish`) additionally proves the Bedrock token and the OpenAI fallback secret, but it spends and rewrites the S3 checkpoint (intended: the next run does not pay again). `--no-extract` folds in only already-checkpointed PMIDs. Overrides go in `containerOverrides[].command` against container name `reciterai-tools`."
+  }
+}

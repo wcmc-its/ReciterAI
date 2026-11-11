@@ -154,4 +154,4 @@ def test_rule_fires_after_the_sps_nightly(rule):
 
 def test_invoke_role_notes_name_the_new_family():
     notes = json.loads(EB_PATH.read_text())["deploy_notes"]["iam"]
-    assert "area-signals" in notes and "ALL FIVE" in notes
+    assert "area-signals" in notes and "ALL SIX" in notes

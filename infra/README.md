@@ -9,7 +9,7 @@ overlays.
 
 ## Files
 
-- **`eventbridge.json`** — nine cron rules and their targets:
+- **`eventbridge.json`** — ten cron rules and their targets:
   - `reciterai-hot-weekly` → Step Functions state machine `reciterai-hot-path` (Mondays 12:00 UTC).
   - `reciterai-spotlight-monthly` → ECS Fargate RunTask on task definition `reciterai-spotlight` (1st of month, 13:00 UTC; #329 shape a2 — the regen shells out to the full `cli.backfill_spotlight`, past Lambda's 15-minute ceiling; template in `spotlight_task_definition.json`).
   - `reciterai-drift-daily` → Lambda `reciterai-drift-evaluator` (daily 14:00 UTC).
@@ -19,6 +19,7 @@ overlays.
   - `reciterai-grants-daily` → ECS Fargate `RunTask` on task definition `reciterai-grants` (daily 03:00 UTC; #269). Runs the grants.gov opportunity ingest then the SPS submission-queue drain; template in `grants_task_definition.json`. See "Grants ingest launch path" below.
   - `reciterai-cores-daily` → ECS Fargate `RunTask` on task definition `reciterai-cores` (daily 05:00 UTC). Re-scores core-facility usage for core 14 (Research Informatics) over the full ReciterDB corpus and writes the confirmed/candidate `(publication, core)` rows SPS's core claim queue reads; template in `cores_task_definition.json`. Makes ZERO Bedrock calls — `--with-llm` is deliberately absent. See "Cores daily run launch path" below.
   - `reciterai-area-signals-daily` → ECS Fargate `RunTask` on task definition `reciterai-area-signals` (daily 09:00 UTC). Drains the `AREAINPUT` grant/trial texts SPS's 07:00 UTC nightly queues and writes `AREASIGNAL#` research-area scores for SPS's next nightly; template in `area_signals_task_definition.json`. See "Area signals launch path" below.
+  - `reciterai-tools-weekly` → ECS Fargate `RunTask` on task definition `reciterai-tools` (Tuesdays 03:30 UTC, **deployed DISABLED** until the first-run checklist is done). Incremental maintain run for the Methods & Tools artifact (`tools/latest/`); template in `tools_task_definition.json`. See "Tools maintain launch path" below.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role. Changes here are applied to the LIVE role manually (`aws iam put-role-policy`) — and ordering can matter: the ADR-D3 `HotHandshakeReadPeerBundles` statement must reach the live role BEFORE the orchestrator zip that uses it is redeployed, or the next hot run fails closed on AccessDenied.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
@@ -30,6 +31,8 @@ overlays.
 - **`cores_task_iam_policy.json`** — minimum-privilege policy for the `reciterai-cores-task` role: DynamoDB CRUD on `reciterai` (+ `/index/*`) and CloudWatch Logs on `/ecs/reciterai-cores`. The smallest task-role policy in this directory, and the omissions are the content: NO S3 (pipeline_cores publishes no artifact — its output is the DynamoDB rows SPS projects, so there is no `latest/` pointer and no shrink guard), NO Secrets Manager (both secrets are execution-role-injected and nothing in the runtime path calls `GetSecretValue`), NO `bedrock:InvokeModel` (bearer-token auth, and the scheduled command invokes no model at all).
 - **`area_signals_task_definition.json`** — the Fargate task definition for the **daily area-signals drain** (`python -m pipeline_area_signals.run`). 0.5 vCPU / 2 GB. Injects the Bedrock token, the OpenAI key (content-filter fallback) and the Teams webhook, plus the taxonomy preflight baseline and the per-run cost ceiling as env vars.
 - **`area_signals_task_iam_policy.json`** — the `reciterai-area-signals-task` role: DynamoDB `GetItem`/`PutItem`/`UpdateItem`/`Query` on `reciterai`, pinned by `dynamodb:LeadingKeys` to `AREAINPUT`, `AREASIGNAL#*` and `STAGE#area_signals#GLOBAL`, and CloudWatch Logs on `/ecs/reciterai-area-signals`. No S3, no Secrets Manager, no Bedrock IAM.
+- **`tools_task_definition.json`**: the Fargate task definition for the **weekly tools maintain run** (`python -m pipeline_tools.maintain --publish`). 1 vCPU / 8 GB (unmeasured; see its `deploy_notes.sizing`). Injects the DB credentials (ReciterDB corpus read), the OpenAI key (content-filter fallback), the Bedrock token and the Teams webhook.
+- **`tools_task_iam_policy.json`**: the `reciterai-tools-task` role: S3 `GetObject`/`PutObject` on `wcmc-reciterai-artifacts/tools/*` (checkpoint, state, review queue, versioned and `latest/` objects) plus `s3:ListBucket` on the bucket (so `key_exists` sees 404, not 403), DynamoDB `PutItem`/`UpdateItem`/`Query` pinned by `dynamodb:LeadingKeys` to `STAGE#tools_maintain#GLOBAL`, and CloudWatch Logs on `/ecs/reciterai-tools`. No Secrets Manager, no Bedrock IAM.
 - **`dynamodb_table.json`** (#223) — declarative spec for the `reciterai` table: KeySchema + 3 GSIs + `BillingMode`, byte-faithful to `utils/dynamodb_helpers.py` `create_chatbot_table` (enforced by `tests/test_infra_dynamodb_table_parity.py`), plus the durability fields the bare creator historically omitted — `DeletionProtectionEnabled` + `Tags` — and a `_pitr` note (PITR is enabled out-of-band, not a CreateTable attribute). The table's rebuild spec **and** the documented #223 invariant.
 - **`s3_lifecycle_noncurrent.json`** (#223) — noncurrent-version expiration lifecycle (90 days) applied to both artifact buckets so superseded `latest/*` pointers don't accumulate unbounded once versioning is on.
 - **`../scripts/apply_backup_config.sh`** (#223) — idempotent wrapper (mirrors `deploy_cron.sh`: `--dry-run`, per-control verify) that enables DDB PITR + deletion protection and S3 versioning + the lifecycle on both buckets. One-time apply + drift recheck (`--verify`), not a cron.
@@ -627,6 +630,143 @@ sends a Teams WARN and leaves those areas unassigned.
    Expect `taxonomy preflight OK`, then `area signals summary: {...}` with
    `outcomes` and `measured_usd`. No Fargate task timeout exists.
 
+## Tools maintain launch path
+
+The **weekly tools maintain run** (`python -m pipeline_tools.maintain --publish`,
+family `reciterai-tools`, rule `reciterai-tools-weekly` at Tuesday 03:30 UTC,
+**deployed DISABLED**) keeps the Methods & Tools artifact (`tools/latest/`)
+current without re-running the corpus build. It starts from the durable state
+in `tools/_state/` (reconciled to live by `cli/tools_state_reconcile.py`),
+extracts the publications and grants the S3 checkpoint
+(`tools/_checkpoint/a2_extraction_checkpoint.jsonl`) has not seen yet, folds
+them in as additions only, and publishes only when every guard passes. New
+tools that match no existing family are held in `tools/_review/<run>.json`
+with an INFO Teams card instead of being published. One
+`STAGE#tools_maintain#GLOBAL` row per `--publish` run records the status
+(`complete`/`skipped`/`failed`), counts and cost. The design and its open risks
+are in `pipeline_tools/maintain.py`'s module docstring and
+`docs/tools-producer-model.md` §#6.
+
+Per-run spend is capped by `--hard-cap-usd` (default $25, this run only).
+Extraction gets 90% of the cap; a run that hits it folds in what it extracted
+and the rest resumes next week.
+
+**First-run flags.** The state has no `incorporated_pmids` until the first
+`--publish`. Until then every invocation, `--preflight-only` included, must
+carry `--seed-incorporated-from-checkpoint`, or it stops at the seed check. The
+seed refuses unless the checkpoint's mention count equals the corpus run's
+`provenance.raw_mentions`. The scheduled command carries no seed flag, which
+is why the rule stays DISABLED until the seeded publish run has succeeded.
+
+### First-run checklist (in order)
+
+0. **Build and push an image that contains `pipeline_tools.maintain`** (step 0
+   of the cores launch path applies unchanged: merging changes nothing in ECR).
+   Build from a freshly fetched origin/main with
+   `--platform linux/amd64 --build-arg BUILD_SHA=$(git rev-parse --short HEAD)`.
+1. **Upload the inputs the run reads** (scheduled-refresh plan Phase 1; a
+   reviewed step, run by an operator):
+   - the extraction checkpoint to `s3://wcmc-reciterai-artifacts/tools/_checkpoint/a2_extraction_checkpoint.jsonl`;
+   - the reconciled state dir (the `<version>/` folder plus `latest.json` from
+     `cli/tools_state_reconcile.py --out-root …`) to `s3://wcmc-reciterai-artifacts/tools/_state/`.
+
+   Without the checkpoint the run refuses (cold checkpoint). Without
+   `tools/_state/latest.json` it cannot load a state at all. If anything has
+   republished `tools/latest/` since the reconcile, the run fails closed on the
+   state/live sha256 check; re-reconcile against the new live copy.
+2. **Pre-create the log group:** `aws logs create-log-group --log-group-name /ecs/reciterai-tools`.
+   `ecsTaskExecutionRole` lacks `logs:CreateLogGroup`, and the task def
+   omits `awslogs-create-group`.
+3. **Create the task role** `reciterai-tools-task` (ECS tasks trust policy) and
+   attach `tools_task_iam_policy.json` with `aws iam put-role-policy` (strip
+   `$schema_note`). It is a new role: no existing task role has S3 on `tools/*`.
+   Check that the execution role's inline `secretsmanager:GetSecretValue` covers
+   all four secrets the task def injects (DB, OpenAI, Bedrock key, Teams
+   webhook) with `aws iam get-role-policy`, and extend it if not.
+4. **Extend `reciterai-eventbridge-invoke-ecs`:** `ecs:RunTask` on the
+   `reciterai-tools` task-definition family and `iam:PassRole` for
+   `reciterai-tools-task` and `ecsTaskExecutionRole`. Skipping this gives a rule
+   that fires and launches nothing, silently. It is needed only for the
+   schedule; the manual runs below use operator credentials.
+5. **Register the task def:** substitute the `{…}` placeholders in
+   `tools_task_definition.json` (strip `$schema_note` + `deploy_notes`) and
+   `aws ecs register-task-definition --cli-input-json file://…`.
+6. **Manual dry run on Fargate.** This is what proves the task role. A local run
+   under operator credentials cannot see a missing task-role grant (the cores
+   lesson). First the no-spend preflight:
+
+   ```bash
+   aws ecs run-task --cluster reciterai-cluster --launch-type FARGATE \
+     --task-definition reciterai-tools \
+     --network-configuration "awsvpcConfiguration={subnets=[$RECITERAI_ENRICHMENT_SUBNETS],securityGroups=[$RECITERAI_ENRICHMENT_SECURITY_GROUPS],assignPublicIp=DISABLED}" \
+     --overrides '{"containerOverrides":[{"name":"reciterai-tools","command":["python","-m","pipeline_tools.maintain","--preflight-only","--seed-incorporated-from-checkpoint"]}]}'
+   aws logs tail /ecs/reciterai-tools --follow
+   ```
+
+   Expect `seeded incorporated_pmids from the checkpoint: …` and then
+   `preflight: {…}` with `to_extract`, `extract_estimate_usd` and
+   `pending_unincorporated`. This makes no LLM call and no writes. It proves the
+   image, the S3 reads (including the 404 path of `key_exists`), the state/live
+   sync check, the DB secret, ReciterDB networking and logging. Use
+   `extract_estimate_usd` to choose the catch-up cap in step 7. Optionally
+   follow with a dry run that extracts (same override without
+   `--preflight-only`, plus `--hard-cap-usd 5`). That proves the Bedrock token,
+   Titan and the OpenAI fallback, and writes `maintain_report.json`/`review.json`
+   only inside the container. It does spend, and it rewrites the S3 checkpoint;
+   that is intended, since the publish run then does not pay for those PMIDs
+   again.
+7. **Manual catch-up `--publish` run with an explicit cap.** The checkpoint
+   predates months of new publications, so the first run's backlog is far larger
+   than a weekly delta. Set the cap deliberately from step 6's estimate instead
+   of relying on the $25 default:
+
+   ```bash
+   --overrides '{"containerOverrides":[{"name":"reciterai-tools","command":["python","-m","pipeline_tools.maintain","--publish","--seed-incorporated-from-checkpoint","--hard-cap-usd","<catch-up cap>"]}]}'
+   ```
+
+   If the cap halts extraction, the run still publishes what it extracted. Repeat
+   the same override without `--seed-incorporated-from-checkpoint` (the state
+   now has `incorporated_pmids`) until `to_extract` is small. Check after each
+   run:
+   - the `STAGE#tools_maintain#GLOBAL` row: `status=complete`, no
+     `failure_details`, `cost_observed_usd` within the cap, and
+     `halted_on_cost_cap` (true means rerun);
+   - `tools/latest/manifest.json` moved and carries `run_started_at`;
+   - `tools/_state/latest.json` points at the new state version;
+   - the review queue in `tools/_review/<run>.json` and its Teams card;
+   - peak memory and wall clock against the task def's unmeasured
+     `deploy_notes.sizing`.
+
+   This is the first run that writes `tools/latest/`, `tools/versions/`,
+   `tools/_state/` and the ledger under the task role, so it is the real test of
+   `s3:PutObject` and `dynamodb:PutItem`. A `failed` row with guard failures
+   means nothing was published; read the failures before rerunning.
+8. **Enable the rule.** Flip `state` to `ENABLED` for `reciterai-tools-weekly` in
+   `eventbridge.json` and run `scripts/deploy_cron.sh --rule reciterai-tools-weekly`
+   (`--dry-run` first; same env vars as the other ECS rules). Do not use
+   `aws events enable-rule`: the next full `deploy_cron.sh` run would re-apply
+   DISABLED from the file. Watch the first two weekly runs: the STAGE# row, the
+   cost and the review queue. A week with no new PMIDs writes `skipped` and
+   publishes nothing.
+
+### Gotchas
+
+- **A dry run that extracts still writes to S3.** It rewrites the checkpoint.
+  `--preflight-only` and `--no-extract` are the only no-write modes.
+- **State save after upload can fail.** If the publish succeeded but the state
+  write did not, the next run fails closed on the state/live sync check, and a
+  new state has to be reconciled by hand (`cli/tools_state_reconcile.py`
+  against the new live copy).
+- **Held tools have no promotion path yet.** They stay in the state registry
+  with a `review_hold` record and are re-listed in each run's review file.
+- **Do not run `build_tool_taxonomy_corpus` / `form_families` against
+  `tools/latest/` while this rule is enabled.** They still re-mint family ids
+  (ReciterAI#308 item 4); maintain never calls them, and its family_id guard
+  would refuse the next publish anyway.
+- **No Fargate task timeout.** A hung run runs until stopped. Add a metric
+  filter on `/ecs/reciterai-tools` like the grants/cores alarms if the Teams card
+  ever proves insufficient.
+
 ## D-10 migration trigger — when to adopt CDK
 
 The single-file approach is correct only while ReciterAI's AWS surface
@@ -726,14 +866,15 @@ they are the rollback path.
 - **ECS target networking is env-var-driven.** Subnets and security
   groups for the `reciterai-enrichment-daily`,
   `reciterai-spotlight-monthly`, `reciterai-grants-daily`,
-  `reciterai-cores-daily`, and `reciterai-area-signals-daily` rules come
+  `reciterai-cores-daily`, `reciterai-area-signals-daily` and
+  `reciterai-tools-weekly` rules come
   from `RECITERAI_ENRICHMENT_SUBNETS` and
   `RECITERAI_ENRICHMENT_SECURITY_GROUPS` at deploy time, not from
   `eventbridge.json` — VPC layout is account-specific and should not be
   committed. The `reciterai-eventbridge-invoke-ecs` role must allow
-  `ecs:RunTask` on ALL FIVE task-definition families
+  `ecs:RunTask` on ALL SIX task-definition families
   (`reciterai-enrichment`, `reciterai-spotlight`, `reciterai-grants`,
-  `reciterai-cores`, `reciterai-area-signals`)
+  `reciterai-cores`, `reciterai-area-signals`, `reciterai-tools`)
   plus `iam:PassRole` for each task/execution role pair — the
   enrichment-era policy predates every later family, and the omission
   has bitten on each new one.
