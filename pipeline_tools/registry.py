@@ -293,14 +293,9 @@ class ToolRegistry:
         Else embedding NN over every record's display_name + aliases at/above
         ``match_cosine``.
         """
-        for key in sorted(surface_keys(raw_name) | self._alias_keys(raw_name)):
-            cid = self._name_index.get(key)
-            if cid is None:
-                continue
-            if self._blocks_merge(raw_name, self._records[cid]):
-                self._note_block(raw_name, cid, "surface")  # guarded non-merge -> keep looking / mint
-                continue
-            return Match(key=cid, score=1.0, matched_text=raw_name)
+        hit = self.match_surface(raw_name)
+        if hit is not None:
+            return hit
         candidates = {
             cid: [rec["display_name"], *rec.get("aliases", [])]
             for cid, rec in self._records.items()
@@ -312,6 +307,22 @@ class ToolRegistry:
             self._note_block(raw_name, hit.key, f"embedding@{round(hit.score, 3)}")
             return None  # #252 keep-separate: never silently fold -> mint a distinct record
         return hit
+
+    def match_surface(self, raw_name: str) -> Match | None:
+        """The exact surface-key / #252 alias-class half of :meth:`match` (no embedding).
+
+        Resolves a form the registry already knows by name, alias, acronym or
+        descriptor-stripped equivalent, so an incremental run can skip classifying it.
+        """
+        for key in sorted(surface_keys(raw_name) | self._alias_keys(raw_name)):
+            cid = self._name_index.get(key)
+            if cid is None:
+                continue
+            if self._blocks_merge(raw_name, self._records[cid]):
+                self._note_block(raw_name, cid, "surface")  # guarded non-merge -> keep looking / mint
+                continue
+            return Match(key=cid, score=1.0, matched_text=raw_name)
+        return None
 
     # --- mint / attach -----------------------------------------------------
 
@@ -517,8 +528,13 @@ class ToolRegistry:
     def _serialize(rec: dict) -> dict:
         out = dict(rec)
         out["pub_ids"] = sorted(rec.get("pub_ids", []))
-        # |pub_ids| when real ids exist (A2 path); else the stored seed count.
-        out["pub_count"] = len(out["pub_ids"]) if out["pub_ids"] else int(rec.get("pub_count", 0))
+        # |pub_ids| when real ids exist (A2 path); else the stored seed count. A seed-count
+        # record that later accretes real ids keeps its seed count as ``pub_count_base``
+        # (set by pipeline_tools.maintain), so one new pub never collapses 18 -> 1.
+        if out["pub_ids"]:
+            out["pub_count"] = len(out["pub_ids"]) + int(rec.get("pub_count_base") or 0)
+        else:
+            out["pub_count"] = int(rec.get("pub_count", 0))
         # Key-sorted so the persisted record is byte-stable across content-identical
         # re-runs (the sidecar that derives from it inherits this discipline).
         cbp = rec.get("context_by_pub") or {}
@@ -651,6 +667,25 @@ class FamilyRegistry:
         cross = nearest_match(tool_text, other, threshold=self._cross_guard_cosine, cache=self._cache) if other else None
         fam = self._mint(supercategory, dominant_kind, label, tool_id, tool_text)
         return fam, ("flagged" if cross is not None else "minted"), cross
+
+    def match_family(self, tool_text: str, supercategory: str) -> tuple[Match | None, Match | None]:
+        """Non-minting family lookup: ``(same_supercategory_hit, cross_supercategory_hit)``.
+
+        The read half of :meth:`match_or_mint`, for an incremental run that may attach a
+        new tool to an EXISTING family but must never mint one (new families are a
+        human-gated promotion).
+        """
+        same = self._candidates(supercategory, same=True)
+        hit = nearest_match(tool_text, same, threshold=self._match_cosine, cache=self._cache) if same else None
+        if hit is not None:
+            return hit, None
+        other = self._candidates(supercategory, same=False)
+        cross = nearest_match(tool_text, other, threshold=self._cross_guard_cosine, cache=self._cache) if other else None
+        return None, cross
+
+    def add_member(self, family_id: str, tool_id: str, tool_text: str) -> dict:
+        """Append ``tool_id`` to an existing family (no-op if already a member)."""
+        return self._attach_member(family_id, tool_id, tool_text)
 
     def _mint(
         self,

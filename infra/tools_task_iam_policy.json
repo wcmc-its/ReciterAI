@@ -1,0 +1,55 @@
+{
+  "$schema_note": "Minimum-privilege IAM policy for the WEEKLY TOOLS MAINTAIN Fargate task role (`python -m pipeline_tools.maintain --publish`; scheduled-refresh plan Phase 5). Attach to the role referenced by `tools_task_definition.json.taskRoleArn` (`reciterai-tools-task`). Derived from the code paths, not copied from a sibling: (1) S3 GetObject+PutObject on `wcmc-reciterai-artifacts/tools/*` covers every key the run touches: `tools/_checkpoint/a2_extraction_checkpoint.jsonl` (checkpoint.make_s3_store; read, and rewritten as extraction progresses, which happens on a dry run too unless `--no-extract`/`--preflight-only`), `tools/_state/` (state.S3StateStore: versioned state files + `latest.json` pointer), `tools/latest/` (read_live_s3 reads the 7 objects + manifest; upload writes them, manifest last), the flat `tools/*.json` objects, `tools/versions/<run_id>/` (versioned copies, written first) and `tools/_review/<run_id>.json`. No DeleteObject: nothing in the run deletes. (2) `s3:ListBucket` on the bucket is needed for the 404-vs-403 distinction, not for listing: `S3HierarchyClient.key_exists` is a HeadObject and treats only 404/NoSuchKey as absent, re-raising anything else; without ListBucket S3 answers a missing key with 403, so the optional `incorporated_pmids` state file, the first-run checkpoint probe and publish's prior-manifest probe would all raise AccessDenied instead of reading as absent. It is granted UNCONDITIONED (same shape as grants_task_iam_policy.json) rather than with an `s3:prefix` condition, because a HeadObject request carries no `s3:prefix` key and it has not been verified that a prefix-conditioned grant still counts for that check. (3) DynamoDB PutItem/UpdateItem/Query on `reciterai`, pinned by `dynamodb:LeadingKeys` to `STAGE#tools_maintain#GLOBAL` (maintain.STAGE_PK; tests/test_infra_tools_fargate_shape.py pins the two together). A --publish run calls PutItem for its ledger row and a conditional PutItem (acquire) plus a conditional UpdateItem (release) on the run-lock item `SK=LOCK` in the same partition; Query covers an operator re-read of the ledger, and the LeadingKeys pin keeps all of them inside the one partition. No Scan, Delete, Batch or index access; the run reads no other DynamoDB data. (4) NO SecretsManager: the DB credentials (ReciterDB corpus read via utils.db.get_engine), the OpenAI key (content-filter fallback in both extract.make_extractor_call_llm and classify.make_classifier_call_json), the Bedrock bearer token and the Teams webhook are all injected as env vars by the EXECUTION role. (5) NO `bedrock:InvokeModel`: Haiku extraction, Sonnet classification (utils.bedrock_client) and Titan embeddings (pipeline_tools.embeddings, boto3 bedrock-runtime invoke_model) all go through boto3's `bedrock-runtime` client, which authenticates with `AWS_BEARER_TOKEN_BEDROCK` when it is set. The grants task already reaches the same titan_embed through pipeline_grants.match_compile under a bearer-only role. (6) CloudWatch Logs scoped to the pre-created `/ecs/reciterai-tools` group. Cores lesson: a missing grant here shows up only under the task role, so prove this policy with a real Fargate launch (README 'Tools maintain launch path' step 5), not a local run under operator credentials.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3ToolsArtifactsReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-artifacts/tools/*"
+      ]
+    },
+    {
+      "Sid": "S3ListBucketForKeyExists",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::wcmc-reciterai-artifacts"
+      ]
+    },
+    {
+      "Sid": "DynamoDBToolsMaintainLedger",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/reciterai"
+      ],
+      "Condition": {
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": [
+            "STAGE#tools_maintain#GLOBAL"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/reciterai-tools:*"
+    }
+  ]
+}

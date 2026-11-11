@@ -383,6 +383,15 @@ class ExtractionCheckpoint:
             out.extend(self._done[pmid].mentions)
         return out
 
+    def mentions_for(self, pmids) -> list[dict]:
+        """Recorded mentions for ``pmids`` only (stable PMID order; unknown pmids skipped)."""
+        out: list[dict] = []
+        for pmid in sorted({str(p) for p in pmids}):
+            entry = self._done.get(pmid)
+            if entry is not None:
+                out.extend(entry.mentions)
+        return out
+
     def prior_cost(self) -> tuple[Decimal, int]:
         """Reconstruct (observed_usd, n_calls) from recorded usage, to seed the ceiling.
 
