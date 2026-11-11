@@ -19,7 +19,7 @@ overlays.
   - `reciterai-grants-daily` → ECS Fargate `RunTask` on task definition `reciterai-grants` (daily 03:00 UTC; #269). Runs the grants.gov opportunity ingest then the SPS submission-queue drain; template in `grants_task_definition.json`. See "Grants ingest launch path" below.
   - `reciterai-cores-daily` → ECS Fargate `RunTask` on task definition `reciterai-cores` (daily 05:00 UTC). Re-scores core-facility usage for core 14 (Research Informatics) over the full ReciterDB corpus and writes the confirmed/candidate `(publication, core)` rows SPS's core claim queue reads; template in `cores_task_definition.json`. Makes ZERO Bedrock calls — `--with-llm` is deliberately absent. See "Cores daily run launch path" below.
   - `reciterai-area-signals-daily` → ECS Fargate `RunTask` on task definition `reciterai-area-signals` (daily 09:00 UTC). Drains the `AREAINPUT` grant/trial texts SPS's 07:00 UTC nightly queues and writes `AREASIGNAL#` research-area scores for SPS's next nightly; template in `area_signals_task_definition.json`. See "Area signals launch path" below.
-  - `reciterai-tools-weekly` → ECS Fargate `RunTask` on task definition `reciterai-tools` (Tuesdays 03:30 UTC, **deployed DISABLED** until the first-run checklist is done). Incremental maintain run for the Methods & Tools artifact (`tools/latest/`); template in `tools_task_definition.json`. See "Tools maintain launch path" below.
+  - `reciterai-tools-weekly` → ECS Fargate `RunTask` on task definition `reciterai-tools` (Tuesdays 03:30 UTC, **ENABLED 2026-11-11** after the first-run checklist). Incremental maintain run for the Methods & Tools artifact (`tools/latest/`); template in `tools_task_definition.json`. See "Tools maintain launch path" below.
 - **`lambda_iam_policy.json`** — minimum permissions for every ReciterAI Lambda execution role. Changes here are applied to the LIVE role manually (`aws iam put-role-policy`) — and ordering can matter: the ADR-D3 `HotHandshakeReadPeerBundles` statement must reach the live role BEFORE the orchestrator zip that uses it is redeployed, or the next hot run fails closed on AccessDenied.
 - **`enrichment_task_iam_policy.json`** (#37 PR 4; #137 added `DeleteItem` + `Scan` for the quarantine module) — minimum permissions for the Fargate enrichment task role (DDB `Get/Put/Update/DeleteItem` + `Query`/`Scan` + `BatchWriteItem` + `DescribeTable` on the `reciterai` table, Secrets Manager read on the 4 enrichment secrets, CloudWatch Logs write). No `bedrock:InvokeModel` — Bedrock authenticates via the `AWS_BEARER_TOKEN_BEDROCK` bearer token (plan D8), and dropping the IAM grant gives the task loud-failure mode on a missing/stale token.
 - **`ecs_task_definition.json`** (#37 PR 4) — the Fargate task definition for the daily enrichment job. Templated placeholders (`{IMAGE_URI}`, `{TASK_ROLE_ARN}`, etc.) are substituted manually at deploy time; see `docs/daily-enrichment.md` §"Deploying the enrichment job" for the runbook.
@@ -634,7 +634,7 @@ sends a Teams WARN and leaves those areas unassigned.
 
 The **weekly tools maintain run** (`python -m pipeline_tools.maintain --publish`,
 family `reciterai-tools`, rule `reciterai-tools-weekly` at Tuesday 03:30 UTC,
-**deployed DISABLED**) keeps the Methods & Tools artifact (`tools/latest/`)
+**ENABLED 2026-11-11**) keeps the Methods & Tools artifact (`tools/latest/`)
 current without re-running the corpus build. It starts from the durable state
 in `tools/_state/` (reconciled to live by `cli/tools_state_reconcile.py`),
 extracts the publications and grants the S3 checkpoint

@@ -10,7 +10,8 @@ Mirrors test_infra_area_signals_fargate_shape.py. Tools-specific pins:
 - DynamoDB is pinned by `dynamodb:LeadingKeys` to the run's own ledger
   partition, which must equal `maintain.STAGE_PK`.
 - No Bedrock IAM and no Secrets Manager: four secrets are execution-role-injected.
-- The rule ships DISABLED with a state_comment naming the precondition.
+- The rule is ENABLED (2026-11-11, after the seeded catch-up run); its
+  state_comment records that run and how to disable it.
 """
 from __future__ import annotations
 
@@ -184,10 +185,10 @@ def test_rule_targets_the_family_via_the_invoke_ecs_role(rule):
     assert target["role_arn_template"].endswith("role/reciterai-eventbridge-invoke-ecs")
 
 
-def test_rule_is_weekly_and_deployed_disabled(rule):
+def test_rule_is_weekly_and_enabled_after_the_seed_run(rule):
     assert rule["schedule_expression"] == "cron(30 3 ? * TUE *)"
-    assert rule["state"] == "DISABLED"
-    assert "--seed-incorporated-from-checkpoint" in rule["state_comment"]
+    assert rule["state"] == "ENABLED"
+    assert "catch-up --publish" in rule["state_comment"]
     assert len(rule["description"]) <= 512
 
 
