@@ -3,7 +3,6 @@
 **Status:** APPROVED 2026-06-06 — gate decisions locked; issues #5/#6/#7/#8 closed. Resolves the four `decision-deferred` issues that block Phase 8.
 **Evidence:** `.planning/tools-probe-report.md` (Phase 0 probe, 2026-06-05).
 **Current overview:** [`tools-README.md`](./tools-README.md) describes how tools are identified today; this doc keeps the original decisions.
-**Companion plan:** `~/Dropbox/Projects/ReciterAI - Planning/tools-taxonomy-PLAN.md`.
 
 This is the 1–2 page producer-model spec SPEC §10 requires before Phase 8 implementation. It answers the four blocking questions. Approval here is the trigger to close #5–#8.
 
