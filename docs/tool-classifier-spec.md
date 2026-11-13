@@ -5,7 +5,7 @@ A1 draft and the loose parts of `docs/tools-producer-model.md`. **Refines the re
 the already-closed gate decision #8 — does not reopen it.** Gate decisions #5 (hybrid vocabulary),
 #6 (discovery), #7 (1:N cardinality) stand as decided; only #8's fields are sharpened,
 pre-implementation, at zero migration cost. Amend `tools-producer-model.md` §#8 to point here
-(now carrying the disposition gate, the attribute set, and the 8-kind / 13-supercategory
+(now carrying the disposition gate, the attribute set, and the 8-kind / 14-supercategory
 vocabularies). Replace that doc's "schema exists so it never has to migrate" line — it is now
 false and superseded by this refinement.
 
@@ -35,7 +35,7 @@ grab-bag. Use it only as a weak prior via §4.
 
 | Tier | Cardinality | Source | Role |
 |---|---|---|---|
-| **Supercategory** | 13, closed | curated (frozen here) | browse facet; never on the profile |
+| **Supercategory** | 14, closed | curated (frozen here) | browse facet; never on the profile |
 | **Method family** | hundreds, growing | discovered, accreted (§7 registry) | the workhorse — profile rows, family pages, pub filter |
 | **Canonical tool** | the leaves, growing | deduped, accreted (§8 registry) | evidence; exemplars; "who uses X" |
 
@@ -55,7 +55,9 @@ demoted."
 
 ---
 
-## 1. Supercategories — CLOSED SET OF 13
+## 1. Supercategories — CLOSED SET OF 14
+
+*Note (2026-11-13): this section was written as a set of 13. #14 Functional & metabolic cellular assays was added during the A2 build (2026-06), and the code (`pipeline_tools/vocab.py` `SUPERCATEGORIES`) carries 14. The numbering below keeps #13 = Other.*
 
 Assign exactly one, to `method_tool` records only. Route by **capability** from name + context —
 not by whether it's a device, service, or kit (orthogonal; §2–§3).
@@ -72,7 +74,8 @@ not by whether it's a device, service, or kit (orthogonal; §2–§3).
 10. **Datasets & cohorts** — `dataset_*`: claims/EHR (MarketScan, INSIGHT-CRN, Premier, Epic Cosmos), public cohorts & registries (TCGA, SRTR, GWAS sumstats, WISQARS), bibliographic DBs (PubMed, EMBASE).
 11. **Software & informatics platforms** — software whose function is *general* (not imaging/genomics analysis): REDCap, R, dashboards, planning/analytics tools without a modality home.
 12. **Structural & biophysical methods** *(new in v3)* — macromolecular structure determination and molecular-interaction biophysics: X-ray crystallography, cryo-EM (structure-determination), NMR (structural), SPR, ITC, pulsed-dipolar/EPR spectroscopy. *Coherent capability axis ("I solve structures / measure binding") that had no home — crystallography was wrongly landing in #7.*
-13. **Other / uncategorized** — **gated remainder, not a catch-all.** A `method_tool` lands here only if it fits none of #1–#12. The §0.5 gate has already removed errors, non-tool stopwords, and infrastructure, so #13 holds only honest in-domain unknowns.
+13. **Other / uncategorized** — **gated remainder, not a catch-all.** A `method_tool` lands here only if it fits none of #1–#12 or #14. The §0.5 gate has already removed errors, non-tool stopwords, and infrastructure, so #13 holds only honest in-domain unknowns.
+14. **Functional & metabolic cellular assays** (`functional_metabolic_cellular_assays`, added during the A2 build) — **metabolic/bioenergetic readouts only**: mitochondrial respiration, Seahorse/extracellular flux (OCR/ECAR), glycolysis, metabolic tracing, metabolic-state viability. "Functional" alone is not a #14 signal; a non-metabolic bench/mechanistic assay routes to #8, a patient-sample diagnostic to #6.
 
 > **The spine rule — why #12 is added the same round #10 was removed.** A supercategory is one
 > facet per real **capability axis**. Coordination (removed in v2) failed that test — it's
@@ -217,7 +220,7 @@ Global structure, local batches. **Never re-cluster from scratch** or you fork n
 
     family_id        durable, opaque, stable across re-clusters (NEVER derived from label or membership)
     label            controlled display name (§7.2)
-    supercategory    one of the 13
+    supercategory    one of the 14
     dominant_kind    drives the profile basis line
     member_tool_ids  []  -> canonical_tool_id values from §8 (may shift between runs WITHOUT changing family_id)
     exemplar_tool_ids[]  institutional default; per-profile rows re-rank locally (§7.1)
@@ -318,7 +321,7 @@ registry (`attached`/`minted`/`alias-added`).
 
 ## 10. What is frozen vs what moves
 
-- **Frozen:** 13 supercategories (§1), 8-value kind enum (§2), 3-value disposition gate (§0.5), attribute set (§3), routing rules (§6).
+- **Frozen:** 14 supercategories (§1), 8-value kind enum (§2), 3-value disposition gate (§0.5), attribute set (§3), routing rules (§6).
 - **Accretes (match-or-mint, durable ids):** the family registry (§7) and the canonical-tool registry (§8).
 - **Recomputed as data arrives:** salience (§5; `llm_provisional` → `grounded` after A2; thresholds recalibrated then), per-faculty family counts (§8).
 - **Periodic maintenance:** the §7 cross-supercategory family-dedup sweep.

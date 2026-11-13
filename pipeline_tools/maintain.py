@@ -23,7 +23,8 @@ One run:
   5. A new method tool joins an EXISTING family by the registry's non-minting family match.
      No family match -> held for review (kept in the state registry with ``review_hold``,
      never published, listed in ``tools/_review/<run>.json`` + a Teams card). Families are
-     never minted or re-formed (``form_families`` re-mints ids, #308 item 4, still open).
+     never minted or re-formed (``form_families`` re-mints ids; split from #308 item 4 into
+     #317, still open).
   6. New pub_ids, sentence-aligned context (the #239 extraction-time guard, re-checked here
      with the verbatim guard when the abstract is at hand) and entity_context rows are
      added for NEW PMIDs only. Existing (tool, pmid) snippets, their meta signals and
