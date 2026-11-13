@@ -57,7 +57,7 @@ strictly in the provided text.
 
 ```json
 {
-  "schema_version": "tools-a2-v2",
+  "schema_version": "tools-a2-v4",
   "provenance": { "...": "same block as tools.json" },
   "tool_context_kind": "tool_usage_snippet",
   "tool_context": {

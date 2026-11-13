@@ -3,7 +3,8 @@
 How the corpus-wide tool/method taxonomy (Phase 8, "Axis 2") is built, the
 decisions behind it, and the lessons that reshaped the approach mid-build. The
 frozen classification contract lives in [`tool-classifier-spec.md`](./tool-classifier-spec.md);
-this doc is the *implementation* and *rationale*.
+this doc is the *implementation* and *rationale*. For a current end-to-end overview
+(weekly run, policy, SPS use, open questions) see [`tools-README.md`](./tools-README.md).
 
 ---
 
@@ -287,6 +288,13 @@ diagnostic assays` clinical#6↔genomic#3 arm the fork adjudication never covere
 defensible clinical-vs-genomic-dx blur). Review artifacts: `out/tools/a2/_review/`
 (`D-07-REVIEW.md`, `D-07-FIX-PLAN.md`).
 
+*Update 2026-11-13: the counts above are as of v7. A residuals batch the same day (#174)
+grew the override table to **21 reroute / 5 relabel / 22 merge** (`family_overrides.py`
+`REROUTES` / `RELABELS` / `MERGES`), so the post-override family count is **872**, not 878.
+Later curation reduced it further: the 872 → 820 consolidation
+(`config/family_consolidation_v820.json`, which also set display tiers) and an ad hoc
+dedup batch (`config/family_adhoc_dedup.json`), giving **~816 live families**.*
+
 ---
 
 ## 4. Cost & scale (measured)
@@ -302,6 +310,9 @@ defensible clinical-vs-genomic-dx blur). Review artifacts: `out/tools/a2/_review
 | Families (broaden + **LLM reconcile**) | 1,937 pre-floor, 29% singletons |
 | Families (+ **≥3 floor, #14, crisp #6/#8/#14, review fixes**) | 894 post-floor (v6) (computational 152, #14=8, 17 forks→queue); see §3.8 |
 | Families (+ **D-07 deterministic fix batch**) | **878 (FROZEN v7)** (computational 151, #14=7, 10 forks→queue; 14 reroute/4 relabel/16 merge, $0 re-run); see §3.9 |
+| Families (+ #174 residuals; override table now 21 reroute/5 relabel/22 merge) | 872 (as of 2026-11-13 code) |
+| Families (+ v820 consolidation, `config/family_consolidation_v820.json`) | 820 |
+| Families (+ ad hoc dedup, `config/family_adhoc_dedup.json`) | ~816 live |
 
 ---
 
@@ -309,7 +320,7 @@ defensible clinical-vs-genomic-dx blur). Review artifacts: `out/tools/a2/_review
 
 | Module | Role |
 |---|---|
-| `vocab.py` | frozen closed sets (13 supercats, 8 kinds, 3 dispositions, attrs) |
+| `vocab.py` | frozen closed sets (14 supercats, 8 kinds, 3 dispositions, attrs) |
 | `ids.py` | durable opaque ids (`tool_000001` / `fam_0001`, D-06) |
 | `embeddings.py` | Titan v2 NN — numpy-vectorized, threaded+retried, cache as ndarrays |
 | `registry.py` | `ToolRegistry`/`FamilyRegistry` match-or-mint, accretion, denylist |
@@ -335,6 +346,9 @@ defensible clinical-vs-genomic-dx blur). Review artifacts: `out/tools/a2/_review
 - **`classified_by` provenance backfill** — this run is aggregate-only (~98% Sonnet);
   stamp `classified_by = us.anthropic.claude-sonnet-4-6` (assumed) on the published
   tools. Per-form provenance is captured for real on the next run.
+  *(Update 2026-11-13: the code stamps `SONNET_MODEL` from `utils/bedrock_client.py`
+  (`corpus_run.stamp_assumed_classified_by`, and `maintain.py` for new tools), which is
+  now `us.anthropic.claude-sonnet-5-5`. The v7-era assumed records were made on Sonnet 4.6.)*
 - **Surface `context_evidence`** in SPS (§3.7).
 - **Publish** — `--publish` is gated behind human review of the artifacts (D-07).
 - **Legacy DynamoDB supersede** — retire the stale `TOOL#`/`TOOL_INDEX#` items

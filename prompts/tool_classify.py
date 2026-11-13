@@ -79,7 +79,7 @@ STEP 2 — only for method_tool, assign KIND (one of {list(vocab.KINDS)}):
   `service` is NOT a kind — strip the wrapper; the kind is whatever is underneath, and the wrapper \
 becomes the `delivery` attribute.
 
-STEP 3 — only for method_tool, assign SUPERCATEGORY (exactly one of the 13 by CAPABILITY):
+STEP 3 — only for method_tool, assign SUPERCATEGORY (exactly one of the 14 by CAPABILITY):
 {_supercategory_menu()}
 
 ROUTING RULES (§6):

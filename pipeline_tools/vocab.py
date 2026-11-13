@@ -6,7 +6,7 @@ tool registry (§8) grow — and both by match-or-mint, never per-batch from scr
 
 What is frozen here (§10):
   - disposition gate           §0.5  — 3 values
-  - supercategories            §1    — 13 values
+  - supercategories            §1    — 14 values
   - kind enum                  §2    — 8 values
   - attribute schema           §3    — delivery / provenance / license / consumable / rrid_candidate
   - salience tiers + basis     §5
@@ -202,7 +202,7 @@ def validate_method_tool_record(rec: dict) -> list[str]:
                 problems.append(f"{disp} record must not carry {field} (got {rec.get(field)!r})")
         return problems
     if not is_valid_supercategory(rec.get("supercategory")):
-        problems.append(f"supercategory={rec.get('supercategory')!r} not in the 13 closed values")
+        problems.append(f"supercategory={rec.get('supercategory')!r} not in the 14 closed values")
     if not is_valid_kind(rec.get("kind")):
         problems.append(f"kind={rec.get('kind')!r} not in the 8 closed values")
     if not is_valid_tier(rec.get("salience_tier")):

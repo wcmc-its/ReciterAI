@@ -24,7 +24,8 @@ that curation (ReciterAI#308).
 :func:`reemit` renders the publish set from a state through the real publish path
 (``publish.build_publish_items``); with no new PMIDs it must equal live byte for byte.
 
-Storage layout (local dir now; ``s3://wcmc-reciterai-artifacts/tools/_state/`` later)::
+Storage layout (``S3StateStore`` at ``s3://wcmc-reciterai-artifacts/tools/_state/``, the
+default in ``maintain.py``; ``LocalStateStore`` for a local dir via ``--state-dir``)::
 
     <root>/latest.json                    {"version": ..., "state_manifest_sha256": ...}
     <root>/<version>/state_manifest.json  schema, version, parent, per-file sha256 + bytes,
