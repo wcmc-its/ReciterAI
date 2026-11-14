@@ -234,7 +234,9 @@ Producer-model decision #6: new canonical entries are human-gated. In practice:
 **Alerting:**
 - A Teams ERROR card fires for failures the code catches. A WARN card fires if half the papers fail extraction or the cost cap halts the run.
 - The CloudWatch alarm `reciterai-tools-maintain-errors` fires on any ERROR or Traceback log line.
-- An out-of-memory kill or an ECS stop writes nothing. It shows only as the ledger row going stale.
+- The EventBridge rule `reciterai-tools-task-stopped-abnormal` sends any `reciterai-tools` task that fails to start or exits non-zero (an out-of-memory kill is exit 137) to the same SNS topic. Those deaths write no log line, so the log alarm cannot see them.
+- The alarm `reciterai-tools-weekly-failed-invocations` fires when EventBridge cannot launch the task at all (permissions, API errors).
+- A schedule that never fires, or a run that exits 0 without writing its ledger row, still shows only as the ledger row going stale.
 
 **First run (2026-11-11, catch-up, run `2026-11-11T220611Z`):**
 - 78 minutes; about $3.60 (extraction $0.50 measured, classification about $3.09 estimated).
