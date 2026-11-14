@@ -143,9 +143,12 @@ def _store_item(durable_id, slug_id, topic_id, pmids):
 # ---------------------------------------------------------------------------
 
 
-def test_skip_lede_config_real_config_is_off_by_default():
-    enabled, _ = load_skip_lede_config()
-    assert enabled is False  # ships flag-off
+def test_skip_lede_config_real_config_enabled_in_prod():
+    # #204 (Shape B): lede-skip is ENABLED in the shipped config. It was flag-off
+    # through the brick-E build (PR #206); flipped on to reuse a stable prior lede.
+    enabled, overlap_min = load_skip_lede_config()
+    assert enabled is True
+    assert overlap_min == 0.70
 
 
 def test_skip_lede_config_absent_enabled_key_is_off(tmp_path):
@@ -385,11 +388,14 @@ def test_lede_reuse_for_fewer_than_min_papers_returns_none():
 # ---------------------------------------------------------------------------
 
 
-def test_load_lede_skip_map_flag_off_returns_empty():
-    """Against the real config (flag off): {} and the fakes are NEVER touched."""
+def test_load_lede_skip_map_flag_off_returns_empty(tmp_path):
+    """Flag OFF (explicit off-config — the shipped config now enables it, #204):
+    {} and the fakes are NEVER touched."""
+    off_cfg = tmp_path / "thresholds.json"
+    off_cfg.write_text(json.dumps({SKIP_LEDE_ENABLED_KEY: False}))
     table = _FakeTable(items=[_store_item("d1", "slug_a", "t", [1, 2, 3, 4])])
     s3 = _FakeS3(artifact={"spotlights": []})
-    out = load_lede_skip_map(table=table, s3_client=s3)
+    out = load_lede_skip_map(table=table, s3_client=s3, thresholds_path=off_cfg)
     assert out == {}
     assert s3.gets == []  # no S3 GET when off
     assert table.writes == []
