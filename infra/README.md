@@ -754,8 +754,24 @@ is why the rule stays DISABLED until the seeded publish run has succeeded.
    `reciterai-tools-errors`, pattern `'?ERROR ?Traceback'`, metric
    `ToolsMaintainErrors` and alarm `reciterai-tools-maintain-errors`
    (`--period 86400`). An OOM kill or an ECS stop writes no log line at all,
-   so it is caught only by the `STAGE#` row going stale; check it after each
-   of the first weekly runs.
+   so two more out-of-band alerts cover it (applied 2026-11-14), both to
+   `reciter-pipeline-validation`:
+   - EventBridge rule `reciterai-tools-task-stopped-abnormal`, pattern
+     `aws.ecs` / `ECS Task State Change` on `reciterai-cluster`, group
+     `family:reciterai-tools`, `lastStatus` STOPPED, and either
+     `stopCode` `TaskFailedToStart` or a container `exitCode` other than 0.
+     SNS target `Id=sns`. The topic policy carries statement
+     `AllowReciteraiToolsStoppedRule` (service `events.amazonaws.com`,
+     `sns:Publish`, `aws:SourceArn` = this rule's ARN); without it the rule
+     matches but delivery fails silently.
+   - CloudWatch alarm `reciterai-tools-weekly-failed-invocations`:
+     `AWS/Events` `FailedInvocations`, `RuleName=reciterai-tools-weekly`,
+     Sum >= 1 over 300s, missing data not breaching.
+
+   Neither catches a schedule that never fires or a run that exits 0 without
+   writing its row; that still shows only as the `STAGE#` row going stale, so
+   check it after each of the first weekly runs. This rule is not in
+   `eventbridge.json`, so `deploy_cron.sh` neither manages nor removes it.
 9. **Enable the rule.** Flip `state` to `ENABLED` for `reciterai-tools-weekly` in
    `eventbridge.json` and run `scripts/deploy_cron.sh --rule reciterai-tools-weekly`
    (`--dry-run` first; same env vars as the other ECS rules). Do not use
