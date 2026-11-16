@@ -37,9 +37,9 @@ def test_synopsis_system_prompt_byte_stable():
     """If this fails, someone edited SYNOPSIS_SYSTEM. Re-run the equivalence
     check (scripts/equivalence_check.py) and update the expected hash in
     the same commit if the edit is deliberate."""
-    expected = "3c802fb480d82c8201f4ae3b50aa5a2cb93378da215927fc2373d5a5d06e8f81"
+    expected = "5de375cd344b85a770bc0be9eebb0652c1d3359135cc77e14fc69b651177434e"
     assert _hash(SYNOPSIS_SYSTEM) == expected, (
-        f"SYNOPSIS_SYSTEM has drifted from the pinned version (70-char ask, 2026-11-16). "
+        f"SYNOPSIS_SYSTEM has drifted from the pinned version (70-char ask + translational stage, 2026-11-16). "
         f"Got: {_hash(SYNOPSIS_SYSTEM)}"
     )
 
@@ -50,6 +50,9 @@ def test_synopsis_system_prompt_structural_invariants():
     assert "<= 70 characters" in SYNOPSIS_SYSTEM
     assert "40+ characters" in SYNOPSIS_SYSTEM
     assert ">= 5 words" in SYNOPSIS_SYSTEM
+    # Every stage label the parser accepts is offered to the model.
+    from pipeline_enrichment.prompts import TRANSLATIONAL_STAGES
+    assert '"stage": "' + "|".join(TRANSLATIONAL_STAGES) + '"' in SYNOPSIS_SYSTEM
 
 
 def test_impact_v2_byte_stable():

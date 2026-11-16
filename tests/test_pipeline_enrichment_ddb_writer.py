@@ -186,3 +186,20 @@ def test_propagate_idempotent_full_skip(monkeypatch):
     table = MagicMock()
     assert ddb_writer.propagate_impact_to_topic_rows(table, [_impact("555", 60, "j")]) == 0
     table.update_item.assert_not_called()
+
+
+def test_build_impact_item_stage_is_omitted_when_absent():
+    """Unclassified papers carry no stage attribute at all."""
+    item = ddb_writer.build_impact_item(**_kwargs())
+    assert "translational_stage" not in item
+    assert "translational_stage_confidence" not in item
+    # A confidence without a stage is meaningless and is dropped too.
+    item = ddb_writer.build_impact_item(**_kwargs(translational_stage_confidence="high"))
+    assert "translational_stage_confidence" not in item
+
+
+def test_build_impact_item_carries_stage_when_present():
+    item = ddb_writer.build_impact_item(
+        **_kwargs(translational_stage="T3-4", translational_stage_confidence="medium"))
+    assert item["translational_stage"] == "T3-4"
+    assert item["translational_stage_confidence"] == "medium"

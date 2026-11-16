@@ -17,6 +17,9 @@ Item shape — locked in `~/Dropbox/Projects/ReciterAI - Planning/
                               `gpt-5.1` when the content-filter fallback fired)
     synopsis        string  — bounded by SYNOPSIS_SCHEMA.synopsis.maxLength
     synopsis_model  string  — model actually used for the synopsis call
+    translational_stage             string, optional — T0 | T1 | T2 | T3-4 | NA,
+                                    from the synopsis call; absent when unclassified
+    translational_stage_confidence  string, optional — high | medium | low
                               (same rule as `model` — Sonnet primary, gpt-5.1
                               fallback)
     enriched_at     string  — ISO 8601 (UTC, "Z"); single timestamp for
@@ -57,6 +60,8 @@ def build_impact_item(
     synopsis: str,
     synopsis_model: str,
     enriched_at: str,
+    translational_stage: str | None = None,
+    translational_stage_confidence: str | None = None,
 ) -> dict[str, Any]:
     """Pure builder for one IMPACT# row. No I/O.
 
@@ -65,7 +70,7 @@ def build_impact_item(
     serializes Python types automatically; impact_score stays `int` (DDB
     Number) — no Decimal coercion needed because the value is whole.
     """
-    return {
+    item: dict[str, Any] = {
         "PK": f"{IMPACT_PK_PREFIX}{pmid}",
         "SK": IMPACT_SK,
         "pmid": str(pmid),
@@ -76,6 +81,13 @@ def build_impact_item(
         "synopsis_model": synopsis_model,
         "enriched_at": enriched_at,
     }
+    # Omit-on-empty: a paper with no valid stage carries no attribute, so a
+    # reader can tell "not classified" from a real label.
+    if translational_stage:
+        item["translational_stage"] = translational_stage
+        if translational_stage_confidence:
+            item["translational_stage_confidence"] = translational_stage_confidence
+    return item
 
 
 def write_impact_batch(table: Any, items: list[dict[str, Any]]) -> int:
