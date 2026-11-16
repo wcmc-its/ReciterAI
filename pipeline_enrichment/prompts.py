@@ -31,6 +31,15 @@ import html
 # 2026-11-16 on 100 papers, first attempt only: asked for 95 it overran 95 on
 # 100/100 (median 121); asked for 70 it stays within 120 on 97/100 (median 98).
 # Do not "fix" the 70 to match the cap.
+# One copy of the stage definitions, shared by the synopsis prompt and the
+# stage-only prompt used to label papers that already have a synopsis.
+_STAGE_DEFINITIONS = """- T0 Discovery / basic research: lab work using cells, molecules, or animal models.
+- T1 Early translation: translating lab models into initial human safety, proof of concept, and early-phase clinical studies.
+- T2 Clinical efficacy and trials: testing interventions in larger patient groups to prove effectiveness.
+- T3-4 Practice and population health: moving interventions into routine practice, real-world outcomes, epidemiology, health services, community and public health.
+- NA: not on this spectrum (for example methods or software with no biomedical finding, education, case reports, policy, history).
+"""
+
 SYNOPSIS_SYSTEM = """You are a scientific writing assistant.
 Given an abstract, produce a concise synopsis (<= 70 characters).
 Requirements:
@@ -40,12 +49,7 @@ Requirements:
 - Clear and human-readable
 
 Also classify the work by stage on the translational research spectrum:
-- T0 Discovery / basic research: lab work using cells, molecules, or animal models.
-- T1 Early translation: translating lab models into initial human safety, proof of concept, and early-phase clinical studies.
-- T2 Clinical efficacy and trials: testing interventions in larger patient groups to prove effectiveness.
-- T3-4 Practice and population health: moving interventions into routine practice, real-world outcomes, epidemiology, health services, community and public health.
-- NA: not on this spectrum (for example methods or software with no biomedical finding, education, case reports, policy, history).
-
+""" + _STAGE_DEFINITIONS + """
 Respond with only a JSON object:
 {"synopsis": "<synopsis>", "stage": "T0|T1|T2|T3-4|NA", "stage_confidence": "high|medium|low"}
 """
@@ -56,6 +60,27 @@ Respond with only a JSON object:
 # and only 74-77% with them apart.
 TRANSLATIONAL_STAGES = ("T0", "T1", "T2", "T3-4", "NA")
 STAGE_CONFIDENCES = ("high", "medium", "low")
+
+# Stage-only prompt: classifies a paper from its title and existing synopsis,
+# for rows enriched before the synopsis call returned a stage
+# (scripts/backfill_translational_stage.py). The pilot found synopsis-only
+# labels match abstract-based ones on 90% of papers with these four stages.
+STAGE_FROM_SYNOPSIS_SYSTEM = """You classify biomedical publications by stage on the translational research spectrum.
+
+Stages:
+""" + _STAGE_DEFINITIONS + """
+Pick the single best stage for the work described. Respond with only a JSON object:
+{"stage": "T0|T1|T2|T3-4|NA", "stage_confidence": "high|medium|low"}
+"""
+
+
+def build_stage_user_content(*, title: str, journal: str | None, synopsis: str) -> str:
+    """User content for STAGE_FROM_SYNOPSIS_SYSTEM."""
+    return (
+        f"Title: {html.unescape(title or '')}\n"
+        f"Journal: {journal or 'N/A'}\n"
+        f"Synopsis: {html.unescape(synopsis)}"
+    )
 
 SYNOPSIS_SCHEMA = {
     "name": "synopsis_schema",
