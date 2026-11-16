@@ -120,6 +120,8 @@ class PmidOutcome:
     # Payload — populated only on success. Used by ddb_writer.build_impact_item.
     synopsis: Optional[str] = None
     synopsis_model: Optional[str] = None
+    translational_stage: Optional[str] = None
+    translational_stage_confidence: Optional[str] = None
     impact_score: Optional[int] = None
     justification: Optional[str] = None
     impact_model: Optional[str] = None
@@ -539,6 +541,8 @@ def run_daily_enrichment(
                 synopsis=o.synopsis,
                 synopsis_model=o.synopsis_model,
                 enriched_at=o.enriched_at,
+                translational_stage=o.translational_stage,
+                translational_stage_confidence=o.translational_stage_confidence,
             )
             for o in outcomes
             if o.fully_succeeded
@@ -751,6 +755,10 @@ def _process_one_pmid(
     outcome.synopsis_ok = True
     outcome.synopsis = syn.synopsis
     outcome.synopsis_model = syn.model
+    # getattr: generate_synopsis is injectable, and an injected result type
+    # (tests, older callers) may not carry the stage fields.
+    outcome.translational_stage = getattr(syn, "stage", None)
+    outcome.translational_stage_confidence = getattr(syn, "stage_confidence", None)
 
     # --- Impact (only on synopsis success) ---
     imp = score_impact(pub_data=row, client=client)
@@ -983,6 +991,8 @@ def run_enrichment_backfill(
                 synopsis=o.synopsis,
                 synopsis_model=o.synopsis_model,
                 enriched_at=o.enriched_at,
+                translational_stage=o.translational_stage,
+                translational_stage_confidence=o.translational_stage_confidence,
             )
             for o in succeeded
         ]

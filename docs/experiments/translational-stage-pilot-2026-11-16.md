@@ -1,6 +1,6 @@
 # Translational stage for publications: pilot (2026-11-16)
 
-Nothing here is built. This records what a pilot found, so the decision to build can start from numbers.
+This records what a pilot found. Since then the synopsis call has been changed to return the stage and store it on the `IMPACT#` row (see "Built so far" below); nothing downstream reads it yet.
 
 ## Question
 
@@ -89,13 +89,19 @@ Per paper, at `config/llm_prices.yaml` prices:
 | Sonnet, stage from the synopsis | 448 / 92 | $0.0018 |
 | Opus, stage from the abstract (effort high) | 1,046 / 203 | $0.0082 |
 | Haiku, stage from the abstract | 1,055 / 132 | $0.0002 |
-| Sonnet, synopsis and stage in one call | measured before the synopsis length fix; re-measure | — |
+| Sonnet, synopsis and stage in one call (shipped prompt) | 1,084 / 64 | $0.0028 |
 
 Corpus sizes in reciterdb on 2026-11-16: 287,274 Academic Articles; 268,628 with an abstract over 300 characters, of which iCite marks 267,810 as research articles; 80,041 of those from 2020 onward.
 
-## If this is built
+## Built so far
 
-- Add `stage` and `stage_confidence` to the synopsis call's output and store them on the `IMPACT#` row beside `synopsis`. A missing or invalid stage should not fail the paper.
+- The publication synopsis prompt asks for the stage in the same call. On the 100-paper probe set that was 100 calls for 100 papers, no synopsis over 120 characters, a valid stage on every paper, and the same stage as the pilot run for 95.
+- `translational_stage` (`T0`, `T1`, `T2`, `T3-4`, `NA`) and `translational_stage_confidence` are written to the `IMPACT#` row when present, and omitted when the model returns no valid label.
+- Only papers enriched after this change get a stage. Existing rows, MariaDB, the `TOPIC#` rows and Scholars are untouched.
+
+## Still to build
+
+- Label the papers that already have a synopsis (from the synopsis alone).
 - Leave NA and low-confidence papers unlabelled downstream.
 - A wider corpus (every research article from 2020, whatever the authors' rank) needs a synopsis-only path, since impact scoring is a separate and larger call.
 - Clinical trials need no model: ClinicalTrials.gov phase and study type map onto the stages directly. Awarded grants would need their own pass over title and abstract.

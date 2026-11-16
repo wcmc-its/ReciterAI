@@ -21,7 +21,12 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from pipeline_enrichment.llm_call import call_with_fallback, parse_json_lenient
-from pipeline_enrichment.prompts import SYNOPSIS_SYSTEM, build_synopsis_user_content
+from pipeline_enrichment.prompts import (
+    STAGE_CONFIDENCES,
+    SYNOPSIS_SYSTEM,
+    TRANSLATIONAL_STAGES,
+    build_synopsis_user_content,
+)
 from utils.bedrock_client import BedrockClient, SONNET_MODEL
 
 logger = logging.getLogger(__name__)
@@ -59,6 +64,23 @@ class SynopsisResult:
     input_tokens: int
     output_tokens: int
     error: Optional[str] = None
+    # Translational stage from the same call (publication prompt only). None
+    # when the prompt does not ask for one (grants, trials) or the model's
+    # value is missing or not a known label. Never a reason to fail the paper:
+    # the synopsis is the product, the stage is an extra.
+    stage: Optional[str] = None
+    stage_confidence: Optional[str] = None
+
+
+def _parse_stage(payload) -> tuple[Optional[str], Optional[str]]:
+    """Return (stage, confidence) from a parsed response, each None unless valid."""
+    if not isinstance(payload, dict):
+        return None, None
+    stage = str(payload.get("stage") or "").strip().upper()
+    if stage not in TRANSLATIONAL_STAGES:
+        return None, None
+    conf = str(payload.get("stage_confidence") or "").strip().lower()
+    return stage, (conf if conf in STAGE_CONFIDENCES else None)
 
 
 def generate_synopsis(
@@ -109,6 +131,8 @@ def generate_synopsis(
     output_tokens_total = 0
     response_model: str = model
     synopsis_text = ""
+    stage: Optional[str] = None
+    stage_confidence: Optional[str] = None
 
     for attempt in range(SYNOPSIS_MAX_ATTEMPTS):
         try:
@@ -144,6 +168,7 @@ def generate_synopsis(
             (payload.get("synopsis") or "").strip()
             if isinstance(payload, dict) else ""
         )
+        stage, stage_confidence = _parse_stage(payload)
         if not synopsis_text:
             return SynopsisResult(
                 pmid=pmid, synopsis=None, model=response_model,
@@ -154,7 +179,7 @@ def generate_synopsis(
             return SynopsisResult(
                 pmid=pmid, synopsis=synopsis_text, model=response_model,
                 input_tokens=input_tokens_total, output_tokens=output_tokens_total,
-                error=None,
+                error=None, stage=stage, stage_confidence=stage_confidence,
             )
         # Overrun — reinforce the limit and retry (unless this was the last
         # attempt, in which case the loop falls through to the block below).
@@ -177,4 +202,5 @@ def generate_synopsis(
         input_tokens=input_tokens_total, output_tokens=output_tokens_total,
         error=f"length violation: {len(synopsis_text)} chars "
               f"(limit {SYNOPSIS_MAX_CHARS})",
+        stage=stage, stage_confidence=stage_confidence,
     )

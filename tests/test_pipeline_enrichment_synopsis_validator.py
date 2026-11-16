@@ -45,10 +45,10 @@ class _FakeBedrock:
 
 
 def _bedrock_synopsis(text: str, *, input_tokens=100,
-                      output_tokens=20) -> BedrockCallResult:
+                      output_tokens=20, extra: dict | None = None) -> BedrockCallResult:
     """A Bedrock response whose text is the synopsis JSON object."""
     return BedrockCallResult(
-        text=json.dumps({"synopsis": text}),
+        text=json.dumps({"synopsis": text, **(extra or {})}),
         input_tokens=input_tokens, output_tokens=output_tokens,
         stop_reason="end_turn",
     )
@@ -294,3 +294,36 @@ def test_synopsis_overrides_apply_to_every_attempt():
     first = fake.calls[0]["messages"][0]["content"]
     assert first == "Title: T\nFunder: NIH R01\nStart year: 2023\nAbstract: A"
     assert fake.calls[1]["messages"][0]["content"].startswith(first + "\n\nYour previous attempt")
+
+
+# --- translational stage (rides the publication synopsis call) ---
+
+def test_synopsis_returns_valid_stage_and_confidence():
+    fake = _FakeBedrock([_bedrock_synopsis("A finding", extra={"stage": "t3-4", "stage_confidence": "High"})])
+    result = generate_synopsis(pmid="30", title="T", abstract="A", client=fake)
+    assert result.synopsis == "A finding"
+    assert (result.stage, result.stage_confidence) == ("T3-4", "high")
+
+
+def test_synopsis_invalid_or_missing_stage_is_none_and_never_an_error():
+    """The synopsis is the product; a bad stage must not fail the paper."""
+    for extra in ({}, {"stage": "T3"}, {"stage": "T5", "stage_confidence": "high"}, {"stage": None}):
+        fake = _FakeBedrock([_bedrock_synopsis("A finding", extra=extra)])
+        result = generate_synopsis(pmid="31", title="T", abstract="A", client=fake)
+        assert result.synopsis == "A finding" and result.error is None
+        assert (result.stage, result.stage_confidence) == (None, None)
+
+
+def test_synopsis_unknown_confidence_keeps_the_stage():
+    fake = _FakeBedrock([_bedrock_synopsis("A finding", extra={"stage": "T0", "stage_confidence": "very"})])
+    result = generate_synopsis(pmid="32", title="T", abstract="A", client=fake)
+    assert (result.stage, result.stage_confidence) == ("T0", None)
+
+
+def test_synopsis_stage_comes_from_the_attempt_that_was_kept():
+    fake = _FakeBedrock([
+        _bedrock_synopsis("x" * 130, extra={"stage": "T0"}),
+        _bedrock_synopsis("fits", extra={"stage": "T2", "stage_confidence": "low"}),
+    ])
+    result = generate_synopsis(pmid="33", title="T", abstract="A", client=fake)
+    assert (result.synopsis, result.stage, result.stage_confidence) == ("fits", "T2", "low")

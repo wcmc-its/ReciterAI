@@ -38,7 +38,24 @@ Requirements:
 - >= 5 words
 - Must NOT parrot too much of the title
 - Clear and human-readable
+
+Also classify the work by stage on the translational research spectrum:
+- T0 Discovery / basic research: lab work using cells, molecules, or animal models.
+- T1 Early translation: translating lab models into initial human safety, proof of concept, and early-phase clinical studies.
+- T2 Clinical efficacy and trials: testing interventions in larger patient groups to prove effectiveness.
+- T3-4 Practice and population health: moving interventions into routine practice, real-world outcomes, epidemiology, health services, community and public health.
+- NA: not on this spectrum (for example methods or software with no biomedical finding, education, case reports, policy, history).
+
+Respond with only a JSON object:
+{"synopsis": "<synopsis>", "stage": "T0|T1|T2|T3-4|NA", "stage_confidence": "high|medium|low"}
 """
+
+# Translational stage labels the synopsis call may return (see
+# docs/experiments/translational-stage-pilot-2026-11-16.md). T3 and T4 are one
+# label on purpose: Opus and Sonnet agree on 84-87% of papers with them merged
+# and only 74-77% with them apart.
+TRANSLATIONAL_STAGES = ("T0", "T1", "T2", "T3-4", "NA")
+STAGE_CONFIDENCES = ("high", "medium", "low")
 
 SYNOPSIS_SCHEMA = {
     "name": "synopsis_schema",
@@ -52,6 +69,8 @@ SYNOPSIS_SCHEMA = {
             # a 17.1% overrun rate (310/1,815 papers, worst 141 chars).
             # See #50.
             "synopsis": {"type": "string", "maxLength": 120},
+            "stage": {"type": "string", "enum": list(TRANSLATIONAL_STAGES)},
+            "stage_confidence": {"type": "string", "enum": list(STAGE_CONFIDENCES)},
         },
         "required": ["synopsis"],
     },

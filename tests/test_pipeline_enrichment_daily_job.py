@@ -843,6 +843,33 @@ def test_dual_write_item_carries_full_contract_attributes(
     assert item["synopsis_model"] == SONNET_MODEL
     assert item["enriched_at"]  # non-empty ISO 8601 string
     assert "hierarchy_version" not in item  # explicitly dropped in 3.1
+    # _ok_synopsis's result type has no stage fields: the item omits the stage.
+    assert "translational_stage" not in item
+
+
+def test_dual_write_item_carries_translational_stage_from_the_synopsis_call(
+    fake_engine, fake_watermark, fake_writer
+):
+    """The stage the synopsis call returns lands on the IMPACT# item."""
+    from pipeline_enrichment.synopsis import SynopsisResult
+
+    def staged_synopsis(*, pmid, **_):
+        return SynopsisResult(pmid=pmid, synopsis="s", model=SONNET_MODEL,
+                              input_tokens=1, output_tokens=1,
+                              stage="T2", stage_confidence="high")
+
+    fake_table = MagicMock(name="injected_ddb_table")
+    with patch.object(daily_job, "fetch_new_publications", return_value=_delta_rows([3002])), \
+         patch.object(daily_job.ddb_writer, "write_impact_batch", return_value=1) as wb:
+        run_daily_enrichment(
+            engine=fake_engine,
+            ddb_table=fake_table,
+            generate_synopsis=staged_synopsis,
+            score_impact=_ok_impact,
+        )
+    item = wb.call_args.args[1][0]
+    assert item["translational_stage"] == "T2"
+    assert item["translational_stage_confidence"] == "high"
 
 
 def test_dual_write_failure_leaves_watermark_unadvanced(
