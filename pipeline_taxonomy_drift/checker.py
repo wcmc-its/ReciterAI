@@ -462,19 +462,47 @@ def _check_field_coverage(table: Any, day: str, field_counts: dict, thresholds: 
     return fields
 
 
+def monthly_heartbeat(result: dict, day: str) -> bool | None:
+    """On the 1st of the month, post an INFO card when today's checks were quiet.
+
+    The Teams webhook is a Power Automate flow, and Power Automate turns off a
+    flow that has not run in 90 days. Prod is usually clean, so the drift checks
+    can go months without a card; once the flow is off, the next real alert gets
+    a non-2xx and vanishes. One quiet card a month keeps the flow alive and shows
+    the path still delivers. Returns None when no card was due.
+    """
+    if not day.endswith("-01"):
+        return None
+    if result["severity"] in ALERTABLE or result["topic_fields"]["severity"] in ALERTABLE:
+        return None  # a real card already went out today
+    from pipeline_enrichment import alerting
+
+    return alerting.alert(
+        "INFO",
+        "ReciterAI monthly check-in: drift checks clean",
+        "Taxonomy drift and TOPIC# field coverage both reported OK. This card is "
+        "sent on the 1st of each month to confirm the alert path still delivers. "
+        "No action needed.",
+        {"source": "pipeline_taxonomy_drift.checker", "day": day},
+        mention=False,
+    )
+
+
 def handler(event, context):  # pragma: no cover - thin Lambda entrypoint
     from utils.dynamodb_helpers import get_table
     from utils.iso_clock import now_iso
     from utils.taxonomy import current_content_hash, topic_ids
 
+    day = now_iso()[:10]
     result = run_check(
         get_table(),
         topic_ids(),
         taxonomy_hash=current_content_hash(),
-        day=now_iso()[:10],
+        day=day,
     )
     logger.info(
         "taxonomy drift check: %s; topic field coverage: %s",
         result["severity"], result["topic_fields"]["severity"],
     )
+    result["heartbeat_sent"] = monthly_heartbeat(result, day)
     return result

@@ -402,3 +402,41 @@ class TestCatalogDrift:
         assert "catalog" in title.lower()
         assert ctx["catalog_stale_topics"] == ["gone"]
         assert kwargs["mention"] is True
+
+
+class TestMonthlyHeartbeat:
+    """Keeps the Power Automate webhook flow from hitting its 90-day off switch."""
+
+    @pytest.fixture
+    def calls(self, monkeypatch):
+        import pipeline_enrichment.alerting as alerting
+
+        sent = []
+        monkeypatch.setattr(alerting, "alert", lambda *a, **k: sent.append((a, k)) or True)
+        return sent
+
+    @staticmethod
+    def _result(taxonomy="OK", fields="OK"):
+        return {"severity": taxonomy, "topic_fields": {"severity": fields}}
+
+    def test_quiet_first_of_month_sends_info_card(self, calls):
+        from pipeline_taxonomy_drift.checker import monthly_heartbeat
+
+        assert monthly_heartbeat(self._result(), "2026-12-01") is True
+        (args, kwargs), = calls
+        assert args[0] == "INFO"
+        assert kwargs["mention"] is False
+
+    def test_other_days_send_nothing(self, calls):
+        from pipeline_taxonomy_drift.checker import monthly_heartbeat
+
+        assert monthly_heartbeat(self._result(), "2026-12-02") is None
+        assert monthly_heartbeat(self._result(), "2026-12-10") is None
+        assert calls == []
+
+    @pytest.mark.parametrize("taxonomy,fields", [("WARN", "OK"), ("OK", "ERROR")])
+    def test_skipped_when_a_real_card_already_went_out(self, calls, taxonomy, fields):
+        from pipeline_taxonomy_drift.checker import monthly_heartbeat
+
+        assert monthly_heartbeat(self._result(taxonomy, fields), "2026-12-01") is None
+        assert calls == []
