@@ -1,6 +1,6 @@
 """Synopsis generation — per-PMID worker.
 
-Generates a ≤95-char publication synopsis on AWS Bedrock Claude Sonnet 4.6,
+Generates a short publication synopsis (≤120 chars accepted) on AWS Bedrock Claude Sonnet,
 with a one-shot OpenAI gpt-5.1 content-filter fallback (see
 `pipeline_enrichment.llm_call`). Ported from POC `core/synopsis.py`.
 
@@ -9,8 +9,8 @@ Output: SynopsisResult — synopsis string + token usage for cost
 attribution + the model actually used (Sonnet, or gpt-5.1 on a fallback).
 
 Length enforcement: Bedrock Converse has no strict-JSON `maxLength`, so the
-≤95-char rule is enforced solely by the Python reinforcement-retry loop
-below (initial call + up to two retries). The model's actual output is
+≤120-char rule is enforced solely by the Python reinforcement-retry loop
+below (initial call + one retry). The model's actual output is
 never truncated — see #50 / feedback_no_arbitrary_truncation.
 """
 from __future__ import annotations
@@ -26,19 +26,21 @@ from utils.bedrock_client import BedrockClient, SONNET_MODEL
 
 logger = logging.getLogger(__name__)
 
-# The ≤95-char synopsis rule is enforced by a reinforcement-retry loop: an
-# initial call plus up to two retries, each retry reinforcing the limit in
-# the prompt. Bedrock Converse has no strict-JSON `maxLength` to lean on
-# (the retired OpenAI path used a `json_schema`), so this loop is the SOLE
-# enforcement. On a final overrun the model's actual output is preserved
-# with a length-violation error — NEVER truncated, since truncation
-# silently drops content the model considered necessary for user-facing
-# faculty-page text (see #50).
-SYNOPSIS_MAX_CHARS = 95
+# Length rule: the prompt asks for 70 characters (prompts.SYNOPSIS_SYSTEM) and
+# up to SYNOPSIS_MAX_CHARS is accepted. Sonnet 5.5 overshoots a stated limit by
+# about 25-30 characters, so asking for the cap itself made nearly every first
+# attempt overrun and retry; asking for 70 lands 97% of first attempts within
+# 120 (measured 2026-11-16, n=100). Bedrock Converse has no strict-JSON
+# `maxLength`, so this check is the SOLE enforcement. On a final overrun the
+# model's actual output is preserved with a length-violation error, NEVER
+# truncated, since truncation silently drops content the model considered
+# necessary for user-facing faculty-page text (see #50).
+SYNOPSIS_MAX_CHARS = 120
 
-# Initial call + 2 reinforcement retries. Widened from 1 retry (D4): the
-# Bedrock model spike overran 95 chars on ~23% of first attempts.
-SYNOPSIS_MAX_ATTEMPTS = 3
+# Initial call + 1 reinforcement retry. A retry should be rare (about 3% of
+# papers); it is logged at WARNING so a regression shows up in CloudWatch
+# instead of only in the token bill.
+SYNOPSIS_MAX_ATTEMPTS = 2
 
 
 @dataclass
@@ -72,7 +74,7 @@ def generate_synopsis(
     system_prompt: str | None = None,
     user_content_builder: Callable[..., str] | None = None,
 ) -> SynopsisResult:
-    """Generate a ≤95-char synopsis for one PMID on Bedrock Sonnet 4.6.
+    """Generate a synopsis (≤120 chars accepted) for one PMID on Bedrock Sonnet.
 
     Args:
         pmid: PMID string, used only for tagging the result + log lines.
@@ -156,7 +158,7 @@ def generate_synopsis(
             )
         # Overrun — reinforce the limit and retry (unless this was the last
         # attempt, in which case the loop falls through to the block below).
-        logger.info(
+        logger.warning(
             "synopsis length=%d > %d for pmid=%s (attempt %d/%d); "
             "retrying with reinforcement",
             len(synopsis_text), SYNOPSIS_MAX_CHARS, pmid,

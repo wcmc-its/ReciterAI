@@ -22,11 +22,17 @@ from __future__ import annotations
 import html
 
 # =============================================================================
-# Synopsis (≤95-char publication synopsis)
+# Synopsis (publication synopsis: prompt asks for 70 chars, up to 120 accepted)
 # =============================================================================
 
+# The prompt asks for 70 characters and the validator (synopsis.py,
+# SYNOPSIS_MAX_CHARS) accepts up to 120. The gap is deliberate: Sonnet 5.5
+# lands about 25-30 characters ABOVE whatever number it is given. Measured
+# 2026-11-16 on 100 papers, first attempt only: asked for 95 it overran 95 on
+# 100/100 (median 121); asked for 70 it stays within 120 on 97/100 (median 98).
+# Do not "fix" the 70 to match the cap.
 SYNOPSIS_SYSTEM = """You are a scientific writing assistant.
-Given an abstract, produce a concise synopsis (<= 95 characters).
+Given an abstract, produce a concise synopsis (<= 70 characters).
 Requirements:
 - 40+ characters
 - >= 5 words
@@ -40,12 +46,12 @@ SYNOPSIS_SCHEMA = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            # maxLength 95 mirrors the SYNOPSIS_SYSTEM "<= 95 characters" rule
-            # at the JSON-schema level. The plain-language prompt directive
+            # maxLength 120 mirrors synopsis.SYNOPSIS_MAX_CHARS (the accepted
+            # length, not the 70 the prompt asks for) at the JSON-schema level. The plain-language prompt directive
             # was insufficient on its own: the #37 step 2 bootstrap surfaced
             # a 17.1% overrun rate (310/1,815 papers, worst 141 chars).
             # See #50.
-            "synopsis": {"type": "string", "maxLength": 95},
+            "synopsis": {"type": "string", "maxLength": 120},
         },
         "required": ["synopsis"],
     },

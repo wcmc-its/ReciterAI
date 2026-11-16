@@ -37,9 +37,9 @@ def test_synopsis_system_prompt_byte_stable():
     """If this fails, someone edited SYNOPSIS_SYSTEM. Re-run the equivalence
     check (scripts/equivalence_check.py) and update the expected hash in
     the same commit if the edit is deliberate."""
-    expected = "17ee07fec6a288a7fbd71ab1b017d1370afc960ec7177df810bd539a36b74a6a"
+    expected = "3c802fb480d82c8201f4ae3b50aa5a2cb93378da215927fc2373d5a5d06e8f81"
     assert _hash(SYNOPSIS_SYSTEM) == expected, (
-        f"SYNOPSIS_SYSTEM has drifted from the 2026-05-13 ported version. "
+        f"SYNOPSIS_SYSTEM has drifted from the pinned version (70-char ask, 2026-11-16). "
         f"Got: {_hash(SYNOPSIS_SYSTEM)}"
     )
 
@@ -47,7 +47,7 @@ def test_synopsis_system_prompt_byte_stable():
 def test_synopsis_system_prompt_structural_invariants():
     """Survives small whitespace edits; catches semantic damage."""
     assert "scientific writing assistant" in SYNOPSIS_SYSTEM
-    assert "<= 95 characters" in SYNOPSIS_SYSTEM
+    assert "<= 70 characters" in SYNOPSIS_SYSTEM
     assert "40+ characters" in SYNOPSIS_SYSTEM
     assert ">= 5 words" in SYNOPSIS_SYSTEM
 
@@ -72,9 +72,9 @@ def test_synopsis_schema_shape():
     assert SYNOPSIS_SCHEMA["schema"]["required"] == ["synopsis"]
     syn_prop = SYNOPSIS_SCHEMA["schema"]["properties"]["synopsis"]
     assert syn_prop["type"] == "string"
-    # Added 2026-05-14 (#50): schema-level cap mirrors the SYNOPSIS_SYSTEM
-    # plain-language "<= 95 characters" rule.
-    assert syn_prop["maxLength"] == 95
+    # Schema-level cap mirrors synopsis.SYNOPSIS_MAX_CHARS, the ACCEPTED length;
+    # the prompt deliberately asks for less (70).
+    assert syn_prop["maxLength"] == 120
 
 
 def test_synopsis_user_content_format():

@@ -3,7 +3,7 @@
 `generate_synopsis` now runs on AWS Bedrock Sonnet 4.6 via
 `pipeline_enrichment.llm_call`, with an OpenAI gpt-5.1 content-filter
 fallback. These tests inject a fake Bedrock client and exercise:
-- a ≤95-char first attempt → returned cleanly;
+- a within-limit first attempt → returned cleanly;
 - an overrun → reinforcement retry; the loop is the initial call + 2 retries;
 - every attempt overruns → returned with an error flag, the model's actual
   output preserved (NEVER truncated — #50 / feedback_no_arbitrary_truncation);
@@ -77,7 +77,7 @@ def test_synopsis_first_attempt_within_limit_returns_clean():
 
 
 def test_synopsis_first_overrun_retries_and_succeeds():
-    over = "x" * 110  # over the 95 limit
+    over = "x" * 130  # over the 120 limit
     under = "x" * 80
     fake = _FakeBedrock([_bedrock_synopsis(over), _bedrock_synopsis(under)])
     result = generate_synopsis(pmid="2", title="T", abstract="A", client=fake)
@@ -90,42 +90,41 @@ def test_synopsis_first_overrun_retries_and_succeeds():
     assert result.output_tokens == 40
     # The retry augmented the user prompt with the violation hint.
     second_user = fake.calls[1]["messages"][0]["content"]
-    assert "previous attempt was 110 characters" in second_user
+    assert "previous attempt was 130 characters" in second_user
     assert "Count characters" in second_user
 
 
-def test_synopsis_uses_three_attempts_before_giving_up():
-    """D4: the loop is the initial call + 2 reinforcement retries."""
-    assert SYNOPSIS_MAX_ATTEMPTS == 3
-    over1, over2 = "x" * 110, "x" * 105
-    under = "x" * 60
-    fake = _FakeBedrock([
-        _bedrock_synopsis(over1), _bedrock_synopsis(over2), _bedrock_synopsis(under),
-    ])
-    result = generate_synopsis(pmid="3", title="T", abstract="A", client=fake)
-
-    assert fake.call_count == 3
-    assert result.synopsis == under
-    assert result.error is None
+def test_synopsis_makes_one_retry_only():
+    """The loop is the initial call + ONE reinforcement retry. Retries are meant
+    to be rare; a third call per paper is how the 95-char prompt tripled cost."""
+    assert SYNOPSIS_MAX_ATTEMPTS == 2
 
 
 def test_synopsis_all_attempts_overrun_returns_violation_flag_preserves_output():
     """Every attempt overruns: the model's actual output is preserved (NOT
     truncated) and the error field flags the length violation."""
-    a, b, c = "x" * 110, "x" * 108, "x" * 100  # all over 95
-    fake = _FakeBedrock([
-        _bedrock_synopsis(a), _bedrock_synopsis(b), _bedrock_synopsis(c),
-    ])
+    a, b = "x" * 130, "x" * 125  # both over 120
+    fake = _FakeBedrock([_bedrock_synopsis(a), _bedrock_synopsis(b)])
     result = generate_synopsis(pmid="4", title="T", abstract="A", client=fake)
 
-    assert fake.call_count == 3
-    # Critical: actual output preserved, not clipped to 95.
-    assert result.synopsis == c
-    assert len(result.synopsis) == 100
+    assert fake.call_count == 2
+    # Critical: actual output preserved, not clipped to the limit.
+    assert result.synopsis == b
+    assert len(result.synopsis) == 125
     assert result.error is not None
     assert "length violation" in result.error
-    assert "100 chars" in result.error
-    assert "limit 95" in result.error
+    assert "125 chars" in result.error
+    assert "limit 120" in result.error
+
+
+def test_synopsis_prompt_asks_for_less_than_the_accepted_length():
+    """Sonnet overshoots a stated limit by 25-30 characters, so the prompt's
+    number must stay well under SYNOPSIS_MAX_CHARS. Raising it to match the cap
+    brings back a retry on nearly every paper."""
+    import re
+    from pipeline_enrichment.prompts import SYNOPSIS_SYSTEM
+    asked = int(re.search(r"<= (\d+) characters", SYNOPSIS_SYSTEM).group(1))
+    assert SYNOPSIS_MAX_CHARS - asked >= 40
 
 
 def test_synopsis_empty_field_short_circuits_no_retry():
@@ -161,7 +160,7 @@ def test_synopsis_call_error_returns_immediately():
 
 
 def test_synopsis_exactly_at_limit_is_accepted():
-    """The boundary case: exactly 95 chars is allowed (≤ not <)."""
+    """The boundary case: exactly SYNOPSIS_MAX_CHARS is allowed (≤ not <)."""
     exactly = "x" * SYNOPSIS_MAX_CHARS
     fake = _FakeBedrock([_bedrock_synopsis(exactly)])
     result = generate_synopsis(pmid="8", title="T", abstract="A", client=fake)
@@ -216,7 +215,7 @@ def test_synopsis_content_filter_mid_loop_after_overrun_accumulates_tokens():
     assert len(kept) <= SYNOPSIS_MAX_CHARS
 
     fake = _FakeBedrock([
-        _bedrock_synopsis("x" * 110),  # attempt 1 — Sonnet, overruns
+        _bedrock_synopsis("x" * 130),  # attempt 1 — Sonnet, overruns
         BedrockEmptyContentError(stop_reason="content_filtered", model=SONNET_MODEL),
     ])
     with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
@@ -234,7 +233,7 @@ def test_synopsis_content_filter_mid_loop_after_overrun_accumulates_tokens():
 
 
 def test_synopsis_overrunning_fallback_re_enters_length_loop():
-    """A gpt-5.1 fallback whose own output overruns 95 chars re-enters the
+    """A gpt-5.1 fallback whose own output overruns the limit re-enters the
     reinforcement loop; the next attempt goes back to Bedrock (the fallback
     is one-shot per call_with_fallback invocation)."""
     kept = "Second attempt came back from Bedrock within the limit cleanly"
@@ -246,7 +245,7 @@ def test_synopsis_overrunning_fallback_re_enters_length_loop():
     ])
     with patch.object(llm_call_mod, "get_default_openai_client", return_value=object()), \
          patch.object(llm_call_mod, "openai_call_with_retry",
-                      return_value=_openai_completion(json.dumps({"synopsis": "x" * 110}))) as mock_openai:
+                      return_value=_openai_completion(json.dumps({"synopsis": "x" * 130}))) as mock_openai:
         result = generate_synopsis(pmid="12", title="T", abstract="A", client=fake)
 
     assert fake.call_count == 2
@@ -284,7 +283,7 @@ def test_synopsis_overrides_apply_to_every_attempt():
         seen.update(title=title, journal=journal, year=year, abstract=abstract)
         return f"Title: {title}\nFunder: {journal}\nStart year: {year}\nAbstract: {abstract}"
 
-    fake = _FakeBedrock([_bedrock_synopsis("x" * 110), _bedrock_synopsis("fits")])
+    fake = _FakeBedrock([_bedrock_synopsis("x" * 130), _bedrock_synopsis("fits")])
     result = generate_synopsis(pmid="grant:abc", title="T", journal="NIH R01",
                                year=2023, abstract="A", client=fake,
                                system_prompt="GRANT SYSTEM", user_content_builder=builder)
