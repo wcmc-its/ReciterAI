@@ -422,7 +422,9 @@ own deferred Phase).
    Confirm:
    - the task launches (image pull / IAM / network all wired),
    - the content-filter fallback fires cleanly when it triggers,
-   - length enforcement on the synopsis 3-attempt loop holds,
+   - length enforcement on the synopsis loop holds (prompt asks for 70
+     characters, up to 120 accepted, one retry; see
+     `docs/experiments/synopsis-length-2026-11-16.md`),
    - MariaDB + `IMPACT#` writes land for the test PMID,
    - `cost_observed_usd` is in the spike-derived range — pin the
      cost-guard default down if measured spend differs materially.

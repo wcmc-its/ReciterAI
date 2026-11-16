@@ -5,7 +5,7 @@ are mirrored in `prompts.py`; equivalence vs. the POC laptop runs is verified
 by `scripts/equivalence_check.py`.
 
 This package is intentionally narrow:
-- `synopsis.py` — generate a ≤95-char synopsis from (title, abstract)
+- `synopsis.py` — generate a short synopsis (≤120 chars accepted) from (title, abstract)
 - `impact.py` — generate impact score (0–100) + justification from
   (title, abstract, bibliometric fields)
 

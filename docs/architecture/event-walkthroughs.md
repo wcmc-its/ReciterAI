@@ -28,7 +28,7 @@ Companion to architecture view **⑧ Key event sequences** ([gallery](index.html
 | Step | What happens |
 |---|---|
 | **①** Read delta | new/changed PMIDs since the last tick are pulled from ReciterDB. |
-| **②** Sonnet synopsis + impact | one ≤95-char plain-language synopsis + an impact score in **[0, 100]**. If Bedrock **content-filters** the call, it retries on OpenAI **`gpt-5.1`**. |
+| **②** Sonnet synopsis + impact | one short plain-language synopsis (up to 120 characters) + an impact score in **[0, 100]**. If Bedrock **content-filters** the call, it retries on OpenAI **`gpt-5.1`**. |
 | **③** Record written | `IMPACT#{pmid}` (synopsis + impact). |
 
 **Real** — example PMID `38867038`, *"Endoplasmic reticulum–plasma membrane contact gradients direct cell migration"* (Nature, 2024), from the `2026-06-13` artifact. **Representative** — the synopsis text and impact integer (DynamoDB `IMPACT#`; not in the local artifact).
