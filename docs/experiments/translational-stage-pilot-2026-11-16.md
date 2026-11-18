@@ -110,10 +110,11 @@ Corpus sizes in reciterdb on 2026-11-16: 287,274 Academic Articles; 268,628 with
 
 `scripts/backfill_synopsis_stage_wide.py` gives a synopsis and a stage to research articles the daily job never reaches, because the daily job only enriches papers with a full-time-faculty author.
 
-- Work set: Academic Articles from 2020 onward that iCite marks as a research article (`analysis_nih.is_research_article = 'True'`) and that have a non-empty abstract, minus every pmid that already has an `IMPACT#` row, minus every `INVALID#` pmid. On 2026-11-18 that was 79,943 in scope, 10,150 with a row already, 957 invalid, 68,836 remaining.
+- Work set: Academic Articles from 2020 onward that iCite marks as a research article (`analysis_nih.is_research_article = 'True'`) and that have an abstract of at least 50 characters once whitespace is collapsed, minus every pmid that already has an `IMPACT#` row, minus every `INVALID#` pmid. The length floor drops values that are not abstracts (a lone carriage return, "Not available.", "[Figure: see text].", one-symbol stubs); those papers get no model call and no row, since a stage read from the title alone would be mislabelled `translational_stage_source = abstract`. On 2026-11-18 that was 78,466 in scope, 9,732 with a row already, 957 invalid, 67,777 remaining.
 - Each paper goes through `generate_synopsis`, the same call and prompt the daily job uses. A 20-paper dry run cost $0.0027 per paper, with a valid stage on all 20 and no synopsis over 120 characters.
 - Each write is a PutItem conditional on `attribute_not_exists(PK)`, so it cannot overwrite a row the daily job wrote. If one of these papers later gains a faculty author, the daily job's unconditional write replaces the stage-only row with a full one.
 - A paper whose call fails, or that gets no valid stage, gets no row and is retried by the next run. `--max-usd` (default 25) stops the run once measured spend reaches it; re-running continues from where it stopped.
+- Each result is written to the table and the CSV as its own call finishes, so a slow call does not hold back finished ones. A failed chunk fetch, five failed writes in a row, or Ctrl-C stops the run: calls in flight are collected and written, the summary is printed, and the exit code is 1.
 
 The row is not a normal `IMPACT#` row:
 

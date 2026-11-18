@@ -8,9 +8,11 @@ returning synopsis + stage + confidence) over every other research article
 from 2020 onward and writes a stage-only ``IMPACT#`` row for each.
 
 Work set, from reciterdb: Academic Articles, ``articleYear >= 2020``, that
-NIH iCite marks as a research article and that have a non-empty abstract;
-minus any pmid that already has an ``IMPACT#`` row, minus any ``INVALID#``
-pmid.
+NIH iCite marks as a research article and that have a real abstract (see
+``usable_abstract``: whitespace-only values and stubs such as "Not
+available." are not abstracts, and a stage read from the title alone must not
+be stored as ``translational_stage_source='abstract'``); minus any pmid that
+already has an ``IMPACT#`` row, minus any ``INVALID#`` pmid.
 
 The row deliberately has NO ``synopsis`` and NO ``impact_score`` attribute.
 Several readers treat "the IMPACT# row has a ``synopsis``" as "this paper is
@@ -22,6 +24,12 @@ Idempotency: each write is a PutItem conditional on the row not existing, so
 it can never overwrite a row the daily job wrote, and a re-run only spends on
 papers that still have no row. A paper whose call failed or returned no valid
 stage gets no row and is retried by a later run.
+
+Each result is written (table and CSV) as soon as its own call finishes, in
+completion order, so one slow call does not hold back the others. A failed
+chunk fetch, a run of consecutive failed writes, or Ctrl-C stops the run
+cleanly: calls already in flight are collected and written, nothing new is
+submitted, and the summary is still printed (exit code 1).
 
 Usage:
     python3 scripts/backfill_synopsis_stage_wide.py --limit 20            # dry run: call the model, write nothing
@@ -42,7 +50,7 @@ import logging
 import statistics
 import sys
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -69,10 +77,22 @@ STAGE_SOURCE = "abstract"
 ENRICHMENT_SCOPE = "stage_only"
 FETCH_CHUNK = 500
 WORKERS = 8
+# Shortest text that counts as an abstract, after collapsing whitespace. Below
+# this reciterdb holds a lone carriage return, "Not available.",
+# "[Figure: see text].", or a one-symbol stub, never an abstract.
+MIN_ABSTRACT_CHARS = 50
+# Stop the run after this many failed writes in a row: the table is unreachable
+# and every further model call would be paid for and thrown away.
+MAX_CONSECUTIVE_WRITE_ERRORS = 5
 
 # Same Academic Article / 2020 invariant as the daily job, widened from
 # "has a full-time-faculty author" to "iCite research article with an abstract".
-WORK_SET_SQL = """
+#
+# The length test is a coarse pre-filter only (MySQL TRIM strips spaces, not
+# carriage returns, so it cannot express "non-blank"). Raw length is never
+# shorter than the collapsed length, so SQL never drops a paper that
+# ``usable_abstract`` would keep; ``run`` applies the exact rule per row.
+WORK_SET_SQL = f"""
 SELECT a.pmid
 FROM analysis_summary_article a
 JOIN analysis_nih n ON n.pmid = a.pmid
@@ -80,7 +100,7 @@ JOIN reporting_abstracts r ON r.pmid = a.pmid
 WHERE a.publicationTypeCanonical = 'Academic Article'
   AND a.articleYear >= 2020
   AND n.is_research_article = 'True'
-  AND TRIM(COALESCE(r.abstractVarchar, '')) <> ''
+  AND CHAR_LENGTH(COALESCE(r.abstractVarchar, '')) >= {MIN_ABSTRACT_CHARS}
 ORDER BY a.pmid DESC
 """
 
@@ -115,6 +135,15 @@ def select_work_set(in_scope: Iterable[str], have_row: set[str], invalid: set[st
     """In-scope pmids with no IMPACT# row and no INVALID# row, pmid descending. Pure."""
     keep = sorted({str(p) for p in in_scope} - set(have_row) - set(invalid), key=int, reverse=True)
     return keep if limit is None else keep[:limit]
+
+
+def usable_abstract(abstract: Any) -> bool:
+    """True when the text is long enough to be an abstract. Pure.
+
+    Whitespace is collapsed first, so a lone carriage return (which is truthy,
+    and which the synopsis prompt would send as "Abstract: \\r") counts as empty.
+    """
+    return isinstance(abstract, str) and len(" ".join(abstract.split())) >= MIN_ABSTRACT_CHARS
 
 
 def summarize(row: dict[str, Any]) -> dict[str, Any]:
@@ -171,18 +200,31 @@ def run(pmids: list[str], fetch_rows: Callable[[list[str]], list[dict]], *, max_
         client=None, apply: bool = False, workers: int = WORKERS,
         summarize_fn: Callable[[dict], dict] = summarize,
         on_result: Optional[Callable[[dict], None]] = None) -> dict[str, Any]:
-    """Process the work set newest first; write each row as its result arrives.
+    """Process the work set newest first; write each row as its call finishes.
+
+    Results are handled in completion order, not submission order, so a slow
+    call never holds back the write or the CSV row of a finished one.
 
     Stops submitting once measured spend reaches ``max_usd`` (calls already in
     flight finish, so spend can pass the cap by up to ``workers - 1`` papers).
     Without ``apply`` nothing is written.
+
+    Never raises for a failed fetch, a failed write or Ctrl-C: it stops
+    submitting, collects the calls already in flight, and returns the summary
+    with ``aborted`` set to the reason.
     """
     s: dict[str, Any] = {"results": [], "usd": 0.0, "written": 0, "already": 0, "write_errors": 0,
-                         "not_found": 0, "not_submitted": 0, "budget_hit": False}
+                         "not_found": 0, "no_abstract": 0, "not_submitted": 0, "budget_hit": False,
+                         "aborted": ""}
     lock = threading.Lock()
+    stop = threading.Event()
+    pending: set[Future] = set()
+    consecutive_write_errors = 0
 
     def work(row):
         with lock:
+            if stop.is_set():
+                return None
             if s["usd"] >= max_usd:
                 s["budget_hit"] = True
                 return None
@@ -191,35 +233,71 @@ def run(pmids: list[str], fetch_rows: Callable[[list[str]], list[dict]], *, max_
             s["usd"] += r["usd"]
         return r
 
+    def handle(r):
+        nonlocal consecutive_write_errors
+        s["results"].append(r)
+        if on_result:
+            on_result(r)
+        if not (apply and r["synopsis"] and r["stage"]):
+            return
+        try:
+            client.put_item(**build_put(
+                pmid=r["pmid"], synopsis=r["synopsis"], model=r["model"], stage=r["stage"],
+                confidence=r["confidence"], enriched_at=now_iso()))
+            s["written"] += 1
+            consecutive_write_errors = 0
+            return
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                s["already"] += 1  # the daily job (or another run) wrote it since the scan
+                consecutive_write_errors = 0
+                return
+            err: Exception = e
+        except Exception as e:  # noqa: BLE001 - connection/timeout errors are BotoCoreError, not ClientError
+            err = e
+        s["write_errors"] += 1
+        consecutive_write_errors += 1
+        logger.error("put failed for pmid=%s: %s", r["pmid"], err)
+        if consecutive_write_errors >= MAX_CONSECUTIVE_WRITE_ERRORS and not s["aborted"]:
+            s["aborted"] = f"{consecutive_write_errors} consecutive write errors, last: {err}"
+            stop.set()
+
+    def collect():
+        for f in as_completed(list(pending)):
+            pending.discard(f)
+            r = f.result()
+            if r is not None:
+                handle(r)
+
     with ThreadPoolExecutor(workers) as ex:
-        for i in range(0, len(pmids), FETCH_CHUNK):
-            chunk = pmids[i:i + FETCH_CHUNK]
-            if s["usd"] >= max_usd:
-                s["budget_hit"] = True
-                s["not_submitted"] += len(pmids) - i
-                break
-            rows = sorted(fetch_rows(chunk), key=lambda r: int(r["pmid"]), reverse=True)
-            s["not_found"] += len(chunk) - len(rows)
-            for r in ex.map(work, rows):
-                if r is None:
-                    s["not_submitted"] += 1
-                    continue
-                s["results"].append(r)
-                if on_result:
-                    on_result(r)
-                if not (apply and r["synopsis"] and r["stage"]):
-                    continue
-                try:
-                    client.put_item(**build_put(
-                        pmid=r["pmid"], synopsis=r["synopsis"], model=r["model"], stage=r["stage"],
-                        confidence=r["confidence"], enriched_at=now_iso()))
-                    s["written"] += 1
-                except ClientError as e:
-                    if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-                        s["already"] += 1  # the daily job (or another run) wrote it since the scan
-                    else:
-                        s["write_errors"] += 1
-                        logger.error("put failed for pmid=%s: %s", r["pmid"], e)
+        try:
+            for i in range(0, len(pmids), FETCH_CHUNK):
+                if stop.is_set():
+                    break
+                if s["usd"] >= max_usd:
+                    s["budget_hit"] = True
+                    break
+                chunk = pmids[i:i + FETCH_CHUNK]
+                rows = sorted(fetch_rows(chunk), key=lambda r: int(r["pmid"]), reverse=True)
+                s["not_found"] += len(chunk) - len(rows)
+                usable = [r for r in rows if usable_abstract(r.get("abstractVarchar"))]
+                s["no_abstract"] += len(rows) - len(usable)
+                pending.update(ex.submit(work, r) for r in usable)
+                collect()
+        except (Exception, KeyboardInterrupt) as e:  # noqa: BLE001 - report what was done, then stop
+            s["aborted"] = s["aborted"] or (
+                "interrupted" if isinstance(e, KeyboardInterrupt) else f"{type(e).__name__}: {e}")
+            logger.error("run stopped: %s", s["aborted"])
+            # Nothing new starts; calls already in flight are paid for, so keep them.
+            stop.set()
+            for f in list(pending):
+                if f.cancel():
+                    pending.discard(f)
+            try:
+                collect()
+            except Exception as e2:  # noqa: BLE001
+                logger.error("could not collect in-flight results: %s", e2)
+    s["not_submitted"] = len(pmids) - len(s["results"]) - s["not_found"] - s["no_abstract"]
     return s
 
 
@@ -271,8 +349,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     print(f"processed: {len(results)}/{len(pmids)}; usable (synopsis and stage): {len(usable)}; "
           f"no synopsis: {sum(not r['synopsis'] for r in results)}; "
           f"synopsis but no stage: {sum(bool(r['synopsis']) and not r['stage'] for r in results)}; "
-          f"not in reciterdb fetch: {s['not_found']}")
-    if s["budget_hit"]:
+          f"not in reciterdb fetch: {s['not_found']}; no usable abstract (skipped, no call): {s['no_abstract']}")
+    if s["aborted"]:
+        print(f"ABORTED ({s['aborted']}): {s['not_submitted']} papers of this run not processed; "
+              f"rows already written stay written and a re-run skips them")
+    elif s["budget_hit"]:
         print(f"STOPPED at --max-usd ${args.max_usd:.2f}: {s['not_submitted']} papers of this run not submitted")
     print("stages: " + ", ".join(f"{k}={v}" for k, v in sorted(collections.Counter(r['stage'] for r in usable).items())))
     print("confidence: " + ", ".join(f"{k}={v}" for k, v in collections.Counter(r['confidence'] for r in usable).most_common()))
@@ -285,7 +366,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"written: {s['written']}; already present: {s['already']}; write errors: {s['write_errors']}")
     else:
         print("dry run: nothing written")
-    return 1 if s["write_errors"] else 0
+    return 1 if s["write_errors"] or s["aborted"] else 0
 
 
 if __name__ == "__main__":
