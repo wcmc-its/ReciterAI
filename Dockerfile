@@ -17,6 +17,12 @@ RUN pip install -r requirements.txt \
 
 COPY . .
 
+# Fail the build when a covered subarea draft is missing. The drafts are
+# gitignored (.planning/), so a fresh clone or worktree has none and COPY
+# silently ships an image in which area signals assigns no subareas. Copy
+# hierarchy_draft_*.json into .planning/phases/04-subtopic-system/ first.
+RUN python -c "import json,pathlib,sys; d=pathlib.Path('.planning/phases/04-subtopic-system'); m=[t for t in json.load(open('config/hierarchy_draft_coverage.json'))['draft_covered_topics'] if not (d/f'hierarchy_draft_{t}.json').is_file()]; sys.exit(f'{len(m)} subarea draft(s) missing from the build context: {m[:5]}') if m else print('subarea drafts present')"
+
 # Build id for utils.build_info.build_id() (#407) — TOPIC# rows carry it in
 # `minted_by`. .git is dockerignored, so pass it in:
 #   docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) ...
