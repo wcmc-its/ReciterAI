@@ -361,6 +361,9 @@ own deferred Phase).
    from the repo's `Dockerfile`, tag, push:
    ```bash
    aws ecr create-repository --repository-name reciterai-enrichment
+   # The build fails unless .planning/phases/04-subtopic-system/ holds every
+   # covered hierarchy_draft_*.json (gitignored: copy them into a fresh clone
+   # or worktree first).
    docker build -t reciterai-enrichment:$(git rev-parse --short HEAD) .
    docker tag reciterai-enrichment:<sha> \
      <acct>.dkr.ecr.us-east-1.amazonaws.com/reciterai-enrichment:<sha>
